@@ -1,0 +1,422 @@
+<div id="view-monitoring" class="view-panel space-y-6">
+        <!-- Scoped Animation Styles -->
+        <style>
+          @keyframes pulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.3; }
+          }
+          .animate-pulse-live {
+            animation: pulse 1.5s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+          }
+        </style>
+
+        <!-- Page header -->
+        <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+          <div>
+            <h1 class="text-2xl font-bold text-gray-900">Monitoring real-time</h1>
+            <p class="text-sm text-gray-500 mt-0.5">Update otomatis setiap 5 detik</p>
+          </div>
+          <div class="flex items-center gap-3">
+            <div id="monitoring-live-indicator" class="flex items-center gap-1.5 bg-red-50 text-red-600 rounded-full px-3 py-1 text-xs font-semibold select-none">
+              <span class="w-1.5 h-1.5 rounded-full bg-red-500 animate-pulse-live"></span>
+              <span>Live</span>
+            </div>
+            <select id="monitoring-campaign-selector" onchange="changeMonitoringCampaign(this.value)" class="bg-white border border-gray-200 text-gray-700 text-xs font-semibold px-3 py-2 rounded-xl focus:outline-none focus:border-violet-500">
+              <option selected="">Q2 Phishing Wave — Finance</option>
+              <option>BEC Scenario — Finance</option>
+              <option>Q1 Awareness Check</option>
+            </select>
+            <button onclick="triggerExport()" class="bg-white border border-gray-200 text-gray-700 hover:bg-gray-50 px-4 py-2 text-sm font-semibold rounded-xl transition-all">
+              Export CSV
+            </button>
+          </div>
+        </div>
+
+        <!-- Stat cards (5 columns) -->
+        <div class="grid grid-cols-1 sm:grid-cols-3 lg:grid-cols-5 gap-4">
+          <!-- Card 1 -->
+          <div class="bg-white border border-gray-200 rounded-xl p-4 shadow-none flex flex-col justify-between">
+            <div class="flex items-center gap-1.5 text-xs text-gray-500 font-medium">
+              <i class="ti ti-send text-sm"></i>
+              <span>Terkirim</span>
+            </div>
+            <span class="text-2xl font-bold text-gray-900 mt-2" id="m-sent">1.240</span>
+            <span class="text-xs text-gray-500 mt-1" id="m-sent-sub">dari 1.240 target</span>
+          </div>
+          <!-- Card 2 -->
+          <div class="bg-white border border-gray-200 rounded-xl p-4 shadow-none flex flex-col justify-between">
+            <div class="flex items-center gap-1.5 text-xs text-gray-500 font-medium">
+              <i class="ti ti-eye text-sm"></i>
+              <span>Dibuka</span>
+            </div>
+            <span class="text-2xl font-bold text-gray-900 mt-2" id="m-open">735</span>
+            <span class="text-xs text-amber-600 font-semibold mt-1" id="m-open-rate">59% open rate</span>
+          </div>
+          <!-- Card 3 -->
+          <div class="bg-white border border-gray-200 rounded-xl p-4 shadow-none flex flex-col justify-between">
+            <div class="flex items-center gap-1.5 text-xs text-gray-500 font-medium">
+              <i class="ti ti-pointer text-sm"></i>
+              <span>Klik link</span>
+            </div>
+            <span class="text-2xl font-bold text-gray-900 mt-2" id="m-click">234</span>
+            <span class="text-xs text-red-600 font-semibold mt-1" id="m-click-rate">19% click rate</span>
+          </div>
+          <!-- Card 4 -->
+          <div class="bg-white border border-gray-200 rounded-xl p-4 shadow-none flex flex-col justify-between">
+            <div class="flex items-center gap-1.5 text-xs text-gray-500 font-medium">
+              <i class="ti ti-forms text-sm"></i>
+              <span>Submit data</span>
+            </div>
+            <span class="text-2xl font-bold text-gray-900 mt-2" id="m-submit">112</span>
+            <span class="text-xs text-red-600 font-semibold mt-1" id="m-submit-rate">48% dari klikker</span>
+          </div>
+          <!-- Card 5 -->
+          <div class="bg-white border border-gray-200 rounded-xl p-4 shadow-none flex flex-col justify-between">
+            <div class="flex items-center gap-1.5 text-xs text-gray-500 font-medium">
+              <i class="ti ti-alert-triangle text-sm"></i>
+              <span>High-risk</span>
+            </div>
+            <span class="text-2xl font-bold text-gray-900 mt-2" id="m-risk">60</span>
+            <span class="text-xs text-red-600 font-semibold mt-1">perlu coaching</span>
+          </div>
+        </div>
+
+        <!-- Two column (3fr + 2fr) -->
+        <div class="grid grid-cols-1 lg:grid-cols-5 gap-6">
+          <!-- Left: Funnel + per-dept (3fr) -->
+          <div class="bg-white border border-gray-200 rounded-xl p-5 shadow-none lg:col-span-3 space-y-6">
+            <div>
+              <h3 class="text-base font-semibold text-gray-900">Funnel simulasi</h3>
+            </div>
+            
+            <!-- Funnel bars -->
+            <div class="space-y-3">
+              <!-- Row 1 -->
+              <div class="flex items-center gap-3 text-xs">
+                <span class="min-w-[100px] font-semibold text-gray-600">Email terkirim</span>
+                <div class="flex-grow bg-gray-100 h-6 rounded overflow-hidden relative">
+                  <div class="absolute inset-y-0 left-0 bg-violet-100 flex items-center px-3 text-violet-700 font-bold" style="width: 100%;">
+                    1.118
+                  </div>
+                </div>
+                <span class="font-bold text-gray-500 w-10 text-right">100%</span>
+              </div>
+              <!-- Row 2 -->
+              <div class="flex items-center gap-3 text-xs">
+                <span class="min-w-[100px] font-semibold text-gray-600">Email dibuka</span>
+                <div class="flex-grow bg-gray-100 h-6 rounded overflow-hidden relative">
+                  <div class="absolute inset-y-0 left-0 bg-amber-200 flex items-center px-3 text-amber-700 font-bold" style="width: 57%;">
+                    634
+                  </div>
+                </div>
+                <span class="font-bold text-gray-500 w-10 text-right">57%</span>
+              </div>
+              <!-- Row 3 -->
+              <div class="flex items-center gap-3 text-xs">
+                <span class="min-w-[100px] font-semibold text-gray-600">Klik link</span>
+                <div class="flex-grow bg-gray-100 h-6 rounded overflow-hidden relative">
+                  <div class="absolute inset-y-0 left-0 bg-red-200 flex items-center px-3 text-red-700 font-bold transition-all duration-300" style="width: 19%;" id="funnel-click-bar">234</div>
+                </div>
+                <span class="font-bold text-gray-500 w-10 text-right" id="funnel-click-label">19%</span>
+              </div>
+              <!-- Row 4 -->
+              <div class="flex items-center gap-3 text-xs">
+                <span class="min-w-[100px] font-semibold text-gray-600">Submit form</span>
+                <div class="flex-grow bg-gray-100 h-6 rounded overflow-hidden relative">
+                  <div class="absolute inset-y-0 left-0 bg-red-400 flex items-center px-3 text-white font-bold transition-all duration-300" style="width: 9%;" id="funnel-submit-bar">112</div>
+                </div>
+                <span class="font-bold text-gray-500 w-10 text-right" id="funnel-submit-label">9%</span>
+              </div>
+            </div>
+
+            <hr class="border-gray-100">
+
+            <div>
+              <h3 class="text-base font-semibold text-gray-900">Per departemen</h3>
+            </div>
+
+            <!-- Table -->
+            <div class="overflow-x-auto">
+              <table class="w-full text-left border-collapse text-xs text-gray-700">
+                <thead>
+                  <tr class="bg-gray-50 border-b border-gray-200 text-[10px] font-bold text-gray-500 uppercase tracking-wider">
+                    <th class="py-2 px-4">Dept</th>
+                    <th class="py-2 px-4">Target</th>
+                    <th class="py-2 px-4">Klik</th>
+                    <th class="py-2 px-4">Rate</th>
+                    <th class="py-2 px-4">Risk</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  <tr class="border-b border-gray-100">
+                    <td class="py-2.5 px-4 font-semibold text-gray-900">Finance</td>
+                    <td class="py-2.5 px-4">240</td>
+                    <td class="py-2.5 px-4">124</td>
+                    <td class="py-2.5 px-4">
+                      <div class="bg-red-500 h-1.5 rounded-full inline-block w-[52px] mr-1"></div>
+                      <span class="font-semibold text-red-600 align-middle">52%</span>
+                    </td>
+                    <td class="py-2.5 px-4">
+                      <span class="rounded-full text-[10px] font-semibold px-2 py-0.5 bg-red-100 text-red-700">High</span>
+                    </td>
+                  </tr>
+                  <tr class="border-b border-gray-100">
+                    <td class="py-2.5 px-4 font-semibold text-gray-900">HR</td>
+                    <td class="py-2.5 px-4">180</td>
+                    <td class="py-2.5 px-4">72</td>
+                    <td class="py-2.5 px-4">
+                      <div class="bg-amber-500 h-1.5 rounded-full inline-block w-[40px] mr-1"></div>
+                      <span class="font-semibold text-amber-600 align-middle">40%</span>
+                    </td>
+                    <td class="py-2.5 px-4">
+                      <span class="rounded-full text-[10px] font-semibold px-2 py-0.5 bg-amber-100 text-amber-700">Med</span>
+                    </td>
+                  </tr>
+                  <tr class="border-b border-gray-100">
+                    <td class="py-2.5 px-4 font-semibold text-gray-900">Marketing</td>
+                    <td class="py-2.5 px-4">320</td>
+                    <td class="py-2.5 px-4">78</td>
+                    <td class="py-2.5 px-4">
+                      <div class="bg-amber-500 h-1.5 rounded-full inline-block w-[24px] mr-1"></div>
+                      <span class="font-semibold text-amber-600 align-middle">24%</span>
+                    </td>
+                    <td class="py-2.5 px-4">
+                      <span class="rounded-full text-[10px] font-semibold px-2 py-0.5 bg-amber-100 text-amber-700">Med</span>
+                    </td>
+                  </tr>
+                  <tr class="border-b border-gray-100">
+                    <td class="py-2.5 px-4 font-semibold text-gray-900">Engineering</td>
+                    <td class="py-2.5 px-4">280</td>
+                    <td class="py-2.5 px-4">18</td>
+                    <td class="py-2.5 px-4">
+                      <div class="bg-emerald-500 h-1.5 rounded-full inline-block w-[6px] mr-1"></div>
+                      <span class="font-semibold text-emerald-600 align-middle">6%</span>
+                    </td>
+                    <td class="py-2.5 px-4">
+                      <span class="rounded-full text-[10px] font-semibold px-2 py-0.5 bg-emerald-100 text-emerald-700">Low</span>
+                    </td>
+                  </tr>
+                  <tr>
+                    <td class="py-2.5 px-4 font-semibold text-gray-900">Legal</td>
+                    <td class="py-2.5 px-4">220</td>
+                    <td class="py-2.5 px-4">9</td>
+                    <td class="py-2.5 px-4">
+                      <div class="bg-emerald-500 h-1.5 rounded-full inline-block w-[4px] mr-1"></div>
+                      <span class="font-semibold text-emerald-600 align-middle">4%</span>
+                    </td>
+                    <td class="py-2.5 px-4">
+                      <span class="rounded-full text-[10px] font-semibold px-2 py-0.5 bg-emerald-100 text-emerald-700">Low</span>
+                    </td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+          </div>
+
+          <!-- Right column: Sparkline + Event Feed (2fr) -->
+          <div class="lg:col-span-2 space-y-6 flex flex-col">
+            <!-- Sparkline card -->
+            <div class="bg-white border border-gray-200 rounded-xl p-5 shadow-none flex flex-col justify-between">
+              <h3 class="text-sm font-semibold text-gray-900 mb-3">Aktivitas per jam</h3>
+              <!-- Sparkline Flex Container -->
+              <div id="setup-sparkline-container" class="flex items-end gap-1 h-12 mb-2 select-none"><div class="flex-1 rounded-t transition-all duration-300 bg-gray-200" title="4 klik" style="height: 8.88889%;"></div><div class="flex-1 rounded-t transition-all duration-300 bg-gray-200" title="8 klik" style="height: 17.7778%;"></div><div class="flex-1 rounded-t transition-all duration-300 bg-gray-200" title="18 klik" style="height: 40%;"></div><div class="flex-1 rounded-t transition-all duration-300 bg-gray-200" title="32 klik" style="height: 71.1111%;"></div><div class="flex-1 rounded-t transition-all duration-300 bg-gray-200" title="40 klik" style="height: 88.8889%;"></div><div class="flex-1 rounded-t transition-all duration-300 bg-red-500" title="45 klik" style="height: 100%;"></div><div class="flex-1 rounded-t transition-all duration-300 bg-gray-200" title="38 klik" style="height: 84.4444%;"></div><div class="flex-1 rounded-t transition-all duration-300 bg-gray-200" title="28 klik" style="height: 62.2222%;"></div><div class="flex-1 rounded-t transition-all duration-300 bg-gray-200" title="20 klik" style="height: 44.4444%;"></div><div class="flex-1 rounded-t transition-all duration-300 bg-gray-200" title="10 klik" style="height: 22.2222%;"></div></div>
+              <div class="flex justify-between text-[9px] text-gray-400 font-semibold px-0.5">
+                <span>08:00</span>
+                <span>12:00</span>
+                <span>17:00</span>
+              </div>
+            </div>
+
+            <!-- Live event feed card -->
+            <div class="bg-white border border-gray-200 rounded-xl p-5 shadow-none flex-grow flex flex-col justify-between">
+              <div class="flex items-center justify-between mb-4">
+                <h3 class="text-sm font-semibold text-gray-900">Live event feed</h3>
+                <a href="#" class="text-xs font-semibold text-violet-500 hover:text-violet-600">Semua</a>
+              </div>
+              <div class="space-y-3.5 flex-grow flex flex-col justify-between" id="live-event-feed-container"><div class="flex gap-3 text-sm border-b border-gray-50 pb-2 flex-shrink-0">
+        <div class="w-6 h-6 rounded-full bg-red-100 text-red-600 flex items-center justify-center flex-shrink-0 mt-0.5">
+          <i class="ti ti-forms text-xs"></i>
+        </div>
+        <div class="flex-grow">
+          <p class="text-gray-800 text-xs">
+            <strong class="font-semibold text-gray-900">Dewi Rahayu</strong>
+            <span class="bg-red-100 text-red-600 px-1.5 rounded-full text-[9px] font-semibold animate-pulse ml-1">NEW</span>
+            Submit form — credential harvested
+          </p>
+          <span class="text-gray-400 text-[10px] block mt-0.5">baru saja</span>
+        </div>
+      </div><div class="flex gap-3 text-sm border-b border-gray-50 pb-2 flex-shrink-0">
+        <div class="w-6 h-6 rounded-full bg-red-100 text-red-600 flex items-center justify-center flex-shrink-0 mt-0.5">
+          <i class="ti ti-pointer text-xs"></i>
+        </div>
+        <div class="flex-grow">
+          <p class="text-gray-800 text-xs">
+            <strong class="font-semibold text-gray-900">Raka Firmansyah</strong>
+            
+            Klik link phishing — Finance
+          </p>
+          <span class="text-gray-400 text-[10px] block mt-0.5">baru saja</span>
+        </div>
+      </div><div class="flex gap-3 text-sm border-b border-gray-50 pb-2 flex-shrink-0">
+        <div class="w-6 h-6 rounded-full bg-red-100 text-red-600 flex items-center justify-center flex-shrink-0 mt-0.5">
+          <i class="ti ti-forms text-xs"></i>
+        </div>
+        <div class="flex-grow">
+          <p class="text-gray-800 text-xs">
+            <strong class="font-semibold text-gray-900">Dewi Rahayu</strong>
+            
+            Submit form — credential harvested
+          </p>
+          <span class="text-gray-400 text-[10px] block mt-0.5">baru saja</span>
+        </div>
+      </div><div class="flex gap-3 text-sm border-b border-gray-50 pb-2 flex-shrink-0">
+        <div class="w-6 h-6 rounded-full bg-red-100 text-red-600 flex items-center justify-center flex-shrink-0 mt-0.5">
+          <i class="ti ti-forms text-xs"></i>
+        </div>
+        <div class="flex-grow">
+          <p class="text-gray-800 text-xs">
+            <strong class="font-semibold text-gray-900">Putri Ayu</strong>
+            
+            Submit form — credential harvested
+          </p>
+          <span class="text-gray-400 text-[10px] block mt-0.5">baru saja</span>
+        </div>
+      </div>
+                <!-- Item 1 -->
+                
+                <!-- Item 2 -->
+                
+                <!-- Item 3 -->
+                
+                <!-- Item 4 -->
+                
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Timeline Card -->
+        <div class="bg-white border border-gray-200 rounded-xl p-5 shadow-none space-y-4">
+          <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 border-b border-gray-100 pb-3">
+            <h3 class="text-sm font-semibold text-gray-900">Timeline event hari ini</h3>
+            <div class="flex items-center gap-3">
+              <div class="flex gap-1.5">
+                <button type="button" class="px-2.5 py-0.5 rounded-full text-xs font-semibold bg-violet-500 text-white">Semua</button>
+                <button type="button" class="px-2.5 py-0.5 rounded-full text-xs font-semibold bg-gray-100 text-gray-600 hover:bg-gray-200">Klik</button>
+                <button type="button" class="px-2.5 py-0.5 rounded-full text-xs font-semibold bg-gray-100 text-gray-600 hover:bg-gray-200">Submit</button>
+                <button type="button" class="px-2.5 py-0.5 rounded-full text-xs font-semibold bg-gray-100 text-gray-600 hover:bg-gray-200">Open</button>
+              </div>
+              <button onclick="triggerExport()" class="bg-white border border-gray-200 text-gray-700 hover:bg-gray-50 px-3 py-1 text-xs font-semibold rounded-lg transition-all">
+                Export Log
+              </button>
+            </div>
+          </div>
+
+          <!-- Timeline content (2 columns) -->
+          <div class="grid grid-cols-1 md:grid-cols-2 gap-x-8 gap-y-4">
+            <!-- Left column -->
+            <div class="space-y-4" id="timeline-left-col"><div class="flex gap-3">
+        <span class="w-10 text-right text-gray-400 text-[11px] mt-0.5 flex-shrink-0">16:18</span>
+        <div class="flex flex-col items-center flex-shrink-0 mt-1">
+          <span class="w-[9px] h-[9px] rounded-full bg-violet-500 flex-shrink-0"></span>
+          <div class="w-[1px] bg-gray-200 flex-grow h-10 mt-1"></div>
+        </div>
+        <div>
+          <h4 class="text-xs font-medium text-gray-900">System — Batch email</h4>
+          <p class="text-[11px] text-gray-400 mt-0.5">All · Batch email terkirim — 122 target</p>
+        </div>
+      </div>
+              <!-- Item 1 -->
+              <div class="flex gap-3">
+                <span class="w-10 text-right text-gray-400 text-[11px] mt-0.5 flex-shrink-0">14:32</span>
+                <div class="flex flex-col items-center flex-shrink-0 mt-1">
+                  <span class="w-[9px] h-[9px] rounded-full bg-red-500 flex-shrink-0"></span>
+                  <div class="w-[1px] bg-gray-200 flex-grow h-10 mt-1"></div>
+                </div>
+                <div>
+                  <h4 class="text-xs font-medium text-gray-900">Budi Santoso — Submit form</h4>
+                  <p class="text-[11px] text-gray-400 mt-0.5">Finance · credential harvested</p>
+                </div>
+              </div>
+              <!-- Item 2 -->
+              <div class="flex gap-3">
+                <span class="w-10 text-right text-gray-400 text-[11px] mt-0.5 flex-shrink-0">14:31</span>
+                <div class="flex flex-col items-center flex-shrink-0 mt-1">
+                  <span class="w-[9px] h-[9px] rounded-full bg-red-500 flex-shrink-0"></span>
+                  <div class="w-[1px] bg-gray-200 flex-grow h-10 mt-1"></div>
+                </div>
+                <div>
+                  <h4 class="text-xs font-medium text-gray-900">Sari Dewi — Klik link</h4>
+                  <p class="text-[11px] text-gray-400 mt-0.5">HR · landing page visited</p>
+                </div>
+              </div>
+              <!-- Item 3 -->
+              <div class="flex gap-3">
+                <span class="w-10 text-right text-gray-400 text-[11px] mt-0.5 flex-shrink-0">14:29</span>
+                <div class="flex flex-col items-center flex-shrink-0 mt-1">
+                  <span class="w-[9px] h-[9px] rounded-full bg-emerald-500 flex-shrink-0"></span>
+                  <div class="w-[1px] bg-gray-200 flex-grow h-4 mt-1"></div>
+                </div>
+                <div>
+                  <h4 class="text-xs font-medium text-gray-900">Rina Wijaya — Quiz selesai</h4>
+                  <p class="text-[11px] text-gray-400 mt-0.5">Legal · lulus 80%</p>
+                </div>
+              </div>
+              <!-- Item 4 -->
+              
+            </div>
+
+            <!-- Right column -->
+            <div class="space-y-4" id="timeline-right-col"><div class="flex gap-3">
+                <span class="w-10 text-right text-gray-400 text-[11px] mt-0.5 flex-shrink-0">14:25</span>
+                <div class="flex flex-col items-center flex-shrink-0 mt-1">
+                  <span class="w-[9px] h-[9px] rounded-full bg-amber-500 flex-shrink-0"></span>
+                  <div class="w-[1px] bg-gray-200 flex-grow h-10 mt-1"></div>
+                </div>
+                <div>
+                  <h4 class="text-xs font-medium text-gray-900">Andi Pratama — Buka email</h4>
+                  <p class="text-[11px] text-gray-400 mt-0.5">Marketing · belum klik</p>
+                </div>
+              </div>
+              <!-- Item 5 -->
+              <div class="flex gap-3">
+                <span class="w-10 text-right text-gray-400 text-[11px] mt-0.5 flex-shrink-0">14:18</span>
+                <div class="flex flex-col items-center flex-shrink-0 mt-1">
+                  <span class="w-[9px] h-[9px] rounded-full bg-red-500 flex-shrink-0"></span>
+                  <div class="w-[1px] bg-gray-200 flex-grow h-10 mt-1"></div>
+                </div>
+                <div>
+                  <h4 class="text-xs font-medium text-gray-900">Dewi Rahayu — Klik link</h4>
+                  <p class="text-[11px] text-gray-400 mt-0.5">Finance · landing page visited</p>
+                </div>
+              </div>
+              <!-- Item 6 -->
+              <div class="flex gap-3">
+                <span class="w-10 text-right text-gray-400 text-[11px] mt-0.5 flex-shrink-0">14:10</span>
+                <div class="flex flex-col items-center flex-shrink-0 mt-1">
+                  <span class="w-[9px] h-[9px] rounded-full bg-amber-500 flex-shrink-0"></span>
+                  <div class="w-[1px] bg-gray-200 flex-grow h-10 mt-1"></div>
+                </div>
+                <div>
+                  <h4 class="text-xs font-medium text-gray-900">Putri Ayu — Buka email</h4>
+                  <p class="text-[11px] text-gray-400 mt-0.5">HR · belum klik</p>
+                </div>
+              </div>
+              <!-- Item 7 -->
+              <div class="flex gap-3">
+                <span class="w-10 text-right text-gray-400 text-[11px] mt-0.5 flex-shrink-0">13:55</span>
+                <div class="flex flex-col items-center flex-shrink-0 mt-1">
+                  <span class="w-[9px] h-[9px] rounded-full bg-red-500 flex-shrink-0"></span>
+                  <div class="w-[1px] bg-gray-200 flex-grow h-4 mt-1"></div>
+                </div>
+                <div>
+                  <h4 class="text-xs font-medium text-gray-900">Raka Firmansyah — Submit form</h4>
+                  <p class="text-[11px] text-gray-400 mt-0.5">Finance · credential harvested</p>
+                </div>
+              </div>
+              <!-- Item 8 -->
+              
+            </div>
+          </div>
+        </div>
+      </div>

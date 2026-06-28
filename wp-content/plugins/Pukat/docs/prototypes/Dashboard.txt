@@ -1,0 +1,381 @@
+<div id="view-dashboard" class="view-panel space-y-6">
+        <!-- 1. Page header -->
+        <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+          <div>
+            <h1 class="text-2xl font-bold text-gray-900">Dashboard</h1>
+            <p class="text-sm text-gray-500 mt-0.5">Overview simulasi keamanan — Q2 2025</p>
+          </div>
+          <div class="flex items-center gap-3">
+            <button onclick="triggerExport()" class="bg-white border border-gray-200 text-gray-700 hover:bg-gray-50 px-4 py-2 text-sm font-semibold rounded-xl transition-all">
+              Export
+            </button>
+            <button onclick="navigateTo('new-campaign')" class="bg-violet-500 text-white hover:bg-violet-600 px-4 py-2 text-sm font-semibold rounded-xl flex items-center gap-1.5 transition-all">
+              <i class="ti ti-circle-plus text-base"></i>
+              <span>New campaign</span>
+            </button>
+          </div>
+        </div>
+
+        <!-- 2. Stat cards (4 columns) -->
+        <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
+          <!-- Card 1 -->
+          <div class="bg-white border border-gray-200 rounded-xl p-5 shadow-none flex items-start justify-between">
+            <div class="space-y-1">
+              <span class="text-xs font-medium text-gray-500">Kampanye aktif</span>
+              <span class="block text-2xl font-bold text-gray-900" id="stat-active-campaigns">3</span>
+              <span class="block text-xs font-semibold text-emerald-600">+1 dari bulan lalu</span>
+            </div>
+            <div class="w-9 h-9 bg-gray-50 rounded-lg flex items-center justify-center text-gray-400">
+              <i class="ti ti-player-play-filled text-lg"></i>
+            </div>
+          </div>
+          <!-- Card 2 -->
+          <div class="bg-white border border-gray-200 rounded-xl p-5 shadow-none flex items-start justify-between">
+            <div class="space-y-1">
+              <span class="text-xs font-medium text-gray-500">Total target</span>
+              <span class="block text-2xl font-bold text-gray-900">1.240</span>
+              <span class="block text-xs text-gray-500">Aktif di 3 kampanye</span>
+            </div>
+            <div class="w-9 h-9 bg-gray-50 rounded-lg flex items-center justify-center text-gray-400">
+              <i class="ti ti-users text-lg"></i>
+            </div>
+          </div>
+          <!-- Card 3 -->
+          <div class="bg-white border border-gray-200 rounded-xl p-5 shadow-none flex items-start justify-between">
+            <div class="space-y-1">
+              <span class="text-xs font-medium text-gray-500">Click rate</span>
+              <span class="block text-2xl font-bold text-gray-900">18%</span>
+              <span class="block text-xs font-semibold text-red-600">▲ 3% vs simulasi sebelumnya</span>
+            </div>
+            <div class="w-9 h-9 bg-gray-50 rounded-lg flex items-center justify-center text-gray-400">
+              <i class="ti ti-pointer text-lg"></i>
+            </div>
+          </div>
+          <!-- Card 4 -->
+          <div class="bg-white border border-gray-200 rounded-xl p-5 shadow-none flex items-start justify-between">
+            <div class="space-y-1">
+              <span class="text-xs font-medium text-gray-500">High-risk users</span>
+              <span class="block text-2xl font-bold text-gray-900">42</span>
+              <span class="block text-xs font-semibold text-amber-600">Belum selesai coaching</span>
+            </div>
+            <div class="w-9 h-9 bg-gray-50 rounded-lg flex items-center justify-center text-gray-400">
+              <i class="ti ti-alert-triangle text-lg"></i>
+            </div>
+          </div>
+        </div>
+
+        <!-- 3. Campaign status card (full width) -->
+        <div class="bg-white border border-gray-200 rounded-xl p-5 shadow-none">
+          <div class="flex items-start justify-between mb-6">
+            <div>
+              <h3 class="text-base font-semibold text-gray-900">Status kampanye aktif</h3>
+              <p class="text-xs text-gray-500 mt-0.5">Q2 phishing wave — finance</p>
+            </div>
+            <span class="rounded-full text-xs font-semibold px-2 py-0.5 bg-blue-100 text-blue-700">Berjalan</span>
+          </div>
+
+          <!-- Stepper: 5 steps horizontal -->
+          <div class="relative flex items-center justify-between w-full px-4 mb-8">
+            <!-- Line backdrop -->
+            <div class="absolute left-10 right-10 top-4 h-0.5 bg-gray-200 z-0">
+              <div class="h-full bg-emerald-500" style="width: 50%;"></div>
+            </div>
+
+            <!-- Step 1 -->
+            <div class="flex flex-col items-center z-10 flex-1">
+              <div class="w-8 h-8 rounded-full bg-emerald-100 text-emerald-700 flex items-center justify-center font-semibold text-sm border border-emerald-200">
+                <i class="ti ti-check text-base"></i>
+              </div>
+              <span class="text-xs font-medium text-gray-600 mt-2">Pre sim</span>
+            </div>
+
+            <!-- Step 2 -->
+            <div class="flex flex-col items-center z-10 flex-1">
+              <div class="w-8 h-8 rounded-full bg-emerald-100 text-emerald-700 flex items-center justify-center font-semibold text-sm border border-emerald-200">
+                <i class="ti ti-check text-base"></i>
+              </div>
+              <span class="text-xs font-medium text-gray-600 mt-2">Preparation</span>
+            </div>
+
+            <!-- Step 3 -->
+            <div class="flex flex-col items-center z-10 flex-1">
+              <div class="w-8 h-8 rounded-full bg-[#6C63FF] text-white flex items-center justify-center font-semibold text-sm">
+                3
+              </div>
+              <span class="text-xs font-semibold text-[#6C63FF] mt-2">Performing</span>
+            </div>
+
+            <!-- Step 4 -->
+            <div class="flex flex-col items-center z-10 flex-1">
+              <div class="w-8 h-8 rounded-full bg-gray-100 text-gray-400 flex items-center justify-center font-semibold text-sm border border-gray-200">
+                4
+              </div>
+              <span class="text-xs font-medium text-gray-400 mt-2">Post sim</span>
+            </div>
+
+            <!-- Step 5 -->
+            <div class="flex flex-col items-center z-10 flex-1">
+              <div class="w-8 h-8 rounded-full bg-gray-100 text-gray-400 flex items-center justify-center font-semibold text-sm border border-gray-200">
+                5
+              </div>
+              <span class="text-xs font-medium text-gray-400 mt-2">Follow up</span>
+            </div>
+          </div>
+
+          <!-- Mini stats below: 3 columns gray-50 bg -->
+          <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+            <!-- Col 1 -->
+            <div class="bg-gray-50 border border-gray-100 rounded-xl p-4 flex flex-col justify-between">
+              <span class="text-xs font-medium text-gray-500">Email terkirim</span>
+              <div class="flex items-baseline gap-2 mt-1">
+                <span class="text-xl font-bold text-gray-900">1.118</span>
+                <span class="text-xs font-semibold text-emerald-600">90% dari target</span>
+              </div>
+            </div>
+            <!-- Col 2 -->
+            <div class="bg-gray-50 border border-gray-100 rounded-xl p-4 flex flex-col justify-between">
+              <span class="text-xs font-medium text-gray-500">Klik link</span>
+              <div class="flex items-baseline gap-2 mt-1">
+                <span class="text-xl font-bold text-gray-900">201</span>
+                <span class="text-xs font-semibold text-amber-600">18% click rate</span>
+              </div>
+            </div>
+            <!-- Col 3 -->
+            <div class="bg-gray-50 border border-gray-100 rounded-xl p-4 flex flex-col justify-between">
+              <span class="text-xs font-medium text-gray-500">Submit data</span>
+              <div class="flex items-baseline gap-2 mt-1">
+                <span class="text-xl font-bold text-gray-900">87</span>
+                <span class="text-xs font-semibold text-red-600">43% dari klikker</span>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- 4. Two column: 3fr + 2fr -->
+        <div class="grid grid-cols-1 lg:grid-cols-5 gap-6">
+          <!-- Left: Click rate per departemen (3fr) -->
+          <div class="bg-white border border-gray-200 rounded-xl p-5 shadow-none lg:col-span-3 flex flex-col justify-between">
+            <div class="mb-4">
+              <h3 class="text-base font-semibold text-gray-900">Click rate per departemen</h3>
+            </div>
+            <div class="space-y-4">
+              <!-- Finance -->
+              <div class="space-y-1.5">
+                <div class="flex items-center justify-between text-xs font-medium">
+                  <span class="text-gray-700">Finance</span>
+                  <span class="text-red-600 font-bold">52%</span>
+                </div>
+                <div class="w-full bg-gray-100 h-2 rounded-full overflow-hidden">
+                  <div class="bg-red-500 h-full rounded-full" style="width: 52%"></div>
+                </div>
+              </div>
+              <!-- HR -->
+              <div class="space-y-1.5">
+                <div class="flex items-center justify-between text-xs font-medium">
+                  <span class="text-gray-700">HR</span>
+                  <span class="text-amber-600 font-bold">40%</span>
+                </div>
+                <div class="w-full bg-gray-100 h-2 rounded-full overflow-hidden">
+                  <div class="bg-amber-500 h-full rounded-full" style="width: 40%"></div>
+                </div>
+              </div>
+              <!-- Marketing -->
+              <div class="space-y-1.5">
+                <div class="flex items-center justify-between text-xs font-medium">
+                  <span class="text-gray-700">Marketing</span>
+                  <span class="text-amber-600 font-bold">24%</span>
+                </div>
+                <div class="w-full bg-gray-100 h-2 rounded-full overflow-hidden">
+                  <div class="bg-amber-500 h-full rounded-full" style="width: 24%"></div>
+                </div>
+              </div>
+              <!-- Engineering -->
+              <div class="space-y-1.5">
+                <div class="flex items-center justify-between text-xs font-medium">
+                  <span class="text-gray-700">Engineering</span>
+                  <span class="text-emerald-600 font-bold">6%</span>
+                </div>
+                <div class="w-full bg-gray-100 h-2 rounded-full overflow-hidden">
+                  <div class="bg-emerald-500 h-full rounded-full" style="width: 6%"></div>
+                </div>
+              </div>
+              <!-- Legal -->
+              <div class="space-y-1.5">
+                <div class="flex items-center justify-between text-xs font-medium">
+                  <span class="text-gray-700">Legal</span>
+                  <span class="text-emerald-600 font-bold">4%</span>
+                </div>
+                <div class="w-full bg-gray-100 h-2 rounded-full overflow-hidden">
+                  <div class="bg-emerald-500 h-full rounded-full" style="width: 4%"></div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Right: Kampanye list with + New button (2fr) -->
+          <div class="bg-white border border-gray-200 rounded-xl p-5 shadow-none lg:col-span-2 flex flex-col justify-between">
+            <div class="flex items-center justify-between mb-4">
+              <h3 class="text-base font-semibold text-gray-900">Kampanye</h3>
+              <button onclick="navigateTo('new-campaign')" class="w-8 h-8 rounded-lg flex items-center justify-center text-violet-500 hover:bg-violet-50 transition-colors">
+                <i class="ti ti-plus text-lg"></i>
+              </button>
+            </div>
+            <div class="flex-grow flex flex-col justify-between space-y-4" id="campaign-list-container">
+              <!-- Campaign 1 -->
+              <div class="flex items-center justify-between border-b border-gray-100 pb-3">
+                <div class="flex items-start gap-2.5">
+                  <span class="w-2 h-2 rounded-full bg-blue-500 mt-1.5 flex-shrink-0"></span>
+                  <div>
+                    <h4 class="text-sm font-medium text-gray-900">Q2 phishing wave</h4>
+                    <span class="text-xs text-gray-500">18 Jun – 25 Jun</span>
+                  </div>
+                </div>
+                <span class="rounded-full text-xs font-semibold px-2 py-0.5 bg-blue-100 text-blue-700">Berjalan</span>
+              </div>
+              <!-- Campaign 2 -->
+              <div class="flex items-center justify-between border-b border-gray-100 pb-3">
+                <div class="flex items-start gap-2.5">
+                  <span class="w-2 h-2 rounded-full bg-gray-400 mt-1.5 flex-shrink-0"></span>
+                  <div>
+                    <h4 class="text-sm font-medium text-gray-900">BEC scenario — finance</h4>
+                    <span class="text-xs text-gray-500">28 Jun 2025</span>
+                  </div>
+                </div>
+                <span class="rounded-full text-xs font-semibold px-2 py-0.5 bg-gray-100 text-gray-600">Terjadwal</span>
+              </div>
+              <!-- Campaign 3 -->
+              <div class="flex items-center justify-between">
+                <div class="flex items-start gap-2.5">
+                  <span class="w-2 h-2 rounded-full bg-emerald-500 mt-1.5 flex-shrink-0"></span>
+                  <div>
+                    <h4 class="text-sm font-medium text-gray-900">Q1 awareness check</h4>
+                    <span class="text-xs text-gray-500">10 Mar 2025</span>
+                  </div>
+                </div>
+                <span class="rounded-full text-xs font-semibold px-2 py-0.5 bg-emerald-100 text-emerald-700">Selesai</span>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- 5. Two column equal: Aktivitas terbaru + High-risk users -->
+        <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+          <!-- Aktivitas terbaru -->
+          <div class="bg-white border border-gray-200 rounded-xl p-5 shadow-none flex flex-col justify-between">
+            <h3 class="text-base font-semibold text-gray-900 mb-4">Aktivitas terbaru</h3>
+            <div class="space-y-4 flex-grow flex flex-col justify-between">
+              <!-- Feed item 1 -->
+              <div class="flex gap-3 text-sm">
+                <div class="w-8 h-8 rounded-full bg-red-100 text-red-600 flex items-center justify-center flex-shrink-0 mt-0.5">
+                  <i class="ti ti-forms text-base"></i>
+                </div>
+                <div class="flex-grow">
+                  <p class="text-gray-800"><strong class="font-semibold text-gray-950">Budi Santoso</strong> submit form phishing</p>
+                  <div class="flex items-center gap-2 mt-1 text-xs text-gray-400">
+                    <span>Finance</span>
+                    <span>•</span>
+                    <span>2 menit lalu</span>
+                  </div>
+                </div>
+              </div>
+              <!-- Feed item 2 -->
+              <div class="flex gap-3 text-sm">
+                <div class="w-8 h-8 rounded-full bg-red-100 text-red-600 flex items-center justify-center flex-shrink-0 mt-0.5">
+                  <i class="ti ti-pointer text-base"></i>
+                </div>
+                <div class="flex-grow">
+                  <p class="text-gray-800"><strong class="font-semibold text-gray-950">Sari Dewi</strong> mengklik link phishing</p>
+                  <div class="flex items-center gap-2 mt-1 text-xs text-gray-400">
+                    <span>HR</span>
+                    <span>•</span>
+                    <span>14 menit lalu</span>
+                  </div>
+                </div>
+              </div>
+              <!-- Feed item 3 -->
+              <div class="flex gap-3 text-sm">
+                <div class="w-8 h-8 rounded-full bg-emerald-100 text-emerald-600 flex items-center justify-center flex-shrink-0 mt-0.5">
+                  <i class="ti ti-check text-base"></i>
+                </div>
+                <div class="flex-grow">
+                  <p class="text-gray-800"><strong class="font-semibold text-gray-950">38 user</strong> selesaikan quiz simulasi</p>
+                  <div class="flex items-center gap-2 mt-1 text-xs text-gray-400">
+                    <span>1 jam lalu</span>
+                  </div>
+                </div>
+              </div>
+              <!-- Feed item 4 -->
+              <div class="flex gap-3 text-sm">
+                <div class="w-8 h-8 rounded-full bg-amber-100 text-amber-600 flex items-center justify-center flex-shrink-0 mt-0.5">
+                  <i class="ti ti-school text-base"></i>
+                </div>
+                <div class="flex-grow">
+                  <p class="text-gray-800"><strong class="font-semibold text-gray-950">42 user</strong> di-assign modul coaching</p>
+                  <div class="flex items-center gap-2 mt-1 text-xs text-gray-400">
+                    <span>3 jam lalu</span>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- High-risk users -->
+          <div class="bg-white border border-gray-200 rounded-xl p-5 shadow-none flex flex-col justify-between">
+            <h3 class="text-base font-semibold text-gray-900 mb-4">High-risk users</h3>
+            <div class="space-y-4 flex-grow flex flex-col justify-between">
+              <!-- User 1 -->
+              <div class="flex items-center justify-between">
+                <div class="flex items-center gap-3">
+                  <div class="w-8 h-8 rounded-full bg-red-100 text-red-600 font-semibold text-xs flex items-center justify-center select-none">
+                    BS
+                  </div>
+                  <div>
+                    <h4 class="text-sm font-semibold text-gray-900">Budi Santoso</h4>
+                    <span class="text-xs text-gray-500">Finance</span>
+                  </div>
+                </div>
+                <span class="rounded-full text-xs font-semibold px-2 py-0.5 bg-red-100 text-red-700">High</span>
+              </div>
+              <!-- User 2 -->
+              <div class="flex items-center justify-between">
+                <div class="flex items-center gap-3">
+                  <div class="w-8 h-8 rounded-full bg-red-100 text-red-600 font-semibold text-xs flex items-center justify-center select-none">
+                    SD
+                  </div>
+                  <div>
+                    <h4 class="text-sm font-semibold text-gray-900">Sari Dewi</h4>
+                    <span class="text-xs text-gray-500">HR</span>
+                  </div>
+                </div>
+                <span class="rounded-full text-xs font-semibold px-2 py-0.5 bg-red-100 text-red-700">High</span>
+              </div>
+              <!-- User 3 -->
+              <div class="flex items-center justify-between">
+                <div class="flex items-center gap-3">
+                  <div class="w-8 h-8 rounded-full bg-amber-100 text-amber-600 font-semibold text-xs flex items-center justify-center select-none">
+                    AP
+                  </div>
+                  <div>
+                    <h4 class="text-sm font-semibold text-gray-900">Andi Pratama</h4>
+                    <span class="text-xs text-gray-500">Marketing</span>
+                  </div>
+                </div>
+                <span class="rounded-full text-xs font-semibold px-2 py-0.5 bg-amber-100 text-amber-700">Medium</span>
+              </div>
+              <!-- User 4 -->
+              <div class="flex items-center justify-between">
+                <div class="flex items-center gap-3">
+                  <div class="w-8 h-8 rounded-full bg-emerald-100 text-emerald-600 font-semibold text-xs flex items-center justify-center select-none">
+                    RW
+                  </div>
+                  <div>
+                    <h4 class="text-sm font-semibold text-gray-900">Rina Wijaya</h4>
+                    <span class="text-xs text-gray-500">Legal</span>
+                  </div>
+                </div>
+                <span class="rounded-full text-xs font-semibold px-2 py-0.5 bg-emerald-100 text-emerald-700">Low</span>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>

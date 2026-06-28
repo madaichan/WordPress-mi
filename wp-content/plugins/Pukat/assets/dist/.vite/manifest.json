@@ -1,0 +1,183 @@
+{
+  "_papaparse.min-nqnwdnrE.js": {
+    "file": "assets/papaparse.min-nqnwdnrE.js",
+    "name": "papaparse.min",
+    "imports": [
+      "src/main.jsx"
+    ]
+  },
+  "_useMutation-CltDUrNC.js": {
+    "file": "assets/useMutation-CltDUrNC.js",
+    "name": "useMutation",
+    "imports": [
+      "src/main.jsx"
+    ]
+  },
+  "src/features/setup/playbooks/Playbooks.jsx": {
+    "file": "assets/Playbooks-jB7i9bz2.js",
+    "name": "Playbooks",
+    "src": "src/features/setup/playbooks/Playbooks.jsx",
+    "isDynamicEntry": true,
+    "imports": [
+      "src/main.jsx"
+    ]
+  },
+  "src/main.jsx": {
+    "file": "assets/main-CuQZkBHg.js",
+    "name": "main",
+    "src": "src/main.jsx",
+    "isEntry": true,
+    "dynamicImports": [
+      "src/pages/Dashboard/Dashboard.jsx",
+      "src/pages/Admin/Users.jsx",
+      "src/pages/Admin/Settings.jsx",
+      "src/pages/Dashboard/Dashboard.jsx",
+      "src/pages/Simulation/Calendar.jsx",
+      "src/pages/Simulation/Campaigns.jsx",
+      "src/pages/Simulation/Preparation.jsx",
+      "src/pages/Simulation/Performing.jsx",
+      "src/pages/Simulation/Reports.jsx",
+      "src/pages/Simulation/EmailTemplates.jsx",
+      "src/pages/Simulation/LandingPages.jsx",
+      "src/pages/PostSimulation/Quiz.jsx",
+      "src/pages/PostSimulation/Coaching.jsx",
+      "src/pages/PostSimulation/NextPlanning.jsx",
+      "src/pages/PreSimulation/Socialization.jsx",
+      "src/features/setup/playbooks/Playbooks.jsx"
+    ],
+    "css": [
+      "assets/main-D7VlJGfN.css"
+    ]
+  },
+  "src/pages/Admin/Settings.jsx": {
+    "file": "assets/Settings-BUeyfsgS.js",
+    "name": "Settings",
+    "src": "src/pages/Admin/Settings.jsx",
+    "isDynamicEntry": true,
+    "imports": [
+      "src/main.jsx",
+      "_useMutation-CltDUrNC.js"
+    ]
+  },
+  "src/pages/Admin/Users.jsx": {
+    "file": "assets/Users-D_UkLTy6.js",
+    "name": "Users",
+    "src": "src/pages/Admin/Users.jsx",
+    "isDynamicEntry": true,
+    "imports": [
+      "src/main.jsx",
+      "_useMutation-CltDUrNC.js"
+    ]
+  },
+  "src/pages/Dashboard/Dashboard.jsx": {
+    "file": "assets/Dashboard-zFw9NkSu.js",
+    "name": "Dashboard",
+    "src": "src/pages/Dashboard/Dashboard.jsx",
+    "isDynamicEntry": true,
+    "imports": [
+      "src/main.jsx"
+    ]
+  },
+  "src/pages/PostSimulation/Coaching.jsx": {
+    "file": "assets/Coaching-Db7YCihO.js",
+    "name": "Coaching",
+    "src": "src/pages/PostSimulation/Coaching.jsx",
+    "isDynamicEntry": true,
+    "imports": [
+      "src/main.jsx"
+    ]
+  },
+  "src/pages/PostSimulation/NextPlanning.jsx": {
+    "file": "assets/NextPlanning-C4yXZ3fW.js",
+    "name": "NextPlanning",
+    "src": "src/pages/PostSimulation/NextPlanning.jsx",
+    "isDynamicEntry": true,
+    "imports": [
+      "src/main.jsx"
+    ]
+  },
+  "src/pages/PostSimulation/Quiz.jsx": {
+    "file": "assets/Quiz-kHwOeqW-.js",
+    "name": "Quiz",
+    "src": "src/pages/PostSimulation/Quiz.jsx",
+    "isDynamicEntry": true,
+    "imports": [
+      "src/main.jsx"
+    ]
+  },
+  "src/pages/PreSimulation/Socialization.jsx": {
+    "file": "assets/Socialization-C8tFClO1.js",
+    "name": "Socialization",
+    "src": "src/pages/PreSimulation/Socialization.jsx",
+    "isDynamicEntry": true,
+    "imports": [
+      "src/main.jsx"
+    ]
+  },
+  "src/pages/Simulation/Calendar.jsx": {
+    "file": "assets/Calendar-DlvQv6FD.js",
+    "name": "Calendar",
+    "src": "src/pages/Simulation/Calendar.jsx",
+    "isDynamicEntry": true,
+    "imports": [
+      "src/main.jsx"
+    ]
+  },
+  "src/pages/Simulation/Campaigns.jsx": {
+    "file": "assets/Campaigns-BlL8KQQm.js",
+    "name": "Campaigns",
+    "src": "src/pages/Simulation/Campaigns.jsx",
+    "isDynamicEntry": true,
+    "imports": [
+      "src/main.jsx",
+      "_useMutation-CltDUrNC.js",
+      "_papaparse.min-nqnwdnrE.js"
+    ]
+  },
+  "src/pages/Simulation/EmailTemplates.jsx": {
+    "file": "assets/EmailTemplates-CC7N2nGk.js",
+    "name": "EmailTemplates",
+    "src": "src/pages/Simulation/EmailTemplates.jsx",
+    "isDynamicEntry": true,
+    "imports": [
+      "src/main.jsx"
+    ]
+  },
+  "src/pages/Simulation/LandingPages.jsx": {
+    "file": "assets/LandingPages-BZdVg5K6.js",
+    "name": "LandingPages",
+    "src": "src/pages/Simulation/LandingPages.jsx",
+    "isDynamicEntry": true,
+    "imports": [
+      "src/main.jsx"
+    ]
+  },
+  "src/pages/Simulation/Performing.jsx": {
+    "file": "assets/Performing-Dx-SRR2U.js",
+    "name": "Performing",
+    "src": "src/pages/Simulation/Performing.jsx",
+    "isDynamicEntry": true,
+    "imports": [
+      "src/main.jsx"
+    ]
+  },
+  "src/pages/Simulation/Preparation.jsx": {
+    "file": "assets/Preparation-D5bd6wY8.js",
+    "name": "Preparation",
+    "src": "src/pages/Simulation/Preparation.jsx",
+    "isDynamicEntry": true,
+    "imports": [
+      "src/main.jsx",
+      "_papaparse.min-nqnwdnrE.js"
+    ]
+  },
+  "src/pages/Simulation/Reports.jsx": {
+    "file": "assets/Reports-t3LUyZRv.js",
+    "name": "Reports",
+    "src": "src/pages/Simulation/Reports.jsx",
+    "isDynamicEntry": true,
+    "imports": [
+      "src/main.jsx"
+    ]
+  }
+}
