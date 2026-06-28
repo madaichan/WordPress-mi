@@ -42,11 +42,11 @@ Pukat/
 │   ├── Core/                 # Plugin bootstrap, activation, deactivation
 │   ├── Admin/                # WP Admin menu and admin SPA shell
 │   ├── Frontend/             # /pukat frontend SPA route and shell
-│   ├── Services/             # Business logic and external integrations
+│   ├── Services/             # Business logic, shared context, assets, integrations
 │   └── Repositories/         # Database access logic
 └── pukat-app/                # React/Vite source application
     └── src/
-        ├── api/              # Frontend REST API clients
+        ├── api/              # Frontend REST API clients, split by domain
         ├── components/       # Shared UI/layout components
         ├── features/         # Feature-based frontend modules
         ├── pages/            # Route-level pages not yet feature-split
@@ -115,6 +115,12 @@ Production builds are written to `assets/dist/`:
 cd pukat-app/
 npm run build
 ```
+
+The frontend API modules are split by domain, for example
+`src/api/campaignApi.js`, `src/api/playbookApi.js`, and
+`src/api/settingsApi.js`. `src/api/index.js` remains an export aggregator so
+existing imports such as `import { campaignApi } from '../../api/index.js'`
+continue to work.
 
 ---
 

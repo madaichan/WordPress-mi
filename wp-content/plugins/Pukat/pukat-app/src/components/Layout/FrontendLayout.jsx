@@ -19,7 +19,7 @@ const NAV = [
     items: [
       { to: '/campaigns',       icon: 'ti-circle-plus', label: 'New campaign' },
       { to: '/playbooks',       icon: 'ti-book',        label: 'Playbooks' },
-      { to: '/monitoring',      icon: 'ti-activity',    label: 'Monitoring' },
+      { to: '/monitoring',      icon: 'ti-send',        label: 'Sending profiles' },
       { to: '/email-templates', icon: 'ti-mail',        label: 'Email templates' },
       { to: '/landing-pages',   icon: 'ti-browser',     label: 'Landing pages' },
     ],
@@ -45,7 +45,7 @@ const BREADCRUMBS = {
   '/calendar': 'Simulation calendar',
   '/campaigns': 'New campaign',
   '/playbooks': 'Playbooks',
-  '/monitoring': 'Monitoring',
+  '/monitoring': 'Sending profiles',
   '/email-templates': 'Email templates',
   '/landing-pages': 'Landing pages',
   '/reports': 'Simulation report',

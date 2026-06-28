@@ -23,9 +23,11 @@ return array(
     'Pukat\\Frontend\\FrontendPage' => $baseDir . '/includes/Frontend/FrontendPage.php',
     'Pukat\\Frontend\\FrontendRouter' => $baseDir . '/includes/Frontend/FrontendRouter.php',
     'Pukat\\Repositories\\PlaybookRepository' => $baseDir . '/includes/Repositories/PlaybookRepository.php',
+    'Pukat\\Services\\AssetManifestService' => $baseDir . '/includes/Services/AssetManifestService.php',
     'Pukat\\Services\\AuditLogService' => $baseDir . '/includes/Services/AuditLogService.php',
     'Pukat\\Services\\EncryptionService' => $baseDir . '/includes/Services/EncryptionService.php',
     'Pukat\\Services\\GoPhishService' => $baseDir . '/includes/Services/GoPhishService.php',
     'Pukat\\Services\\PlaybookService' => $baseDir . '/includes/Services/PlaybookService.php',
     'Pukat\\Services\\RiskScoringService' => $baseDir . '/includes/Services/RiskScoringService.php',
+    'Pukat\\Services\\UserContextService' => $baseDir . '/includes/Services/UserContextService.php',
 );

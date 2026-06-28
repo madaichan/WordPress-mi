@@ -2,7 +2,7 @@ import React from 'react'
 
 export default function Socialization() {
   return (
-    <div className="space-y-6 animate-fade-in max-w-2xl">
+    <div className="space-y-6 lg:flex lg:h-[calc(100vh-110px)] lg:min-h-[720px] lg:flex-col lg:overflow-hidden mt-4">
       <div className="page-header">
         <div><h1 className="page-title">Pre-Simulation Socialization</h1><p className="page-subtitle">Notify users before the simulation begins</p></div>
       </div>

@@ -10,9 +10,9 @@ import clsx from 'clsx'
 // ── Static data ──────────────────────────────────────────────────────────────
 
 const STATIC_CAMPAIGNS = [
-  { id: 1, name: 'Q2 phishing wave',      status: 'active',    difficulty: 4, target_count: 1240, launched_at: '2025-06-18T00:00:00Z' },
-  { id: 2, name: 'BEC scenario — finance', status: 'scheduled', difficulty: 4, target_count: 420,  launched_at: null },
-  { id: 3, name: 'Q1 awareness check',    status: 'completed', difficulty: 2, target_count: 800,  launched_at: '2025-03-10T00:00:00Z' },
+  { id: 1, name: 'Q2 phishing wave', status: 'active', difficulty: 4, target_count: 1240, launched_at: '2025-06-18T00:00:00Z' },
+  { id: 2, name: 'BEC scenario — finance', status: 'scheduled', difficulty: 4, target_count: 420, launched_at: null },
+  { id: 3, name: 'Q1 awareness check', status: 'completed', difficulty: 2, target_count: 800, launched_at: '2025-03-10T00:00:00Z' },
 ]
 
 const INITIAL_FORM = {
@@ -36,75 +36,75 @@ const DEMO_TARGETS = [
 ]
 
 const TEMPLATES = [
-  { id: 't1', name: 'CEO request — invoice', type: 'BEC',              icon: 'ti-mail', diff: 4, dot: 'bg-red-500',    diffText: 'Difficulty 4/5 (NIST)' },
-  { id: 't2', name: 'Microsoft 365 login',   type: 'Credential harvest', icon: 'ti-lock', diff: 3, dot: 'bg-amber-500',  diffText: 'Difficulty 3/5' },
-  { id: 't3', name: 'HR policy update',      type: 'Malware lure',      icon: 'ti-file', diff: 2, dot: 'bg-emerald-500', diffText: 'Difficulty 2/5' },
+  { id: 't1', name: 'CEO request — invoice', type: 'BEC', icon: 'ti-mail', diff: 4, dot: 'bg-red-500', diffText: 'Difficulty 4/5 (NIST)' },
+  { id: 't2', name: 'Microsoft 365 login', type: 'Credential harvest', icon: 'ti-lock', diff: 3, dot: 'bg-amber-500', diffText: 'Difficulty 3/5' },
+  { id: 't3', name: 'HR policy update', type: 'Malware lure', icon: 'ti-file', diff: 2, dot: 'bg-emerald-500', diffText: 'Difficulty 2/5' },
 ]
 
 const PLAYBOOKS = [
-  { id: 'p1', name: 'BEC — finance attack',        desc: 'CEO impersonation requesting fast invoice approval.',          type: 'BEC',        typeColor: 'text-red-700',     diff: 4 },
-  { id: 'p2', name: 'Credential harvest — O365',    desc: 'Microsoft login expiration security alert workflow.',          type: 'Credential', typeColor: 'text-amber-700',   diff: 3 },
-  { id: 'p3', name: 'HR policy lure',               desc: 'Policy change notification with simulated attachment check.', type: 'Malware',    typeColor: 'text-emerald-700', diff: 2 },
-  { id: 'p4', name: 'IT support reset',             desc: 'IT helpdesk tickets demanding prompt password change.',       type: 'Credential', typeColor: 'text-amber-700',   diff: 3 },
+  { id: 'p1', name: 'BEC — finance attack', desc: 'CEO impersonation requesting fast invoice approval.', type: 'BEC', typeColor: 'text-red-700', diff: 4 },
+  { id: 'p2', name: 'Credential harvest — O365', desc: 'Microsoft login expiration security alert workflow.', type: 'Credential', typeColor: 'text-amber-700', diff: 3 },
+  { id: 'p3', name: 'HR policy lure', desc: 'Policy change notification with simulated attachment check.', type: 'Malware', typeColor: 'text-emerald-700', diff: 2 },
+  { id: 'p4', name: 'IT support reset', desc: 'IT helpdesk tickets demanding prompt password change.', type: 'Credential', typeColor: 'text-amber-700', diff: 3 },
 ]
 
 const TEMPLATE_FILTERS = ['All', 'BEC', 'Credential', 'Malware lure']
 
 const STATUS_FILTERS = [
-  { key: 'all',       label: 'All' },
-  { key: 'active',    label: 'Running' },
+  { key: 'all', label: 'All' },
+  { key: 'active', label: 'Running' },
   { key: 'scheduled', label: 'Scheduled' },
   { key: 'completed', label: 'Completed' },
 ]
 
 const WORKSPACE_VIEWS = [
-  { key: 'overview',   label: 'Overview',   icon: 'ti-layout-dashboard' },
-  { key: 'calendar',   label: 'Calendar',   icon: 'ti-calendar' },
+  { key: 'overview', label: 'Overview', icon: 'ti-layout-dashboard' },
+  { key: 'calendar', label: 'Calendar', icon: 'ti-calendar' },
   { key: 'monitoring', label: 'Monitoring', icon: 'ti-activity' },
-  { key: 'report',     label: 'Report',     icon: 'ti-file-analytics' },
-  { key: 'assets',     label: 'Assets',     icon: 'ti-template' },
+  { key: 'report', label: 'Report', icon: 'ti-file-analytics' },
+  { key: 'assets', label: 'Assets', icon: 'ti-template' },
 ]
 
 const DEPARTMENTS = [
-  { name: 'Finance',     targets: 240, clicks: 124, rate: 52, risk: 'High', cls: 'bg-red-500',     text: 'text-red-600',     badge: 'bg-red-100 text-red-700' },
-  { name: 'HR',          targets: 180, clicks: 72,  rate: 40, risk: 'Med',  cls: 'bg-amber-500',   text: 'text-amber-600',   badge: 'bg-amber-100 text-amber-700' },
-  { name: 'Marketing',   targets: 320, clicks: 78,  rate: 24, risk: 'Med',  cls: 'bg-amber-500',   text: 'text-amber-600',   badge: 'bg-amber-100 text-amber-700' },
-  { name: 'Engineering', targets: 280, clicks: 18,  rate: 6,  risk: 'Low',  cls: 'bg-emerald-500', text: 'text-emerald-600', badge: 'bg-emerald-100 text-emerald-700' },
-  { name: 'Legal',       targets: 220, clicks: 9,   rate: 4,  risk: 'Low',  cls: 'bg-emerald-500', text: 'text-emerald-600', badge: 'bg-emerald-100 text-emerald-700' },
+  { name: 'Finance', targets: 240, clicks: 124, rate: 52, risk: 'High', cls: 'bg-red-500', text: 'text-red-600', badge: 'bg-red-100 text-red-700' },
+  { name: 'HR', targets: 180, clicks: 72, rate: 40, risk: 'Med', cls: 'bg-amber-500', text: 'text-amber-600', badge: 'bg-amber-100 text-amber-700' },
+  { name: 'Marketing', targets: 320, clicks: 78, rate: 24, risk: 'Med', cls: 'bg-amber-500', text: 'text-amber-600', badge: 'bg-amber-100 text-amber-700' },
+  { name: 'Engineering', targets: 280, clicks: 18, rate: 6, risk: 'Low', cls: 'bg-emerald-500', text: 'text-emerald-600', badge: 'bg-emerald-100 text-emerald-700' },
+  { name: 'Legal', targets: 220, clicks: 9, rate: 4, risk: 'Low', cls: 'bg-emerald-500', text: 'text-emerald-600', badge: 'bg-emerald-100 text-emerald-700' },
 ]
 
 const ACTIVITY_FEED = [
-  { icon: 'ti-forms',   color: 'bg-red-100 text-red-600',     title: 'Budi Santoso',  body: 'submit form phishing',       meta: 'Finance · 2 minutes ago' },
-  { icon: 'ti-pointer', color: 'bg-red-100 text-red-600',     title: 'Sari Dewi',     body: 'menglink click phishing',      meta: 'HR · 14 minutes ago' },
-  { icon: 'ti-check',   color: 'bg-emerald-100 text-emerald-600', title: '38 user',   body: 'completed the simulation quiz',    meta: '1 hour ago' },
-  { icon: 'ti-school',  color: 'bg-amber-100 text-amber-600', body: 'were assigned coaching modules', title: '42 user', meta: '3 hours ago' },
+  { icon: 'ti-forms', color: 'bg-red-100 text-red-600', title: 'Budi Santoso', body: 'submit form phishing', meta: 'Finance · 2 minutes ago' },
+  { icon: 'ti-pointer', color: 'bg-red-100 text-red-600', title: 'Sari Dewi', body: 'menglink click phishing', meta: 'HR · 14 minutes ago' },
+  { icon: 'ti-check', color: 'bg-emerald-100 text-emerald-600', title: '38 user', body: 'completed the simulation quiz', meta: '1 hour ago' },
+  { icon: 'ti-school', color: 'bg-amber-100 text-amber-600', body: 'were assigned coaching modules', title: '42 user', meta: '3 hours ago' },
 ]
 
 const RISK_USERS = [
-  { initials: 'BS', name: 'Budi Santoso',  dept: 'Finance',   level: 'High',   badge: 'bg-red-100 text-red-700',       avatar: 'bg-red-100 text-red-600' },
-  { initials: 'SD', name: 'Sari Dewi',     dept: 'HR',        level: 'High',   badge: 'bg-red-100 text-red-700',       avatar: 'bg-red-100 text-red-600' },
-  { initials: 'AP', name: 'Andi Pratama',  dept: 'Marketing', level: 'Medium', badge: 'bg-amber-100 text-amber-700',   avatar: 'bg-amber-100 text-amber-600' },
-  { initials: 'RW', name: 'Rina Wijaya',   dept: 'Legal',     level: 'Low',    badge: 'bg-emerald-100 text-emerald-700', avatar: 'bg-emerald-100 text-emerald-600' },
+  { initials: 'BS', name: 'Budi Santoso', dept: 'Finance', level: 'High', badge: 'bg-red-100 text-red-700', avatar: 'bg-red-100 text-red-600' },
+  { initials: 'SD', name: 'Sari Dewi', dept: 'HR', level: 'High', badge: 'bg-red-100 text-red-700', avatar: 'bg-red-100 text-red-600' },
+  { initials: 'AP', name: 'Andi Pratama', dept: 'Marketing', level: 'Medium', badge: 'bg-amber-100 text-amber-700', avatar: 'bg-amber-100 text-amber-600' },
+  { initials: 'RW', name: 'Rina Wijaya', dept: 'Legal', level: 'Low', badge: 'bg-emerald-100 text-emerald-700', avatar: 'bg-emerald-100 text-emerald-600' },
 ]
 
 const HOURLY_ACTIVITY = [4, 8, 18, 32, 40, 45, 38, 28, 20, 10]
 
 const TIMELINE_EVENTS = [
-  { time: '14:32', color: 'bg-red-500',     title: 'Budi Santoso — Submit form',  meta: 'Finance · credential harvested' },
-  { time: '14:31', color: 'bg-red-500',     title: 'Sari Dewi — Link clicks',       meta: 'HR · landing page visited' },
-  { time: '14:29', color: 'bg-emerald-500', title: 'Rina Wijaya — Quiz completed',  meta: 'Legal · passed 80%' },
-  { time: '14:25', color: 'bg-amber-500',   title: 'Andi Pratama — Email opened',   meta: 'Marketing · has not clicked' },
-  { time: '14:18', color: 'bg-red-500',     title: 'Dewi Rahayu — Link clicks',     meta: 'Finance · landing page visited' },
-  { time: '14:10', color: 'bg-amber-500',   title: 'Putri Ayu — Email opened',      meta: 'HR · has not clicked' },
-  { time: '13:55', color: 'bg-red-500',     title: 'Raka Firmansyah — Submit form', meta: 'Finance · credential harvested' },
-  { time: '13:40', color: 'bg-violet-500',  title: 'Batch email batch 3 sent',   meta: '420 email · Finance & HR' },
+  { time: '14:32', color: 'bg-red-500', title: 'Budi Santoso — Submit form', meta: 'Finance · credential harvested' },
+  { time: '14:31', color: 'bg-red-500', title: 'Sari Dewi — Link clicks', meta: 'HR · landing page visited' },
+  { time: '14:29', color: 'bg-emerald-500', title: 'Rina Wijaya — Quiz completed', meta: 'Legal · passed 80%' },
+  { time: '14:25', color: 'bg-amber-500', title: 'Andi Pratama — Email opened', meta: 'Marketing · has not clicked' },
+  { time: '14:18', color: 'bg-red-500', title: 'Dewi Rahayu — Link clicks', meta: 'Finance · landing page visited' },
+  { time: '14:10', color: 'bg-amber-500', title: 'Putri Ayu — Email opened', meta: 'HR · has not clicked' },
+  { time: '13:55', color: 'bg-red-500', title: 'Raka Firmansyah — Submit form', meta: 'Finance · credential harvested' },
+  { time: '13:40', color: 'bg-violet-500', title: 'Batch email batch 3 sent', meta: '420 email · Finance & HR' },
 ]
 
 const REPORT_USERS = [
-  { name: 'Budi Santoso', dept: 'Finance',   clicked: 'Yes',    submit: 'Yes',    quiz: 'Failed', score: 91, level: 'High',   badge: 'bg-red-100 text-red-700',       scoreCls: 'text-red-600' },
-  { name: 'Sari Dewi',    dept: 'HR',        clicked: 'Yes',    submit: 'Yes',    quiz: 'Passed', score: 78, level: 'High',   badge: 'bg-red-100 text-red-700',       scoreCls: 'text-red-600' },
-  { name: 'Andi Pratama', dept: 'Marketing', clicked: 'Yes',    submit: 'No', quiz: 'Passed', score: 54, level: 'Medium', badge: 'bg-amber-100 text-amber-700',   scoreCls: 'text-amber-600' },
-  { name: 'Rina Wijaya',  dept: 'Legal',     clicked: 'No', submit: 'No', quiz: 'Passed', score: 12, level: 'Low',    badge: 'bg-emerald-100 text-emerald-700', scoreCls: 'text-emerald-600' },
+  { name: 'Budi Santoso', dept: 'Finance', clicked: 'Yes', submit: 'Yes', quiz: 'Failed', score: 91, level: 'High', badge: 'bg-red-100 text-red-700', scoreCls: 'text-red-600' },
+  { name: 'Sari Dewi', dept: 'HR', clicked: 'Yes', submit: 'Yes', quiz: 'Passed', score: 78, level: 'High', badge: 'bg-red-100 text-red-700', scoreCls: 'text-red-600' },
+  { name: 'Andi Pratama', dept: 'Marketing', clicked: 'Yes', submit: 'No', quiz: 'Passed', score: 54, level: 'Medium', badge: 'bg-amber-100 text-amber-700', scoreCls: 'text-amber-600' },
+  { name: 'Rina Wijaya', dept: 'Legal', clicked: 'No', submit: 'No', quiz: 'Passed', score: 12, level: 'Low', badge: 'bg-emerald-100 text-emerald-700', scoreCls: 'text-emerald-600' },
 ]
 
 const EMAIL_TEMPLATES = [
@@ -123,17 +123,17 @@ const LANDING_PAGES = [
 
 function statusLabel(status) {
   switch (status) {
-    case 'active':    return { label: 'Running',  cls: 'bg-blue-100 text-blue-700' }
-    case 'completed': return { label: 'Completed',   cls: 'bg-emerald-100 text-emerald-700' }
-    case 'paused':    return { label: 'Paused',    cls: 'bg-amber-100 text-amber-700' }
-    case 'draft':     return { label: 'Draft',     cls: 'bg-gray-100 text-gray-500' }
-    default:          return { label: 'Scheduled', cls: 'bg-gray-100 text-gray-600' }
+    case 'active': return { label: 'Running', cls: 'bg-blue-100 text-blue-700' }
+    case 'completed': return { label: 'Completed', cls: 'bg-emerald-100 text-emerald-700' }
+    case 'paused': return { label: 'Paused', cls: 'bg-amber-100 text-amber-700' }
+    case 'draft': return { label: 'Draft', cls: 'bg-gray-100 text-gray-500' }
+    default: return { label: 'Scheduled', cls: 'bg-gray-100 text-gray-600' }
   }
 }
 function dotColor(status) {
-  if (status === 'active')    return 'bg-blue-500'
+  if (status === 'active') return 'bg-blue-500'
   if (status === 'completed') return 'bg-emerald-500'
-  if (status === 'paused')    return 'bg-amber-500'
+  if (status === 'paused') return 'bg-amber-500'
   return 'bg-gray-400'
 }
 
@@ -159,7 +159,7 @@ function WizardStepper({ step, onStepChange }) {
           />
         </div>
         {WIZARD_STEPS.map((label, i) => {
-          const done    = i + 1 < step
+          const done = i + 1 < step
           const current = i + 1 === step
           return (
             <button
@@ -170,7 +170,7 @@ function WizardStepper({ step, onStepChange }) {
             >
               <div className={clsx(
                 'w-8 h-8 rounded-full flex items-center justify-center font-semibold text-sm transition-all duration-300',
-                done    && 'bg-emerald-100 text-emerald-700 border border-emerald-200',
+                done && 'bg-emerald-100 text-emerald-700 border border-emerald-200',
                 current && 'bg-violet-500 text-white',
                 !done && !current && 'bg-gray-100 text-gray-400 border border-gray-200',
               )}>
@@ -178,7 +178,7 @@ function WizardStepper({ step, onStepChange }) {
               </div>
               <span className={clsx(
                 'text-xs mt-2 transition-all duration-300',
-                done    && 'font-semibold text-emerald-700',
+                done && 'font-semibold text-emerald-700',
                 current && 'font-semibold text-violet-500',
                 !done && !current && 'font-medium text-gray-400',
               )}>{label}</span>
@@ -195,7 +195,7 @@ function WizardStepper({ step, onStepChange }) {
 function DeleteModal({ campaign, onConfirm, onCancel, isPending }) {
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40"
-         onClick={e => e.target === e.currentTarget && onCancel()}>
+      onClick={e => e.target === e.currentTarget && onCancel()}>
       <div className="bg-white border border-gray-200 rounded-2xl p-6 w-full max-w-sm shadow-xl">
         <div className="flex items-start gap-3 mb-5">
           <div className="w-10 h-10 rounded-xl bg-red-100 flex items-center justify-center flex-shrink-0">
@@ -584,11 +584,11 @@ function Step3({ form, csvData, onBack, onLaunch, onDraft, isLaunching }) {
 
   const checklist = [
     { ok: true, text: `${targetCount.toLocaleString('en-US')} targets imported successfully` },
-    { ok: !!form.template,    text: form.template ? `Selected email template — ${selectedTemplate?.name} (${selectedTemplate?.type}, difficulty ${selectedTemplate?.diff})` : 'Select phishing template' },
-    { ok: true,               text: 'SMTP sending profile validated' },
-    { ok: true,               text: 'Landing page configured in GoPhish' },
+    { ok: !!form.template, text: form.template ? `Selected email template — ${selectedTemplate?.name} (${selectedTemplate?.type}, difficulty ${selectedTemplate?.diff})` : 'Select phishing template' },
+    { ok: true, text: 'SMTP sending profile validated' },
+    { ok: true, text: 'Landing page configured in GoPhish' },
     { ok: !!(form.dateStart && form.dateEnd), text: form.dateStart && form.dateEnd ? `Schedule set — ${form.dateStart} to ${form.dateEnd} (${form.timezone})` : 'Set sending schedule' },
-    { ok: true,               text: 'No active blackout period' },
+    { ok: true, text: 'No active blackout period' },
   ]
 
   const formatDate = (d) => {
@@ -626,11 +626,11 @@ function Step3({ form, csvData, onBack, onLaunch, onDraft, isLaunching }) {
           <h3 className="text-sm font-semibold text-gray-900 mb-4">Campaign summary</h3>
           <div className="space-y-3 text-sm">
             {[
-              { label: 'Name',         value: form.name || '—' },
-              { label: 'Playbook',     value: selectedPlaybook?.name || '—' },
+              { label: 'Name', value: form.name || '—' },
+              { label: 'Playbook', value: selectedPlaybook?.name || '—' },
               { label: 'Total targets', value: `${targetCount.toLocaleString('en-US')} user` },
-              { label: 'Duration',       value: form.dateStart && form.dateEnd ? `${formatDate(form.dateStart)} – ${formatDate(form.dateEnd)}` : '—' },
-              { label: 'Difficulty',   value: selectedPlaybook?.diff ? `${selectedPlaybook.diff}/5 (NIST)` : selectedTemplate?.diff ? `${selectedTemplate.diff}/5 (NIST)` : '—', red: true },
+              { label: 'Duration', value: form.dateStart && form.dateEnd ? `${formatDate(form.dateStart)} – ${formatDate(form.dateEnd)}` : '—' },
+              { label: 'Difficulty', value: selectedPlaybook?.diff ? `${selectedPlaybook.diff}/5 (NIST)` : selectedTemplate?.diff ? `${selectedTemplate.diff}/5 (NIST)` : '—', red: true },
             ].map(({ label, value, red }) => (
               <div key={label} className="flex items-baseline justify-between">
                 <span className="text-xs text-gray-500 w-28 flex-shrink-0">{label}</span>
@@ -1813,8 +1813,8 @@ export default function Campaigns() {
   const [reportTab, setReportTab] = useState('report')
 
   // List state
-  const [page, setPage]           = useState(1)
-  const [search, setSearch]       = useState('')
+  const [page, setPage] = useState(1)
+  const [search, setSearch] = useState('')
   const [statusFilter, setFilter] = useState('all')
   const [deleteTarget, setDelete] = useState(null)
 
@@ -1842,7 +1842,7 @@ export default function Campaigns() {
   })
 
   const rawItems = data?.items ?? STATIC_CAMPAIGNS
-  const total    = data?.total  ?? STATIC_CAMPAIGNS.length
+  const total = data?.total ?? STATIC_CAMPAIGNS.length
   const lastPage = data?.last_page ?? 1
 
   const items = rawItems.filter(c => {
@@ -1851,7 +1851,7 @@ export default function Campaigns() {
     return ok1 && ok2
   })
 
-  const activeCount    = rawItems.filter(c => c.status === 'active').length
+  const activeCount = rawItems.filter(c => c.status === 'active').length
   const completedCount = rawItems.filter(c => c.status === 'completed').length
 
   const resetWizard = () => {
@@ -1880,7 +1880,7 @@ export default function Campaigns() {
   // ── New campaign wizard view ──
   if (view === 'new') {
     return (
-      <div className="space-y-6">
+      <div className="space-y-6 lg:flex lg:h-[calc(100vh-110px)] lg:min-h-[720px] lg:flex-col lg:overflow-hidden mt-4 animate-fade-in">
         {/* Header */}
         <div>
           <h1 className="text-2xl font-bold text-gray-900">New campaign</h1>

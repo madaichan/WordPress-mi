@@ -10,7 +10,7 @@ export default function Quiz() {
   }
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-6 lg:flex lg:h-[calc(100vh-110px)] lg:min-h-[720px] lg:flex-col lg:overflow-hidden mt-4">
       <div>
         <h1 className="text-2xl font-bold text-gray-900">Quiz</h1>
         <p className="text-sm text-gray-500 mt-0.5">Cybersecurity evaluation mini quiz</p>

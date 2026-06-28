@@ -5,46 +5,46 @@ import clsx from 'clsx'
 
 // Static data for sections without live API endpointsts yet
 const DEPT_RATES = [
-  { dept: 'Finance',     pct: 52, color: 'bg-red-500',    text: 'text-red-600' },
-  { dept: 'HR',          pct: 40, color: 'bg-amber-500',  text: 'text-amber-600' },
-  { dept: 'Marketing',   pct: 24, color: 'bg-amber-500',  text: 'text-amber-600' },
-  { dept: 'Engineering', pct: 6,  color: 'bg-emerald-500', text: 'text-emerald-600' },
-  { dept: 'Legal',       pct: 4,  color: 'bg-emerald-500', text: 'text-emerald-600' },
+  { dept: 'Finance', pct: 52, color: 'bg-red-500', text: 'text-red-600' },
+  { dept: 'HR', pct: 40, color: 'bg-amber-500', text: 'text-amber-600' },
+  { dept: 'Marketing', pct: 24, color: 'bg-amber-500', text: 'text-amber-600' },
+  { dept: 'Engineering', pct: 6, color: 'bg-emerald-500', text: 'text-emerald-600' },
+  { dept: 'Legal', pct: 4, color: 'bg-emerald-500', text: 'text-emerald-600' },
 ]
 
 const ACTIVITY = [
-  { icon: 'ti-forms',   bg: 'bg-red-100',     fg: 'text-red-600',     actor: 'Budi Santoso', action: 'submit form phishing',    meta: ['Finance', '2 minutes ago'] },
-  { icon: 'ti-pointer', bg: 'bg-red-100',     fg: 'text-red-600',     actor: 'Sari Dewi',    action: 'menglink click phishing',   meta: ['HR', '14 minutes ago'] },
-  { icon: 'ti-check',   bg: 'bg-emerald-100', fg: 'text-emerald-600', actor: '38 user',      action: 'completed the simulation quiz', meta: ['1 hour ago'] },
-  { icon: 'ti-school',  bg: 'bg-amber-100',   fg: 'text-amber-600',   actor: '42 user',      action: 'were assigned coaching modules', meta: ['3 hours ago'] },
+  { icon: 'ti-forms', bg: 'bg-red-100', fg: 'text-red-600', actor: 'Budi Santoso', action: 'submit form phishing', meta: ['Finance', '2 minutes ago'] },
+  { icon: 'ti-pointer', bg: 'bg-red-100', fg: 'text-red-600', actor: 'Sari Dewi', action: 'menglink click phishing', meta: ['HR', '14 minutes ago'] },
+  { icon: 'ti-check', bg: 'bg-emerald-100', fg: 'text-emerald-600', actor: '38 user', action: 'completed the simulation quiz', meta: ['1 hour ago'] },
+  { icon: 'ti-school', bg: 'bg-amber-100', fg: 'text-amber-600', actor: '42 user', action: 'were assigned coaching modules', meta: ['3 hours ago'] },
 ]
 
 const HIGH_RISK = [
-  { initials: 'BS', name: 'Budi Santoso', dept: 'Finance',   risk: 'High',   ab: 'bg-red-100',     af: 'text-red-600',     bb: 'bg-red-100',     bf: 'text-red-700' },
-  { initials: 'SD', name: 'Sari Dewi',    dept: 'HR',        risk: 'High',   ab: 'bg-red-100',     af: 'text-red-600',     bb: 'bg-red-100',     bf: 'text-red-700' },
-  { initials: 'AP', name: 'Andi Pratama', dept: 'Marketing', risk: 'Medium', ab: 'bg-amber-100',   af: 'text-amber-600',   bb: 'bg-amber-100',   bf: 'text-amber-700' },
-  { initials: 'RW', name: 'Rina Wijaya',  dept: 'Legal',     risk: 'Low',    ab: 'bg-emerald-100', af: 'text-emerald-600', bb: 'bg-emerald-100', bf: 'text-emerald-700' },
+  { initials: 'BS', name: 'Budi Santoso', dept: 'Finance', risk: 'High', ab: 'bg-red-100', af: 'text-red-600', bb: 'bg-red-100', bf: 'text-red-700' },
+  { initials: 'SD', name: 'Sari Dewi', dept: 'HR', risk: 'High', ab: 'bg-red-100', af: 'text-red-600', bb: 'bg-red-100', bf: 'text-red-700' },
+  { initials: 'AP', name: 'Andi Pratama', dept: 'Marketing', risk: 'Medium', ab: 'bg-amber-100', af: 'text-amber-600', bb: 'bg-amber-100', bf: 'text-amber-700' },
+  { initials: 'RW', name: 'Rina Wijaya', dept: 'Legal', risk: 'Low', ab: 'bg-emerald-100', af: 'text-emerald-600', bb: 'bg-emerald-100', bf: 'text-emerald-700' },
 ]
 
 const STATIC_CAMPAIGNS = [
-  { name: 'Q2 phishing wave',      date: '18 Jun – 25 Jun', status: 'active' },
-  { name: 'BEC scenario — finance', date: '28 Jun 2025',     status: 'scheduled' },
-  { name: 'Q1 awareness check',    date: '10 Mar 2025',      status: 'completed' },
+  { name: 'Q2 phishing wave', date: '18 Jun – 25 Jun', status: 'active' },
+  { name: 'BEC scenario — finance', date: '28 Jun 2025', status: 'scheduled' },
+  { name: 'Q1 awareness check', date: '10 Mar 2025', status: 'completed' },
 ]
 
 const STEPS = ['Pre sim', 'Preparation', 'Performing', 'Post sim', 'Follow up']
 
 function statusLabel(status) {
   switch (status) {
-    case 'active':    return { label: 'Running',  cls: 'bg-blue-100 text-blue-700' }
-    case 'completed': return { label: 'Completed',   cls: 'bg-emerald-100 text-emerald-700' }
-    case 'paused':    return { label: 'Paused',    cls: 'bg-amber-100 text-amber-700' }
-    default:          return { label: 'Scheduled', cls: 'bg-gray-100 text-gray-600' }
+    case 'active': return { label: 'Running', cls: 'bg-blue-100 text-blue-700' }
+    case 'completed': return { label: 'Completed', cls: 'bg-emerald-100 text-emerald-700' }
+    case 'paused': return { label: 'Paused', cls: 'bg-amber-100 text-amber-700' }
+    default: return { label: 'Scheduled', cls: 'bg-gray-100 text-gray-600' }
   }
 }
 
 function dotColor(status) {
-  if (status === 'active')    return 'bg-blue-500'
+  if (status === 'active') return 'bg-blue-500'
   if (status === 'completed') return 'bg-emerald-500'
   return 'bg-gray-400'
 }
@@ -62,25 +62,25 @@ export default function Dashboard() {
     queryFn: () => reportApi.riskScores({}),
   })
 
-  const items  = campaigns?.items ?? []
+  const items = campaigns?.items ?? []
   const scores = riskScores ?? []
 
   const activeCampaigns = items.filter(c => c.status === 'active').length
-  const totalTargets    = items.reduce((n, c) => n + (c.target_count ?? 0), 0)
-  const highRiskCount   = scores.filter(s => s.risk_tier === 'high' || s.risk_tier === 'critical').length
+  const totalTargets = items.reduce((n, c) => n + (c.target_count ?? 0), 0)
+  const highRiskCount = scores.filter(s => s.risk_tier === 'high' || s.risk_tier === 'critical').length
 
   const campaignRows = items.length > 0
     ? items.slice(0, 4).map(c => ({
-        name:   c.name,
-        date:   c.launched_at
-          ? new Date(c.launched_at).toLocaleDateString('en-US', { day: 'numeric', month: 'short', year: 'numeric' })
-          : '—',
-        status: c.status,
-      }))
+      name: c.name,
+      date: c.launched_at
+        ? new Date(c.launched_at).toLocaleDateString('en-US', { day: 'numeric', month: 'short', year: 'numeric' })
+        : '—',
+      status: c.status,
+    }))
     : STATIC_CAMPAIGNS
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-6 lg:flex lg:h-[calc(100vh-110px)] lg:min-h-[720px] lg:flex-col lg:overflow-hidden mt-4">
 
       {/* ── 1. Page header ── */}
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
@@ -171,13 +171,13 @@ export default function Dashboard() {
             <div className="h-full bg-emerald-500" style={{ width: '50%' }} />
           </div>
           {STEPS.map((label, i) => {
-            const done    = i + 1 <= 2
+            const done = i + 1 <= 2
             const current = i + 1 === 3
             return (
               <div key={label} className="flex flex-col items-center z-10 flex-1">
                 <div className={clsx(
                   'w-8 h-8 rounded-full flex items-center justify-center font-semibold text-sm',
-                  done    && 'bg-emerald-100 text-emerald-700 border border-emerald-200',
+                  done && 'bg-emerald-100 text-emerald-700 border border-emerald-200',
                   current && 'bg-[#6C63FF] text-white',
                   !done && !current && 'bg-gray-100 text-gray-400 border border-gray-200',
                 )}>
@@ -185,7 +185,7 @@ export default function Dashboard() {
                 </div>
                 <span className={clsx(
                   'text-xs mt-2',
-                  done    && 'font-medium text-gray-600',
+                  done && 'font-medium text-gray-600',
                   current && 'font-semibold text-[#6C63FF]',
                   !done && !current && 'font-medium text-gray-400',
                 )}>{label}</span>
@@ -197,9 +197,9 @@ export default function Dashboard() {
         {/* Mini stats */}
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
           {[
-            { label: 'Emails sent', value: '1,118', sub: '90% of targets',  subCls: 'text-emerald-600' },
-            { label: 'Link clicks',      value: '201',   sub: '18% click rate',   subCls: 'text-amber-600' },
-            { label: 'Data submitted',    value: '87',    sub: '43% of clickers', subCls: 'text-red-600' },
+            { label: 'Emails sent', value: '1,118', sub: '90% of targets', subCls: 'text-emerald-600' },
+            { label: 'Link clicks', value: '201', sub: '18% click rate', subCls: 'text-amber-600' },
+            { label: 'Data submitted', value: '87', sub: '43% of clickers', subCls: 'text-red-600' },
           ].map(({ label, value, sub, subCls }) => (
             <div key={label} className="bg-gray-50 border border-gray-100 rounded-xl p-4 flex flex-col justify-between">
               <span className="text-xs font-medium text-gray-500">{label}</span>
@@ -248,31 +248,31 @@ export default function Dashboard() {
           <div className="flex flex-col gap-4 flex-1">
             {isLoading
               ? [...Array(3)].map((_, i) => (
-                  <div key={i} className="h-12 bg-gray-100 rounded-lg animate-pulse" />
-                ))
+                <div key={i} className="h-12 bg-gray-100 rounded-lg animate-pulse" />
+              ))
               : campaignRows.map(({ name, date, status }, i) => {
-                  const { label, cls } = statusLabel(status)
-                  return (
-                    <div
-                      key={name}
-                      className={clsx(
-                        'flex items-center justify-between pb-3',
-                        i < campaignRows.length - 1 && 'border-b border-gray-100',
-                      )}
-                    >
-                      <div className="flex items-start gap-2.5">
-                        <span className={clsx('w-2 h-2 rounded-full mt-1.5 flex-shrink-0', dotColor(status))} />
-                        <div>
-                          <h4 className="text-sm font-medium text-gray-900">{name}</h4>
-                          <span className="text-xs text-gray-500">{date}</span>
-                        </div>
+                const { label, cls } = statusLabel(status)
+                return (
+                  <div
+                    key={name}
+                    className={clsx(
+                      'flex items-center justify-between pb-3',
+                      i < campaignRows.length - 1 && 'border-b border-gray-100',
+                    )}
+                  >
+                    <div className="flex items-start gap-2.5">
+                      <span className={clsx('w-2 h-2 rounded-full mt-1.5 flex-shrink-0', dotColor(status))} />
+                      <div>
+                        <h4 className="text-sm font-medium text-gray-900">{name}</h4>
+                        <span className="text-xs text-gray-500">{date}</span>
                       </div>
-                      <span className={clsx('rounded-full text-xs font-semibold px-2 py-0.5 whitespace-nowrap', cls)}>
-                        {label}
-                      </span>
                     </div>
-                  )
-                })
+                    <span className={clsx('rounded-full text-xs font-semibold px-2 py-0.5 whitespace-nowrap', cls)}>
+                      {label}
+                    </span>
+                  </div>
+                )
+              })
             }
           </div>
         </div>

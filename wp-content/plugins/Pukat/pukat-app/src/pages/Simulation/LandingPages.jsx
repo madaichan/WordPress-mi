@@ -742,7 +742,7 @@ export default function LandingPages() {
   const [searchQuery, setSearchQuery] = useState('')
   const [previewId, setPreviewId] = useState(null)
   const [previewTitle, setPreviewTitle] = useState('Microsoft 365 Login')
-  
+
   // Editor / Preview Shared state (lifting state up)
   const [editingId, setEditingId] = useState(null)
   const [editingName, setEditingName] = useState('')
@@ -897,7 +897,7 @@ export default function LandingPages() {
     )
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-6 lg:flex lg:h-[calc(100vh-110px)] lg:min-h-[720px] lg:flex-col lg:overflow-hidden mt-4 animate-fade-in">
       {/* ── Header ── */}
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
         <div>

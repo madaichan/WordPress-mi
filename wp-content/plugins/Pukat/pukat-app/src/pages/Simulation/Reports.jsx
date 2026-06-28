@@ -332,7 +332,7 @@ export default function Reports() {
   const [activeTab, setActiveTab] = useState('report')
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-6 lg:flex lg:h-[calc(100vh-110px)] lg:min-h-[720px] lg:flex-col lg:overflow-hidden mt-4 animate-fade-in">
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <div>
           <h1 className="text-2xl font-bold text-gray-900">Q2 Phishing Wave — Finance</h1>

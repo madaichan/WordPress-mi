@@ -10,6 +10,7 @@ const Campaigns     = lazy(() => import('./pages/Simulation/Campaigns.jsx'))
 const Preparation   = lazy(() => import('./pages/Simulation/Preparation.jsx'))
 const Performing    = lazy(() => import('./pages/Simulation/Performing.jsx'))
 const Reports       = lazy(() => import('./pages/Simulation/Reports.jsx'))
+const SendingProfiles = lazy(() => import('./pages/Simulation/SendingProfiles.jsx'))
 const EmailTemplates = lazy(() => import('./pages/Simulation/EmailTemplates.jsx'))
 const LandingPages  = lazy(() => import('./pages/Simulation/LandingPages.jsx'))
 const Quiz          = lazy(() => import('./pages/PostSimulation/Quiz.jsx'))
@@ -70,7 +71,7 @@ export default function AppFrontend() {
             {/* Simulation */}
             <Route path="/campaigns"              element={<Campaigns />} />
             <Route path="/playbooks"              element={<Playbooks />} />
-            <Route path="/monitoring"             element={<Performing />} />
+            <Route path="/monitoring"             element={<SendingProfiles />} />
             <Route path="/email-templates"        element={<EmailTemplates />} />
             <Route path="/landing-pages"          element={<LandingPages />} />
             <Route path="/simulation/preparation" element={<Preparation />} />

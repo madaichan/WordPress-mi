@@ -478,7 +478,7 @@ function EditorPane({
   const title = editingName ? `Edit template: ${editingName}` : 'Buat email template'
 
   return (
-    <div className="space-y-6 animate-fade-in">
+    <div className="space-y-6">
       <div className="flex items-center justify-between">
         <div>
           <h2 className="text-lg font-bold text-gray-900">{title}</h2>
@@ -683,12 +683,12 @@ export default function EmailTemplates() {
         prev.map((p) =>
           p.id === editingId
             ? {
-                ...p,
-                name: name || p.name,
-                sender: editingSender,
-                subject: editingSubject,
-                html,
-              }
+              ...p,
+              name: name || p.name,
+              sender: editingSender,
+              subject: editingSubject,
+              html,
+            }
             : p
         )
       )
@@ -748,7 +748,7 @@ export default function EmailTemplates() {
     )
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-6 lg:flex lg:h-[calc(100vh-110px)] lg:min-h-[720px] lg:flex-col lg:overflow-hidden mt-4 animate-fade-in">
       {/* ── Header ── */}
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
         <div>

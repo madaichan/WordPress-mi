@@ -18,6 +18,8 @@ use Pukat\Api\ReportController;
 use Pukat\Api\SettingsController;
 use Pukat\Api\UserController;
 use Pukat\Frontend\FrontendRouter;
+use Pukat\Services\AssetManifestService;
+use Pukat\Services\UserContextService;
 
 /**
  * Class Plugin
@@ -127,29 +129,13 @@ final class Plugin {
 		wp_dequeue_script( 'wp-auth-check' );
 		wp_dequeue_script( 'admin-bar' );
 
-		$dist_dir = PUKAT_PLUGIN_DIR . 'assets/dist/';
-		$dist_url = PUKAT_PLUGIN_URL . 'assets/dist/';
-
-		// Vite produces a manifest.json — use it to get hashed filenames.
-		$manifest_path = $dist_dir . '.vite/manifest.json';
-		$js_file  = 'assets/index.js';
-		$css_file = null;
-
-		if ( file_exists( $manifest_path ) ) {
-			$manifest = json_decode( (string) file_get_contents( $manifest_path ), true );
-			if ( isset( $manifest['src/main.jsx']['file'] ) ) {
-				$js_file = $manifest['src/main.jsx']['file'];
-			}
-			if ( isset( $manifest['src/main.jsx']['css'][0] ) ) {
-				$css_file = $manifest['src/main.jsx']['css'][0];
-			}
-		}
+		$assets = ( new AssetManifestService() )->app_entry();
 
 		// CSS.
-		if ( $css_file && file_exists( $dist_dir . $css_file ) ) {
+		if ( $assets['css_file'] && file_exists( $assets['dist_dir'] . $assets['css_file'] ) ) {
 			wp_enqueue_style(
 				'pukat-app',
-				$dist_url . $css_file,
+				$assets['dist_url'] . $assets['css_file'],
 				[],
 				PUKAT_VERSION
 			);
@@ -158,7 +144,7 @@ final class Plugin {
 		// JS (module type for ESM Vite output).
 		wp_enqueue_script(
 			'pukat-app',
-			$dist_url . $js_file,
+			$assets['dist_url'] . $assets['js_file'],
 			[],
 			PUKAT_VERSION,
 			true
@@ -172,35 +158,10 @@ final class Plugin {
 			return $tag;
 		}, 10, 2 );
 
-		// Pass WP context to React.
-		$current_user = wp_get_current_user();
-		$user_roles   = $current_user->roles ?? [];
-
-		// Determine Pukat role.
-		$pukat_role = 'viewer';
-		if ( in_array( 'pukat_admin', $user_roles, true ) || in_array( 'administrator', $user_roles, true ) ) {
-			$pukat_role = 'admin';
-		} elseif ( in_array( 'pukat_operator', $user_roles, true ) ) {
-			$pukat_role = 'operator';
-		}
-
 		wp_localize_script(
 			'pukat-app',
 			'PukatData',
-			[
-				'restUrl'   => esc_url_raw( rest_url( PUKAT_REST_NAMESPACE ) ),
-				'nonce'     => wp_create_nonce( 'wp_rest' ),
-				'adminUrl'  => esc_url_raw( admin_url() ),
-				'pluginUrl' => esc_url_raw( PUKAT_PLUGIN_URL ),
-				'version'   => PUKAT_VERSION,
-				'context'   => 'admin',
-				'user'      => [
-					'id'          => $current_user->ID,
-					'displayName' => $current_user->display_name,
-					'email'       => $current_user->user_email,
-					'role'        => $pukat_role,
-				],
-			]
+			( new UserContextService() )->app_context( 'admin' )
 		);
 	}
 

@@ -1,0 +1,972 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>SMTP Sending Profiles — Standalone</title>
+  
+  <!-- Tailwind CSS CDN -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  
+  <!-- Tabler Icons -->
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@latest/dist/tabler-icons.min.css">
+  
+  <!-- Custom Scoped Styles -->
+  <style>
+    @import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700&display=swap');
+    
+    body {
+      font-family: 'Plus Jakarta Sans', system-ui, -apple-system, sans-serif;
+    }
+    
+    /* Toggle Switch Styles */
+    .toggle {
+      width: 32px;
+      height: 18px;
+      border-radius: 9px;
+      background: #6C63FF;
+      position: relative;
+      flex-shrink: 0;
+      transition: background-color 0.2s ease;
+      cursor: pointer;
+    }
+    .toggle::after {
+      content: '';
+      position: absolute;
+      right: 2px;
+      top: 2px;
+      width: 14px;
+      height: 14px;
+      border-radius: 50%;
+      background: #fff;
+      transition: left 0.2s ease, right 0.2s ease;
+    }
+    .toggle.off {
+      background: #D1D5DB;
+    }
+    .toggle.off::after {
+      right: auto;
+      left: 2px;
+    }
+    
+    /* Custom Field Classes */
+    .field {
+      margin-bottom: 12px;
+    }
+    .field-label {
+      font-size: 11px;
+      font-weight: 600;
+      color: #6B7280;
+      margin-bottom: 4px;
+      display: flex;
+      align-items: center;
+      gap: 4px;
+    }
+    .field-req {
+      color: #EF4444;
+    }
+    .field-input, .field-select {
+      width: 100%;
+      border: 1px solid #E5E7EB;
+      border-radius: 8px;
+      padding: 7px 12px;
+      font-size: 12px;
+      color: #1F2937;
+      background: #FFF;
+      outline: none;
+      transition: border-color 0.15s ease, box-shadow 0.15s ease;
+    }
+    .field-input:focus, .field-select:focus {
+      border-color: #6C63FF;
+      box-shadow: 0 0 0 3px rgba(108, 99, 255, 0.12);
+    }
+    .field-hint {
+      font-size: 10px;
+      color: #9CA3AF;
+      margin-top: 3.5px;
+    }
+    
+    /* Slideover Drawer Layout */
+    .slideover {
+      position: fixed;
+      top: 0;
+      right: 0;
+      bottom: 0;
+      width: 420px;
+      background: #ffffff;
+      box-shadow: -10px 0 30px rgba(0, 0, 0, 0.08);
+      display: flex;
+      flex-direction: column;
+      transform: translateX(100%);
+      transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    }
+    .slideover-active .slideover {
+      transform: translateX(0);
+    }
+    
+    /* Status Dots and Tags */
+    .status-dot {
+      width: 7px;
+      height: 7px;
+      border-radius: 50%;
+      flex-shrink: 0;
+    }
+    .status-ok { background: #10B981; }
+    .status-warn {
+      background: #F59E0B;
+      animation: blink 1.5s ease-in-out infinite;
+    }
+    .status-err { background: #EF4444; }
+    @keyframes blink {
+      0%, 100% { opacity: 1; }
+      50% { opacity: .3; }
+    }
+    
+    .tag {
+      font-size: 10px;
+      padding: 2.5px 8px;
+      border-radius: 20px;
+      font-weight: 600;
+      display: inline-flex;
+      align-items: center;
+      gap: 3.5px;
+    }
+    .tag-ok { background: #D1FAE5; color: #065F46; }
+    .tag-warn { background: #FEF3C7; color: #92400E; }
+    .tag-err { background: #FEE2E2; color: #B91C1C; }
+    .tag-gray { background: #F3F4F6; color: #4B5563; }
+    .tag-blue { background: #DBEAFE; color: #1D4ED8; }
+    .tag-draft { background: #FEF3C7; color: #92400E; }
+    
+    /* Custom Headers row */
+    .header-row {
+      display: flex;
+      gap: 6px;
+      margin-bottom: 6px;
+      align-items: center;
+    }
+    .header-key { flex: 1; }
+    .header-val { flex: 2; }
+    .header-add {
+      font-size: 11px;
+      font-weight: 500;
+      color: #6C63FF;
+      cursor: pointer;
+      display: inline-flex;
+      align-items: center;
+      gap: 4px;
+      margin-top: 4px;
+      text-decoration: none;
+    }
+    .header-add:hover {
+      text-decoration: underline;
+    }
+    
+    /* Table hover transition */
+    .smtp-row .action-buttons {
+      opacity: 0;
+      transition: opacity 0.15s ease;
+    }
+    .smtp-row:hover .action-buttons {
+      opacity: 1;
+    }
+    
+    /* Toast Alert Message style */
+    .toast {
+      position: fixed;
+      bottom: 24px;
+      left: 50%;
+      transform: translateX(-50%) translateY(100px);
+      background: #1F2937;
+      color: #fff;
+      padding: 10px 18px;
+      border-radius: 20px;
+      font-size: 12px;
+      font-weight: 500;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      box-shadow: 0 4px 15px rgba(0, 0, 0, 0.15);
+      z-index: 1000;
+      opacity: 0;
+      transition: transform 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275), opacity 0.3s ease;
+    }
+    .toast.show {
+      transform: translateX(-50%) translateY(0);
+      opacity: 1;
+    }
+  </style>
+</head>
+<body class="bg-gray-50/70 min-h-screen p-8 text-gray-800">
+
+  <!-- Main View Container -->
+  <div class="max-w-6xl mx-auto space-y-6">
+    
+    <!-- Page Header -->
+    <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+      <div>
+        <h1 class="text-2xl font-bold text-gray-900 tracking-tight">Sending profiles</h1>
+        <p class="text-sm text-gray-500 mt-0.5 font-medium">Konfigurasi SMTP untuk pengiriman simulasi phishing via GoPhish</p>
+      </div>
+      <div class="flex items-center gap-3">
+        <button class="bg-white border border-gray-200 text-gray-700 hover:bg-gray-50 px-4 py-2 text-xs font-semibold rounded-xl shadow-sm transition-all" onclick="syncGoPhish()">
+          Sync GoPhish
+        </button>
+        <button class="bg-[#6C63FF] text-white hover:bg-[#5A52E0] px-4 py-2 text-xs font-semibold rounded-xl flex items-center gap-1.5 shadow-sm transition-all" onclick="openSmtpCreate()">
+          <i class="ti ti-plus text-sm"></i>
+          <span>New SMTP</span>
+        </button>
+      </div>
+    </div>
+
+    <!-- The Table Frame -->
+    <div class="bg-white border border-gray-200 rounded-2xl shadow-sm overflow-hidden">
+      <div class="p-5 border-b border-gray-100 flex items-center justify-between gap-4 bg-gray-50/40">
+        <div>
+          <h3 class="text-sm font-bold text-gray-900">Outbound Relay Pools</h3>
+          <p class="text-xs text-gray-500 mt-0.5">Daftar koneksi mail relay aktif yang terhubung dengan GoPhish</p>
+        </div>
+        <div class="flex items-center gap-3">
+          <div class="relative">
+            <i class="ti ti-search absolute left-3 top-2.5 text-gray-400 text-sm"></i>
+            <input type="text" placeholder="Cari profil..." oninput="filterSmtpTable(this.value)" class="bg-white border border-gray-200 text-gray-700 text-xs px-3 py-2 pl-9 rounded-xl focus:outline-none focus:border-[#6C63FF] focus:ring-2 focus:ring-[#6C63FF]/10 w-60">
+          </div>
+        </div>
+      </div>
+
+      <table class="w-full text-left border-collapse text-xs">
+        <thead>
+          <tr class="bg-gray-50 border-b border-gray-100 text-gray-500 font-semibold uppercase tracking-wider text-[10px]">
+            <th class="p-4 w-10"><input type="checkbox" class="rounded border-gray-300 text-[#6C63FF] focus:ring-[#6C63FF]"></th>
+            <th class="p-4">Nama profil</th>
+            <th class="p-4">Host / Port</th>
+            <th class="p-4">From address</th>
+            <th class="p-4">Enkripsi</th>
+            <th class="p-4">Status</th>
+            <th class="p-4">Dipakai</th>
+            <th class="p-4">Terakhir ditest</th>
+            <th class="p-4 w-28 text-right pr-6">Aksi</th>
+          </tr>
+        </thead>
+        <tbody id="smtp-table-body" class="divide-y divide-gray-100">
+          <!-- Dynamic rows -->
+        </tbody>
+      </table>
+
+      <div class="p-4 bg-gray-50/40 border-t border-gray-100 flex items-center justify-between">
+        <span id="smtp-count-label" class="text-xs text-gray-500 font-medium">4 sending profiles</span>
+      </div>
+    </div>
+
+    <!-- Info box -->
+    <div class="bg-white border border-gray-200 rounded-2xl p-5 shadow-sm flex items-start gap-4">
+      <div class="w-8 h-8 rounded-xl bg-[#6C63FF]/10 flex items-center justify-center text-[#6C63FF] flex-shrink-0">
+        <i class="ti ti-info-circle text-lg"></i>
+      </div>
+      <div>
+        <h4 class="text-sm font-bold text-gray-900 mb-1">Sending profile disimpan di GoPhish</h4>
+        <p class="text-xs text-gray-500 leading-relaxed">Data SMTP di halaman ini ditarik langsung dari GoPhish API. Perubahan yang dibuat di sini akan tersinkronisasi ke GoPhish secara otomatis. Pastikan GoPhish berjalan sebelum membuat profil baru.</p>
+      </div>
+    </div>
+
+  </div>
+
+  <!-- SMTP Sending Profile Slideover Panel Drawer -->
+  <div id="smtp-slideover-container" class="fixed inset-0 bg-gray-900/50 backdrop-blur-sm z-[100] hidden opacity-0 transition-opacity duration-300" onclick="closeSmtpSlideoverOnBackdrop(event)">
+    <div class="slideover" onclick="event.stopPropagation()">
+      
+      <!-- Drawer Header -->
+      <div class="p-4 border-b border-gray-100 flex items-center gap-3">
+        <div id="smtp-so-header-icon" class="w-8 h-8 rounded-lg flex items-center justify-center text-sm flex-shrink-0" style="background:#EEEDFE">
+          <i id="smtp-so-icon" class="ti ti-plus" style="color:#6C63FF;font-size:14px" aria-hidden="true"></i>
+        </div>
+        <div class="flex-grow">
+          <div id="smtp-so-title" class="text-sm font-bold text-gray-900 tracking-tight">New Sending Profile</div>
+          <div id="smtp-so-subtitle" class="text-[10px] text-gray-400 font-medium mt-0.5"></div>
+        </div>
+        <span id="smtp-change-pill" class="change-pill flex items-center gap-1 text-[10px] px-2.5 py-1 rounded-full bg-amber-50 text-amber-700 font-semibold border border-amber-100" style="display:none">
+          <span class="w-1.5 h-1.5 rounded-full bg-amber-500"></span>Ada perubahan
+        </span>
+        <button type="button" class="text-gray-400 hover:text-gray-600 p-1.5 hover:bg-gray-50 rounded-lg transition-all" onclick="closeSmtpSlideover()" aria-label="Tutup"><i class="ti ti-x text-base"></i></button>
+      </div>
+
+      <!-- Drawer Body -->
+      <div class="so-body overflow-y-auto p-5 flex-grow flex flex-col gap-4">
+        <input type="hidden" id="smtp-edit-index" value="-1">
+        <input type="hidden" id="smtp-edit-mode" value="new"> <!-- new, update, dup -->
+
+        <!-- Usage Alerts -->
+        <div id="smtp-usage-alert" class="flex gap-2.5 p-3 bg-indigo-50 border border-indigo-100 rounded-xl text-xs" style="display:none">
+          <i class="ti ti-shield-check text-indigo-600 text-base flex-shrink-0 mt-0.5"></i>
+          <div>
+            <span id="smtp-usage-bold" class="font-bold text-indigo-950">Profil ini dipakai oleh 3 playbook aktif.</span>
+            <span class="text-indigo-700 font-medium"> Perubahan berlaku untuk kampanye berikutnya — tidak mempengaruhi yang sedang berjalan.</span>
+          </div>
+        </div>
+
+        <div id="smtp-duplicate-alert" class="flex gap-2.5 p-3 bg-amber-50 border border-amber-200 rounded-xl text-xs text-amber-800" style="display:none">
+          <i class="ti ti-copy text-amber-600 text-base flex-shrink-0 mt-0.5"></i>
+          <div class="font-medium">Semua konfigurasi disalin dari <strong id="smtp-dup-source-label">finance-relay-01</strong>. Status test direset. Ubah nama dan sesuaikan konfigurasi sebelum menyimpan.</div>
+        </div>
+
+        <!-- Basic Info Section -->
+        <div class="flex items-center gap-2 text-[10px] font-bold text-gray-400 uppercase tracking-wider">
+          <i class="ti ti-settings text-xs"></i> <span>Informasi dasar</span>
+        </div>
+        <div class="field">
+          <div class="field-label">Nama profil <span class="field-req">*</span></div>
+          <input id="smtp-name" class="field-input" placeholder="e.g. finance-relay-01" oninput="markSmtpChanged()">
+          <div class="field-hint" id="smtp-name-hint">Gunakan nama deskriptif — akan tampil di pilihan playbook</div>
+        </div>
+
+        <div class="w-full h-px bg-gray-100"></div>
+
+        <!-- SMTP Server Configuration -->
+        <div class="flex items-center gap-2 text-[10px] font-bold text-gray-400 uppercase tracking-wider">
+          <i class="ti ti-server text-xs"></i> <span>Konfigurasi SMTP</span>
+        </div>
+
+        <div class="grid grid-cols-2 gap-3">
+          <div class="field">
+            <div class="field-label">SMTP Host <span class="field-req">*</span></div>
+            <input id="smtp-host" class="field-input" placeholder="smtp.example.com" oninput="markSmtpChanged()">
+          </div>
+          <div class="field">
+            <div class="field-label">Port <span class="field-req">*</span></div>
+            <input id="smtp-port" class="field-input" type="number" placeholder="587" oninput="markSmtpChanged()">
+          </div>
+        </div>
+
+        <div class="field">
+          <div class="field-label">Enkripsi</div>
+          <select id="smtp-encryption" class="field-select" onchange="markSmtpChanged(); updateSmtpPortDefault(this.value)">
+            <option value="TLS">TLS (port 587 — direkomendasikan)</option>
+            <option value="SSL">SSL (port 465)</option>
+            <option value="None">None (port 25)</option>
+          </select>
+        </div>
+
+        <div class="grid grid-cols-2 gap-3">
+          <div class="field">
+            <div class="field-label">Username</div>
+            <input id="smtp-user" class="field-input" placeholder="smtp_user@example.com" oninput="markSmtpChanged()">
+          </div>
+          <div class="field">
+            <div class="field-label">Password</div>
+            <div style="position:relative">
+              <input id="smtp-pass" class="field-input" type="password" placeholder="••••••••" style="padding-right:32px" oninput="markSmtpChanged()">
+              <i class="ti ti-eye absolute right-3 top-2.5 text-gray-400 cursor-pointer hover:text-gray-600 text-sm" onclick="toggleSmtpPasswordVisibility('smtp-pass')" aria-hidden="true"></i>
+            </div>
+            <div class="field-hint" id="smtp-pass-hint" style="display:none;color:#F59E0B"><i class="ti ti-alert-triangle" style="font-size:11px" aria-hidden="true"></i> Password tidak ikut tersalin — isi ulang</div>
+          </div>
+        </div>
+
+        <div class="w-full h-px bg-gray-100"></div>
+
+        <!-- Sender Identity -->
+        <div class="flex items-center gap-2 text-[10px] font-bold text-gray-400 uppercase tracking-wider">
+          <i class="ti ti-mail text-xs"></i> <span>Identitas pengirim</span>
+        </div>
+
+        <div class="field">
+          <div class="field-label">From address <span class="field-req">*</span></div>
+          <input id="smtp-from" class="field-input" placeholder="Nama Pengirim &lt;sender@domain.com&gt;" oninput="markSmtpChanged()">
+          <div class="field-hint">Format: Display Name &lt;email@domain.com&gt; — pastikan domain sudah dikonfigurasi SPF/DKIM</div>
+        </div>
+
+        <div class="flex items-center gap-3 p-3 bg-gray-50 border border-gray-100 rounded-xl cursor-pointer select-none" onclick="toggleSmtpIgnoreCert()">
+          <div id="smtp-ignore-toggle" class="toggle off"></div>
+          <div>
+            <div class="text-xs font-bold text-gray-800">Ignore certificate errors</div>
+            <div class="text-[10px] text-gray-400 font-medium">Ignore SSL/TLS certificate errors for self-signed certificates</div>
+          </div>
+        </div>
+
+        <div class="w-full h-px bg-gray-100"></div>
+
+        <!-- Custom Headers -->
+        <div class="flex items-center gap-2 text-[10px] font-bold text-gray-400 uppercase tracking-wider">
+          <i class="ti ti-code text-xs"></i> <span>Custom headers</span> <span class="normal-case font-medium text-gray-400">(opsional)</span>
+        </div>
+        <div class="text-[11px] text-gray-400 leading-relaxed">Tambahkan custom email headers — berguna untuk bypass filter atau tracking tambahan</div>
+        
+        <div id="smtp-headers-container" class="space-y-2">
+          <!-- Dynamic key-val rows -->
+        </div>
+        <div>
+          <a class="header-add" onclick="addSmtpHeaderField()"><i class="ti ti-plus text-xs"></i> Tambah header</a>
+        </div>
+
+        <div class="w-full h-px bg-gray-100"></div>
+
+        <!-- Test Connection -->
+        <div class="flex items-center gap-2 text-[10px] font-bold text-gray-400 uppercase tracking-wider">
+          <i class="ti ti-send text-xs"></i> <span>Test koneksi</span>
+        </div>
+        <div id="smtp-test-reset-alert" class="flex gap-2 p-2.5 bg-amber-50 border border-amber-200 rounded-xl text-[11px] text-amber-800 items-center" style="display:none">
+          <i class="ti ti-alert-triangle text-amber-600 text-sm flex-shrink-0"></i>
+          <span>Status test direset. Wajib test ulang sebelum profil bisa dipakai.</span>
+        </div>
+        <div class="field">
+          <div class="field-label">Kirim test email ke</div>
+          <div class="flex gap-2">
+            <input id="smtp-test-target" class="field-input" placeholder="email@domain.com" style="flex:1">
+            <button id="smtp-test-btn" type="button" onclick="runSmtpConnectionTest()" class="bg-indigo-50 text-[#6C63FF] border border-indigo-100 hover:bg-[#6C63FF] hover:text-white px-4 py-2 rounded-lg text-xs font-semibold flex items-center gap-1.5 transition-all">
+              <i id="smtp-test-spinner" class="ti ti-send"></i> <span>Send test</span>
+            </button>
+          </div>
+        </div>
+        
+        <div id="smtp-test-result" style="display:none">
+          <!-- Connection logs -->
+        </div>
+      </div>
+
+      <!-- Drawer Footer -->
+      <div class="p-4 border-t border-gray-100 flex items-center gap-2 bg-gray-50/50">
+        <button type="button" id="smtp-delete-btn" class="bg-rose-50 text-rose-700 hover:bg-rose-100 border border-rose-100 px-4 py-2 rounded-xl text-xs font-semibold flex items-center gap-1 transition-all" onclick="deleteSmtpProfile()" style="display:none">
+          <i class="ti ti-trash"></i> Hapus profil
+        </button>
+        <button type="button" class="bg-white border border-gray-200 text-gray-700 hover:bg-gray-50 px-4 py-2 rounded-xl text-xs font-semibold transition-all ml-auto" onclick="closeSmtpSlideover()">
+          Batal
+        </button>
+        <button type="button" id="smtp-save-btn" class="bg-[#6C63FF] text-white hover:bg-[#5A52E0] px-4 py-2 rounded-xl text-xs font-semibold transition-all" onclick="submitSmtpProfile()">
+          Simpan profil
+        </button>
+      </div>
+
+    </div>
+  </div>
+
+  <!-- Toast Notification Wrapper -->
+  <div id="toast-alert" class="toast">
+    <i id="toast-icon" class="ti ti-circle-check text-green-400 text-base"></i>
+    <span id="toast-text">Toast Alert Message</span>
+  </div>
+
+  <!-- State & Controller JS Script -->
+  <script>
+    let smtpProfiles = [
+      {
+        name: 'finance-relay-01',
+        host: 'smtp.relay-pool.internal',
+        port: 587,
+        from: 'CEO Corp <ceo@corp-internal.net>',
+        encryption: 'TLS',
+        status: 'Valid',
+        used: '3 playbooks',
+        lastTest: '2 jam lalu',
+        username: 'relay-user@corp.internal',
+        password: 'password123',
+        ignoreCert: false,
+        headers: [{ key: 'X-Mailer', val: 'Microsoft Outlook 16.0' }]
+      },
+      {
+        name: 'general-relay-02',
+        host: 'mail.outbound.internal',
+        port: 465,
+        from: 'noreply@updates-corp.net',
+        encryption: 'SSL',
+        status: 'Valid',
+        used: '5 playbooks',
+        lastTest: '1 hari lalu',
+        username: 'general-relay@updates-corp.net',
+        password: 'password456',
+        ignoreCert: false,
+        headers: []
+      },
+      {
+        name: 'hr-relay-03',
+        host: 'smtp.hr-mailer.internal',
+        port: 587,
+        from: 'HR Department <hr@corp-hr-portal.net>',
+        encryption: 'TLS',
+        status: 'Belum ditest',
+        used: '1 playbook',
+        lastTest: '—',
+        username: 'hr-mailer@corp-hr-portal.net',
+        password: 'password789',
+        ignoreCert: false,
+        headers: []
+      },
+      {
+        name: 'it-relay-04',
+        host: 'smtp.it-notif.internal',
+        port: 25,
+        from: 'IT Helpdesk <it-helpdesk@corp-it.net>',
+        encryption: 'None',
+        status: 'Error',
+        used: '0 playbooks',
+        lastTest: 'Gagal · 3 jam lalu',
+        username: '',
+        password: '',
+        ignoreCert: true,
+        headers: []
+      }
+    ];
+
+    function showToast(message, type = 'success') {
+      const toast = document.getElementById('toast-alert');
+      const text = document.getElementById('toast-text');
+      const icon = document.getElementById('toast-icon');
+
+      text.textContent = message;
+      if (type === 'success') {
+        icon.className = 'ti ti-circle-check text-green-400 text-base';
+      } else {
+        icon.className = 'ti ti-circle-x text-rose-400 text-base';
+      }
+
+      toast.classList.add('show');
+      setTimeout(() => {
+        toast.classList.remove('show');
+      }, 3000);
+    }
+
+    function syncGoPhish() {
+      showToast('Sinkronisasi profil SMTP dengan GoPhish berhasil!', 'success');
+    }
+
+    function openSmtpCreate() {
+      document.getElementById('smtp-edit-index').value = '-1';
+      document.getElementById('smtp-edit-mode').value = 'new';
+      
+      document.getElementById('smtp-so-title').textContent = 'New Sending Profile';
+      document.getElementById('smtp-so-subtitle').textContent = '';
+      
+      const iconWrap = document.getElementById('smtp-so-header-icon');
+      iconWrap.style.background = '#EEEDFE';
+      const icon = document.getElementById('smtp-so-icon');
+      icon.className = 'ti ti-plus';
+      icon.style.color = '#6C63FF';
+
+      // Clear values
+      document.getElementById('smtp-name').value = '';
+      document.getElementById('smtp-host').value = '';
+      document.getElementById('smtp-port').value = '587';
+      document.getElementById('smtp-encryption').value = 'TLS';
+      document.getElementById('smtp-user').value = '';
+      document.getElementById('smtp-pass').value = '';
+      document.getElementById('smtp-from').value = '';
+      document.getElementById('smtp-test-target').value = 'admin@corp.internal';
+
+      document.getElementById('smtp-ignore-toggle').className = 'toggle off';
+      document.getElementById('smtp-headers-container').innerHTML = '';
+      
+      // Alerts
+      document.getElementById('smtp-usage-alert').style.display = 'none';
+      document.getElementById('smtp-duplicate-alert').style.display = 'none';
+      document.getElementById('smtp-test-reset-alert').style.display = 'none';
+      document.getElementById('smtp-test-result').style.display = 'none';
+      document.getElementById('smtp-pass-hint').style.display = 'none';
+      
+      // Footer
+      document.getElementById('smtp-delete-btn').style.display = 'none';
+      document.getElementById('smtp-save-btn').innerHTML = '<i class="ti ti-check" aria-hidden="true"></i> Simpan profil';
+
+      // Hide change pill
+      document.getElementById('smtp-change-pill').style.display = 'none';
+
+      openSmtpSlideover();
+    }
+
+    function openSmtpEdit(idx) {
+      const prof = smtpProfiles[idx];
+      if (!prof) return;
+
+      document.getElementById('smtp-edit-index').value = idx;
+      document.getElementById('smtp-edit-mode').value = 'update';
+      
+      document.getElementById('smtp-so-title').textContent = 'Update Sending Profile';
+      document.getElementById('smtp-so-subtitle').textContent = prof.name;
+      
+      const iconWrap = document.getElementById('smtp-so-header-icon');
+      iconWrap.style.background = '#FEF3C7';
+      const icon = document.getElementById('smtp-so-icon');
+      icon.className = 'ti ti-edit';
+      icon.style.color = '#92400E';
+
+      // Fill values
+      document.getElementById('smtp-name').value = prof.name;
+      document.getElementById('smtp-host').value = prof.host;
+      document.getElementById('smtp-port').value = prof.port;
+      document.getElementById('smtp-encryption').value = prof.encryption;
+      document.getElementById('smtp-user').value = prof.username || '';
+      document.getElementById('smtp-pass').value = prof.password || '';
+      document.getElementById('smtp-from').value = prof.from;
+      document.getElementById('smtp-test-target').value = 'admin@corp.internal';
+
+      const toggle = document.getElementById('smtp-ignore-toggle');
+      if (prof.ignoreCert) toggle.className = 'toggle';
+      else toggle.className = 'toggle off';
+
+      // Populate headers
+      const container = document.getElementById('smtp-headers-container');
+      container.innerHTML = '';
+      (prof.headers || []).forEach(h => {
+        addSmtpHeaderField(h.key, h.val);
+      });
+      
+      // Alerts
+      document.getElementById('smtp-usage-alert').style.display = 'flex';
+      document.getElementById('smtp-usage-bold').textContent = `Profil ini dipakai oleh ${prof.used}.`;
+      document.getElementById('smtp-duplicate-alert').style.display = 'none';
+      document.getElementById('smtp-test-reset-alert').style.display = 'none';
+      document.getElementById('smtp-test-result').style.display = 'none';
+      document.getElementById('smtp-pass-hint').style.display = 'none';
+      
+      // Footer
+      document.getElementById('smtp-delete-btn').style.display = 'inline-flex';
+      document.getElementById('smtp-save-btn').innerHTML = '<i class="ti ti-check" aria-hidden="true"></i> Simpan perubahan';
+
+      // Hide change pill
+      document.getElementById('smtp-change-pill').style.display = 'none';
+
+      openSmtpSlideover();
+    }
+
+    function openSmtpDuplicate(idx) {
+      const prof = smtpProfiles[idx];
+      if (!prof) return;
+
+      document.getElementById('smtp-edit-index').value = idx;
+      document.getElementById('smtp-edit-mode').value = 'dup';
+      
+      document.getElementById('smtp-so-title').textContent = 'Duplicate Sending Profile';
+      document.getElementById('smtp-so-subtitle').textContent = `Duplikat dari ${prof.name}`;
+      
+      const iconWrap = document.getElementById('smtp-so-header-icon');
+      iconWrap.style.background = '#D1FAE5';
+      const icon = document.getElementById('smtp-so-icon');
+      icon.className = 'ti ti-copy';
+      icon.style.color = '#065F46';
+
+      // Fill values (except password)
+      document.getElementById('smtp-name').value = prof.name + ' (copy)';
+      document.getElementById('smtp-host').value = prof.host;
+      document.getElementById('smtp-port').value = prof.port;
+      document.getElementById('smtp-encryption').value = prof.encryption;
+      document.getElementById('smtp-user').value = prof.username || '';
+      document.getElementById('smtp-pass').value = '';
+      document.getElementById('smtp-from').value = prof.from;
+      document.getElementById('smtp-test-target').value = 'admin@corp.internal';
+
+      const toggle = document.getElementById('smtp-ignore-toggle');
+      if (prof.ignoreCert) toggle.className = 'toggle';
+      else toggle.className = 'toggle off';
+
+      // Populate headers
+      const container = document.getElementById('smtp-headers-container');
+      container.innerHTML = '';
+      (prof.headers || []).forEach(h => {
+        addSmtpHeaderField(h.key, h.val);
+      });
+      
+      // Alerts
+      document.getElementById('smtp-usage-alert').style.display = 'none';
+      document.getElementById('smtp-duplicate-alert').style.display = 'flex';
+      document.getElementById('smtp-dup-source-label').textContent = prof.name;
+      document.getElementById('smtp-test-reset-alert').style.display = 'flex';
+      document.getElementById('smtp-test-result').style.display = 'none';
+      document.getElementById('smtp-pass-hint').style.display = 'block';
+      
+      // Footer
+      document.getElementById('smtp-delete-btn').style.display = 'none';
+      document.getElementById('smtp-save-btn').innerHTML = '<i class="ti ti-check" aria-hidden="true"></i> Simpan profil';
+
+      // Hide change pill
+      document.getElementById('smtp-change-pill').style.display = 'none';
+
+      openSmtpSlideover();
+    }
+
+    function openSmtpSlideover() {
+      const container = document.getElementById('smtp-slideover-container');
+      if (container) {
+        container.classList.remove('hidden');
+        setTimeout(() => {
+          container.classList.add('slideover-active');
+          container.classList.add('active');
+          container.style.opacity = '1';
+        }, 50);
+      }
+    }
+
+    function closeSmtpSlideover() {
+      const container = document.getElementById('smtp-slideover-container');
+      if (container) {
+        container.classList.remove('slideover-active');
+        container.classList.remove('active');
+        container.style.opacity = '0';
+        setTimeout(() => {
+          container.classList.add('hidden');
+        }, 300);
+      }
+    }
+
+    function closeSmtpSlideoverOnBackdrop(event) {
+      if (event.target.id === 'smtp-slideover-container') {
+        closeSmtpSlideover();
+      }
+    }
+
+    function renderSmtpTable(list = smtpProfiles) {
+      const tbody = document.getElementById('smtp-table-body');
+      if (!tbody) return;
+
+      tbody.innerHTML = '';
+      list.forEach((prof, idx) => {
+        const tr = document.createElement('tr');
+        tr.className = "smtp-row hover:bg-gray-50/50 transition-colors";
+        
+        let statusDotClass = 'status-ok';
+        let statusTagClass = 'tag-ok';
+        if (prof.status === 'Belum ditest') {
+          statusDotClass = 'status-warn';
+          statusTagClass = 'tag-warn';
+        } else if (prof.status === 'Error') {
+          statusDotClass = 'status-err';
+          statusTagClass = 'tag-err';
+        }
+
+        let encTagClass = 'tag-blue';
+        if (prof.encryption === 'None') {
+          encTagClass = 'tag-gray';
+        }
+
+        tr.innerHTML = `
+          <td class="p-4 w-10"><input type="checkbox" class="rounded border-gray-300 text-[#6C63FF] focus:ring-[#6C63FF]"></td>
+          <td class="p-4">
+            <div class="smtp-name font-semibold text-gray-900">${prof.name}</div>
+            <div class="smtp-host text-gray-400 font-mono mt-0.5 text-[10px]">${prof.host}</div>
+          </td>
+          <td class="p-4"><span class="font-mono text-gray-600">${prof.host}:${prof.port}</span></td>
+          <td class="p-4 text-gray-600">${prof.from}</td>
+          <td class="p-4"><span class="tag ${encTagClass}">${prof.encryption}</span></td>
+          <td class="p-4">
+            <div class="status-row flex items-center gap-1.5">
+              <div class="status-dot ${statusDotClass}"></div>
+              <span class="tag ${statusTagClass}">${prof.status}</span>
+            </div>
+          </td>
+          <td class="p-4 text-gray-500">${prof.used}</td>
+          <td class="p-4 text-gray-500">${prof.lastTest}</td>
+          <td class="p-4 w-28 text-right pr-6">
+            <div class="action-buttons inline-flex items-center gap-1.5">
+              <button class="w-7 h-7 rounded-lg border border-gray-200 flex items-center justify-center text-gray-500 hover:text-[#6C63FF] hover:border-[#6C63FF] transition-all bg-white" title="Edit" onclick="openSmtpEdit(${idx})"><i class="ti ti-edit text-xs"></i></button>
+              <button class="w-7 h-7 rounded-lg border border-gray-200 flex items-center justify-center text-gray-500 hover:text-green-600 hover:border-green-600 transition-all bg-white" title="Duplikat" onclick="openSmtpDuplicate(${idx})"><i class="ti ti-copy text-xs"></i></button>
+              <button class="w-7 h-7 rounded-lg border border-gray-200 flex items-center justify-center text-gray-500 hover:text-blue-600 hover:border-blue-600 transition-all bg-white" title="Test" onclick="openSmtpEdit(${idx}); runSmtpConnectionTest()"><i class="ti ti-send text-xs"></i></button>
+            </div>
+          </td>
+        `;
+        tbody.appendChild(tr);
+      });
+
+      // Update counters
+      const countLabel = document.getElementById('smtp-count-label');
+      if (countLabel) {
+        countLabel.textContent = `${list.length} sending profiles`;
+      }
+    }
+
+    function filterSmtpTable(query) {
+      const q = query.toLowerCase();
+      const filtered = smtpProfiles.filter(p => 
+        p.name.toLowerCase().includes(q) || 
+        p.host.toLowerCase().includes(q) || 
+        p.from.toLowerCase().includes(q) || 
+        p.encryption.toLowerCase().includes(q)
+      );
+      renderSmtpTable(filtered);
+    }
+
+    function toggleSmtpIgnoreCert() {
+      const toggle = document.getElementById('smtp-ignore-toggle');
+      if (toggle) {
+        toggle.classList.toggle('off');
+        markSmtpChanged();
+      }
+    }
+
+    function toggleSmtpPasswordVisibility(inputId) {
+      const input = document.getElementById(inputId);
+      if (input) {
+        input.type = input.type === 'password' ? 'text' : 'password';
+      }
+    }
+
+    function updateSmtpPortDefault(enc) {
+      const portInput = document.getElementById('smtp-port');
+      if (portInput) {
+        if (enc === 'TLS') portInput.value = '587';
+        else if (enc === 'SSL') portInput.value = '465';
+        else if (enc === 'None') portInput.value = '25';
+      }
+    }
+
+    function markSmtpChanged() {
+      const pill = document.getElementById('smtp-change-pill');
+      if (pill) {
+        pill.style.display = 'inline-flex';
+      }
+    }
+
+    function addSmtpHeaderField(key = '', val = '') {
+      const container = document.getElementById('smtp-headers-container');
+      if (!container) return;
+
+      const row = document.createElement('div');
+      row.className = 'header-row';
+      row.innerHTML = `
+        <input class="field-input header-key" style="padding:5px 8px;font-size:11px" placeholder="Header Name" value="${key}" oninput="markSmtpChanged()">
+        <input class="field-input header-val" style="padding:5px 8px;font-size:11px" placeholder="Value" value="${val}" oninput="markSmtpChanged()">
+        <i class="ti ti-trash" onclick="this.parentElement.remove(); markSmtpChanged()" style="font-size:13px;color:#9CA3AF;cursor:pointer;align-self:center;margin-left:4px" aria-hidden="true"></i>
+      `;
+      container.appendChild(row);
+      markSmtpChanged();
+    }
+
+    function deleteSmtpProfile() {
+      const idx = parseInt(document.getElementById('smtp-edit-index').value);
+      if (isNaN(idx) || idx === -1) return;
+
+      const prof = smtpProfiles[idx];
+      if (!prof) return;
+
+      if (confirm(`Apakah Anda yakin ingin menghapus profil SMTP '${prof.name}'?`)) {
+        smtpProfiles.splice(idx, 1);
+        renderSmtpTable();
+        showToast(`Profil SMTP '${prof.name}' berhasil dihapus.`, 'success');
+        closeSmtpSlideover();
+      }
+    }
+
+    function runSmtpConnectionTest() {
+      const btn = document.getElementById('smtp-test-btn');
+      const spinner = document.getElementById('smtp-test-spinner');
+      const resultBox = document.getElementById('smtp-test-result');
+      const host = document.getElementById('smtp-host').value || 'localhost';
+      const port = document.getElementById('smtp-port').value || '25';
+      const target = document.getElementById('smtp-test-target').value || 'admin@corp.internal';
+
+      if (btn && spinner && resultBox) {
+        spinner.className = 'ti ti-loader animate-spin';
+        btn.disabled = true;
+
+        setTimeout(() => {
+          spinner.className = 'ti ti-send';
+          btn.disabled = false;
+          
+          resultBox.style.display = 'block';
+          resultBox.innerHTML = `
+            <div class="test-box border border-gray-150 rounded-xl overflow-hidden mt-3">
+              <div class="flex items-center gap-2 p-2 px-3 bg-gray-50 border-b border-gray-150 text-[11px]">
+                <i class="ti ti-circle-check text-green-500 text-sm"></i>
+                <span class="font-bold text-green-800">Test berhasil</span>
+                <span class="text-[10px] text-gray-400 font-medium ml-auto">Baru saja</span>
+              </div>
+              <div class="p-3 bg-white text-[10px] leading-relaxed text-gray-600 font-medium">
+                <div class="font-mono leading-relaxed">
+                  <span class="text-blue-500 font-bold">[INFO]</span> Connecting to ${host}:${port}...<br>
+                  <span class="text-green-600 font-bold">[OK]</span> TLS handshake successful<br>
+                  <span class="text-green-600 font-bold">[OK]</span> Authentication accepted<br>
+                  <span class="text-green-600 font-bold">[OK]</span> Test email delivered to ${target}<br>
+                  <span class="text-green-600 font-bold">[OK]</span> SMTP connection closed cleanly
+                </div>
+              </div>
+            </div>
+          `;
+          showToast('Koneksi SMTP berhasil ditest.', 'success');
+        }, 1200);
+      }
+    }
+
+    function submitSmtpProfile() {
+      const mode = document.getElementById('smtp-edit-mode').value;
+      const name = document.getElementById('smtp-name').value.trim();
+      const host = document.getElementById('smtp-host').value.trim();
+      const port = parseInt(document.getElementById('smtp-port').value);
+      const enc = document.getElementById('smtp-encryption').value;
+      const user = document.getElementById('smtp-user').value.trim();
+      const pass = document.getElementById('smtp-pass').value;
+      const from = document.getElementById('smtp-from').value.trim();
+      
+      const ignoreToggle = document.getElementById('smtp-ignore-toggle');
+      const ignoreCert = ignoreToggle ? !ignoreToggle.classList.contains('off') : false;
+
+      if (!name || !host || isNaN(port) || !from) {
+        showToast('Mohon lengkapi field wajib (*)', 'error');
+        return;
+      }
+
+      // Collect headers
+      const headers = [];
+      const headerRows = document.querySelectorAll('#smtp-headers-container .header-row');
+      headerRows.forEach(row => {
+        const k = row.querySelector('.header-key').value.trim();
+        const v = row.querySelector('.header-val').value.trim();
+        if (k) {
+          headers.push({ key: k, val: v });
+        }
+      });
+
+      if (mode === 'new' || mode === 'dup') {
+        // Check duplicate name
+        if (smtpProfiles.some(p => p.name.toLowerCase() === name.toLowerCase())) {
+          showToast(`Nama profil '${name}' sudah digunakan.`, 'error');
+          return;
+        }
+
+        const newProf = {
+          name: name,
+          host: host,
+          port: port,
+          from: from,
+          encryption: enc,
+          status: 'Valid',
+          used: '0 playbooks',
+          lastTest: 'Baru saja',
+          username: user,
+          password: pass,
+          ignoreCert: ignoreCert,
+          headers: headers
+        };
+        smtpProfiles.push(newProf);
+        showToast(`Profil SMTP '${name}' berhasil dibuat.`, 'success');
+      } else if (mode === 'update') {
+        const idx = parseInt(document.getElementById('smtp-edit-index').value);
+        if (isNaN(idx) || idx === -1) return;
+
+        // Check duplicate name excluding itself
+        if (smtpProfiles.some((p, i) => i !== idx && p.name.toLowerCase() === name.toLowerCase())) {
+          showToast(`Nama profil '${name}' sudah digunakan.`, 'error');
+          return;
+        }
+
+        const prof = smtpProfiles[idx];
+        prof.name = name;
+        prof.host = host;
+        prof.port = port;
+        prof.encryption = enc;
+        prof.from = from;
+        prof.username = user;
+        prof.password = pass;
+        prof.ignoreCert = ignoreCert;
+        prof.headers = headers;
+        prof.lastTest = 'Baru saja';
+        prof.status = 'Valid';
+
+        showToast(`Profil SMTP '${name}' berhasil disimpan.`, 'success');
+      }
+
+      renderSmtpTable();
+      closeSmtpSlideover();
+    }
+
+    // Initial render
+    document.addEventListener('DOMContentLoaded', () => {
+      renderSmtpTable();
+    });
+  </script>
+</body>
+</html>

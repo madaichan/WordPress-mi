@@ -9,6 +9,9 @@ declare(strict_types=1);
 
 namespace Pukat\Admin;
 
+use Pukat\Services\AssetManifestService;
+use Pukat\Services\UserContextService;
+
 /**
  * Class AdminPage
  *
@@ -31,48 +34,8 @@ class AdminPage {
 			wp_die( esc_html__( 'Access denied.', 'pukat' ) );
 		}
 
-		$current_user = wp_get_current_user();
-		$user_roles   = $current_user->roles ?? [];
-
-		$pukat_role = 'viewer';
-		if ( in_array( 'pukat_admin', $user_roles, true ) || in_array( 'administrator', $user_roles, true ) ) {
-			$pukat_role = 'admin';
-		} elseif ( in_array( 'pukat_operator', $user_roles, true ) ) {
-			$pukat_role = 'operator';
-		}
-
-		$dist_url      = PUKAT_PLUGIN_URL . 'assets/dist/';
-		$dist_dir      = PUKAT_PLUGIN_DIR . 'assets/dist/';
-		$manifest_path = $dist_dir . '.vite/manifest.json';
-		$js_file       = 'assets/index.js';
-		$css_file      = null;
-
-		if ( file_exists( $manifest_path ) ) {
-			$manifest = json_decode( (string) file_get_contents( $manifest_path ), true );
-			if ( isset( $manifest['src/main.jsx']['file'] ) ) {
-				$js_file = $manifest['src/main.jsx']['file'];
-			}
-			if ( isset( $manifest['src/main.jsx']['css'][0] ) ) {
-				$css_file = $manifest['src/main.jsx']['css'][0];
-			}
-		}
-
-		$nonce      = wp_create_nonce( 'wp_rest' );
-		$rest_url   = esc_url_raw( rest_url( PUKAT_REST_NAMESPACE ) );
-		$pukat_data = wp_json_encode( [
-			'restUrl'   => $rest_url,
-			'nonce'     => $nonce,
-			'adminUrl'  => esc_url_raw( admin_url() ),
-			'pluginUrl' => esc_url_raw( PUKAT_PLUGIN_URL ),
-			'version'   => PUKAT_VERSION,
-			'context'   => 'admin',
-			'user'      => [
-				'id'          => $current_user->ID,
-				'displayName' => $current_user->display_name,
-				'email'       => $current_user->user_email,
-				'role'        => $pukat_role,
-			],
-		] );
+		$assets     = ( new AssetManifestService() )->app_entry();
+		$pukat_data = wp_json_encode( ( new UserContextService() )->app_context( 'admin' ) );
 		?>
 		<!DOCTYPE html>
 		<html lang="en">
@@ -81,8 +44,8 @@ class AdminPage {
 			<meta name="viewport" content="width=device-width, initial-scale=1.0" />
 			<meta name="robots" content="noindex, nofollow" />
 			<title>Pukat Admin</title>
-			<?php if ( $css_file && file_exists( $dist_dir . $css_file ) ) : ?>
-			<link rel="stylesheet" href="<?php echo esc_url( $dist_url . $css_file ); ?>?v=<?php echo esc_attr( PUKAT_VERSION ); ?>" />
+			<?php if ( $assets['css_file'] && file_exists( $assets['dist_dir'] . $assets['css_file'] ) ) : ?>
+			<link rel="stylesheet" href="<?php echo esc_url( $assets['dist_url'] . $assets['css_file'] ); ?>?v=<?php echo esc_attr( PUKAT_VERSION ); ?>" />
 			<?php endif; ?>
 		</head>
 		<body style="margin:0;padding:0;background:#0F1629;">
@@ -111,7 +74,7 @@ class AdminPage {
 			<script>
 				window.PukatData = <?php echo $pukat_data; // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped ?>;
 			</script>
-			<script type="module" src="<?php echo esc_url( $dist_url . $js_file ); ?>?v=<?php echo esc_attr( PUKAT_VERSION ); ?>"></script>
+			<script type="module" src="<?php echo esc_url( $assets['dist_url'] . $assets['js_file'] ); ?>?v=<?php echo esc_attr( PUKAT_VERSION ); ?>"></script>
 		</body>
 		</html>
 		<?php

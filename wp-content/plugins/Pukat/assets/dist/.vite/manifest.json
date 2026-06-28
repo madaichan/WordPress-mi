@@ -1,20 +1,27 @@
 {
-  "_papaparse.min-nqnwdnrE.js": {
-    "file": "assets/papaparse.min-nqnwdnrE.js",
+  "_campaignApi-CE9eGI0b.js": {
+    "file": "assets/campaignApi-CE9eGI0b.js",
+    "name": "campaignApi",
+    "imports": [
+      "src/main.jsx"
+    ]
+  },
+  "_papaparse.min-BRKI0KhZ.js": {
+    "file": "assets/papaparse.min-BRKI0KhZ.js",
     "name": "papaparse.min",
     "imports": [
       "src/main.jsx"
     ]
   },
-  "_useMutation-CltDUrNC.js": {
-    "file": "assets/useMutation-CltDUrNC.js",
+  "_useMutation-Bkq_1X_k.js": {
+    "file": "assets/useMutation-Bkq_1X_k.js",
     "name": "useMutation",
     "imports": [
       "src/main.jsx"
     ]
   },
   "src/features/setup/playbooks/Playbooks.jsx": {
-    "file": "assets/Playbooks-jB7i9bz2.js",
+    "file": "assets/Playbooks-D_6W57JP.js",
     "name": "Playbooks",
     "src": "src/features/setup/playbooks/Playbooks.jsx",
     "isDynamicEntry": true,
@@ -23,7 +30,7 @@
     ]
   },
   "src/main.jsx": {
-    "file": "assets/main-CuQZkBHg.js",
+    "file": "assets/main-Dg9ttT0i.js",
     "name": "main",
     "src": "src/main.jsx",
     "isEntry": true,
@@ -37,6 +44,7 @@
       "src/pages/Simulation/Preparation.jsx",
       "src/pages/Simulation/Performing.jsx",
       "src/pages/Simulation/Reports.jsx",
+      "src/pages/Simulation/SendingProfiles.jsx",
       "src/pages/Simulation/EmailTemplates.jsx",
       "src/pages/Simulation/LandingPages.jsx",
       "src/pages/PostSimulation/Quiz.jsx",
@@ -46,40 +54,41 @@
       "src/features/setup/playbooks/Playbooks.jsx"
     ],
     "css": [
-      "assets/main-D7VlJGfN.css"
+      "assets/main-Cu9a3DKo.css"
     ]
   },
   "src/pages/Admin/Settings.jsx": {
-    "file": "assets/Settings-BUeyfsgS.js",
+    "file": "assets/Settings-BLbFXazf.js",
     "name": "Settings",
     "src": "src/pages/Admin/Settings.jsx",
     "isDynamicEntry": true,
     "imports": [
       "src/main.jsx",
-      "_useMutation-CltDUrNC.js"
+      "_useMutation-Bkq_1X_k.js"
     ]
   },
   "src/pages/Admin/Users.jsx": {
-    "file": "assets/Users-D_UkLTy6.js",
+    "file": "assets/Users-eStrvfI1.js",
     "name": "Users",
     "src": "src/pages/Admin/Users.jsx",
     "isDynamicEntry": true,
     "imports": [
       "src/main.jsx",
-      "_useMutation-CltDUrNC.js"
+      "_useMutation-Bkq_1X_k.js"
     ]
   },
   "src/pages/Dashboard/Dashboard.jsx": {
-    "file": "assets/Dashboard-zFw9NkSu.js",
+    "file": "assets/Dashboard-C_AuyW9s.js",
     "name": "Dashboard",
     "src": "src/pages/Dashboard/Dashboard.jsx",
     "isDynamicEntry": true,
     "imports": [
-      "src/main.jsx"
+      "src/main.jsx",
+      "_campaignApi-CE9eGI0b.js"
     ]
   },
   "src/pages/PostSimulation/Coaching.jsx": {
-    "file": "assets/Coaching-Db7YCihO.js",
+    "file": "assets/Coaching-Dw_VuV5q.js",
     "name": "Coaching",
     "src": "src/pages/PostSimulation/Coaching.jsx",
     "isDynamicEntry": true,
@@ -88,7 +97,7 @@
     ]
   },
   "src/pages/PostSimulation/NextPlanning.jsx": {
-    "file": "assets/NextPlanning-C4yXZ3fW.js",
+    "file": "assets/NextPlanning-B6KlQIH8.js",
     "name": "NextPlanning",
     "src": "src/pages/PostSimulation/NextPlanning.jsx",
     "isDynamicEntry": true,
@@ -97,7 +106,7 @@
     ]
   },
   "src/pages/PostSimulation/Quiz.jsx": {
-    "file": "assets/Quiz-kHwOeqW-.js",
+    "file": "assets/Quiz-QBBONnGU.js",
     "name": "Quiz",
     "src": "src/pages/PostSimulation/Quiz.jsx",
     "isDynamicEntry": true,
@@ -106,7 +115,7 @@
     ]
   },
   "src/pages/PreSimulation/Socialization.jsx": {
-    "file": "assets/Socialization-C8tFClO1.js",
+    "file": "assets/Socialization-0ZLw87s-.js",
     "name": "Socialization",
     "src": "src/pages/PreSimulation/Socialization.jsx",
     "isDynamicEntry": true,
@@ -115,7 +124,7 @@
     ]
   },
   "src/pages/Simulation/Calendar.jsx": {
-    "file": "assets/Calendar-DlvQv6FD.js",
+    "file": "assets/Calendar-k2Xn2IgH.js",
     "name": "Calendar",
     "src": "src/pages/Simulation/Calendar.jsx",
     "isDynamicEntry": true,
@@ -124,18 +133,19 @@
     ]
   },
   "src/pages/Simulation/Campaigns.jsx": {
-    "file": "assets/Campaigns-BlL8KQQm.js",
+    "file": "assets/Campaigns-DnTSAMW7.js",
     "name": "Campaigns",
     "src": "src/pages/Simulation/Campaigns.jsx",
     "isDynamicEntry": true,
     "imports": [
       "src/main.jsx",
-      "_useMutation-CltDUrNC.js",
-      "_papaparse.min-nqnwdnrE.js"
+      "_useMutation-Bkq_1X_k.js",
+      "_papaparse.min-BRKI0KhZ.js",
+      "_campaignApi-CE9eGI0b.js"
     ]
   },
   "src/pages/Simulation/EmailTemplates.jsx": {
-    "file": "assets/EmailTemplates-CC7N2nGk.js",
+    "file": "assets/EmailTemplates-C6-xIc63.js",
     "name": "EmailTemplates",
     "src": "src/pages/Simulation/EmailTemplates.jsx",
     "isDynamicEntry": true,
@@ -144,7 +154,7 @@
     ]
   },
   "src/pages/Simulation/LandingPages.jsx": {
-    "file": "assets/LandingPages-BZdVg5K6.js",
+    "file": "assets/LandingPages-DClK3rLP.js",
     "name": "LandingPages",
     "src": "src/pages/Simulation/LandingPages.jsx",
     "isDynamicEntry": true,
@@ -153,7 +163,7 @@
     ]
   },
   "src/pages/Simulation/Performing.jsx": {
-    "file": "assets/Performing-Dx-SRR2U.js",
+    "file": "assets/Performing-DSSEOAlD.js",
     "name": "Performing",
     "src": "src/pages/Simulation/Performing.jsx",
     "isDynamicEntry": true,
@@ -162,19 +172,29 @@
     ]
   },
   "src/pages/Simulation/Preparation.jsx": {
-    "file": "assets/Preparation-D5bd6wY8.js",
+    "file": "assets/Preparation-BWb0gfVa.js",
     "name": "Preparation",
     "src": "src/pages/Simulation/Preparation.jsx",
     "isDynamicEntry": true,
     "imports": [
       "src/main.jsx",
-      "_papaparse.min-nqnwdnrE.js"
+      "_papaparse.min-BRKI0KhZ.js",
+      "_campaignApi-CE9eGI0b.js"
     ]
   },
   "src/pages/Simulation/Reports.jsx": {
-    "file": "assets/Reports-t3LUyZRv.js",
+    "file": "assets/Reports-IdLQ1yhC.js",
     "name": "Reports",
     "src": "src/pages/Simulation/Reports.jsx",
+    "isDynamicEntry": true,
+    "imports": [
+      "src/main.jsx"
+    ]
+  },
+  "src/pages/Simulation/SendingProfiles.jsx": {
+    "file": "assets/SendingProfiles-Bt1CeG29.js",
+    "name": "SendingProfiles",
+    "src": "src/pages/Simulation/SendingProfiles.jsx",
     "isDynamicEntry": true,
     "imports": [
       "src/main.jsx"

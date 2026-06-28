@@ -1,0 +1,1 @@
+import{g as s,k as c,o as p}from"./main-Dg9ttT0i.js";const m={list:a=>s("/campaigns",{params:a}),get:a=>s(`/campaigns/${a}`),create:a=>c("/campaigns",a),delete:a=>p(`/campaigns/${a}`),launch:(a,e)=>c(`/campaigns/${a}/launch`,e),complete:a=>c(`/campaigns/${a}/complete`),results:a=>s(`/campaigns/${a}/results`)};export{m as c};

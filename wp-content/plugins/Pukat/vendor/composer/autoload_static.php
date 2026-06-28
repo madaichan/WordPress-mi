@@ -38,11 +38,13 @@ class ComposerStaticInit13f75f6319ecdf6cb98f9d53542c1b6f
         'Pukat\\Frontend\\FrontendPage' => __DIR__ . '/../..' . '/includes/Frontend/FrontendPage.php',
         'Pukat\\Frontend\\FrontendRouter' => __DIR__ . '/../..' . '/includes/Frontend/FrontendRouter.php',
         'Pukat\\Repositories\\PlaybookRepository' => __DIR__ . '/../..' . '/includes/Repositories/PlaybookRepository.php',
+        'Pukat\\Services\\AssetManifestService' => __DIR__ . '/../..' . '/includes/Services/AssetManifestService.php',
         'Pukat\\Services\\AuditLogService' => __DIR__ . '/../..' . '/includes/Services/AuditLogService.php',
         'Pukat\\Services\\EncryptionService' => __DIR__ . '/../..' . '/includes/Services/EncryptionService.php',
         'Pukat\\Services\\GoPhishService' => __DIR__ . '/../..' . '/includes/Services/GoPhishService.php',
         'Pukat\\Services\\PlaybookService' => __DIR__ . '/../..' . '/includes/Services/PlaybookService.php',
         'Pukat\\Services\\RiskScoringService' => __DIR__ . '/../..' . '/includes/Services/RiskScoringService.php',
+        'Pukat\\Services\\UserContextService' => __DIR__ . '/../..' . '/includes/Services/UserContextService.php',
     );
 
     public static function getInitializer(ClassLoader $loader)

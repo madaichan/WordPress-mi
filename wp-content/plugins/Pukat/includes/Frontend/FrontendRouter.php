@@ -24,9 +24,9 @@ class FrontendRouter {
 	 * Register WordPress hooks. Called during plugin init.
 	 */
 	public function register(): void {
-		add_action( 'init',             [ $this, 'add_rewrite_rules' ] );
-		add_filter( 'query_vars',       [ $this, 'add_query_vars' ] );
-		add_filter( 'template_include', [ $this, 'intercept_template' ], 999 );
+		add_action( 'init',              [ $this, 'add_rewrite_rules' ] );
+		add_filter( 'query_vars',        [ $this, 'add_query_vars' ] );
+		add_action( 'template_redirect', [ $this, 'render_frontend' ] );
 	}
 
 	/**
@@ -53,17 +53,19 @@ class FrontendRouter {
 	}
 
 	/**
-	 * Intercept the template and render the Pukat frontend SPA instead.
-	 *
-	 * @param string $template The template file WP would normally use.
-	 * @return string
+	 * Render the Pukat frontend SPA on template_redirect.
 	 */
-	public function intercept_template( string $template ): string {
-		if ( get_query_var( 'pukat_frontend' ) ) {
+	public function render_frontend(): void {
+		$pukat_var = get_query_var( 'pukat_frontend' );
+
+		if ( $pukat_var ) {
+			// Disable canonical redirects for our custom route to prevent WP from getting confused
+			remove_filter( 'template_redirect', 'redirect_canonical' );
+			
+			error_log( '[Pukat] Rendering FrontendPage via template_redirect.' );
 			FrontendPage::render();
-			return '';
+			exit;
 		}
-		return $template;
 	}
 
 	/**
