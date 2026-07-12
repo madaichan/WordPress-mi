@@ -1,0 +1,719 @@
+
+<h2 class="sr-only">Wireframe halaman master PhishScale NIST — scoring form 8 faktor, korelasi click rate, dan detail panduan per faktor</h2>
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:system-ui,sans-serif;color:var(--text-primary)}
+
+.tab-row{display:flex;border-bottom:0.5px solid var(--border);margin-bottom:16px;background:var(--surface-2);border-radius:10px 10px 0 0;overflow:hidden}
+.tab{padding:10px 16px;font-size:12px;font-weight:500;cursor:pointer;color:var(--text-secondary);border-bottom:2px solid transparent;display:flex;align-items:center;gap:6px;white-space:nowrap}
+.tab.active{color:#6C63FF;border-bottom-color:#6C63FF}
+.pane{display:none}
+.pane.active{display:block}
+
+.card{background:var(--surface-2);border:0.5px solid var(--border);border-radius:12px}
+.card-sm{background:var(--surface-2);border:0.5px solid var(--border);border-radius:8px}
+.card-header{padding:12px 16px;border-bottom:0.5px solid var(--border);display:flex;align-items:center;gap:8px}
+.card-title{font-size:13px;font-weight:500;color:var(--text-primary);flex:1}
+.card-sub{font-size:11px;color:var(--text-secondary);margin-top:1px}
+.card-body{padding:14px 16px}
+
+.g2{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:12px}
+.g3{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:10px}
+.g5{display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:8px}
+
+.badge{display:inline-flex;align-items:center;font-size:10px;font-weight:500;padding:2px 8px;border-radius:20px}
+.badge-vl{background:#D1FAE5;color:#065F46}
+.badge-lo{background:#EAF3DE;color:#27500A}
+.badge-mo{background:#FAEEDA;color:#633806}
+.badge-hi{background:#FCEBEB;color:#791F1F}
+.badge-vh{background:#FEE2E2;color:#B91C1C}
+.badge-blue{background:#E6F1FB;color:#0C447C}
+.badge-green{background:#EAF3DE;color:#27500A}
+.badge-gray{background:var(--surface-1);color:var(--text-secondary)}
+
+.btn{font-size:11px;padding:6px 12px;border-radius:7px;cursor:pointer;border:0.5px solid var(--border);background:var(--surface-2);color:var(--text-primary);display:inline-flex;align-items:center;gap:5px}
+.btn-primary{background:#6C63FF;color:#fff;border-color:#6C63FF}
+.btn-ghost{border-color:transparent;background:none;color:var(--text-secondary)}
+
+.divider{height:0.5px;background:var(--border);margin:12px 0}
+.sec-label{font-size:10px;font-weight:500;color:var(--text-secondary);text-transform:uppercase;letter-spacing:.07em;margin-bottom:10px}
+
+/* STAT CARD */
+.stat-mini{background:var(--surface-1);border-radius:8px;padding:10px 12px}
+.stat-mini-label{font-size:10px;color:var(--text-secondary);margin-bottom:3px}
+.stat-mini-val{font-size:18px;font-weight:500;color:var(--text-primary)}
+.stat-mini-sub{font-size:10px;margin-top:2px}
+
+/* SCORING SLIDER */
+.factor-row{padding:12px 16px;border-bottom:0.5px solid var(--border)}
+.factor-row:last-child{border-bottom:none}
+.factor-top{display:flex;align-items:center;gap:8px;margin-bottom:8px}
+.factor-name{font-size:12px;font-weight:500;color:var(--text-primary);flex:1}
+.factor-score-display{font-size:13px;font-weight:500;min-width:28px;text-align:right}
+.factor-desc{font-size:11px;color:var(--text-secondary);margin-bottom:8px;line-height:1.5}
+.slider-wrap{display:flex;align-items:center;gap:8px}
+.slider-track{flex:1;position:relative;height:6px;border-radius:3px;background:var(--border);overflow:hidden}
+.slider-fill{height:100%;border-radius:3px}
+.slider-labels{display:flex;justify-content:space-between;margin-top:3px}
+.slider-label{font-size:9px;color:var(--text-secondary)}
+.score-pip{width:10px;height:10px;border-radius:2px;cursor:pointer;border:0.5px solid var(--border)}
+
+/* DIMENSION HEADER */
+.dim-header{padding:10px 16px;display:flex;align-items:center;gap:8px;border-bottom:0.5px solid var(--border)}
+.dim-label{font-size:11px;font-weight:500;flex:1}
+.dim-score{font-size:13px;font-weight:500}
+.dim-bar{height:4px;border-radius:2px;margin:6px 16px 0}
+
+/* RATING DISPLAY */
+.rating-card{border-radius:8px;padding:12px 14px;margin-bottom:10px}
+.rating-name{font-size:14px;font-weight:500;margin-bottom:3px}
+.rating-range{font-size:11px;opacity:.8;margin-bottom:6px}
+.rating-bar-track{height:8px;border-radius:4px;background:rgba(255,255,255,.25);overflow:hidden}
+.rating-bar-fill{height:100%;border-radius:4px;background:rgba(255,255,255,.7)}
+
+/* SCATTER CHART */
+.scatter-wrap{position:relative;height:180px;border:0.5px solid var(--border);border-radius:8px;background:var(--surface-1);overflow:hidden;margin-bottom:8px}
+.scatter-axis-x{position:absolute;bottom:24px;left:36px;right:8px;height:0.5px;background:var(--border)}
+.scatter-axis-y{position:absolute;bottom:24px;top:8px;left:36px;width:0.5px;background:var(--border)}
+.scatter-dot{position:absolute;width:8px;height:8px;border-radius:50%;transform:translate(-50%,50%)}
+.scatter-label-x{position:absolute;bottom:6px;font-size:9px;color:var(--text-secondary)}
+.scatter-label-y{position:absolute;left:4px;font-size:9px;color:var(--text-secondary)}
+.scatter-trend{position:absolute;pointer-events:none}
+.axis-title{position:absolute;font-size:10px;color:var(--text-secondary)}
+
+/* FACTOR DETAIL */
+.guide-row{display:flex;gap:10px;padding:7px 0;border-bottom:0.5px solid var(--border);align-items:flex-start}
+.guide-row:last-child{border-bottom:none}
+.guide-score{font-size:11px;font-weight:500;min-width:16px;color:var(--text-primary)}
+.guide-pip{width:32px;height:6px;border-radius:3px;flex-shrink:0;margin-top:4px}
+.guide-text{font-size:11px;color:var(--text-secondary);line-height:1.5}
+
+/* CORRELATION COLOR */
+.corr-row{display:flex;align-items:center;gap:8px;padding:5px 0;border-bottom:0.5px solid var(--border)}
+.corr-row:last-child{border-bottom:none}
+.corr-name{font-size:11px;color:var(--text-primary);flex:1}
+.corr-bar-track{width:80px;height:4px;background:var(--border);border-radius:2px;overflow:hidden}
+.corr-bar-fill{height:100%;border-radius:2px}
+.corr-val{font-size:11px;font-weight:500;min-width:28px;text-align:right}
+</style>
+
+<div class="tab-row">
+  <div class="tab active" onclick="showPane('overview',this)"><i class="ti ti-layout-dashboard" style="font-size:12px" aria-hidden="true"></i>Overview & Scoring</div>
+  <div class="tab" onclick="showPane('factors',this)"><i class="ti ti-list-details" style="font-size:12px" aria-hidden="true"></i>Panduan Faktor</div>
+  <div class="tab" onclick="showPane('correlation',this)"><i class="ti ti-chart-dots" style="font-size:12px" aria-hidden="true"></i>Korelasi & Insight</div>
+</div>
+
+<!-- ══════════════════════════════════════
+     TAB 1 — OVERVIEW & SCORING SIMULATOR
+══════════════════════════════════════ -->
+<div class="pane active" id="pane-overview">
+
+  <!-- Page header -->
+  <div style="display:flex;align-items:flex-start;justify-content:space-between;margin-bottom:16px">
+    <div>
+      <div style="font-size:15px;font-weight:500;color:var(--text-primary)">PhishScale NIST</div>
+      <div style="font-size:11px;color:var(--text-secondary);margin-top:2px">Framework penilaian kesulitan deteksi phishing · NIST TN 2276</div>
+    </div>
+    <div style="display:flex;gap:6px">
+      <button class="btn"><i class="ti ti-file-text" aria-hidden="true"></i> Export PDF</button>
+      <button class="btn btn-primary"><i class="ti ti-help" aria-hidden="true"></i> Panduan NIST</button>
+    </div>
+  </div>
+
+  <!-- Stat cards -->
+  <div class="g5" style="margin-bottom:14px">
+    <div class="stat-mini">
+      <div class="stat-mini-label">Total playbook dinilai</div>
+      <div class="stat-mini-val">24</div>
+      <div class="stat-mini-sub" style="color:#6C63FF">dari 24 playbook aktif</div>
+    </div>
+    <div class="stat-mini">
+      <div class="stat-mini-label">Avg skor total</div>
+      <div class="stat-mini-val">21.4</div>
+      <div class="stat-mini-sub" style="color:#eda100">Moderate</div>
+    </div>
+    <div class="stat-mini">
+      <div class="stat-mini-label">Avg premise</div>
+      <div class="stat-mini-val">11.2</div>
+      <div class="stat-mini-sub" style="color:var(--text-secondary)">dari maks 20</div>
+    </div>
+    <div class="stat-mini">
+      <div class="stat-mini-label">Avg appearance</div>
+      <div class="stat-mini-val">10.1</div>
+      <div class="stat-mini-sub" style="color:var(--text-secondary)">dari maks 20</div>
+    </div>
+    <div class="stat-mini">
+      <div class="stat-mini-label">Korelasi skor–click</div>
+      <div class="stat-mini-val">0.74</div>
+      <div class="stat-mini-sub" style="color:#1baf7a">Kuat (r = 0.74)</div>
+    </div>
+  </div>
+
+  <div class="g2">
+    <!-- LEFT — Scoring simulator -->
+    <div>
+      <div class="card" style="margin-bottom:12px">
+        <div class="card-header">
+          <i class="ti ti-calculator" style="font-size:14px;color:#6C63FF" aria-hidden="true"></i>
+          <div>
+            <div class="card-title">Scoring simulator</div>
+            <div class="card-sub">Isi 8 faktor untuk menghitung skor PhishScale</div>
+          </div>
+          <button class="btn btn-ghost btn-sm" onclick="resetSliders()" style="margin-left:auto;font-size:10px">Reset</button>
+        </div>
+
+        <!-- Premise dimension -->
+        <div class="dim-header" style="background:#E6F1FB22">
+          <i class="ti ti-brain" style="font-size:13px;color:#185FA5" aria-hidden="true"></i>
+          <span class="dim-label" style="color:#185FA5;font-weight:500">Premise</span>
+          <span class="dim-score" style="color:#185FA5" id="premise-total">0 / 20</span>
+        </div>
+        <div class="dim-bar" style="background:#E6F1FB"><div id="premise-bar" style="height:100%;border-radius:2px;background:#2a78d6;width:0%;transition:width .2s"></div></div>
+
+        <div id="premise-factors">
+          <div class="factor-row" data-dim="premise" data-max="5">
+            <div class="factor-top">
+              <span class="factor-name">Relevance to recipient</span>
+              <div style="display:flex;gap:3px" class="pip-group">
+                <div class="score-pip" style="background:var(--surface-1)" data-val="0" onclick="setPip(this,0)"></div>
+                <div class="score-pip" style="background:var(--surface-1)" data-val="1" onclick="setPip(this,1)"></div>
+                <div class="score-pip" style="background:var(--surface-1)" data-val="2" onclick="setPip(this,2)"></div>
+                <div class="score-pip" style="background:var(--surface-1)" data-val="3" onclick="setPip(this,3)"></div>
+                <div class="score-pip" style="background:var(--surface-1)" data-val="4" onclick="setPip(this,4)"></div>
+                <div class="score-pip" style="background:var(--surface-1)" data-val="5" onclick="setPip(this,5)"></div>
+              </div>
+              <span class="factor-score-display" style="color:#185FA5" id="s-rel">0</span>
+            </div>
+            <div class="factor-desc">Topik email relevan dengan peran / departemen target</div>
+          </div>
+          <div class="factor-row" data-dim="premise" data-max="5">
+            <div class="factor-top">
+              <span class="factor-name">Sender believability</span>
+              <div style="display:flex;gap:3px" class="pip-group">
+                <div class="score-pip" data-val="0" onclick="setPip(this,0)"></div><div class="score-pip" data-val="1" onclick="setPip(this,1)"></div><div class="score-pip" data-val="2" onclick="setPip(this,2)"></div><div class="score-pip" data-val="3" onclick="setPip(this,3)"></div><div class="score-pip" data-val="4" onclick="setPip(this,4)"></div><div class="score-pip" data-val="5" onclick="setPip(this,5)"></div>
+              </div>
+              <span class="factor-score-display" style="color:#185FA5" id="s-sen">0</span>
+            </div>
+            <div class="factor-desc">Pengirim tampak sebagai eksekutif, vendor, atau brand terpercaya</div>
+          </div>
+          <div class="factor-row" data-dim="premise" data-max="5">
+            <div class="factor-top">
+              <span class="factor-name">Urgency / threat</span>
+              <div style="display:flex;gap:3px" class="pip-group">
+                <div class="score-pip" data-val="0" onclick="setPip(this,0)"></div><div class="score-pip" data-val="1" onclick="setPip(this,1)"></div><div class="score-pip" data-val="2" onclick="setPip(this,2)"></div><div class="score-pip" data-val="3" onclick="setPip(this,3)"></div><div class="score-pip" data-val="4" onclick="setPip(this,4)"></div><div class="score-pip" data-val="5" onclick="setPip(this,5)"></div>
+              </div>
+              <span class="factor-score-display" style="color:#185FA5" id="s-urg">0</span>
+            </div>
+            <div class="factor-desc">Email mengandung urgensi atau ancaman (akun ditutup, batas waktu, dll.)</div>
+          </div>
+          <div class="factor-row" data-dim="premise" data-max="5">
+            <div class="factor-top">
+              <span class="factor-name">Reward / gain</span>
+              <div style="display:flex;gap:3px" class="pip-group">
+                <div class="score-pip" data-val="0" onclick="setPip(this,0)"></div><div class="score-pip" data-val="1" onclick="setPip(this,1)"></div><div class="score-pip" data-val="2" onclick="setPip(this,2)"></div><div class="score-pip" data-val="3" onclick="setPip(this,3)"></div><div class="score-pip" data-val="4" onclick="setPip(this,4)"></div><div class="score-pip" data-val="5" onclick="setPip(this,5)"></div>
+              </div>
+              <span class="factor-score-display" style="color:#185FA5" id="s-rew">0</span>
+            </div>
+            <div class="factor-desc">Email menawarkan imbalan, hadiah, atau keuntungan</div>
+          </div>
+        </div>
+
+        <!-- Appearance dimension -->
+        <div class="dim-header" style="background:#EAF3DE22">
+          <i class="ti ti-eye" style="font-size:13px;color:#3B6D11" aria-hidden="true"></i>
+          <span class="dim-label" style="color:#3B6D11;font-weight:500">Appearance</span>
+          <span class="dim-score" style="color:#3B6D11" id="appear-total">0 / 20</span>
+        </div>
+        <div class="dim-bar" style="background:#EAF3DE"><div id="appear-bar" style="height:100%;border-radius:2px;background:#1baf7a;width:0%;transition:width .2s"></div></div>
+
+        <div id="appear-factors">
+          <div class="factor-row" data-dim="appear" data-max="5">
+            <div class="factor-top">
+              <span class="factor-name">Spelling & grammar</span>
+              <div style="display:flex;gap:3px" class="pip-group">
+                <div class="score-pip" data-val="0" onclick="setPip(this,0)"></div><div class="score-pip" data-val="1" onclick="setPip(this,1)"></div><div class="score-pip" data-val="2" onclick="setPip(this,2)"></div><div class="score-pip" data-val="3" onclick="setPip(this,3)"></div><div class="score-pip" data-val="4" onclick="setPip(this,4)"></div><div class="score-pip" data-val="5" onclick="setPip(this,5)"></div>
+              </div>
+              <span class="factor-score-display" style="color:#3B6D11" id="s-spe">0</span>
+            </div>
+            <div class="factor-desc">Kualitas penulisan — tanpa typo, grammar benar, tone profesional</div>
+          </div>
+          <div class="factor-row" data-dim="appear" data-max="5">
+            <div class="factor-top">
+              <span class="factor-name">Domain & sender address</span>
+              <div style="display:flex;gap:3px" class="pip-group">
+                <div class="score-pip" data-val="0" onclick="setPip(this,0)"></div><div class="score-pip" data-val="1" onclick="setPip(this,1)"></div><div class="score-pip" data-val="2" onclick="setPip(this,2)"></div><div class="score-pip" data-val="3" onclick="setPip(this,3)"></div><div class="score-pip" data-val="4" onclick="setPip(this,4)"></div><div class="score-pip" data-val="5" onclick="setPip(this,5)"></div>
+              </div>
+              <span class="factor-score-display" style="color:#3B6D11" id="s-dom">0</span>
+            </div>
+            <div class="factor-desc">Kemiripan domain dengan domain asli (lookalike, subdomain, typosquatting)</div>
+          </div>
+          <div class="factor-row" data-dim="appear" data-max="5">
+            <div class="factor-top">
+              <span class="factor-name">Logos & formatting</span>
+              <div style="display:flex;gap:3px" class="pip-group">
+                <div class="score-pip" data-val="0" onclick="setPip(this,0)"></div><div class="score-pip" data-val="1" onclick="setPip(this,1)"></div><div class="score-pip" data-val="2" onclick="setPip(this,2)"></div><div class="score-pip" data-val="3" onclick="setPip(this,3)"></div><div class="score-pip" data-val="4" onclick="setPip(this,4)"></div><div class="score-pip" data-val="5" onclick="setPip(this,5)"></div>
+              </div>
+              <span class="factor-score-display" style="color:#3B6D11" id="s-log">0</span>
+            </div>
+            <div class="factor-desc">Penggunaan logo resmi, HTML rapi, branding konsisten</div>
+          </div>
+          <div class="factor-row" data-dim="appear" data-max="5">
+            <div class="factor-top">
+              <span class="factor-name">Personalization</span>
+              <div style="display:flex;gap:3px" class="pip-group">
+                <div class="score-pip" data-val="0" onclick="setPip(this,0)"></div><div class="score-pip" data-val="1" onclick="setPip(this,1)"></div><div class="score-pip" data-val="2" onclick="setPip(this,2)"></div><div class="score-pip" data-val="3" onclick="setPip(this,3)"></div><div class="score-pip" data-val="4" onclick="setPip(this,4)"></div><div class="score-pip" data-val="5" onclick="setPip(this,5)"></div>
+              </div>
+              <span class="factor-score-display" style="color:#3B6D11" id="s-per">0</span>
+            </div>
+            <div class="factor-desc">Email menyebut nama, jabatan, departemen, atau info spesifik target</div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- RIGHT — Result + rating distribution -->
+    <div style="display:flex;flex-direction:column;gap:12px">
+
+      <!-- Score result -->
+      <div class="card">
+        <div class="card-header">
+          <i class="ti ti-award" style="font-size:14px;color:#6C63FF" aria-hidden="true"></i>
+          <div class="card-title">Skor PhishScale</div>
+        </div>
+        <div style="padding:16px">
+          <div style="display:flex;align-items:center;gap:16px;margin-bottom:14px">
+            <div style="text-align:center;flex:1">
+              <div style="font-size:11px;color:var(--text-secondary);margin-bottom:4px">Total skor</div>
+              <div style="font-size:36px;font-weight:500;color:var(--text-primary);line-height:1" id="total-score">0</div>
+              <div style="font-size:11px;color:var(--text-secondary);margin-top:2px">dari 40</div>
+            </div>
+            <div style="flex:2">
+              <div id="rating-display" style="border-radius:8px;padding:12px 14px;background:var(--surface-1);text-align:center">
+                <div style="font-size:13px;font-weight:500;color:var(--text-secondary)" id="rating-label">Isi faktor di kiri</div>
+                <div style="font-size:11px;color:var(--text-secondary);margin-top:3px" id="rating-range">skor 0–40</div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Breakdown bars -->
+          <div style="space-y:8px">
+            <div style="display:flex;align-items:center;gap:8px;margin-bottom:8px">
+              <span style="font-size:11px;color:#185FA5;min-width:70px">Premise</span>
+              <div style="flex:1;height:8px;background:#E6F1FB;border-radius:4px;overflow:hidden">
+                <div id="breakdown-premise" style="height:100%;background:#2a78d6;border-radius:4px;width:0%;transition:width .3s"></div>
+              </div>
+              <span style="font-size:11px;font-weight:500;color:#185FA5;min-width:32px;text-align:right" id="bd-premise">0/20</span>
+            </div>
+            <div style="display:flex;align-items:center;gap:8px">
+              <span style="font-size:11px;color:#3B6D11;min-width:70px">Appearance</span>
+              <div style="flex:1;height:8px;background:#EAF3DE;border-radius:4px;overflow:hidden">
+                <div id="breakdown-appear" style="height:100%;background:#1baf7a;border-radius:4px;width:0%;transition:width .3s"></div>
+              </div>
+              <span style="font-size:11px;font-weight:500;color:#3B6D11;min-width:32px;text-align:right" id="bd-appear">0/20</span>
+            </div>
+          </div>
+
+          <!-- Recommendation -->
+          <div id="recommendation" style="margin-top:12px;padding:9px 12px;border-radius:7px;background:var(--surface-1);border:0.5px solid var(--border);font-size:11px;color:var(--text-secondary);display:none">
+            <i class="ti ti-bulb" style="font-size:13px;margin-right:5px;color:#eda100" aria-hidden="true"></i>
+            <span id="rec-text"></span>
+          </div>
+        </div>
+      </div>
+
+      <!-- Rating categories -->
+      <div class="card">
+        <div class="card-header">
+          <i class="ti ti-list" style="font-size:14px" aria-hidden="true"></i>
+          <div class="card-title">Kategori rating</div>
+        </div>
+        <div style="padding:10px 14px">
+          <div id="rating-rows">
+            <div class="guide-row" id="rr-vl">
+              <div class="guide-pip" style="background:#1baf7a"></div>
+              <div style="flex:1"><span style="font-size:12px;font-weight:500;color:#065F46">Very Low</span> <span style="font-size:11px;color:var(--text-secondary)">· skor 0–8</span></div>
+              <span class="badge badge-vl">Mudah dideteksi</span>
+            </div>
+            <div class="guide-row" id="rr-lo">
+              <div class="guide-pip" style="background:#639922"></div>
+              <div style="flex:1"><span style="font-size:12px;font-weight:500;color:#3B6D11">Low</span> <span style="font-size:11px;color:var(--text-secondary)">· skor 9–16</span></div>
+              <span class="badge badge-lo">Cukup mudah</span>
+            </div>
+            <div class="guide-row" id="rr-mo">
+              <div class="guide-pip" style="background:#eda100"></div>
+              <div style="flex:1"><span style="font-size:12px;font-weight:500;color:#854F0B">Moderate</span> <span style="font-size:11px;color:var(--text-secondary)">· skor 17–24</span></div>
+              <span class="badge badge-mo">Membutuhkan ketelitian</span>
+            </div>
+            <div class="guide-row" id="rr-hi">
+              <div class="guide-pip" style="background:#e34948"></div>
+              <div style="flex:1"><span style="font-size:12px;font-weight:500;color:#A32D2D">High</span> <span style="font-size:11px;color:var(--text-secondary)">· skor 25–32</span></div>
+              <span class="badge badge-hi">Hanya user terlatih</span>
+            </div>
+            <div class="guide-row" id="rr-vh">
+              <div class="guide-pip" style="background:#A32D2D"></div>
+              <div style="flex:1"><span style="font-size:12px;font-weight:500;color:#B91C1C">Very High</span> <span style="font-size:11px;color:var(--text-secondary)">· skor 33–40</span></div>
+              <span class="badge badge-vh">Hampir tak terdeteksi</span>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ══════════════════════════════════════
+     TAB 2 — PANDUAN FAKTOR
+══════════════════════════════════════ -->
+<div class="pane" id="pane-factors">
+  <div style="display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:12px">
+
+    <!-- Premise factors -->
+    <div>
+      <div style="display:flex;align-items:center;gap:6px;margin-bottom:10px;padding:8px 12px;background:#E6F1FB;border-radius:8px">
+        <i class="ti ti-brain" style="font-size:15px;color:#185FA5" aria-hidden="true"></i>
+        <span style="font-size:12px;font-weight:500;color:#185FA5">Dimensi Premise — maks 20 poin</span>
+      </div>
+
+      <div class="card" style="margin-bottom:10px">
+        <div class="card-header" style="background:#E6F1FB22">
+          <i class="ti ti-users" style="font-size:13px;color:#185FA5" aria-hidden="true"></i>
+          <div><div class="card-title">Relevance to recipient</div><div class="card-sub">Relevansi topik dengan peran target · 0–5</div></div>
+        </div>
+        <div class="card-body">
+          <div class="guide-row"><div class="guide-pip" style="background:var(--border)"></div><span class="guide-score" style="color:var(--text-secondary)">0</span><span class="guide-text">Tidak relevan sama sekali dengan pekerjaan atau industri target</span></div>
+          <div class="guide-row"><div class="guide-pip" style="background:#C0DD97"></div><span class="guide-score">1</span><span class="guide-text">Relevan secara umum — bisa dikirim ke siapa saja</span></div>
+          <div class="guide-row"><div class="guide-pip" style="background:#97C459"></div><span class="guide-score">2</span><span class="guide-text">Relevan ke industri target namun bukan peran spesifik</span></div>
+          <div class="guide-row"><div class="guide-pip" style="background:#eda100"></div><span class="guide-score">3</span><span class="guide-text">Relevan ke departemen target (e.g. email "HR policy" ke staf HR)</span></div>
+          <div class="guide-row"><div class="guide-pip" style="background:#e34948"></div><span class="guide-score">4</span><span class="guide-text">Sangat relevan — menyesuaikan peran dan tanggung jawab target</span></div>
+          <div class="guide-row"><div class="guide-pip" style="background:#A32D2D"></div><span class="guide-score">5</span><span class="guide-text">Presisi penuh — konteks spesifik yang hanya diketahui orang dalam</span></div>
+        </div>
+      </div>
+
+      <div class="card" style="margin-bottom:10px">
+        <div class="card-header" style="background:#E6F1FB22">
+          <i class="ti ti-id-badge" style="font-size:13px;color:#185FA5" aria-hidden="true"></i>
+          <div><div class="card-title">Sender believability</div><div class="card-sub">Kredibilitas identitas pengirim · 0–5</div></div>
+        </div>
+        <div class="card-body">
+          <div class="guide-row"><div class="guide-pip" style="background:var(--border)"></div><span class="guide-score" style="color:var(--text-secondary)">0</span><span class="guide-text">Pengirim tidak dikenal, tidak ada hubungan dengan target</span></div>
+          <div class="guide-row"><div class="guide-pip" style="background:#97C459"></div><span class="guide-score">2</span><span class="guide-text">Brand atau layanan populer yang dikenal target (Netflix, PayPal)</span></div>
+          <div class="guide-row"><div class="guide-pip" style="background:#eda100"></div><span class="guide-score">3</span><span class="guide-text">Vendor atau mitra bisnis nyata yang berhubungan dengan target</span></div>
+          <div class="guide-row"><div class="guide-pip" style="background:#e34948"></div><span class="guide-score">4</span><span class="guide-text">Kolega, atasan, atau departemen internal yang dikenal target</span></div>
+          <div class="guide-row"><div class="guide-pip" style="background:#A32D2D"></div><span class="guide-score">5</span><span class="guide-text">C-level eksekutif perusahaan target yang namanya dikenal luas</span></div>
+        </div>
+      </div>
+
+      <div class="card" style="margin-bottom:10px">
+        <div class="card-header" style="background:#E6F1FB22">
+          <i class="ti ti-alert-triangle" style="font-size:13px;color:#185FA5" aria-hidden="true"></i>
+          <div><div class="card-title">Urgency / threat</div><div class="card-sub">Tingkat urgensi atau ancaman · 0–5</div></div>
+        </div>
+        <div class="card-body">
+          <div class="guide-row"><div class="guide-pip" style="background:var(--border)"></div><span class="guide-score" style="color:var(--text-secondary)">0</span><span class="guide-text">Tidak ada unsur urgensi atau ancaman sama sekali</span></div>
+          <div class="guide-row"><div class="guide-pip" style="background:#eda100"></div><span class="guide-score">3</span><span class="guide-text">Batas waktu moderat — "mohon konfirmasi dalam 48 jam"</span></div>
+          <div class="guide-row"><div class="guide-pip" style="background:#A32D2D"></div><span class="guide-score">5</span><span class="guide-text">Ancaman kritis — "akun dinonaktifkan EOD" / "transfer wajib hari ini"</span></div>
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="card-header" style="background:#E6F1FB22">
+          <i class="ti ti-gift" style="font-size:13px;color:#185FA5" aria-hidden="true"></i>
+          <div><div class="card-title">Reward / gain</div><div class="card-sub">Iming-iming keuntungan · 0–5</div></div>
+        </div>
+        <div class="card-body">
+          <div class="guide-row"><div class="guide-pip" style="background:var(--border)"></div><span class="guide-score" style="color:var(--text-secondary)">0</span><span class="guide-text">Tidak ada penawaran keuntungan apapun</span></div>
+          <div class="guide-row"><div class="guide-pip" style="background:#eda100"></div><span class="guide-score">3</span><span class="guide-text">Hadiah atau bonus yang plausibel — voucher, bonus kinerja</span></div>
+          <div class="guide-row"><div class="guide-pip" style="background:#A32D2D"></div><span class="guide-score">5</span><span class="guide-text">Keuntungan finansial signifikan yang sangat relevan dengan target</span></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Appearance factors -->
+    <div>
+      <div style="display:flex;align-items:center;gap:6px;margin-bottom:10px;padding:8px 12px;background:#EAF3DE;border-radius:8px">
+        <i class="ti ti-eye" style="font-size:15px;color:#3B6D11" aria-hidden="true"></i>
+        <span style="font-size:12px;font-weight:500;color:#3B6D11">Dimensi Appearance — maks 20 poin</span>
+      </div>
+
+      <div class="card" style="margin-bottom:10px">
+        <div class="card-header" style="background:#EAF3DE22">
+          <i class="ti ti-abc" style="font-size:13px;color:#3B6D11" aria-hidden="true"></i>
+          <div><div class="card-title">Spelling & grammar</div><div class="card-sub">Kualitas penulisan email · 0–5</div></div>
+        </div>
+        <div class="card-body">
+          <div class="guide-row"><div class="guide-pip" style="background:var(--border)"></div><span class="guide-score" style="color:var(--text-secondary)">0</span><span class="guide-text">Banyak typo, grammar buruk, tanda baca salah — mudah dikenali</span></div>
+          <div class="guide-row"><div class="guide-pip" style="background:#97C459"></div><span class="guide-score">2</span><span class="guide-text">Beberapa kesalahan kecil yang masih mencolok</span></div>
+          <div class="guide-row"><div class="guide-pip" style="background:#eda100"></div><span class="guide-score">3</span><span class="guide-text">Umumnya benar, satu atau dua typo yang bisa terlewat</span></div>
+          <div class="guide-row"><div class="guide-pip" style="background:#e34948"></div><span class="guide-score">4</span><span class="guide-text">Penulisan sangat baik, tone profesional konsisten</span></div>
+          <div class="guide-row"><div class="guide-pip" style="background:#A32D2D"></div><span class="guide-score">5</span><span class="guide-text">Sempurna — tidak bisa dibedakan dari komunikasi asli perusahaan</span></div>
+        </div>
+      </div>
+
+      <div class="card" style="margin-bottom:10px">
+        <div class="card-header" style="background:#EAF3DE22">
+          <i class="ti ti-world" style="font-size:13px;color:#3B6D11" aria-hidden="true"></i>
+          <div><div class="card-title">Domain & sender address</div><div class="card-sub">Kemiripan alamat pengirim · 0–5</div></div>
+        </div>
+        <div class="card-body">
+          <div class="guide-row"><div class="guide-pip" style="background:var(--border)"></div><span class="guide-score" style="color:var(--text-secondary)">0</span><span class="guide-text">Domain jelas berbeda / generic (gmail.com, yahoo.com)</span></div>
+          <div class="guide-row"><div class="guide-pip" style="background:#eda100"></div><span class="guide-score">3</span><span class="guide-text">Lookalike domain yang mirip tapi bisa dikenali (c0rp.com vs corp.com)</span></div>
+          <div class="guide-row"><div class="guide-pip" style="background:#A32D2D"></div><span class="guide-score">5</span><span class="guide-text">Domain identik atau subdomain meyakinkan (mail.corp.com.phish.net)</span></div>
+        </div>
+      </div>
+
+      <div class="card" style="margin-bottom:10px">
+        <div class="card-header" style="background:#EAF3DE22">
+          <i class="ti ti-layout" style="font-size:13px;color:#3B6D11" aria-hidden="true"></i>
+          <div><div class="card-title">Logos & formatting</div><div class="card-sub">Kualitas desain visual email · 0–5</div></div>
+        </div>
+        <div class="card-body">
+          <div class="guide-row"><div class="guide-pip" style="background:var(--border)"></div><span class="guide-score" style="color:var(--text-secondary)">0</span><span class="guide-text">Plain text, tidak ada logo, format berantakan</span></div>
+          <div class="guide-row"><div class="guide-pip" style="background:#97C459"></div><span class="guide-score">2</span><span class="guide-text">Ada logo namun kualitas rendah atau tidak presisi</span></div>
+          <div class="guide-row"><div class="guide-pip" style="background:#eda100"></div><span class="guide-score">3</span><span class="guide-text">HTML email rapi dengan logo yang cukup meyakinkan</span></div>
+          <div class="guide-row"><div class="guide-pip" style="background:#A32D2D"></div><span class="guide-score">5</span><span class="guide-text">Identik dengan template email resmi perusahaan — logo, warna, footer</span></div>
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="card-header" style="background:#EAF3DE22">
+          <i class="ti ti-user-check" style="font-size:13px;color:#3B6D11" aria-hidden="true"></i>
+          <div><div class="card-title">Personalization</div><div class="card-sub">Tingkat personalisasi konten · 0–5</div></div>
+        </div>
+        <div class="card-body">
+          <div class="guide-row"><div class="guide-pip" style="background:var(--border)"></div><span class="guide-score" style="color:var(--text-secondary)">0</span><span class="guide-text">Generic — tidak ada informasi spesifik tentang target</span></div>
+          <div class="guide-row"><div class="guide-pip" style="background:#97C459"></div><span class="guide-score">2</span><span class="guide-text">Menyebut nama depan target</span></div>
+          <div class="guide-row"><div class="guide-pip" style="background:#eda100"></div><span class="guide-score">3</span><span class="guide-text">Nama + jabatan + departemen target</span></div>
+          <div class="guide-row"><div class="guide-pip" style="background:#e34948"></div><span class="guide-score">4</span><span class="guide-text">Nama + jabatan + referensi proyek atau aktivitas nyata target</span></div>
+          <div class="guide-row"><div class="guide-pip" style="background:#A32D2D"></div><span class="guide-score">5</span><span class="guide-text">Informasi sangat spesifik yang hanya bisa diketahui orang dalam</span></div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ══════════════════════════════════════
+     TAB 3 — KORELASI & INSIGHT
+══════════════════════════════════════ -->
+<div class="pane" id="pane-correlation">
+  <div class="g2" style="margin-bottom:12px">
+    <div class="card">
+      <div class="card-header">
+        <i class="ti ti-chart-dots" style="font-size:14px;color:#6C63FF" aria-hidden="true"></i>
+        <div><div class="card-title">Skor vs click rate aktual</div><div class="card-sub">Dari 24 simulasi sebelumnya · r = 0.74</div></div>
+      </div>
+      <div style="padding:14px 16px">
+        <div class="scatter-wrap" id="scatter-area">
+          <div class="scatter-axis-x"></div>
+          <div class="scatter-axis-y"></div>
+          <span class="axis-title" style="bottom:4px;left:50%;transform:translateX(-50%)">PhishScale total skor</span>
+          <span class="axis-title" style="top:50%;left:2px;transform:rotate(-90deg) translateX(-50%);transform-origin:0 0;writing-mode:vertical-rl;font-size:9px">Click rate</span>
+          <div id="scatter-dots"></div>
+          <canvas id="scatter-trend" width="400" height="156" class="scatter-trend" style="position:absolute;bottom:24px;left:36px;right:8px;pointer-events:none"></canvas>
+        </div>
+        <div style="display:flex;gap:12px;font-size:10px;color:var(--text-secondary)">
+          <span style="display:flex;align-items:center;gap:4px"><span style="width:8px;height:8px;border-radius:50%;background:#2a78d6;display:inline-block"></span>Simulasi BEC</span>
+          <span style="display:flex;align-items:center;gap:4px"><span style="width:8px;height:8px;border-radius:50%;background:#1baf7a;display:inline-block"></span>Credential</span>
+          <span style="display:flex;align-items:center;gap:4px"><span style="width:8px;height:8px;border-radius:50%;background:#eda100;display:inline-block"></span>Malware lure</span>
+        </div>
+      </div>
+    </div>
+
+    <div style="display:flex;flex-direction:column;gap:12px">
+      <div class="card">
+        <div class="card-header">
+          <i class="ti ti-trending-up" style="font-size:14px;color:#1baf7a" aria-hidden="true"></i>
+          <div class="card-title">Faktor paling berpengaruh</div>
+        </div>
+        <div style="padding:10px 14px">
+          <div style="font-size:10px;color:var(--text-secondary);margin-bottom:8px">Korelasi faktor vs click rate aktual</div>
+          <div class="corr-row"><span class="corr-name">Sender believability</span><div class="corr-bar-track"><div class="corr-bar-fill" style="width:88%;background:#2a78d6"></div></div><span class="corr-val" style="color:#2a78d6">0.88</span></div>
+          <div class="corr-row"><span class="corr-name">Relevance to recipient</span><div class="corr-bar-track"><div class="corr-bar-fill" style="width:80%;background:#2a78d6"></div></div><span class="corr-val" style="color:#2a78d6">0.80</span></div>
+          <div class="corr-row"><span class="corr-name">Personalization</span><div class="corr-bar-track"><div class="corr-bar-fill" style="width:75%;background:#1baf7a"></div></div><span class="corr-val" style="color:#1baf7a">0.75</span></div>
+          <div class="corr-row"><span class="corr-name">Domain similarity</span><div class="corr-bar-track"><div class="corr-bar-fill" style="width:68%;background:#1baf7a"></div></div><span class="corr-val" style="color:#1baf7a">0.68</span></div>
+          <div class="corr-row"><span class="corr-name">Urgency / threat</span><div class="corr-bar-track"><div class="corr-bar-fill" style="width:60%;background:#eda100"></div></div><span class="corr-val" style="color:#eda100">0.60</span></div>
+          <div class="corr-row"><span class="corr-name">Logos & formatting</span><div class="corr-bar-track"><div class="corr-bar-fill" style="width:52%;background:#eda100"></div></div><span class="corr-val" style="color:#eda100">0.52</span></div>
+          <div class="corr-row"><span class="corr-name">Spelling & grammar</span><div class="corr-bar-track"><div class="corr-bar-fill" style="width:44%;background:#e34948"></div></div><span class="corr-val" style="color:#e34948">0.44</span></div>
+          <div class="corr-row"><span class="corr-name">Reward / gain</span><div class="corr-bar-track"><div class="corr-bar-fill" style="width:38%;background:#e34948"></div></div><span class="corr-val" style="color:#e34948">0.38</span></div>
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="card-header">
+          <i class="ti ti-bulb" style="font-size:14px;color:#eda100" aria-hidden="true"></i>
+          <div class="card-title">Rekomendasi otomatis</div>
+        </div>
+        <div style="padding:10px 14px;display:flex;flex-direction:column;gap:7px">
+          <div style="background:#E6F1FB;border-radius:7px;padding:8px 10px;font-size:11px;color:#0C447C">
+            <i class="ti ti-arrow-up" style="font-size:12px" aria-hidden="true"></i> <strong>Tingkatkan sender believability</strong> — faktor ini berkorelasi tertinggi (0.88) dan paling mudah ditingkatkan dengan spoofing nama eksekutif
+          </div>
+          <div style="background:#EAF3DE;border-radius:7px;padding:8px 10px;font-size:11px;color:#27500A">
+            <i class="ti ti-arrow-up" style="font-size:12px" aria-hidden="true"></i> <strong>Tambah personalisasi</strong> — gunakan variabel {{nama}}, {{jabatan}}, {{departemen}} di template untuk menaikkan skor 2–3 poin
+          </div>
+          <div style="background:var(--surface-1);border-radius:7px;padding:8px 10px;font-size:11px;color:var(--text-secondary)">
+            <i class="ti ti-info-circle" style="font-size:12px" aria-hidden="true"></i> Playbook dengan skor < 10 memiliki avg click rate 8% — pertimbangkan meningkatkan skor sebelum launch
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Distribution by rating -->
+  <div class="card">
+    <div class="card-header">
+      <i class="ti ti-chart-bar" style="font-size:14px" aria-hidden="true"></i>
+      <div class="card-title">Distribusi playbook per rating</div>
+      <span style="font-size:11px;color:var(--text-secondary);margin-left:auto">24 playbook total</span>
+    </div>
+    <div style="padding:14px 16px">
+      <div style="display:flex;align-items:flex-end;gap:8px;height:80px;margin-bottom:6px">
+        <div style="flex:1;display:flex;flex-direction:column;align-items:center;gap:4px">
+          <span style="font-size:11px;font-weight:500;color:#065F46">2</span>
+          <div style="width:100%;background:#1baf7a;border-radius:4px 4px 0 0;height:20px"></div>
+        </div>
+        <div style="flex:1;display:flex;flex-direction:column;align-items:center;gap:4px">
+          <span style="font-size:11px;font-weight:500;color:#3B6D11">4</span>
+          <div style="width:100%;background:#639922;border-radius:4px 4px 0 0;height:40px"></div>
+        </div>
+        <div style="flex:1;display:flex;flex-direction:column;align-items:center;gap:4px">
+          <span style="font-size:11px;font-weight:500;color:#854F0B">11</span>
+          <div style="width:100%;background:#eda100;border-radius:4px 4px 0 0;height:80px"></div>
+        </div>
+        <div style="flex:1;display:flex;flex-direction:column;align-items:center;gap:4px">
+          <span style="font-size:11px;font-weight:500;color:#A32D2D">6</span>
+          <div style="width:100%;background:#e34948;border-radius:4px 4px 0 0;height:60px"></div>
+        </div>
+        <div style="flex:1;display:flex;flex-direction:column;align-items:center;gap:4px">
+          <span style="font-size:11px;font-weight:500;color:#B91C1C">1</span>
+          <div style="width:100%;background:#A32D2D;border-radius:4px 4px 0 0;height:10px"></div>
+        </div>
+      </div>
+      <div style="display:flex;gap:8px">
+        <div style="flex:1;text-align:center;font-size:10px;color:var(--text-secondary)">Very Low</div>
+        <div style="flex:1;text-align:center;font-size:10px;color:var(--text-secondary)">Low</div>
+        <div style="flex:1;text-align:center;font-size:10px;color:var(--text-secondary)">Moderate</div>
+        <div style="flex:1;text-align:center;font-size:10px;color:var(--text-secondary)">High</div>
+        <div style="flex:1;text-align:center;font-size:10px;color:var(--text-secondary)">Very High</div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+function showPane(id,btn){
+  document.querySelectorAll('.pane').forEach(p=>p.classList.remove('active'));
+  document.querySelectorAll('.tab').forEach(t=>t.classList.remove('active'));
+  document.getElementById('pane-'+id).classList.add('active');
+  btn.classList.add('active');
+}
+
+const scores = {rel:0,sen:0,urg:0,rew:0,spe:0,dom:0,log:0,per:0};
+const pipColors = ['#D3D1C7','#C0DD97','#97C459','#eda100','#e34948','#A32D2D'];
+
+function setPip(el, val){
+  const row = el.closest('.factor-row');
+  const dim = row.dataset.dim;
+  const pips = row.querySelectorAll('.score-pip');
+  pips.forEach((p,i)=>{ p.style.background = i <= val ? pipColors[val] : 'var(--surface-1)'; });
+  const key = getKey(row);
+  if(key) scores[key] = val;
+  updateScores();
+}
+
+function getKey(row){
+  const name = row.querySelector('.factor-name').textContent.trim();
+  const map = {'Relevance to recipient':'rel','Sender believability':'sen','Urgency / threat':'urg','Reward / gain':'rew','Spelling & grammar':'spe','Domain & sender address':'dom','Logos & formatting':'log','Personalization':'per'};
+  return map[name];
+}
+
+function updateScores(){
+  const p = scores.rel+scores.sen+scores.urg+scores.rew;
+  const a = scores.spe+scores.dom+scores.log+scores.per;
+  const t = p+a;
+
+  document.getElementById('premise-total').textContent = p+' / 20';
+  document.getElementById('appear-total').textContent = a+' / 20';
+  document.getElementById('premise-bar').style.width = (p/20*100)+'%';
+  document.getElementById('appear-bar').style.width = (a/20*100)+'%';
+  document.getElementById('total-score').textContent = t;
+  document.getElementById('breakdown-premise').style.width = (p/20*100)+'%';
+  document.getElementById('breakdown-appear').style.width = (a/20*100)+'%';
+  document.getElementById('bd-premise').textContent = p+'/20';
+  document.getElementById('bd-appear').textContent = a+'/20';
+
+  let rating, color, textColor, range, rec='';
+  if(t<=8){rating='Very Low';color='#D1FAE5';textColor='#065F46';range='skor 0–8';rec='Skor sangat rendah — pertimbangkan meningkatkan sender believability dan personalization';}
+  else if(t<=16){rating='Low';color='#EAF3DE';textColor='#3B6D11';range='skor 9–16';rec='Tingkatkan relevance dan domain similarity untuk mendekati Moderate';}
+  else if(t<=24){rating='Moderate';color='#FAEEDA';textColor='#854F0B';range='skor 17–24';rec='Skor cukup baik. Tambah personalization untuk mendorong ke High';}
+  else if(t<=32){rating='High';color='#FCEBEB';textColor='#791F1F';range='skor 25–32';rec='Skor tinggi. Simulasi ini akan sangat menantang bagi target.';}
+  else{rating='Very High';color='#FEE2E2';textColor='#B91C1C';range='skor 33–40';rec='Skenario paling realistis. Pastikan target sudah mendapat sosialisasi sebelumnya.';}
+
+  const rd=document.getElementById('rating-display');
+  rd.style.background=color;
+  document.getElementById('rating-label').style.color=textColor;
+  document.getElementById('rating-label').textContent=rating;
+  document.getElementById('rating-range').style.color=textColor;
+  document.getElementById('rating-range').textContent=range;
+
+  const recEl=document.getElementById('recommendation');
+  if(t>0){recEl.style.display='block';document.getElementById('rec-text').textContent=rec;}
+  else{recEl.style.display='none';}
+
+  document.querySelectorAll('[id^="rr-"]').forEach(r=>{r.style.background='';r.style.borderRadius='';});
+  const activeId = t<=8?'rr-vl':t<=16?'rr-lo':t<=24?'rr-mo':t<=32?'rr-hi':'rr-vh';
+  if(t>0){
+    const active=document.getElementById(activeId);
+    active.style.background=color;active.style.borderRadius='6px';
+  }
+}
+
+function resetSliders(){
+  Object.keys(scores).forEach(k=>scores[k]=0);
+  document.querySelectorAll('.score-pip').forEach(p=>p.style.background='var(--surface-1)');
+  updateScores();
+}
+
+const scatterData=[
+  {x:8,y:9,c:'#2a78d6'},{x:12,y:14,c:'#1baf7a'},{x:15,y:18,c:'#eda100'},
+  {x:18,y:22,c:'#2a78d6'},{x:20,y:28,c:'#2a78d6'},{x:22,y:31,c:'#1baf7a'},
+  {x:24,y:35,c:'#eda100'},{x:26,y:38,c:'#2a78d6'},{x:28,y:44,c:'#2a78d6'},
+  {x:30,y:48,c:'#1baf7a'},{x:32,y:52,c:'#2a78d6'},{x:35,y:58,c:'#eda100'},
+  {x:10,y:11,c:'#1baf7a'},{x:17,y:25,c:'#2a78d6'},{x:23,y:33,c:'#2a78d6'},
+  {x:29,y:46,c:'#eda100'},{x:14,y:16,c:'#1baf7a'},{x:21,y:29,c:'#2a78d6'},
+];
+
+function buildScatter(){
+  const area=document.getElementById('scatter-area');
+  if(!area)return;
+  const W=area.offsetWidth-44, H=area.offsetHeight-32;
+  const xMin=0,xMax=40,yMin=0,yMax=70;
+  const container=document.getElementById('scatter-dots');
+  scatterData.forEach(d=>{
+    const dot=document.createElement('div');
+    dot.className='scatter-dot';
+    dot.style.background=d.c;
+    dot.style.left=(36+W*(d.x-xMin)/(xMax-xMin))+'px';
+    dot.style.bottom=(24+H*(d.y-yMin)/(yMax-yMin))+'px';
+    dot.title='Skor: '+d.x+' · Click rate: '+d.y+'%';
+    container.appendChild(dot);
+  });
+  for(let i=0;i<=40;i+=10){
+    const lbl=document.createElement('span');
+    lbl.className='scatter-label-x';
+    lbl.textContent=i;
+    lbl.style.left=(36+W*i/40-6)+'px';
+    lbl.style.bottom='2px';
+    area.appendChild(lbl);
+  }
+  for(let i=0;i<=60;i+=20){
+    const lbl=document.createElement('span');
+    lbl.className='scatter-label-y';
+    lbl.textContent=i+'%';
+    lbl.style.left='0px';
+    lbl.style.bottom=(24+H*i/70-6)+'px';
+    area.appendChild(lbl);
+  }
+}
+
+document.addEventListener('DOMContentLoaded',buildScatter);
+setTimeout(buildScatter,100);
+</script>

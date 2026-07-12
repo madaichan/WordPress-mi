@@ -1,21 +1,28 @@
 import { create } from 'zustand'
+import { canManagePukat, canOperatePukat, normalizePukatRole } from '../utils/roles.js'
+
+const injectedUser = window.PukatData?.user
+const fallbackUser = {
+  id: 0,
+  displayName: 'Unknown',
+  email: '',
+  role: 'pukat_viewer',
+}
+
+function normalizeUser(user) {
+  return {
+    ...user,
+    role: normalizePukatRole(user.role ?? user.pukat_role),
+  }
+}
 
 /**
  * Global Zustand store.
- * Holds GoPhish connection status and current user context.
+ * Holds current user context and sidebar UI state.
  */
 const useAppStore = create((set, get) => ({
   // ── User (injected by WP) ──────────────────────────────────────
-  user: window.PukatData?.user || {
-    id: 0,
-    displayName: 'Unknown',
-    email: '',
-    role: 'viewer',
-  },
-
-  // ── GoPhish connection ─────────────────────────────────────────
-  gophishStatus: 'unknown', // 'unknown' | 'checking' | 'connected' | 'disconnected'
-  setGophishStatus: (status) => set({ gophishStatus: status }),
+  user: normalizeUser(injectedUser || fallbackUser),
 
   // ── Sidebar collapsed state ────────────────────────────────────
   sidebarCollapsed: false,
@@ -25,8 +32,8 @@ const useAppStore = create((set, get) => ({
   // Nothing needed here — react-hot-toast has its own context.
 
   // ── Helpers ────────────────────────────────────────────────────
-  isAdmin:    () => ['admin'].includes(get().user.role),
-  isOperator: () => ['admin', 'operator'].includes(get().user.role),
+  isAdmin:    () => canManagePukat(get().user.role),
+  isOperator: () => canOperatePukat(get().user.role),
 }))
 
 export default useAppStore

@@ -1,33 +1,19 @@
 import React, { useState } from 'react'
-import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
-import { userApi } from '../../api/index.js'
-import toast from 'react-hot-toast'
 import clsx from 'clsx'
-
-const ROLES = ['none', 'pukat_viewer', 'pukat_operator', 'pukat_admin']
-const ROLE_LABELS = { none: 'No Access', pukat_viewer: 'Viewer', pukat_operator: 'Operator', pukat_admin: 'Admin' }
-const ROLE_BADGE = { none: 'badge-gray', pukat_viewer: 'badge-info', pukat_operator: 'badge-warning', pukat_admin: 'badge-violet' }
+import { useAuditLogs, useUsers } from '../../hooks/queries/useUserQueries.js'
+import { useUpdateUserRoleMutation } from '../../hooks/mutations/useUserMutations.js'
+import { ROLE_LABELS, ROLE_VALUES, getPukatRoleBadge, normalizePukatRole } from '../../utils/roles.js'
 
 export default function Users() {
-  const qc = useQueryClient()
   const [search, setSearch] = useState('')
   const [activeTab, setActiveTab] = useState('users')
 
-  const { data: usersData, isLoading } = useQuery({
-    queryKey: ['users', search],
-    queryFn: () => userApi.list({ search, per_page: 50 }),
-  })
-  const { data: logs = [] } = useQuery({
-    queryKey: ['audit-logs'],
-    queryFn: () => userApi.auditLogs({ limit: 50 }),
+  const { data: usersData, isLoading } = useUsers({ search, per_page: 50 })
+  const { data: logs = [] } = useAuditLogs({ limit: 50 }, {
     enabled: activeTab === 'audit',
   })
 
-  const roleMutation = useMutation({
-    mutationFn: ({ id, role }) => userApi.updateRole(id, role),
-    onSuccess: () => { toast.success('Role updated.'); qc.invalidateQueries({queryKey:['users']}) },
-    onError: e => toast.error(e.message),
-  })
+  const roleMutation = useUpdateUserRoleMutation()
 
   const users = usersData?.users || []
 
@@ -54,18 +40,22 @@ export default function Users() {
                 <thead><tr><th>User</th><th>Email</th><th>Pukat Role</th><th>Change Role</th></tr></thead>
                 <tbody>
                   {isLoading ? [...Array(5)].map((_,i) => <tr key={i}>{[...Array(4)].map((_,j) => <td key={j}><div className="h-4 bg-gray-100 rounded animate-pulse" /></td>)}</tr>) :
-                  users.map(u => (
-                    <tr key={u.id}>
-                      <td><div className="flex items-center gap-2"><div className="w-7 h-7 rounded-full bg-violet-100 flex items-center justify-center text-violet-600 text-xs font-bold">{u.display_name?.charAt(0)}</div><span className="font-medium">{u.display_name}</span></div></td>
-                      <td className="text-gray-500">{u.email}</td>
-                      <td><span className={clsx('badge', ROLE_BADGE[u.pukat_role] || 'badge-gray')}>{ROLE_LABELS[u.pukat_role] || u.pukat_role}</span></td>
-                      <td>
-                        <select className="input py-1 text-xs w-auto" value={u.pukat_role} onChange={e => roleMutation.mutate({ id: u.id, role: e.target.value })}>
-                          {ROLES.map(r => <option key={r} value={r}>{ROLE_LABELS[r]}</option>)}
-                        </select>
-                      </td>
-                    </tr>
-                  ))}
+                  users.map(u => {
+                    const role = normalizePukatRole(u.pukat_role)
+
+                    return (
+                      <tr key={u.id}>
+                        <td><div className="flex items-center gap-2"><div className="w-7 h-7 rounded-full bg-violet-100 flex items-center justify-center text-violet-600 text-xs font-bold">{u.display_name?.charAt(0)}</div><span className="font-medium">{u.display_name}</span></div></td>
+                        <td className="text-gray-500">{u.email}</td>
+                        <td><span className={clsx('badge', getPukatRoleBadge(role))}>{ROLE_LABELS[role]}</span></td>
+                        <td>
+                          <select className="input py-1 text-xs w-auto" value={role} onChange={e => roleMutation.mutate({ id: u.id, role: e.target.value })}>
+                            {ROLE_VALUES.map(r => <option key={r} value={r}>{ROLE_LABELS[r]}</option>)}
+                          </select>
+                        </td>
+                      </tr>
+                    )
+                  })}
                 </tbody>
               </table>
             </div>

@@ -1,6 +1,15 @@
 import { useMemo, useState } from 'react'
 import clsx from 'clsx'
 import toast from 'react-hot-toast'
+import {
+  EMPTY_SMTP_FORM,
+  buildSmtpProfilePayload,
+  getSmtpEncryptionClass,
+  getSmtpPortForEncryption,
+  getSmtpStatusClasses,
+  hasDuplicateSmtpProfileName,
+  profileToSmtpForm,
+} from '../../utils/smtpProfileHelpers.js'
 
 const INITIAL_PROFILES = [
   {
@@ -12,7 +21,7 @@ const INITIAL_PROFILES = [
     encryption: 'TLS',
     status: 'Valid',
     used: '3 playbooks',
-    lastTest: '2 jam lalu',
+    lastTest: '2 hours ago',
     username: 'relay-user@corp.internal',
     password: 'password123',
     ignoreCert: false,
@@ -27,7 +36,7 @@ const INITIAL_PROFILES = [
     encryption: 'SSL',
     status: 'Valid',
     used: '5 playbooks',
-    lastTest: '1 hari lalu',
+    lastTest: '1 day ago',
     username: 'general-relay@updates-corp.net',
     password: 'password456',
     ignoreCert: false,
@@ -40,7 +49,7 @@ const INITIAL_PROFILES = [
     port: 587,
     from: 'HR Department <hr@corp-hr-portal.net>',
     encryption: 'TLS',
-    status: 'Belum ditest',
+    status: 'Not tested',
     used: '1 playbook',
     lastTest: '-',
     username: 'hr-mailer@corp-hr-portal.net',
@@ -57,74 +66,13 @@ const INITIAL_PROFILES = [
     encryption: 'None',
     status: 'Error',
     used: '0 playbooks',
-    lastTest: 'Gagal · 3 jam lalu',
+    lastTest: 'Failed · 3 hours ago',
     username: '',
     password: '',
     ignoreCert: true,
     headers: [],
   },
 ]
-
-const EMPTY_FORM = {
-  name: '',
-  host: '',
-  port: '587',
-  encryption: 'TLS',
-  username: '',
-  password: '',
-  from: '',
-  ignoreCert: false,
-  testTarget: 'admin@corp.internal',
-  headers: [],
-}
-
-function profileToForm(profile, mode) {
-  return {
-    name: mode === 'dup' ? `${profile.name} (copy)` : profile.name,
-    host: profile.host,
-    port: String(profile.port),
-    encryption: profile.encryption,
-    username: profile.username ?? '',
-    password: mode === 'dup' ? '' : profile.password ?? '',
-    from: profile.from,
-    ignoreCert: Boolean(profile.ignoreCert),
-    testTarget: 'admin@corp.internal',
-    headers: (profile.headers ?? []).map(header => ({ ...header })),
-  }
-}
-
-function encryptionPort(encryption) {
-  if (encryption === 'SSL') return '465'
-  if (encryption === 'None') return '25'
-  return '587'
-}
-
-function statusClasses(status) {
-  if (status === 'Error') {
-    return {
-      dot: 'bg-red-500',
-      tag: 'bg-red-100 text-red-800',
-    }
-  }
-
-  if (status === 'Belum ditest') {
-    return {
-      dot: 'bg-amber-500 animate-pulse',
-      tag: 'bg-amber-100 text-amber-800',
-    }
-  }
-
-  return {
-    dot: 'bg-emerald-500',
-    tag: 'bg-emerald-100 text-emerald-800',
-  }
-}
-
-function encryptionClass(encryption) {
-  return encryption === 'None'
-    ? 'bg-gray-100 text-gray-700'
-    : 'bg-blue-100 text-blue-800'
-}
 
 function inputClass() {
   return 'w-full rounded-lg border border-gray-200 bg-white px-3 py-2 text-xs text-gray-800 outline-none transition-all focus:border-violet-500 focus:ring-2 focus:ring-violet-500/10'
@@ -210,14 +158,14 @@ function SmtpSlideover({
           {changed && (
             <span className="inline-flex items-center gap-1 rounded-full border border-amber-100 bg-amber-50 px-2.5 py-1 text-[10px] font-semibold text-amber-700">
               <span className="h-1.5 w-1.5 rounded-full bg-amber-500" />
-              Ada perubahan
+              Unsaved changes
             </span>
           )}
           <button
             type="button"
             onClick={onClose}
             className="rounded-lg p-1.5 text-gray-400 transition-all hover:bg-gray-50 hover:text-gray-600"
-            aria-label="Tutup"
+            aria-label="Close"
           >
             <i className="ti ti-x text-base" />
           </button>
@@ -228,8 +176,8 @@ function SmtpSlideover({
             <div className="flex gap-2.5 rounded-xl border border-indigo-100 bg-indigo-50 p-3 text-xs">
               <i className="ti ti-shield-check mt-0.5 flex-shrink-0 text-base text-indigo-600" />
               <p className="font-medium text-indigo-700">
-                <span className="font-bold text-indigo-950">Profil ini dipakai oleh sending profile aktif.</span>
-                {' '}Perubahan berlaku untuk kampanye berikutnya.
+                <span className="font-bold text-indigo-950">This sending profile is currently active.</span>
+                {' '}Changes apply to the next campaign.
               </p>
             </div>
           )}
@@ -238,16 +186,16 @@ function SmtpSlideover({
             <div className="flex gap-2.5 rounded-xl border border-amber-200 bg-amber-50 p-3 text-xs text-amber-800">
               <i className="ti ti-copy mt-0.5 flex-shrink-0 text-base text-amber-600" />
               <p className="font-medium">
-                Semua konfigurasi disalin dari <strong>{sourceName}</strong>. Status test direset. Ubah nama dan sesuaikan konfigurasi sebelum menyimpan.
+                All configuration is copied from <strong>{sourceName}</strong>. Test status is reset. Update the name and adjust configuration before saving.
               </p>
             </div>
           )}
 
           <div className="flex items-center gap-2 text-[10px] font-bold uppercase tracking-wider text-gray-400">
             <i className="ti ti-settings text-xs" />
-            <span>Informasi dasar</span>
+            <span>Basic information</span>
           </div>
-          <Field label="Nama profil" required hint="Gunakan nama deskriptif - akan tampil di pilihan playbook">
+          <Field label="Profile name" required hint="Use a descriptive name - it appears in playbook options">
             <input value={form.name} onChange={event => onChange('name', event.target.value)} className={inputClass()} placeholder="e.g. finance-relay-01" />
           </Field>
 
@@ -255,7 +203,7 @@ function SmtpSlideover({
 
           <div className="flex items-center gap-2 text-[10px] font-bold uppercase tracking-wider text-gray-400">
             <i className="ti ti-server text-xs" />
-            <span>Konfigurasi SMTP</span>
+            <span>SMTP configuration</span>
           </div>
           <div className="grid grid-cols-2 gap-3">
             <Field label="SMTP Host" required>
@@ -265,17 +213,17 @@ function SmtpSlideover({
               <input value={form.port} onChange={event => onChange('port', event.target.value)} className={inputClass()} type="number" placeholder="587" />
             </Field>
           </div>
-          <Field label="Enkripsi">
+          <Field label="Encryption">
             <select
               value={form.encryption}
               onChange={event => {
                 const encryption = event.target.value
                 onChange('encryption', encryption)
-                onChange('port', encryptionPort(encryption))
+                onChange('port', getSmtpPortForEncryption(encryption))
               }}
               className={inputClass()}
             >
-              <option value="TLS">TLS (port 587 - direkomendasikan)</option>
+              <option value="TLS">TLS (port 587 - recommended)</option>
               <option value="SSL">SSL (port 465)</option>
               <option value="None">None (port 25)</option>
             </select>
@@ -303,7 +251,7 @@ function SmtpSlideover({
                   <i className={clsx('ti text-sm', showPassword ? 'ti-eye-off' : 'ti-eye')} />
                 </button>
               </div>
-              {isDuplicate && <span className="mt-1 block text-[10px] text-amber-600">Password tidak ikut tersalin - isi ulang</span>}
+              {isDuplicate && <span className="mt-1 block text-[10px] text-amber-600">Password is not copied - enter it again</span>}
             </Field>
           </div>
 
@@ -311,10 +259,10 @@ function SmtpSlideover({
 
           <div className="flex items-center gap-2 text-[10px] font-bold uppercase tracking-wider text-gray-400">
             <i className="ti ti-mail text-xs" />
-            <span>Identitas pengirim</span>
+            <span>Sender identity</span>
           </div>
-          <Field label="From address" required hint="Format: Display Name <email@domain.com> - pastikan domain sudah dikonfigurasi SPF/DKIM">
-            <input value={form.from} onChange={event => onChange('from', event.target.value)} className={inputClass()} placeholder="Nama Pengirim <sender@domain.com>" />
+          <Field label="From address" required hint="Format: Display Name <email@domain.com> - make sure the domain has SPF/DKIM configured">
+            <input value={form.from} onChange={event => onChange('from', event.target.value)} className={inputClass()} placeholder="Sender Name <sender@domain.com>" />
           </Field>
 
           <button
@@ -334,9 +282,9 @@ function SmtpSlideover({
           <div className="flex items-center gap-2 text-[10px] font-bold uppercase tracking-wider text-gray-400">
             <i className="ti ti-code text-xs" />
             <span>Custom headers</span>
-            <span className="normal-case font-medium text-gray-400">(opsional)</span>
+            <span className="normal-case font-medium text-gray-400">(optional)</span>
           </div>
-          <p className="text-[11px] leading-relaxed text-gray-400">Tambahkan custom email headers - berguna untuk bypass filter atau tracking tambahan.</p>
+          <p className="text-[11px] leading-relaxed text-gray-400">Add custom email headers for filter bypass testing or additional tracking.</p>
 
           <div className="space-y-2">
             {form.headers.map((header, index) => (
@@ -357,7 +305,7 @@ function SmtpSlideover({
                   type="button"
                   onClick={() => onRemoveHeader(index)}
                   className="rounded-lg p-2 text-gray-400 hover:bg-gray-50 hover:text-red-500"
-                  aria-label="Hapus header"
+                  aria-label="Remove header"
                 >
                   <i className="ti ti-trash text-sm" />
                 </button>
@@ -365,7 +313,7 @@ function SmtpSlideover({
             ))}
             <button type="button" onClick={onAddHeader} className="inline-flex items-center gap-1 text-[11px] font-semibold text-violet-500 hover:underline">
               <i className="ti ti-plus text-xs" />
-              Tambah header
+              Add header
             </button>
           </div>
 
@@ -373,15 +321,15 @@ function SmtpSlideover({
 
           <div className="flex items-center gap-2 text-[10px] font-bold uppercase tracking-wider text-gray-400">
             <i className="ti ti-send text-xs" />
-            <span>Test koneksi</span>
+            <span>Connection test</span>
           </div>
           {isDuplicate && (
             <div className="flex items-center gap-2 rounded-xl border border-amber-200 bg-amber-50 p-2.5 text-[11px] text-amber-800">
               <i className="ti ti-alert-triangle flex-shrink-0 text-sm text-amber-600" />
-              <span>Status test direset. Wajib test ulang sebelum profil bisa dipakai.</span>
+              <span>Test status has been reset. Run a new test before this profile can be used.</span>
             </div>
           )}
-          <Field label="Kirim test email ke">
+          <Field label="Send test email to">
             <div className="flex gap-2">
               <input value={form.testTarget} onChange={event => onChange('testTarget', event.target.value)} className={inputClass()} placeholder="email@domain.com" />
               <button
@@ -400,8 +348,8 @@ function SmtpSlideover({
             <div className="overflow-hidden rounded-xl border border-gray-200">
               <div className="flex items-center gap-2 border-b border-gray-100 bg-gray-50 px-3 py-2 text-[11px]">
                 <i className="ti ti-circle-check text-sm text-green-500" />
-                <span className="font-bold text-green-800">Test berhasil</span>
-                <span className="ml-auto text-[10px] font-medium text-gray-400">Baru saja</span>
+                <span className="font-bold text-green-800">Test successful</span>
+                <span className="ml-auto text-[10px] font-medium text-gray-400">Just now</span>
               </div>
               <div className="bg-white p-3 font-mono text-[10px] leading-relaxed text-gray-600">
                 <span className="font-bold text-blue-500">[INFO]</span> Connecting to {form.host || 'localhost'}:{form.port || '25'}...<br />
@@ -422,7 +370,7 @@ function SmtpSlideover({
               className="inline-flex items-center gap-1 rounded-xl border border-rose-100 bg-rose-50 px-4 py-2 text-xs font-semibold text-rose-700 transition-all hover:bg-rose-100"
             >
               <i className="ti ti-trash" />
-              Hapus profil
+              Delete profile
             </button>
           )}
           <button
@@ -430,7 +378,7 @@ function SmtpSlideover({
             onClick={onClose}
             className="ml-auto rounded-xl border border-gray-200 bg-white px-4 py-2 text-xs font-semibold text-gray-700 transition-all hover:bg-gray-50"
           >
-            Batal
+            Cancel
           </button>
           <button
             type="button"
@@ -438,7 +386,7 @@ function SmtpSlideover({
             className="inline-flex items-center gap-1 rounded-xl bg-violet-500 px-4 py-2 text-xs font-semibold text-white transition-all hover:bg-violet-600"
           >
             <i className="ti ti-check" />
-            {isUpdate ? 'Simpan perubahan' : 'Simpan profil'}
+            {isUpdate ? 'Save changes' : 'Save profile'}
           </button>
         </footer>
       </aside>
@@ -451,7 +399,7 @@ export default function SendingProfiles() {
   const [query, setQuery] = useState('')
   const [slideoverMode, setSlideoverMode] = useState(null)
   const [sourceProfile, setSourceProfile] = useState(null)
-  const [form, setForm] = useState(EMPTY_FORM)
+  const [form, setForm] = useState(EMPTY_SMTP_FORM)
   const [changed, setChanged] = useState(false)
   const [showPassword, setShowPassword] = useState(false)
   const [testing, setTesting] = useState(false)
@@ -471,7 +419,7 @@ export default function SendingProfiles() {
 
   function openCreate() {
     setSourceProfile(null)
-    setForm(EMPTY_FORM)
+    setForm(EMPTY_SMTP_FORM)
     setSlideoverMode('new')
     setChanged(false)
     setTestResult(null)
@@ -480,7 +428,7 @@ export default function SendingProfiles() {
 
   function openEdit(profile) {
     setSourceProfile(profile)
-    setForm(profileToForm(profile, 'update'))
+    setForm(profileToSmtpForm(profile, 'update'))
     setSlideoverMode('update')
     setChanged(false)
     setTestResult(null)
@@ -489,7 +437,7 @@ export default function SendingProfiles() {
 
   function openDuplicate(profile) {
     setSourceProfile(profile)
-    setForm(profileToForm(profile, 'dup'))
+    setForm(profileToSmtpForm(profile, 'dup'))
     setSlideoverMode('dup')
     setChanged(false)
     setTestResult(null)
@@ -539,7 +487,7 @@ export default function SendingProfiles() {
   }
 
   function syncGoPhish() {
-    toast.success('Sinkronisasi profil SMTP dengan GoPhish berhasil.')
+    toast.success('SMTP profiles synced with GoPhish.')
   }
 
   function runConnectionTest() {
@@ -547,7 +495,7 @@ export default function SendingProfiles() {
     window.setTimeout(() => {
       setTesting(false)
       setTestResult({ ok: true })
-      toast.success('Koneksi SMTP berhasil ditest.')
+      toast.success('SMTP connection tested successfully.')
     }, 1200)
   }
 
@@ -558,46 +506,27 @@ export default function SendingProfiles() {
     const from = form.from.trim()
 
     if (!name || !host || !port || !from) {
-      toast.error('Mohon lengkapi field wajib.')
+      toast.error('Please complete all required fields.')
       return
     }
 
-    const duplicateName = profiles.some(profile => (
-      profile.name.toLowerCase() === name.toLowerCase()
-      && profile.id !== sourceProfile?.id
-    ))
+    const duplicateName = hasDuplicateSmtpProfileName(profiles, name, sourceProfile?.id)
 
     if (duplicateName) {
-      toast.error(`Nama profil "${name}" sudah digunakan.`)
+      toast.error(`Profile name "${name}" is already in use.`)
       return
     }
 
-    const payload = {
-      id: sourceProfile?.id ?? `smtp-${Date.now()}`,
-      name,
-      host,
-      port,
-      from,
-      encryption: form.encryption,
-      status: 'Valid',
-      used: slideoverMode === 'update' ? sourceProfile.used : '0 playbooks',
-      lastTest: 'Baru saja',
-      username: form.username.trim(),
-      password: form.password,
-      ignoreCert: form.ignoreCert,
-      headers: form.headers
-        .map(header => ({ key: header.key.trim(), val: header.val.trim() }))
-        .filter(header => header.key),
-    }
+    const payload = buildSmtpProfilePayload({ form, mode: slideoverMode, sourceProfile })
 
     if (slideoverMode === 'update') {
       setProfiles(current => current.map(profile => (
         profile.id === sourceProfile.id ? payload : profile
       )))
-      toast.success(`Profil SMTP "${name}" berhasil disimpan.`)
+      toast.success(`SMTP profile "${name}" saved.`)
     } else {
       setProfiles(current => [...current, payload])
-      toast.success(`Profil SMTP "${name}" berhasil dibuat.`)
+      toast.success(`SMTP profile "${name}" created.`)
     }
 
     closeSlideover()
@@ -606,11 +535,11 @@ export default function SendingProfiles() {
   function deleteProfile() {
     if (!sourceProfile) return
 
-    const confirmed = window.confirm(`Apakah Anda yakin ingin menghapus profil SMTP "${sourceProfile.name}"?`)
+    const confirmed = window.confirm(`Are you sure you want to delete SMTP profile "${sourceProfile.name}"?`)
     if (!confirmed) return
 
     setProfiles(current => current.filter(profile => profile.id !== sourceProfile.id))
-    toast.success(`Profil SMTP "${sourceProfile.name}" berhasil dihapus.`)
+    toast.success(`SMTP profile "${sourceProfile.name}" deleted.`)
     closeSlideover()
   }
 
@@ -619,7 +548,7 @@ export default function SendingProfiles() {
       <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
         <div>
           <h1 className="text-2xl font-bold tracking-tight text-gray-900">Sending profiles</h1>
-          <p className="mt-0.5 text-sm font-medium text-gray-500">Konfigurasi SMTP untuk pengiriman simulasi phishing via GoPhish</p>
+          <p className="mt-0.5 text-sm font-medium text-gray-500">SMTP configuration for phishing simulation delivery through GoPhish</p>
         </div>
         <div className="flex items-center gap-3">
           <button
@@ -644,7 +573,7 @@ export default function SendingProfiles() {
         <div className="flex items-center justify-between gap-4 border-b border-gray-100 bg-gray-50/40 p-5">
           <div>
             <h3 className="text-sm font-bold text-gray-900">Outbound Relay Pools</h3>
-            <p className="mt-0.5 text-xs text-gray-500">Daftar koneksi mail relay aktif yang terhubung dengan GoPhish</p>
+            <p className="mt-0.5 text-xs text-gray-500">Active mail relay connections linked to GoPhish</p>
           </div>
           <div className="relative">
             <i className="ti ti-search absolute left-3 top-1/2 -translate-y-1/2 text-sm text-gray-400" />
@@ -652,7 +581,7 @@ export default function SendingProfiles() {
               type="search"
               value={query}
               onChange={event => setQuery(event.target.value)}
-              placeholder="Cari profil..."
+              placeholder="Search profiles..."
               className="w-60 rounded-xl border border-gray-200 bg-white px-3 py-2 pl-9 text-xs text-gray-700 outline-none focus:border-violet-500 focus:ring-2 focus:ring-violet-500/10"
             />
           </div>
@@ -665,19 +594,19 @@ export default function SendingProfiles() {
                 <th className="w-10 p-4">
                   <input type="checkbox" className="rounded border-gray-300 text-violet-500 focus:ring-violet-500" />
                 </th>
-                <th className="p-4">Nama profil</th>
+                <th className="p-4">Profile name</th>
                 <th className="p-4">Host / Port</th>
                 <th className="p-4">From address</th>
-                <th className="p-4">Enkripsi</th>
+                <th className="p-4">Encryption</th>
                 <th className="p-4">Status</th>
-                <th className="p-4">Dipakai</th>
-                <th className="p-4">Terakhir ditest</th>
-                <th className="w-28 p-4 pr-6 text-right">Aksi</th>
+                <th className="p-4">Used</th>
+                <th className="p-4">Last tested</th>
+                <th className="w-28 p-4 pr-6 text-right">Actions</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-gray-100">
               {filteredProfiles.map(profile => {
-                const status = statusClasses(profile.status)
+                const status = getSmtpStatusClasses(profile.status)
 
                 return (
                   <tr key={profile.id} className="group transition-colors hover:bg-gray-50/50">
@@ -693,7 +622,7 @@ export default function SendingProfiles() {
                     </td>
                     <td className="p-4 text-gray-600">{profile.from}</td>
                     <td className="p-4">
-                      <span className={clsx('inline-flex rounded-full px-2 py-0.5 text-[10px] font-semibold', encryptionClass(profile.encryption))}>{profile.encryption}</span>
+                      <span className={clsx('inline-flex rounded-full px-2 py-0.5 text-[10px] font-semibold', getSmtpEncryptionClass(profile.encryption))}>{profile.encryption}</span>
                     </td>
                     <td className="p-4">
                       <div className="flex items-center gap-1.5">
@@ -710,6 +639,7 @@ export default function SendingProfiles() {
                           onClick={() => openEdit(profile)}
                           className="flex h-7 w-7 items-center justify-center rounded-lg border border-gray-200 bg-white text-gray-500 transition-all hover:border-violet-500 hover:text-violet-500"
                           title="Edit"
+                          aria-label={`Edit ${profile.name}`}
                         >
                           <i className="ti ti-edit text-xs" />
                         </button>
@@ -717,7 +647,8 @@ export default function SendingProfiles() {
                           type="button"
                           onClick={() => openDuplicate(profile)}
                           className="flex h-7 w-7 items-center justify-center rounded-lg border border-gray-200 bg-white text-gray-500 transition-all hover:border-green-600 hover:text-green-600"
-                          title="Duplikat"
+                          title="Duplicate"
+                          aria-label={`Duplicate ${profile.name}`}
                         >
                           <i className="ti ti-copy text-xs" />
                         </button>
@@ -729,6 +660,7 @@ export default function SendingProfiles() {
                           }}
                           className="flex h-7 w-7 items-center justify-center rounded-lg border border-gray-200 bg-white text-gray-500 transition-all hover:border-blue-600 hover:text-blue-600"
                           title="Test"
+                          aria-label={`Test ${profile.name}`}
                         >
                           <i className="ti ti-send text-xs" />
                         </button>
@@ -751,9 +683,9 @@ export default function SendingProfiles() {
           <i className="ti ti-info-circle text-lg" />
         </div>
         <div>
-          <h4 className="mb-1 text-sm font-bold text-gray-900">Sending profile disimpan di GoPhish</h4>
+          <h4 className="mb-1 text-sm font-bold text-gray-900">Sending profiles are stored in GoPhish</h4>
           <p className="text-xs leading-relaxed text-gray-500">
-            Data SMTP di halaman ini ditarik langsung dari GoPhish API. Perubahan yang dibuat di sini akan tersinkronisasi ke GoPhish secara otomatis. Pastikan GoPhish berjalan sebelum membuat profil baru.
+            SMTP data on this page is pulled directly from the GoPhish API. Changes made here are synced to GoPhish automatically. Make sure GoPhish is running before creating a new profile.
           </p>
         </div>
       </div>

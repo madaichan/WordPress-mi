@@ -9,193 +9,193 @@ const INITIAL_PLAYBOOKS = [
   {
     id: 'bec-ceo',
     name: 'BEC — CEO Invoice Request',
-    desc: 'CEO impersonation meminta transfer dana via email mendesak',
-    longDesc: 'Skenario Business Email Compromise di mana pelaku menyamar sebagai CEO dan meminta transfer dana segera melalui email yang tampak mendesak dan personal.',
+    desc: 'CEO impersonation requesting an urgent funds transfer by email',
+    longDesc: 'A Business Email Compromise scenario where the attacker impersonates the CEO and requests an immediate funds transfer through an email that feels urgent and personal.',
     category: 'BEC',
     diffScore: '4/5',
-    diffText: 'Tinggi (4/5)',
+    diffText: 'High (4/5)',
     dept: 'Finance',
-    deptTag: ['Staff Finance', 'Accounting officer', 'Finance manager', 'Vendor management'],
+    deptTag: ['Finance staff', 'Accounting officer', 'Finance manager', 'Vendor management'],
     usedCount: '8x',
     clickAvg: '42%',
     submitAvg: '19%',
-    clickSub: 'tertinggi di katalog',
-    submitSub: 'dari klikker',
+    clickSub: 'highest in catalog',
+    submitSub: 'of clickers',
     iconColor: '#B91C1C',
     iconBg: '#FEE2E2',
     iconName: 'ti-alert-triangle',
-    nistInfo: 'Email menggunakan nama penerima, jabatan, dan informasi kontekstual nyata. Rasa urgensi tinggi dan spoofing domain konvinsional. Sulit dibedakan dari email CEO asli.',
-    scenarioText: 'CEO (nama dispoofing) mengirim email ke staf Finance yang menyatakan ada pembayaran vendor mendesak senilai Rp 150 juta yang harus dikonfirmasi sebelum EOD. Email meminta penerima mengklik link untuk mengisi form konfirmasi. Landing page meniru portal internal perusahaan.',
+    nistInfo: 'The email uses the recipient name, job title, and realistic contextual details. Strong urgency and conventional domain spoofing make it hard to distinguish from a real CEO email.',
+    scenarioText: 'A spoofed CEO sends an email to Finance staff saying an urgent vendor payment of IDR 150 million must be confirmed before EOD. The email asks the recipient to click a link and complete a confirmation form. The landing page mimics the company internal portal.',
     components: [
-      { type: 'email', name: 'Email template — "Urgent: Invoice approval needed"', sub: 'From: ceo@{spoofed-domain}.com · Subject menyertakan nama penerima dinamis · HTML with inline styling', badge: 'GoPhish template', bg: '#DBEAFE', icon: 'ti-mail', color: '#1D4ED8' },
-      { type: 'page', name: 'Landing page — Fake invoice confirmation portal', sub: 'Merekam: klik, submit form (nama, posisi, konfirmasi nominal) · Redirect ke halaman edukasi setelah submit', badge: 'GoPhish page', bg: '#D1FAE5', icon: 'ti-world', color: '#065F46' },
+      { type: 'email', name: 'Email template — "Urgent: Invoice approval needed"', sub: 'From: ceo@{spoofed-domain}.com · Subject includes the recipient name dynamically · HTML with inline styling', badge: 'GoPhish template', bg: '#DBEAFE', icon: 'ti-mail', color: '#1D4ED8' },
+      { type: 'page', name: 'Landing page — Fake invoice confirmation portal', sub: 'Captures: click, form submission (name, role, amount confirmation) · Redirects to an education page after submission', badge: 'GoPhish page', bg: '#D1FAE5', icon: 'ti-world', color: '#065F46' },
       { type: 'smtp', name: 'SMTP — Relay pool "finance-relay-01"', sub: 'Sending profile: smtp.relay-pool.internal · Port 587 · TLS · From domain: validated SPF/DKIM', badge: 'Sending profile', bg: '#FEF3C7', icon: 'ti-send', color: '#92400E' },
-      { type: 'domain', name: 'Domain — ceo-approval-{random}.corp-internal.net', sub: 'Dynamic domain provisioning · Lookalike pattern · SSL auto-issued · TTL 7 hari', badge: 'Dynamic domain', bg: '#F3E8FF', icon: 'ti-network', color: '#7C3AED' },
+      { type: 'domain', name: 'Domain — ceo-approval-{random}.corp-internal.net', sub: 'Dynamic domain provisioning · Lookalike pattern · SSL auto-issued · 7-day TTL', badge: 'Dynamic domain', bg: '#F3E8FF', icon: 'ti-network', color: '#7C3AED' },
     ],
     insights: [
-      { text: 'Click rate tertinggi terjadi pada Senin pagi (08:00-10:00)', sub: 'Dari 8 simulasi · 67% klik terjadi dalam 2 jam pertama', icon: 'ti-trending-up', color: '#EF4444' },
-      { text: 'Finance adalah departemen paling rentan terhadap playbook ini', sub: 'Avg click rate Finance: 52% vs rata-rata org: 28%', icon: 'ti-building', color: '#F59E0B' },
-      { text: 'Playbook yang sama tidak disarankan dijalankan < 90 hari untuk grup yang sama', sub: 'Efektivitas turun signifikan karena efek "hafal skenario"', icon: 'ti-repeat', color: '#6C63FF' },
+      { text: 'The highest click rate occurs on Monday morning (08:00-10:00)', sub: 'Across 8 simulations · 67% of clicks happened in the first 2 hours', icon: 'ti-trending-up', color: '#EF4444' },
+      { text: 'Finance is the most vulnerable department for this playbook', sub: 'Avg Finance click rate: 52% vs organization average: 28%', icon: 'ti-building', color: '#F59E0B' },
+      { text: 'Avoid running the same playbook within 90 days for the same group', sub: 'Effectiveness drops significantly when the scenario becomes familiar', icon: 'ti-repeat', color: '#6C63FF' },
     ],
   },
   {
     id: 'cred-m365',
     name: 'Credential — Microsoft 365',
-    desc: 'Fake login page Microsoft untuk seluruh departemen',
-    longDesc: 'Skenario phishing kredensial dengan menduplikasi halaman masuk Microsoft 365. Target diarahkan untuk memvalidasi ulang sesi email korporat mereka.',
+    desc: 'Fake Microsoft login page for all departments',
+    longDesc: 'A credential phishing scenario that duplicates the Microsoft 365 sign-in page. Targets are directed to revalidate their corporate email session.',
     category: 'Credential',
     diffScore: '3/5',
-    diffText: 'Sedang (3/5)',
-    dept: 'All dept',
-    deptTag: ['Semua Staff', 'IT Admin', 'Operations'],
+    diffText: 'Medium (3/5)',
+    dept: 'All departments',
+    deptTag: ['All Staff', 'IT Admin', 'Operations'],
     usedCount: '12x',
     clickAvg: '31%',
     submitAvg: '15%',
-    clickSub: 'tingkat keterlibatan tinggi',
-    submitSub: 'tingkat capture sedang',
+    clickSub: 'high engagement rate',
+    submitSub: 'moderate capture rate',
     iconColor: '#1D4ED8',
     iconBg: '#DBEAFE',
     iconName: 'ti-lock',
-    nistInfo: 'Menggunakan email notifikasi sistem standar. Teknik visual sangat akurat namun header email menunjukkan domain luar korporat.',
-    scenarioText: 'User menerima notifikasi bahwa integrasi email mereka akan kedaluwarsa dalam 24 jam. Tombol link mengarah ke halaman masuk Microsoft 365 palsu untuk memasukkan sandi korporat.',
+    nistInfo: 'Uses a standard system notification email. The visual technique is highly accurate, but the email headers reveal a non-corporate external domain.',
+    scenarioText: 'Users receive a notification that their email integration will expire within 24 hours. The button links to a fake Microsoft 365 sign-in page that asks for the corporate password.',
     components: [
-      { type: 'email', name: 'Email template — "Action Required: Sync your corporate inbox"', sub: 'From: support@microsoft-365.id · Subjek terkait pemeliharaan server email', badge: 'GoPhish template', bg: '#DBEAFE', icon: 'ti-mail', color: '#1D4ED8' },
-      { type: 'page', name: 'Landing page — Microsoft Outlook Web Login Clone', sub: 'Merekam: Email, Password, User-Agent · Redirect ke portal Office asli setelah login', badge: 'GoPhish page', bg: '#D1FAE5', icon: 'ti-world', color: '#065F46' },
+      { type: 'email', name: 'Email template — "Action Required: Sync your corporate inbox"', sub: 'From: support@microsoft-365.id · Subject references email server maintenance', badge: 'GoPhish template', bg: '#DBEAFE', icon: 'ti-mail', color: '#1D4ED8' },
+      { type: 'page', name: 'Landing page — Microsoft Outlook Web Login Clone', sub: 'Captures: Email, Password, User-Agent · Redirects to the real Office portal after login', badge: 'GoPhish page', bg: '#D1FAE5', icon: 'ti-world', color: '#065F46' },
       { type: 'smtp', name: 'SMTP — Relay pool "standard-relay-02"', sub: 'Sending profile: smtp.office-relay.net · Port 587 · STARTTLS', badge: 'Sending profile', bg: '#FEF3C7', icon: 'ti-send', color: '#92400E' },
       { type: 'domain', name: 'Domain — mail.outlook-365-login.net', sub: 'Lookup domain lookalike · Let\'s Encrypt SSL active', badge: 'Dynamic domain', bg: '#F3E8FF', icon: 'ti-network', color: '#7C3AED' },
     ],
     insights: [
-      { text: 'Click rate tertinggi pada tengah minggu (Rabu jam 13:00)', sub: 'Banyak user melakukan pengecekan email setelah makan siang', icon: 'ti-trending-up', color: '#EF4444' },
-      { text: 'Staf Administrasi & HR paling rentan terhadap taktik sinkronisasi ini', sub: 'Click rate 40% vs IT Support: 12%', icon: 'ti-building', color: '#F59E0B' },
-      { text: 'Auto-lockout warning meningkatkan konversi klik hingga 15%', sub: 'Rasa cemas kehilangan akses mendorong tindakan cepat', icon: 'ti-repeat', color: '#6C63FF' },
+      { text: 'The highest click rate appears midweek (Wednesday at 13:00)', sub: 'Many users check email after lunch', icon: 'ti-trending-up', color: '#EF4444' },
+      { text: 'Administration and HR staff are most vulnerable to this sync tactic', sub: 'Click rate 40% vs IT Support: 12%', icon: 'ti-building', color: '#F59E0B' },
+      { text: 'Auto-lockout warnings increase click conversion by up to 15%', sub: 'Fear of losing access pushes users to act quickly', icon: 'ti-repeat', color: '#6C63FF' },
     ],
   },
   {
     id: 'malware-hr',
     name: 'Malware — HR Policy Update',
-    desc: 'Attachment berbahaya dalam email kebijakan HR palsu',
-    longDesc: 'Mensimulasikan skenario pengiriman malware di mana target diminta mengunduh lampiran pembaruan kebijakan tunjangan HR yang sebenarnya berisi file simulasi macro/executable.',
+    desc: 'Malicious attachment in a fake HR policy email',
+    longDesc: 'Simulates a malware delivery scenario where targets are asked to download an HR benefits policy update attachment that contains a macro/executable simulation file.',
     category: 'Malware',
     diffScore: '2/5',
-    diffText: 'Rendah (2/5)',
-    dept: 'HR · All',
-    deptTag: ['Semua Staff', 'HR Operations', 'Line Manager'],
+    diffText: 'Low (2/5)',
+    dept: 'HR · All departments',
+    deptTag: ['All Staff', 'HR Operations', 'Line Manager'],
     usedCount: '6x',
     clickAvg: '28%',
     submitAvg: '8%',
-    clickSub: 'respons rata-rata',
-    submitSub: 'download file avg',
+    clickSub: 'average response',
+    submitSub: 'average file download',
     iconColor: '#92400E',
     iconBg: '#FEF3C7',
     iconName: 'ti-file-alert',
-    nistInfo: 'Email memicu ketertarikan staf terhadap info gaji/tunjangan. Filter anti-virus/spam biasanya memblokir ekstensi ini secara otomatis.',
-    scenarioText: 'Departemen HR mengirimkan surat edaran pembaruan tunjangan kesehatan karyawan. Target diminta mengunduh dokumen Excel untuk melihat tabel penyesuaian nominal masing-masing divisi.',
+    nistInfo: 'The email sparks staff interest in salary or benefits information. Anti-virus and spam filters usually block this file extension automatically.',
+    scenarioText: 'The HR department sends a circular about employee healthcare benefit updates. Targets are asked to download an Excel document to view adjusted amounts for each division.',
     components: [
-      { type: 'email', name: 'Email template — "HR Update: New welfare policy 2025"', sub: 'From: hr-benefits@internal-company.id · Menyertakan lampiran file dokumen', badge: 'GoPhish template', bg: '#DBEAFE', icon: 'ti-mail', color: '#1D4ED8' },
-      { type: 'page', name: 'Landing page — Direct file download link', sub: 'Menyajikan file simulasi (.docx.exe / macro-enabled xlsm) · Mencatat aktivitas klik unduh', badge: 'GoPhish page', bg: '#D1FAE5', icon: 'ti-world', color: '#065F46' },
+      { type: 'email', name: 'Email template — "HR Update: New welfare policy 2025"', sub: 'From: hr-benefits@internal-company.id · Includes a document attachment', badge: 'GoPhish template', bg: '#DBEAFE', icon: 'ti-mail', color: '#1D4ED8' },
+      { type: 'page', name: 'Landing page — Direct file download link', sub: 'Serves a simulation file (.docx.exe / macro-enabled xlsm) · Records download click activity', badge: 'GoPhish page', bg: '#D1FAE5', icon: 'ti-world', color: '#065F46' },
       { type: 'smtp', name: 'SMTP — Internal relay server', sub: 'Port 25 · Open SMTP relay bypass configuration', badge: 'Sending profile', bg: '#FEF3C7', icon: 'ti-send', color: '#92400E' },
       { type: 'domain', name: 'Domain — files.hr-benefits-portal.com', sub: 'Storage CDN mock lookalike · SSL verified', badge: 'Dynamic domain', bg: '#F3E8FF', icon: 'ti-network', color: '#7C3AED' },
     ],
     insights: [
-      { text: 'Sebagian besar target mengunduh via desktop', sub: 'Hanya 5% unduhan file terjadi melalui peramban mobile', icon: 'ti-trending-up', color: '#EF4444' },
-      { text: 'Macro warning Windows mencegah 35% eksekusi malware', sub: 'Edukasi OS built-in warning terbukti sangat membantu', icon: 'ti-building', color: '#F59E0B' },
-      { text: 'Judul file menyertakan nama divisi target meningkatkan keberhasilan', sub: 'Misal: "Slip_Divisi_Finance.xlsm" dibanding nama generik', icon: 'ti-repeat', color: '#6C63FF' },
+      { text: 'Most targets download the file on desktop', sub: 'Only 5% of file downloads happen through mobile browsers', icon: 'ti-trending-up', color: '#EF4444' },
+      { text: 'Windows macro warnings prevent 35% of malware executions', sub: 'Built-in OS warning education proved very helpful', icon: 'ti-building', color: '#F59E0B' },
+      { text: 'Including the target division name in the filename improves success', sub: 'Example: "Finance_Division_Payslip.xlsm" versus a generic filename', icon: 'ti-repeat', color: '#6C63FF' },
     ],
   },
   {
     id: 'cred-helpdesk',
     name: 'Credential — IT Helpdesk Reset',
-    desc: 'Notifikasi reset password palsu dari IT helpdesk',
-    longDesc: 'Taktik manipulasi psikologis di mana staf IT palsu meminta reset password segera akibat dugaan anomali keamanan pada akun Active Directory milik target.',
+    desc: 'Fake password reset notification from IT helpdesk',
+    longDesc: 'A social engineering tactic where a fake IT staff member requests an immediate password reset due to a suspected security anomaly on the target Active Directory account.',
     category: 'Credential',
     diffScore: '3/5',
-    diffText: 'Sedang (3/5)',
-    dept: 'All dept',
-    deptTag: ['Semua Staff', 'Developer', 'Security Operations'],
+    diffText: 'Medium (3/5)',
+    dept: 'All departments',
+    deptTag: ['All Staff', 'Developer', 'Security Operations'],
     usedCount: '5x',
     clickAvg: '24%',
     submitAvg: '12%',
-    clickSub: 'tingkat klik sedang',
-    submitSub: 'tingkat submit sedang',
+    clickSub: 'moderate click rate',
+    submitSub: 'moderate submit rate',
     iconColor: '#7C3AED',
     iconBg: '#F3E8FF',
     iconName: 'ti-device-mobile',
-    nistInfo: 'Target sering kali patuh terhadap perintah keamanan IT. Penggunaan logo perusahaan dan tanda tangan kepala divisi IT memicu kepercayaan instan.',
-    scenarioText: 'Email dikirim atas nama Administrator Jaringan yang menyatakan ada anomali login mencurigakan. Penerima diinstruksikan memperbarui sandi AD mereka dalam waktu 1 jam agar akun tidak dinonaktifkan.',
+    nistInfo: 'Targets often comply with IT security instructions. Using the company logo and the IT division head signature creates instant trust.',
+    scenarioText: 'An email sent on behalf of the Network Administrator states that suspicious login anomalies were detected. Recipients are instructed to update their AD password within 1 hour to prevent account deactivation.',
     components: [
-      { type: 'email', name: 'Email template — "CRITICAL: Reset your Active Directory password"', sub: 'From: helpdesk@internal-company.id · Domain spoofing internal helpdesk', badge: 'GoPhish template', bg: '#DBEAFE', icon: 'ti-mail', color: '#1D4ED8' },
-      { type: 'page', name: 'Landing page — IT Self-Service Password Reset Portal', sub: 'Merekam: Username, password lama, password baru · Form verifikasi MFA palsu', badge: 'GoPhish page', bg: '#D1FAE5', icon: 'ti-world', color: '#065F46' },
+      { type: 'email', name: 'Email template — "CRITICAL: Reset your Active Directory password"', sub: 'From: helpdesk@internal-company.id · Internal helpdesk domain spoofing', badge: 'GoPhish template', bg: '#DBEAFE', icon: 'ti-mail', color: '#1D4ED8' },
+      { type: 'page', name: 'Landing page — IT Self-Service Password Reset Portal', sub: 'Captures: Username, old password, new password · Fake MFA verification form', badge: 'GoPhish page', bg: '#D1FAE5', icon: 'ti-world', color: '#065F46' },
       { type: 'smtp', name: 'SMTP — Corporate gateway simulator', sub: 'Port 587 · TLS · Validated SPF record', badge: 'Sending profile', bg: '#FEF3C7', icon: 'ti-send', color: '#92400E' },
       { type: 'domain', name: 'Domain — sso.portal-reset-ad.com', sub: 'lookalike domain portal · SSL active', badge: 'Dynamic domain', bg: '#F3E8FF', icon: 'ti-network', color: '#7C3AED' },
     ],
     insights: [
-      { text: 'MFA prompt palsu berhasil menjebak 40% pembuat kredensial', sub: 'Banyak user terbiasa memasukkan token OTP tanpa berpikir panjang', icon: 'ti-trending-up', color: '#EF4444' },
-      { text: 'Divisi non-teknis memiliki kerentanan 3x lebih tinggi', sub: 'Customer service: 45% klik rate vs Divisi Engineering: 8%', icon: 'ti-building', color: '#F59E0B' },
-      { text: 'Domain lookalike yang menggunakan format internal sangat menipu', sub: 'Misalnya portal-bantuan.corp.com vs portal-reset.net', icon: 'ti-repeat', color: '#6C63FF' },
+      { text: 'Fake MFA prompts captured 40% of credential submitters', sub: 'Many users are used to entering OTP tokens without pausing', icon: 'ti-trending-up', color: '#EF4444' },
+      { text: 'Non-technical divisions show 3x higher vulnerability', sub: 'Customer service: 45% click rate vs Engineering division: 8%', icon: 'ti-building', color: '#F59E0B' },
+      { text: 'Lookalike domains that use internal-style naming are highly deceptive', sub: 'For example portal-help.corp.com vs portal-reset.net', icon: 'ti-repeat', color: '#6C63FF' },
     ],
   },
   {
     id: 'bec-vendor',
     name: 'BEC — Vendor Payment Switch',
-    desc: 'Permintaan perubahan rekening vendor mendesak',
-    longDesc: 'Skenario Business Email Compromise tingkat lanjut yang menargetkan staf akuntansi/keuangan. Email dikirim seolah-olah dari vendor utama yang memberi tahu pembaruan nomor rekening pembayaran invoice.',
+    desc: 'Urgent vendor bank account change request',
+    longDesc: 'An advanced Business Email Compromise scenario targeting accounting and finance staff. The email appears to come from a key vendor announcing an updated bank account for invoice payments.',
     category: 'BEC',
     diffScore: '5/5',
-    diffText: 'Sangat Tinggi (5/5)',
+    diffText: 'Very High (5/5)',
     dept: 'Finance · Legal',
     deptTag: ['Finance staff', 'Accounting controller', 'Procurement division'],
     usedCount: '3x',
     clickAvg: '51%',
     submitAvg: '28%',
-    clickSub: 'sangat tinggi',
-    submitSub: 'sangat rentan',
+    clickSub: 'very high',
+    submitSub: 'highly vulnerable',
     iconColor: '#9D174D',
     iconBg: '#FCE7F3',
     iconName: 'ti-package',
-    nistInfo: 'Urutan email dirancang seperti rantai diskusi invoice nyata. Tuntutan hukum dan denda keterlambatan disisipkan untuk memicu rasa takut staf.',
-    scenarioText: 'Vendor mengirimkan email pembaruan billing detail untuk tagihan yang akan jatuh tempo minggu ini. Jika tidak diperbarui, vendor mengancam akan menahan pengiriman stok logistik berikutnya.',
+    nistInfo: 'The email sequence is designed like a real invoice discussion thread. Legal claims and late-payment penalties are inserted to trigger fear in staff.',
+    scenarioText: 'A vendor sends an email updating billing details for an invoice due this week. If not updated, the vendor threatens to hold the next logistics stock delivery.',
     components: [
-      { type: 'email', name: 'Email template — "URGENT: Change in billing details for invoice #892"', sub: 'From: accounts@billing-vendor.net · Lookalike domain vendor utama', badge: 'GoPhish template', bg: '#DBEAFE', icon: 'ti-mail', color: '#1D4ED8' },
-      { type: 'page', name: 'Landing page — Vendor Bank Update Portal', sub: 'Merekam konfirmasi nominal invoice, bank lama, dan bank baru', badge: 'GoPhish page', bg: '#D1FAE5', icon: 'ti-world', color: '#065F46' },
+      { type: 'email', name: 'Email template — "URGENT: Change in billing details for invoice #892"', sub: 'From: accounts@billing-vendor.net · Lookalike domain for the primary vendor', badge: 'GoPhish template', bg: '#DBEAFE', icon: 'ti-mail', color: '#1D4ED8' },
+      { type: 'page', name: 'Landing page — Vendor Bank Update Portal', sub: 'Captures invoice amount confirmation, previous bank, and new bank', badge: 'GoPhish page', bg: '#D1FAE5', icon: 'ti-world', color: '#065F46' },
       { type: 'smtp', name: 'SMTP — Custom vendor relay server', sub: 'SMTP authentication with validated reverse DNS', badge: 'Sending profile', bg: '#FEF3C7', icon: 'ti-send', color: '#92400E' },
       { type: 'domain', name: 'Domain — vendor-billing-updates.com', sub: 'Dedicated portal lookalike domain', badge: 'Dynamic domain', bg: '#F3E8FF', icon: 'ti-network', color: '#7C3AED' },
     ],
     insights: [
-      { text: 'Playbook paling berbahaya di katalog', sub: 'Click rate mencapai 51% karena subjek yang sangat relevan dan mendesak', icon: 'ti-trending-up', color: '#EF4444' },
-      { text: 'Procurement division juga sangat rentan', sub: 'Procurement click rate 45% vs Corporate Legal: 15%', icon: 'ti-building', color: '#F59E0B' },
-      { text: 'Verifikasi sekunder telepon dapat mencegah serangan ini 100%', sub: 'Semua klik berhasil dikonversi karena target abai menelepon vendor langsung', icon: 'ti-repeat', color: '#6C63FF' },
+      { text: 'The most dangerous playbook in the catalog', sub: 'Click rate reached 51% because the subject was highly relevant and urgent', icon: 'ti-trending-up', color: '#EF4444' },
+      { text: 'Procurement is also highly vulnerable', sub: 'Procurement click rate 45% vs Corporate Legal: 15%', icon: 'ti-building', color: '#F59E0B' },
+      { text: 'Secondary phone verification can fully prevent this attack', sub: 'All clicks converted because targets skipped calling the vendor directly', icon: 'ti-repeat', color: '#6C63FF' },
     ],
   },
   {
     id: 'cred-prize',
     name: 'Credential — Prize Notification',
-    desc: 'Email notifikasi hadiah palsu dengan link login',
-    longDesc: 'Skenario phishing klasik yang memanfaatkan rasa gembira target dengan mengabarkan kemenangan undian atau hadiah ulang tahun perusahaan.',
+    desc: 'Fake prize notification email with a login link',
+    longDesc: 'A classic phishing scenario that exploits excitement by telling targets they have won a giveaway or company anniversary reward.',
     category: 'Credential',
     diffScore: '1/5',
-    diffText: 'Sangat Rendah (1/5)',
-    dept: 'All dept',
-    deptTag: ['Semua Staff', 'Internship', 'General support'],
+    diffText: 'Very Low (1/5)',
+    dept: 'All departments',
+    deptTag: ['All Staff', 'Internship', 'General support'],
     usedCount: '2x',
     clickAvg: '18%',
     submitAvg: '5%',
-    clickSub: 'tingkat respons rendah',
-    submitSub: 'tingkat capture rendah',
+    clickSub: 'low response rate',
+    submitSub: 'low capture rate',
     iconColor: '#065F46',
     iconBg: '#D1FAE5',
     iconName: 'ti-award',
-    nistInfo: 'Skenario penipuan klasik. Mudah dideteksi oleh filter keamanan modern dan user yang awas akan menduga email semacam ini adalah spam.',
-    scenarioText: 'Target mendapatkan kabar gembira mengenai voucher belanja gratis sebagai apresiasi performa kerja bulanan. Link mengarah ke formulir klaim hadiah.',
+    nistInfo: 'A classic scam scenario. Modern security filters detect it easily, and alert users are likely to suspect this kind of email is spam.',
+    scenarioText: 'Targets receive good news about a free shopping voucher as appreciation for monthly work performance. The link points to a reward claim form.',
     components: [
-      { type: 'email', name: 'Email template — "Congratulations! You won employee of the month rewards"', sub: 'From: info@loyalty-corporate.id · Tampilan penuh warna dan diskon retail', badge: 'GoPhish template', bg: '#DBEAFE', icon: 'ti-mail', color: '#1D4ED8' },
-      { type: 'page', name: 'Landing page — Prize Claim portal', sub: 'Merekam: detail login email pribadi / nomor telepon seluler', badge: 'GoPhish page', bg: '#D1FAE5', icon: 'ti-world', color: '#065F46' },
+      { type: 'email', name: 'Email template — "Congratulations! You won employee of the month rewards"', sub: 'From: info@loyalty-corporate.id · Colorful retail discount layout', badge: 'GoPhish template', bg: '#DBEAFE', icon: 'ti-mail', color: '#1D4ED8' },
+      { type: 'page', name: 'Landing page — Prize Claim portal', sub: 'Captures: personal email login details / mobile phone number', badge: 'GoPhish page', bg: '#D1FAE5', icon: 'ti-world', color: '#065F46' },
       { type: 'smtp', name: 'SMTP — Public marketing server pool', sub: 'SMTP Relay with low reputation score', badge: 'Sending profile', bg: '#FEF3C7', icon: 'ti-send', color: '#92400E' },
       { type: 'domain', name: 'Domain — corporate-loyalty-rewards.net', sub: 'External rewards gateway portal', badge: 'Dynamic domain', bg: '#F3E8FF', icon: 'ti-network', color: '#7C3AED' },
     ],
     insights: [
-      { text: 'Click rate tertinggi pada akhir pekan', sub: 'User cenderung lengang dan tergiur tawaran hadiah saat di rumah', icon: 'ti-trending-up', color: '#EF4444' },
-      { text: 'Karyawan baru / magang cenderung lebih mudah mengklik tautan ini', sub: 'Click rate internship: 35% vs Staf Senior: 5%', icon: 'ti-building', color: '#F59E0B' },
-      { text: 'Taktik ini terdeteksi spam filter bawaan 90% kali', sub: 'Reputasi domain pengirim yang buruk menyulitkan email masuk inbox utama', icon: 'ti-repeat', color: '#6C63FF' },
+      { text: 'The highest click rate appears on weekends', sub: 'Users tend to be more relaxed at home and tempted by reward offers', icon: 'ti-trending-up', color: '#EF4444' },
+      { text: 'New hires and interns are more likely to click this link', sub: 'Internship click rate: 35% vs Senior Staff: 5%', icon: 'ti-building', color: '#F59E0B' },
+      { text: 'This tactic is detected by built-in spam filters 90% of the time', sub: 'Poor sender domain reputation makes it harder to reach the primary inbox', icon: 'ti-repeat', color: '#6C63FF' },
     ],
   },
 ]
@@ -223,18 +223,18 @@ const CATEGORY_META = {
 }
 
 const DIFFICULTY_TEXT = {
-  1: 'Sangat Rendah (1/5)',
-  2: 'Rendah (2/5)',
-  3: 'Sedang (3/5)',
-  4: 'Tinggi (4/5)',
-  5: 'Sangat Tinggi (5/5)',
+  1: 'Very Low (1/5)',
+  2: 'Low (2/5)',
+  3: 'Medium (3/5)',
+  4: 'High (4/5)',
+  5: 'Very High (5/5)',
 }
 
 const DEFAULT_FORM = {
   name: '',
   desc: '',
   category: 'BEC',
-  dept: 'All dept',
+  dept: 'All departments',
   difficulty: '3',
   email: 'Urgent: Invoice approval needed',
   page: 'Generic credential landing page',
@@ -312,7 +312,7 @@ function formFromPlaybook(playbook) {
     name: playbook.name ?? '',
     desc: playbook.longDesc ?? playbook.desc ?? '',
     category: playbook.category ?? 'BEC',
-    dept: playbook.dept ?? 'All dept',
+    dept: playbook.dept ?? 'All departments',
     difficulty: playbook.diffScore?.charAt(0) ?? '3',
     email: getComponentValue(playbook, 'email', DEFAULT_FORM.email),
     page: getComponentValue(playbook, 'page', DEFAULT_FORM.page),
@@ -327,7 +327,7 @@ function buildPlaybookFromForm(form, existing) {
   const difficulty = form.difficulty || '3'
   const name = form.name.trim()
   const desc = form.desc.trim()
-  const dept = form.dept.trim() || 'All dept'
+  const dept = form.dept.trim() || 'All departments'
   const scenario = form.scenario.trim()
 
   return {
@@ -344,22 +344,22 @@ function buildPlaybookFromForm(form, existing) {
     usedCount: existing?.usedCount ?? '0x',
     clickAvg: existing?.clickAvg ?? '0%',
     submitAvg: existing?.submitAvg ?? '0%',
-    clickSub: existing?.clickSub ?? 'belum diuji',
-    submitSub: existing?.submitSub ?? 'belum diuji',
+    clickSub: existing?.clickSub ?? 'not tested yet',
+    submitSub: existing?.submitSub ?? 'not tested yet',
     iconColor: meta.iconColor,
     iconBg: meta.iconBg,
     iconName: meta.iconName,
-    nistInfo: `Skenario serangan menggunakan tema ${form.category.toLowerCase()} dengan tingkat kesulitan ${DIFFICULTY_TEXT[difficulty] ?? DIFFICULTY_TEXT[3]}.`,
+    nistInfo: `Attack scenario using a ${form.category.toLowerCase()} theme with ${DIFFICULTY_TEXT[difficulty] ?? DIFFICULTY_TEXT[3]} difficulty.`,
     scenarioText: scenario,
     components: [
-      { type: 'email', name: `Email template — "${form.email}"`, sub: 'Subject menyertakan nama penerima dinamis', badge: 'GoPhish template', bg: '#DBEAFE', icon: 'ti-mail', color: '#1D4ED8' },
-      { type: 'page', name: `Landing page — ${form.page}`, sub: 'Merekam kredensial / data formulir', badge: 'GoPhish page', bg: '#D1FAE5', icon: 'ti-world', color: '#065F46' },
+      { type: 'email', name: `Email template — "${form.email}"`, sub: 'Subject includes the recipient name dynamically', badge: 'GoPhish template', bg: '#DBEAFE', icon: 'ti-mail', color: '#1D4ED8' },
+      { type: 'page', name: `Landing page — ${form.page}`, sub: 'Captures credentials / form data', badge: 'GoPhish page', bg: '#D1FAE5', icon: 'ti-world', color: '#065F46' },
       { type: 'smtp', name: `SMTP — ${form.smtp}`, sub: 'Port 587 · TLS · Validated sending profile', badge: 'Sending profile', bg: '#FEF3C7', icon: 'ti-send', color: '#92400E' },
       { type: 'domain', name: form.domain, sub: 'Dynamic lookalike domain provisioning', badge: 'Dynamic domain', bg: '#F3E8FF', icon: 'ti-network', color: '#7C3AED' },
     ],
     insights: existing?.insights ?? [
-      { text: 'Click rate diestimasi berdasarkan parameter simulasi', sub: 'Belum ada data historis yang tersedia', icon: 'ti-trending-up', color: '#EF4444' },
-      { text: `Target departemen yang terpengaruh: ${dept}`, sub: 'Dianjurkan melakukan verifikasi sekunder', icon: 'ti-building', color: '#F59E0B' },
+      { text: 'Click rate is estimated from the simulation parameters', sub: 'No historical data is available yet', icon: 'ti-trending-up', color: '#EF4444' },
+      { text: `Affected target department: ${dept}`, sub: 'Secondary verification is recommended', icon: 'ti-building', color: '#F59E0B' },
     ],
   }
 }
@@ -399,7 +399,7 @@ function PlaybookListItem({ playbook, selected, onSelect }) {
       </div>
 
       <div className="mt-3 flex items-center gap-2 text-[11px] text-gray-500">
-        <span className="flex-shrink-0">Dipakai {playbook.usedCount}</span>
+        <span className="flex-shrink-0">Used {playbook.usedCount}</span>
         <span className="h-1 flex-1 overflow-hidden rounded-full bg-gray-200">
           <span className="block h-full rounded-full bg-violet-500" style={{ width: `${rate}%` }} />
         </span>
@@ -530,20 +530,20 @@ function PlaybookSlideover({
             <i className={clsx('ti', isEdit ? 'ti-edit' : 'ti-plus')} />
           </div>
           <div className="min-w-0 flex-1">
-            <h2 className="text-base font-bold text-gray-900">{isEdit ? 'Edit playbook' : 'Buat playbook'}</h2>
-            <p className="text-xs text-gray-500">Konfigurasi playbook simulasi GoPhish</p>
+            <h2 className="text-base font-bold text-gray-900">{isEdit ? 'Edit playbook' : 'Create playbook'}</h2>
+            <p className="text-xs text-gray-500">Configure a GoPhish simulation playbook</p>
           </div>
           {dirty && (
             <span className="inline-flex items-center gap-1.5 rounded-full bg-amber-100 px-2 py-0.5 text-[10px] font-semibold text-amber-700">
               <span className="h-1.5 w-1.5 rounded-full bg-amber-500" />
-              Belum disimpan
+              Unsaved changes
             </span>
           )}
           <button
             type="button"
             onClick={onClose}
             className="flex h-8 w-8 items-center justify-center rounded-lg text-gray-400 transition-colors hover:bg-gray-100 hover:text-gray-700"
-            aria-label="Tutup form playbook"
+            aria-label="Close playbook form"
           >
             <i className="ti ti-x text-lg" />
           </button>
@@ -551,20 +551,20 @@ function PlaybookSlideover({
 
         <div className="flex-1 space-y-5 overflow-y-auto p-6">
           <section className="space-y-3">
-            <div className="text-[11px] font-bold uppercase tracking-wider text-gray-500">Informasi dasar</div>
-            <Field label="Nama playbook" required>
+            <div className="text-[11px] font-bold uppercase tracking-wider text-gray-500">Basic information</div>
+            <Field label="Playbook name" required>
               <input
                 value={form.name}
                 onChange={event => onChange('name', event.target.value)}
-                placeholder="Contoh: BEC — finance approval"
+                placeholder="Example: BEC — finance approval"
                 className={fieldClass()}
               />
             </Field>
-            <Field label="Deskripsi" required>
+            <Field label="Description" required>
               <textarea
                 value={form.desc}
                 onChange={event => onChange('desc', event.target.value)}
-                placeholder="Ringkasan singkat playbook"
+                placeholder="Brief playbook summary"
                 rows={3}
                 className={clsx(fieldClass(), 'resize-none')}
               />
@@ -572,15 +572,14 @@ function PlaybookSlideover({
             <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
               <Field label="Attack type">
                 <select value={form.category} onChange={event => onChange('category', event.target.value)} className={fieldClass()}>
-                  <option>BEC</option>
-                  <option>Credential</option>
-                  <option>Malware</option>
-                  <option>Vishing</option>
+                  {CATEGORY_FILTERS.filter(item => item !== 'all').map(option => (
+                    <option key={option}>{option}</option>
+                  ))}
                 </select>
               </Field>
-              <Field label="Target departemen">
+              <Field label="Target department">
                 <select value={form.dept} onChange={event => onChange('dept', event.target.value)} className={fieldClass()}>
-                  <option>All dept</option>
+                  <option>All departments</option>
                   <option>Finance</option>
                   <option>HR</option>
                   <option>Legal</option>
@@ -617,7 +616,7 @@ function PlaybookSlideover({
           <div className="h-px bg-gray-100" />
 
           <section className="space-y-3">
-            <div className="text-[11px] font-bold uppercase tracking-wider text-gray-500">Komponen teknis</div>
+            <div className="text-[11px] font-bold uppercase tracking-wider text-gray-500">Technical components</div>
             <ComponentSelect
               icon="ti-mail"
               bg="#DBEAFE"
@@ -659,13 +658,13 @@ function PlaybookSlideover({
           <div className="h-px bg-gray-100" />
 
           <section className="space-y-3">
-            <div className="text-[11px] font-bold uppercase tracking-wider text-gray-500">Skenario</div>
-            <Field label="Narasi yang disampaikan ke target" hint="Teks ini tampil di detail playbook setelah disimpan.">
+            <div className="text-[11px] font-bold uppercase tracking-wider text-gray-500">Scenario</div>
+            <Field label="Narrative shown to the target" hint="This text appears in the playbook details after saving.">
               <textarea
                 value={form.scenario}
                 onChange={event => onChange('scenario', event.target.value)}
                 rows={5}
-                placeholder="Target menerima email..."
+                placeholder="The target receives an email..."
                 className={clsx(fieldClass(), 'resize-none')}
               />
             </Field>
@@ -680,7 +679,7 @@ function PlaybookSlideover({
               className="inline-flex items-center gap-1.5 rounded-lg border border-red-500 bg-red-500 px-4 py-2 text-xs font-semibold text-white transition-colors hover:bg-red-600"
             >
               <i className="ti ti-trash" />
-              Hapus
+              Delete
             </button>
           )}
           <button
@@ -688,7 +687,7 @@ function PlaybookSlideover({
             onClick={onClose}
             className="ml-auto rounded-lg border border-gray-200 bg-white px-4 py-2 text-xs font-semibold text-gray-700 transition-colors hover:bg-gray-50"
           >
-            Batal
+            Cancel
           </button>
           <button
             type="button"
@@ -696,7 +695,7 @@ function PlaybookSlideover({
             className="inline-flex items-center gap-1.5 rounded-lg border border-violet-500 bg-violet-500 px-4 py-2 text-xs font-semibold text-white transition-colors hover:bg-violet-600"
           >
             <i className="ti ti-device-floppy" />
-            {isEdit ? 'Simpan perubahan' : 'Buat playbook'}
+            {isEdit ? 'Save changes' : 'Create playbook'}
           </button>
         </footer>
       </aside>
@@ -919,7 +918,7 @@ function PlaybookPreviewModal({ preview, onClose, offsetForSlideover = false }) 
           type="button"
           onClick={onClose}
           className="flex h-8 w-8 items-center justify-center rounded-lg text-gray-400 hover:bg-gray-100 hover:text-gray-700"
-          aria-label="Tutup preview"
+          aria-label="Close preview"
         >
           <i className="ti ti-x text-lg" />
         </button>
@@ -989,49 +988,45 @@ function DetailPanel({ playbook, onDuplicate, onEdit, onPreviewComponent }) {
         <div className="flex flex-wrap items-center gap-2">
           <Link to="/campaigns" className="inline-flex items-center gap-1.5 rounded-lg border border-violet-500 bg-violet-500 px-4 py-2 text-xs font-semibold text-white transition-colors hover:bg-violet-600">
             <i className="ti ti-player-play" />
-            Gunakan playbook ini
+            Use this playbook
           </Link>
           <button type="button" onClick={onDuplicate} className="inline-flex items-center gap-1.5 rounded-lg border border-gray-200 bg-white px-4 py-2 text-xs font-semibold text-gray-700 transition-colors hover:bg-gray-50">
             <i className="ti ti-copy" />
-            Duplikat
+            Duplicate
           </button>
           <button type="button" onClick={onEdit} className="inline-flex items-center gap-1.5 rounded-lg border border-gray-200 bg-white px-4 py-2 text-xs font-semibold text-gray-700 transition-colors hover:bg-gray-50">
             <i className="ti ti-edit" />
             Edit
           </button>
-          <a href="https://getgophish.com" target="_blank" rel="noreferrer" className="inline-flex items-center gap-1.5 rounded-lg border border-gray-200 bg-white px-4 py-2 text-xs font-semibold text-gray-700 transition-colors hover:bg-gray-50 lg:ml-auto">
-            <i className="ti ti-external-link" />
-            Buka di GoPhish
-          </a>
         </div>
       </div>
 
       <div className="mt-6 grid grid-cols-1 gap-4 md:grid-cols-3">
-        <StatMini label="Dipakai" value={playbook.usedCount} sub="sejak Jan 2025" color="#6C63FF" />
+        <StatMini label="Used" value={playbook.usedCount} sub="since Jan 2025" color="#6C63FF" />
         <StatMini label="Avg click rate" value={playbook.clickAvg} sub={playbook.clickSub} color="#EF4444" />
         <StatMini label="Avg submit rate" value={playbook.submitAvg} sub={playbook.submitSub} color="#F59E0B" />
       </div>
 
       <div className="mt-6 border-b border-gray-100 pb-5">
-        <h3 className="mb-3 text-sm font-bold text-gray-900">Komponen teknis</h3>
+        <h3 className="mb-3 text-sm font-bold text-gray-900">Technical components</h3>
         {playbook.components.map(component => (
           <ComponentRow key={`${playbook.id}-${component.type}`} component={component} onPreview={onPreviewComponent} />
         ))}
       </div>
 
       <div className="mt-6 border-b border-gray-100 pb-5">
-        <h3 className="mb-3 text-sm font-bold text-gray-900">Tingkat kesulitan</h3>
+        <h3 className="mb-3 text-sm font-bold text-gray-900">Difficulty level</h3>
         <DifficultyBlock playbook={playbook} />
       </div>
 
       <div className="mt-6 border-b border-gray-100 pb-5">
-        <h3 className="mb-3 text-sm font-bold text-gray-900">Skenario serangan</h3>
+        <h3 className="mb-3 text-sm font-bold text-gray-900">Attack scenario</h3>
         <div className="rounded-lg border border-violet-100 bg-violet-50/40 p-4">
-          <div className="mb-1 text-xs font-bold text-violet-800">Narasi yang disampaikan ke target</div>
+          <div className="mb-1 text-xs font-bold text-violet-800">Narrative shown to the target</div>
           <p className="text-xs leading-relaxed text-gray-600">{playbook.scenarioText}</p>
         </div>
         <div className="mt-3">
-          <div className="mb-1.5 text-[10px] font-semibold text-gray-500">Target yang rentan</div>
+          <div className="mb-1.5 text-[10px] font-semibold text-gray-500">Vulnerable targets</div>
           <div className="flex flex-wrap gap-1.5">
             {playbook.deptTag.map(target => (
               <Tag key={`${playbook.id}-${target}`} className="bg-gray-100 text-gray-700">{target}</Tag>
@@ -1041,7 +1036,7 @@ function DetailPanel({ playbook, onDuplicate, onEdit, onPreviewComponent }) {
       </div>
 
       <div className="mt-6">
-        <h3 className="mb-3 text-sm font-bold text-gray-900">Insight dari simulasi sebelumnya</h3>
+        <h3 className="mb-3 text-sm font-bold text-gray-900">Insights from previous simulations</h3>
         <div className="space-y-3">
           {playbook.insights.map(insight => (
             <div key={insight.text} className="flex items-start gap-3">
@@ -1089,7 +1084,7 @@ export default function Playbooks() {
     setSyncing(true)
     window.setTimeout(() => {
       setSyncing(false)
-      toast.success('Playbook berhasil disinkronisasi dengan GoPhish.')
+      toast.success('Playbook synced with GoPhish.')
     }, 800)
   }
 
@@ -1102,8 +1097,8 @@ export default function Playbooks() {
       usedCount: '0x',
       clickAvg: '0%',
       submitAvg: '0%',
-      clickSub: 'belum diuji',
-      submitSub: 'belum diuji',
+      clickSub: 'not tested yet',
+      submitSub: 'not tested yet',
       components: source.components.map(component => ({ ...component })),
       deptTag: [...source.deptTag],
       insights: source.insights.map(insight => ({ ...insight })),
@@ -1113,7 +1108,7 @@ export default function Playbooks() {
     setActiveId(clone.id)
     setCategory('all')
     setQuery('')
-    toast.success(`Playbook "${source.name}" berhasil diduplikasi.`)
+    toast.success(`Playbook "${source.name}" duplicated.`)
   }
 
   function openCreatePlaybook() {
@@ -1141,12 +1136,12 @@ export default function Playbooks() {
 
   function submitPlaybookForm() {
     if (!slideoverForm.name.trim()) {
-      toast.error('Nama playbook wajib diisi.')
+      toast.error('Playbook name is required.')
       return
     }
 
     if (!slideoverForm.desc.trim()) {
-      toast.error('Deskripsi playbook wajib diisi.')
+      toast.error('Playbook description is required.')
       return
     }
 
@@ -1158,7 +1153,7 @@ export default function Playbooks() {
       setCategory('all')
       setQuery('')
       closePlaybookForm()
-      toast.success(`Playbook "${created.name}" berhasil dibuat.`)
+      toast.success(`Playbook "${created.name}" created.`)
       return
     }
 
@@ -1169,18 +1164,18 @@ export default function Playbooks() {
     )))
     setActiveId(updated.id)
     closePlaybookForm()
-    toast.success(`Playbook "${updated.name}" berhasil diperbarui.`)
+    toast.success(`Playbook "${updated.name}" updated.`)
   }
 
   function deleteActivePlaybook() {
     if (slideoverMode !== 'edit') return
 
     if (playbooks.length <= 1) {
-      toast.error('Minimal satu playbook harus tetap tersedia.')
+      toast.error('At least one playbook must remain available.')
       return
     }
 
-    const confirmed = window.confirm(`Hapus playbook "${activePlaybook.name}"?`)
+    const confirmed = window.confirm(`Delete playbook "${activePlaybook.name}"?`)
     if (!confirmed) return
 
     const remaining = playbooks.filter(playbook => playbook.id !== activePlaybook.id)
@@ -1191,7 +1186,7 @@ export default function Playbooks() {
       setActiveId(nextActive.id)
     }
     closePlaybookForm()
-    toast.success(`Playbook "${activePlaybook.name}" berhasil dihapus.`)
+    toast.success(`Playbook "${activePlaybook.name}" deleted.`)
   }
 
   function openComponentPreview(type, value) {
@@ -1210,8 +1205,8 @@ export default function Playbooks() {
     <div className="space-y-6 lg:flex lg:h-[calc(100vh-110px)] lg:min-h-[720px] lg:flex-col lg:overflow-hidden mt-4 animate-fade-in">
       <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between lg:flex-shrink-0">
         <div>
-          <h1 className="text-2xl font-bold text-gray-900">Playbook</h1>
-          <p className="mt-0.5 text-sm text-gray-500">Kelola playbook phishing simulasi</p>
+          <h1 className="text-2xl font-bold text-gray-900">Playbooks</h1>
+          <p className="mt-0.5 text-sm text-gray-500">Manage phishing simulation playbooks</p>
         </div>
         <div className="flex flex-wrap items-center gap-3">
           <label className="relative w-64">
@@ -1220,7 +1215,7 @@ export default function Playbooks() {
               type="search"
               value={query}
               onChange={event => setQuery(event.target.value)}
-              placeholder="Cari playbook..."
+              placeholder="Search playbooks..."
               className="w-full rounded-xl border border-gray-200 bg-white py-2 pl-9 pr-4 text-sm text-gray-950 outline-none placeholder:text-gray-400 focus:border-violet-500"
             />
           </label>
@@ -1238,7 +1233,7 @@ export default function Playbooks() {
             className="inline-flex items-center gap-1.5 rounded-xl bg-violet-500 px-4 py-2 text-sm font-semibold text-white transition-all hover:bg-violet-600"
           >
             <i className="ti ti-plus text-base" />
-            Buat playbook
+            Create playbook
           </button>
         </div>
       </div>
@@ -1254,7 +1249,7 @@ export default function Playbooks() {
                 className="inline-flex items-center gap-1 text-xs font-semibold text-violet-500 hover:text-violet-600"
               >
                 <i className="ti ti-plus" />
-                Baru
+                New
               </button>
             </div>
 
@@ -1264,7 +1259,7 @@ export default function Playbooks() {
                 type="search"
                 value={query}
                 onChange={event => setQuery(event.target.value)}
-                placeholder="Cari playbook..."
+                placeholder="Search playbooks..."
                 className="w-full rounded-lg border border-gray-200 bg-white py-2 pl-9 pr-3 text-sm text-gray-800 outline-none focus:border-violet-500"
               />
             </label>
@@ -1277,7 +1272,7 @@ export default function Playbooks() {
                   onClick={() => setCategory(item)}
                   className={pillClass(category === item)}
                 >
-                  {item === 'all' ? 'Semua' : item}
+                  {item === 'all' ? 'All' : item}
                 </button>
               ))}
             </div>
@@ -1285,7 +1280,7 @@ export default function Playbooks() {
 
           <div className="flex-1 space-y-2 overflow-y-auto px-3 py-2">
             <div className="px-1 pb-1 pt-0.5 text-[10px] font-semibold text-gray-500">
-              {filteredPlaybooks.length} playbook tersedia
+              {filteredPlaybooks.length} {filteredPlaybooks.length === 1 ? 'playbook' : 'playbooks'} available
             </div>
             {filteredPlaybooks.map(playbook => (
               <PlaybookListItem
@@ -1297,7 +1292,7 @@ export default function Playbooks() {
             ))}
             {filteredPlaybooks.length === 0 && (
               <div className="rounded-lg border border-dashed border-gray-200 p-6 text-center text-sm text-gray-400">
-                Tidak ada playbook yang cocok.
+                No matching playbooks found.
               </div>
             )}
           </div>

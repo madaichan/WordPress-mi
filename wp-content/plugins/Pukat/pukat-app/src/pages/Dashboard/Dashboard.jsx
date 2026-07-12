@@ -1,7 +1,9 @@
-import { useQuery } from '@tanstack/react-query'
 import { Link, useNavigate } from 'react-router-dom'
-import { campaignApi, reportApi } from '../../api/index.js'
 import clsx from 'clsx'
+import { statusLabel, dotColor } from '../../utils/campaignHelpers.js'
+import StatCard from '../../components/UI/StatCard.jsx'
+import { useCampaignList } from '../../hooks/queries/useCampaignQueries.js'
+import { useRiskScores } from '../../hooks/queries/useReportQueries.js'
 
 // Static data for sections without live API endpointsts yet
 const DEPT_RATES = [
@@ -34,33 +36,13 @@ const STATIC_CAMPAIGNS = [
 
 const STEPS = ['Pre sim', 'Preparation', 'Performing', 'Post sim', 'Follow up']
 
-function statusLabel(status) {
-  switch (status) {
-    case 'active': return { label: 'Running', cls: 'bg-blue-100 text-blue-700' }
-    case 'completed': return { label: 'Completed', cls: 'bg-emerald-100 text-emerald-700' }
-    case 'paused': return { label: 'Paused', cls: 'bg-amber-100 text-amber-700' }
-    default: return { label: 'Scheduled', cls: 'bg-gray-100 text-gray-600' }
-  }
-}
-
-function dotColor(status) {
-  if (status === 'active') return 'bg-blue-500'
-  if (status === 'completed') return 'bg-emerald-500'
-  return 'bg-gray-400'
-}
 
 export default function Dashboard() {
   const navigate = useNavigate()
 
-  const { data: campaigns, isLoading } = useQuery({
-    queryKey: ['campaigns'],
-    queryFn: () => campaignApi.list({ per_page: 5 }),
-  })
+  const { data: campaigns, isLoading } = useCampaignList({ per_page: 5 })
 
-  const { data: riskScores } = useQuery({
-    queryKey: ['risk-scores'],
-    queryFn: () => reportApi.riskScores({}),
-  })
+  const { data: riskScores } = useRiskScores()
 
   const items = campaigns?.items ?? []
   const scores = riskScores ?? []
@@ -104,55 +86,42 @@ export default function Dashboard() {
 
       {/* ── 2. Stat cards ── */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
-        <div className="bg-white border border-gray-200 rounded-xl p-5 flex items-start justify-between">
-          <div className="space-y-1">
-            <span className="text-xs font-medium text-gray-500">Active campaigns</span>
-            <span className="block text-2xl font-bold text-gray-900">
-              {isLoading ? '—' : activeCampaigns}
-            </span>
-            <span className="block text-xs font-semibold text-emerald-600">+1 from last month</span>
-          </div>
-          <div className="w-9 h-9 bg-gray-50 rounded-lg flex items-center justify-center text-gray-400">
-            <i className="ti ti-player-play-filled text-lg" />
-          </div>
-        </div>
-
-        <div className="bg-white border border-gray-200 rounded-xl p-5 flex items-start justify-between">
-          <div className="space-y-1">
-            <span className="text-xs font-medium text-gray-500">Total targets</span>
-            <span className="block text-2xl font-bold text-gray-900">
-              {isLoading ? '—' : totalTargets > 0 ? totalTargets.toLocaleString('en-US') : '1,240'}
-            </span>
-            <span className="block text-xs text-gray-500">Active in {isLoading ? '—' : activeCampaigns} campaign</span>
-          </div>
-          <div className="w-9 h-9 bg-gray-50 rounded-lg flex items-center justify-center text-gray-400">
-            <i className="ti ti-users text-lg" />
-          </div>
-        </div>
-
-        <div className="bg-white border border-gray-200 rounded-xl p-5 flex items-start justify-between">
-          <div className="space-y-1">
-            <span className="text-xs font-medium text-gray-500">Click rate</span>
-            <span className="block text-2xl font-bold text-gray-900">18%</span>
-            <span className="block text-xs font-semibold text-red-600">▲ 3% vs previous simulation</span>
-          </div>
-          <div className="w-9 h-9 bg-gray-50 rounded-lg flex items-center justify-center text-gray-400">
-            <i className="ti ti-pointer text-lg" />
-          </div>
-        </div>
-
-        <div className="bg-white border border-gray-200 rounded-xl p-5 flex items-start justify-between">
-          <div className="space-y-1">
-            <span className="text-xs font-medium text-gray-500">High-risk users</span>
-            <span className="block text-2xl font-bold text-gray-900">
-              {scores.length > 0 ? highRiskCount : 42}
-            </span>
-            <span className="block text-xs font-semibold text-amber-600">Coaching incomplete</span>
-          </div>
-          <div className="w-9 h-9 bg-gray-50 rounded-lg flex items-center justify-center text-gray-400">
-            <i className="ti ti-alert-triangle text-lg" />
-          </div>
-        </div>
+        <StatCard
+          icon="ti-player-play-filled"
+          iconBg="bg-violet-50"
+          iconColor="text-violet-500"
+          label="Active campaigns"
+          value={isLoading ? null : activeCampaigns}
+          sub="+1 from last month"
+          subColor="text-emerald-600"
+        />
+        <StatCard
+          icon="ti-users"
+          iconBg="bg-blue-50"
+          iconColor="text-blue-500"
+          label="Total targets"
+          value={isLoading ? null : (totalTargets > 0 ? totalTargets.toLocaleString('en-US') : '1,240')}
+          sub={`Active in ${isLoading ? '—' : activeCampaigns} campaign`}
+          subColor="text-gray-500"
+        />
+        <StatCard
+          icon="ti-pointer"
+          iconBg="bg-amber-50"
+          iconColor="text-amber-500"
+          label="Click rate"
+          value="18%"
+          sub="▲ 3% vs previous simulation"
+          subColor="text-red-600"
+        />
+        <StatCard
+          icon="ti-alert-triangle"
+          iconBg="bg-red-50"
+          iconColor="text-red-500"
+          label="High-risk users"
+          value={scores.length > 0 ? highRiskCount : 42}
+          sub="Coaching incomplete"
+          subColor="text-amber-600"
+        />
       </div>
 
       {/* ── 3. Active campaign status card ── */}

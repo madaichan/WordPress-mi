@@ -1,31 +1,14 @@
 import React from 'react'
 import { useLocation } from 'react-router-dom'
 import useAppStore from '../../store/useAppStore.js'
-
-// Map route prefixes → readable page titles
-const PAGE_TITLES = {
-  '/dashboard':              { title: 'Dashboard',         subtitle: 'Platform overview and key metrics' },
-  '/campaigns':              { title: 'Campaigns',          subtitle: 'Manage all phishing simulation campaigns' },
-  '/monitoring':             { title: 'Sending profiles',   subtitle: 'SMTP relay configuration for GoPhish delivery' },
-  '/simulation/preparation': { title: 'Preparation',        subtitle: 'Import targets and configure templates' },
-  '/simulation/performing':  { title: 'Performing',         subtitle: 'Launch and monitor active campaigns' },
-  '/reports':                { title: 'Reports',            subtitle: 'Analytics, risk scores, and exports' },
-  '/post/quiz':              { title: 'Quiz Module',         subtitle: 'Question bank and quiz results' },
-  '/post/coaching':          { title: 'Coaching',           subtitle: 'Training assignments for high-risk users' },
-  '/pre/socialization':      { title: 'Socialization',      subtitle: 'Pre-simulation awareness campaigns' },
-  '/playbooks':              { title: 'Playbooks',          subtitle: 'Reusable campaign templates' },
-  '/setup/playbooks':        { title: 'Playbooks',          subtitle: 'Reusable campaign templates' },
-  '/admin/users':            { title: 'User Access',        subtitle: 'Role-based access control' },
-  '/admin/settings':         { title: 'Settings',           subtitle: 'Global configuration and GoPhish connection' },
-}
+import { getRouteMeta } from '../../config/routeMeta.js'
+import { getPukatRoleLabel } from '../../utils/roles.js'
 
 export default function Header() {
   const { pathname } = useLocation()
   const user = useAppStore((s) => s.user)
 
-  // Find the best-matching title
-  const match = Object.entries(PAGE_TITLES).find(([key]) => pathname.startsWith(key))
-  const { title, subtitle } = match?.[1] ?? { title: 'Pukat', subtitle: '' }
+  const { title, subtitle } = getRouteMeta(pathname, { title: 'Pukat', subtitle: '' })
 
   return (
     <header className="h-14 bg-white border-b border-gray-100 flex items-center justify-between px-6 flex-shrink-0 sticky top-0 z-20">
@@ -40,7 +23,7 @@ export default function Header() {
         {/* Role badge */}
         <span className="badge badge-violet capitalize text-xs hidden sm:inline-flex">
           <i className="ti ti-shield-check text-xs" />
-          {user.role}
+          {getPukatRoleLabel(user.role)}
         </span>
 
         {/* User info */}

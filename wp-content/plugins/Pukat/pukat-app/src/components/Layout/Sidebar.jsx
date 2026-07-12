@@ -1,28 +1,10 @@
 import React from 'react'
-import { NavLink, useLocation } from 'react-router-dom'
 import clsx from 'clsx'
 import useAppStore from '../../store/useAppStore.js'
 import GoPhishStatus from '../GoPhishStatus.jsx'
-
-/**
- * Navigation items for the Admin Panel — management features only.
- * Operational features (Campaigns, Simulation, etc.) live on the Front Page.
- */
-const NAV = [
-  {
-    group: 'Overview',
-    items: [
-      { to: '/dashboard', icon: 'ti-layout-dashboard', label: 'Dashboard' },
-    ],
-  },
-  {
-    group: 'Admin',
-    items: [
-      { to: '/admin/users',    icon: 'ti-users',    label: 'User Access' },
-      { to: '/admin/settings', icon: 'ti-settings', label: 'Settings' },
-    ],
-  },
-]
+import SidebarBrand from './SidebarBrand.jsx'
+import SidebarNav from './SidebarNav.jsx'
+import { adminNavGroups } from '../../config/appRoutes.jsx'
 
 export default function Sidebar() {
   const collapsed = useAppStore((s) => s.sidebarCollapsed)
@@ -36,52 +18,17 @@ export default function Sidebar() {
       )}
     >
       {/* Brand */}
-      <div className="h-14 flex items-center border-b border-white/10 flex-shrink-0 px-4 gap-2.5">
-        <i className="ti ti-shield-alert text-violet-400 text-xl flex-shrink-0" />
-        {!collapsed && (
-          <span className="font-semibold text-white tracking-tight whitespace-nowrap overflow-hidden">
-            Flow beyond
-          </span>
-        )}
-        <button
-          onClick={toggle}
-          className={clsx(
-            'ml-auto text-gray-500 hover:text-gray-300 transition-colors p-1 rounded',
-            collapsed && 'mx-auto'
-          )}
-          title={collapsed ? 'Expand sidebar' : 'Collapse sidebar'}
-        >
-          <i className={clsx('ti', collapsed ? 'ti-layout-sidebar-right' : 'ti-layout-sidebar')} />
-        </button>
-      </div>
+      <SidebarBrand
+        className="h-14 flex items-center border-b border-white/10 flex-shrink-0 px-4 gap-2.5"
+        iconClassName="text-violet-400 text-xl"
+        textClassName="font-semibold text-white tracking-tight whitespace-nowrap overflow-hidden"
+        collapsed={collapsed}
+        toggle={toggle}
+        toggleTitle={collapsed ? 'Expand sidebar' : 'Collapse sidebar'}
+      />
 
       {/* Navigation */}
-      <nav className="flex-1 py-4 overflow-y-auto no-scrollbar space-y-5">
-        {NAV.map(({ group, items }) => (
-          <div key={group} className="space-y-0.5">
-            {!collapsed && (
-              <p className="nav-group-label">{group}</p>
-            )}
-            {items.map(({ to, icon, label }) => (
-              <NavLink
-                key={to}
-                to={to}
-                className={({ isActive }) =>
-                  clsx(
-                    'nav-item',
-                    isActive && 'active',
-                    collapsed && 'justify-center px-0 mx-2'
-                  )
-                }
-                title={collapsed ? label : undefined}
-              >
-                <i className={clsx('ti', icon, 'text-base flex-shrink-0')} />
-                {!collapsed && <span className="truncate">{label}</span>}
-              </NavLink>
-            ))}
-          </div>
-        ))}
-      </nav>
+      <SidebarNav groups={adminNavGroups} collapsed={collapsed} />
 
       {/* Footer: link to front page + GoPhish status */}
       <div className={clsx(

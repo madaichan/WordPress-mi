@@ -1,57 +1,23 @@
-import React, { useState, useCallback } from 'react'
-import { useQuery } from '@tanstack/react-query'
-import { useDropzone } from 'react-dropzone'
-import Papa from 'papaparse'
-import { gophishApi, campaignApi } from '../../api/index.js'
+import React, { useState } from 'react'
 import { post } from '../../api/client.js'
 import toast from 'react-hot-toast'
 import clsx from 'clsx'
+import { useCsvUpload } from '../../hooks/useCsvUpload.js'
+import { useCampaignItems } from '../../hooks/queries/useCampaignQueries.js'
+import { useGophishEmailTemplates, useGophishSmtpProfiles } from '../../hooks/queries/useGophishQueries.js'
 
 export default function Preparation() {
-  const [csvData,    setCsvData]    = useState([])
-  const [csvErrors,  setCsvErrors]  = useState([])
-  const [step,       setStep]       = useState(1) // 1=targets, 2=templates, 3=review
+  const { csvData, csvErrors, getRootProps, getInputProps, isDragActive } = useCsvUpload()
+  const [step, setStep] = useState(1) // 1=targets, 2=templates, 3=review
 
   // GoPhish data
-  const { data: emailTemplates = [] } = useQuery({ queryKey: ['gophish-email-templates'], queryFn: gophishApi.emailTemplates })
-  const { data: landingPages   = [] } = useQuery({ queryKey: ['gophish-landing-pages'],   queryFn: gophishApi.landingPages })
-  const { data: smtpProfiles   = [] } = useQuery({ queryKey: ['gophish-smtp'],             queryFn: gophishApi.smtpProfiles })
-  const { data: campaigns      = [] } = useQuery({ queryKey: ['campaigns'],                queryFn: () => campaignApi.list({ per_page: 100 }).then(d => d.items || []) })
+  const { data: emailTemplates = [] } = useGophishEmailTemplates()
+  const { data: smtpProfiles = [] } = useGophishSmtpProfiles()
+  const { data: campaigns = [] } = useCampaignItems({ per_page: 100 })
 
   const [selectedTemplate, setSelectedTemplate] = useState(null)
-  const [selectedPage,     setSelectedPage]     = useState(null)
   const [selectedSmtp,     setSelectedSmtp]     = useState(null)
   const [selectedCampaign, setSelectedCampaign] = useState('')
-
-  // CSV Drop
-  const onDrop = useCallback((acceptedFiles) => {
-    const file = acceptedFiles[0]
-    if (!file) return
-    Papa.parse(file, {
-      header: true,
-      skipEmptyLines: true,
-      complete: (result) => {
-        const errors = []
-        const rows = result.data.filter((row, i) => {
-          if (!row.email || !row.email.includes('@')) {
-            errors.push(`Row ${i + 2}: invalid email "${row.email}"`)
-            return false
-          }
-          return true
-        })
-        setCsvData(rows)
-        setCsvErrors(errors)
-        toast.success(`Loaded ${rows.length} valid targets.${errors.length ? ` (${errors.length} rows skipped)` : ''}`)
-      },
-      error: (err) => toast.error('CSV parse error: ' + err.message),
-    })
-  }, [])
-
-  const { getRootProps, getInputProps, isDragActive } = useDropzone({
-    onDrop,
-    accept: { 'text/csv': ['.csv'], 'application/vnd.ms-excel': ['.csv'] },
-    maxFiles: 1,
-  })
 
   const handleImport = async () => {
     if (!selectedCampaign) return toast.error('Please select a campaign first.')
@@ -285,8 +251,8 @@ export default function Preparation() {
             <button onClick={() => setStep(2)} className="btn btn-secondary">
               <i className="ti ti-arrow-left" /> Back
             </button>
-            <a href="#/simulation/performing" className="btn btn-primary">
-              <i className="ti ti-player-play" /> Go to Performing
+            <a href="#/monitoring" className="btn btn-primary">
+              <i className="ti ti-player-play" /> Go to Monitoring
             </a>
           </div>
         </div>

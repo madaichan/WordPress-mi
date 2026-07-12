@@ -1,6 +1,7 @@
-import { useState, useMemo, useCallback, useRef, useEffect } from 'react'
+import { useState, useMemo, useCallback } from 'react'
 import clsx from 'clsx'
 import toast from 'react-hot-toast'
+import HtmlCodeEditor from '../../components/Editor/HtmlCodeEditor.jsx'
 
 /* ─── Data ───────────────────────────────────────────────────────────── */
 
@@ -233,13 +234,6 @@ const LANDING_PAGES = [
   },
 ]
 
-const CATEGORIES = [
-  { key: 'all', label: 'Semua', count: 5 },
-  { key: 'login', label: 'Login page', count: 3 },
-  { key: 'form', label: 'Form submission', count: 1 },
-  { key: 'redirect', label: 'Redirect only', count: 1 },
-]
-
 /* ─── Sub-components ─────────────────────────────────────────────────── */
 
 function CaptureBadge({ label }) {
@@ -467,138 +461,6 @@ const DEFAULT_HTML = `<!DOCTYPE html>
 </body>
 </html>`
 
-/**
- * Lightweight HTML syntax highlighter — returns an HTML string with
- * <span> color classes applied to tags, attributes, values, and comments.
- */
-function highlightHtml(code) {
-  // Escape HTML entities first so the code displays literally
-  let safe = code
-    .replace(/&/g, '&amp;')
-    .replace(/</g, '&lt;')
-    .replace(/>/g, '&gt;')
-
-  // Comments: <!-- ... -->
-  safe = safe.replace(
-    /(&lt;!--[\s\S]*?--&gt;)/g,
-    '<span class="text-gray-500 italic">$1</span>'
-  )
-
-  // DOCTYPE
-  safe = safe.replace(
-    /(&lt;!DOCTYPE\s+[^&]*&gt;)/gi,
-    '<span class="text-blue-400">$1</span>'
-  )
-
-  // Tags, attributes, and values
-  // Opening/self-closing tags: <tagname attr="val" ...> or <tagname ... />
-  safe = safe.replace(
-    /(&lt;\/?)([a-zA-Z][a-zA-Z0-9-]*)([^&]*?)(\/?)(&gt;)/g,
-    (_, open, tagName, attrs, selfClose, close) => {
-      // Highlight attributes within the tag
-      const highlightedAttrs = attrs.replace(
-        /([a-zA-Z-]+)(=)(&quot;[^&]*?&quot;|&#39;[^&]*?&#39;|[^\s&]+)/g,
-        '<span class="text-yellow-400">$1$2</span><span class="text-green-300">$3</span>'
-      )
-      return `<span class="text-blue-400">${open}${tagName}</span>${highlightedAttrs}<span class="text-blue-400">${selfClose}${close}</span>`
-    }
-  )
-
-  return safe
-}
-
-/**
- * HtmlCodeEditor — a functional code editor with:
- * - Real <textarea> for editing
- * - Syntax-highlighted overlay (rendered behind the text via transparent textarea)
- * - Dynamic line numbers
- * - Synchronized scrolling between textarea and highlight layer
- */
-function HtmlCodeEditor({ value, onChange }) {
-  const textareaRef = useRef(null)
-  const highlightRef = useRef(null)
-  const lineNumRef = useRef(null)
-
-  const lineCount = value.split('\n').length
-
-  // Sync scroll between textarea → highlight overlay & line numbers
-  const handleScroll = useCallback(() => {
-    const ta = textareaRef.current
-    if (highlightRef.current) {
-      highlightRef.current.scrollTop = ta.scrollTop
-      highlightRef.current.scrollLeft = ta.scrollLeft
-    }
-    if (lineNumRef.current) {
-      lineNumRef.current.scrollTop = ta.scrollTop
-    }
-  }, [])
-
-  const handleKeyDown = useCallback((e) => {
-    // Tab inserts 2 spaces instead of moving focus
-    if (e.key === 'Tab') {
-      e.preventDefault()
-      const ta = e.target
-      const start = ta.selectionStart
-      const end = ta.selectionEnd
-      const newVal = ta.value.substring(0, start) + '  ' + ta.value.substring(end)
-      onChange(newVal)
-      // Restore cursor position after React re-render
-      requestAnimationFrame(() => {
-        ta.selectionStart = ta.selectionEnd = start + 2
-      })
-    }
-  }, [onChange])
-
-  const highlighted = useMemo(() => highlightHtml(value), [value])
-
-  return (
-    <div className="bg-[#1e1e1e] font-mono text-[11px] h-[420px] flex relative">
-      {/* Line numbers */}
-      <div
-        ref={lineNumRef}
-        className="text-gray-600 select-none text-right pr-3 pl-3 border-r border-gray-800 flex-shrink-0 overflow-hidden pt-4 pb-4"
-        style={{ width: 48, lineHeight: '1.625' }}
-      >
-        {Array.from({ length: lineCount }, (_, i) => (
-          <div key={i} className="h-[17.875px] flex items-center justify-end">{i + 1}</div>
-        ))}
-      </div>
-
-      {/* Stacked layers: highlight (behind) + textarea (in front, transparent text) */}
-      <div className="relative flex-1 overflow-hidden">
-        {/* Syntax-highlighted layer */}
-        <pre
-          ref={highlightRef}
-          className="absolute inset-0 p-4 m-0 overflow-hidden pointer-events-none text-gray-300 whitespace-pre-wrap break-words"
-          style={{ lineHeight: '1.625', wordBreak: 'break-all' }}
-          aria-hidden="true"
-          dangerouslySetInnerHTML={{ __html: highlighted + '\n' }}
-        />
-
-        {/* Actual textarea (transparent text, visible caret) */}
-        <textarea
-          ref={textareaRef}
-          value={value}
-          onChange={(e) => onChange(e.target.value)}
-          onScroll={handleScroll}
-          onKeyDown={handleKeyDown}
-          spellCheck={false}
-          className="absolute inset-0 w-full h-full resize-none p-4 m-0 bg-transparent border-none outline-none overflow-auto"
-          style={{
-            lineHeight: '1.625',
-            color: 'transparent',
-            caretColor: '#d4d4d4',
-            whiteSpace: 'pre-wrap',
-            wordBreak: 'break-all',
-            fontFamily: 'inherit',
-            fontSize: 'inherit',
-          }}
-        />
-      </div>
-    </div>
-  )
-}
-
 /* ─── Editor Pane ────────────────────────────────────────────────────── */
 
 function EditorPane({
@@ -726,7 +588,7 @@ function EditorPane({
           </div>
 
           {/* Functional Code Editor */}
-          <HtmlCodeEditor value={htmlCode} onChange={setHtmlCode} />
+          <HtmlCodeEditor value={htmlCode} onChange={setHtmlCode} height={420} />
         </div>
       </div>
     </div>
@@ -740,7 +602,6 @@ export default function LandingPages() {
   const [activeTab, setActiveTab] = useState('list')
   const [activeFilter, setActiveFilter] = useState('all')
   const [searchQuery, setSearchQuery] = useState('')
-  const [previewId, setPreviewId] = useState(null)
   const [previewTitle, setPreviewTitle] = useState('Microsoft 365 Login')
 
   // Editor / Preview Shared state (lifting state up)
@@ -776,7 +637,7 @@ export default function LandingPages() {
   }, [pages])
 
   /* ── Handlers ── */
-  const switchTab = useCallback((tab, reset) => {
+  const switchTab = useCallback((tab) => {
     setActiveTab(tab)
     if (tab === 'list') {
       setEditingId(null)
@@ -804,7 +665,6 @@ export default function LandingPages() {
   const handlePreview = useCallback((id) => {
     const page = pages.find((p) => p.id === id)
     if (page) {
-      setPreviewId(id)
       setPreviewTitle(page.name)
       setEditingId(page.id)
       setEditingName(page.name)

@@ -1,15 +1,10 @@
 import React, { useState, useEffect } from 'react'
-import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
-import { settingsApi, gophishApi } from '../../api/index.js'
-import toast from 'react-hot-toast'
 import clsx from 'clsx'
+import { useSettingsQuery } from '../../hooks/queries/useSettingsQueries.js'
+import { useSaveSettingsMutation, useTestGophishConnectionMutation } from '../../hooks/mutations/useSettingsMutations.js'
 
 export default function Settings() {
-  const qc = useQueryClient()
-  const { data: settings, isLoading } = useQuery({
-    queryKey: ['settings'],
-    queryFn:  settingsApi.get,
-  })
+  const { data: settings, isLoading } = useSettingsQuery()
 
   const [form, setForm] = useState({
     pukat_org_name:        '',
@@ -19,7 +14,6 @@ export default function Settings() {
     pukat_quiz_pass_score: 70,
   })
 
-  const [testing, setTesting] = useState(false)
   const [testResult, setTestResult] = useState(null) // null | 'success' | 'error'
 
   useEffect(() => {
@@ -34,13 +28,10 @@ export default function Settings() {
     }
   }, [settings])
 
-  const saveMutation = useMutation({
-    mutationFn: settingsApi.update,
-    onSuccess: () => {
-      toast.success('Settings saved successfully.')
-      qc.invalidateQueries({ queryKey: ['settings'] })
-    },
-    onError: (err) => toast.error(err.message),
+  const saveMutation = useSaveSettingsMutation()
+  const testConnectionMutation = useTestGophishConnectionMutation({
+    onSuccess: () => setTestResult('success'),
+    onError: () => setTestResult('error'),
   })
 
   const handleSave = (e) => {
@@ -52,7 +43,7 @@ export default function Settings() {
     saveMutation.mutate(payload)
   }
 
-  const handleTestConnection = async () => {
+  const handleTestConnection = () => {
     // Save URL + key first if changed
     if (form.pukat_gophish_url) {
       saveMutation.mutate({
@@ -60,19 +51,8 @@ export default function Settings() {
         pukat_gophish_api_key: form.pukat_gophish_api_key || undefined,
       })
     }
-    setTesting(true)
     setTestResult(null)
-    try {
-      await gophishApi.status()
-      setTestResult('success')
-      toast.success('Successfully connected to GoPhish!')
-      qc.invalidateQueries({ queryKey: ['gophish-status'] })
-    } catch (err) {
-      setTestResult('error')
-      toast.error(`Connection failed: ${err.message}`)
-    } finally {
-      setTesting(false)
-    }
+    testConnectionMutation.mutate()
   }
 
   const update = (key, value) => setForm(prev => ({ ...prev, [key]: value }))
@@ -192,10 +172,10 @@ export default function Settings() {
             type="button"
             id="btn-test-connection"
             onClick={handleTestConnection}
-            disabled={testing || !form.pukat_gophish_url}
+            disabled={testConnectionMutation.isPending || !form.pukat_gophish_url}
             className="btn btn-secondary w-full"
           >
-            {testing ? (
+            {testConnectionMutation.isPending ? (
               <>
                 <span className="w-4 h-4 border-2 border-gray-400 border-t-transparent rounded-full animate-spin" />
                 Testing connection...

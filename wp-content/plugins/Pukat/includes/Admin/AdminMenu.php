@@ -45,9 +45,13 @@ class AdminMenu {
 		// Operational features (Campaigns, Simulation, Reports, etc.)
 		// are accessible via the front page at /pukat.
 		$submenus = [
-			'dashboard' => [ __( 'Dashboard', 'pukat' ),    'read',                   '' ],
-			'users'     => [ __( 'User Access', 'pukat' ),  'pukat_manage_users',     '#/admin/users' ],
-			'settings'  => [ __( 'Settings', 'pukat' ),     'pukat_manage_settings',  '#/admin/settings' ],
+			'dashboard'         => [ __( 'Dashboard', 'pukat' ),          'read',                   '' ],
+			'master_playbooks'  => [ __( 'Master Playbooks', 'pukat' ),   'pukat_manage_settings',  '#/master/playbooks' ],
+			'master_smtp'       => [ __( 'Master Sending Profiles', 'pukat' ), 'pukat_manage_settings', '#/master/sending-profiles' ],
+			'master_emails'     => [ __( 'Master Email Templates', 'pukat' ), 'pukat_manage_settings', '#/master/email-templates' ],
+			'master_landings'   => [ __( 'Master Landing Pages', 'pukat' ), 'pukat_manage_settings', '#/master/landing-pages' ],
+			'users'             => [ __( 'User Access', 'pukat' ),        'pukat_manage_users',     '#/admin/users' ],
+			'settings'          => [ __( 'Settings', 'pukat' ),           'pukat_manage_settings',  '#/admin/settings' ],
 		];
 
 		foreach ( $submenus as $slug => $args ) {

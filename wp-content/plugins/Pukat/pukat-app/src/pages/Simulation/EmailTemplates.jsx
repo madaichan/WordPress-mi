@@ -1,6 +1,8 @@
-import { useState, useMemo, useCallback, useRef, useEffect } from 'react'
+import { useState, useMemo, useCallback } from 'react'
 import clsx from 'clsx'
 import toast from 'react-hot-toast'
+import HtmlCodeEditor from '../../components/Editor/HtmlCodeEditor.jsx'
+import ClientPreview from '../../components/Editor/ClientPreview.jsx'
 
 /* ─── Default Data ───────────────────────────────────────────────────── */
 
@@ -192,116 +194,6 @@ const EMAIL_TEMPLATES = [
   }
 ]
 
-/* ─── HTML Syntax Highlighter ────────────────────────────────────────── */
-
-function highlightHtml(code) {
-  let safe = code
-    .replace(/&/g, '&amp;')
-    .replace(/</g, '&lt;')
-    .replace(/>/g, '&gt;')
-
-  safe = safe.replace(
-    /(&lt;!--[\s\S]*?--&gt;)/g,
-    '<span class="text-gray-500 italic">$1</span>'
-  )
-
-  safe = safe.replace(
-    /(&lt;!DOCTYPE\s+[^&]*&gt;)/gi,
-    '<span class="text-blue-400">$1</span>'
-  )
-
-  safe = safe.replace(
-    /(&lt;\/?)([a-zA-Z][a-zA-Z0-9-]*)([^&]*?)(\/?)(&gt;)/g,
-    (_, open, tagName, attrs, selfClose, close) => {
-      const highlightedAttrs = attrs.replace(
-        /([a-zA-Z-]+)(=)(&quot;[^&]*?&quot;|&#39;[^&]*?&#39;|[^\s&]+)/g,
-        '<span class="text-yellow-400">$1$2</span><span class="text-green-300">$3</span>'
-      )
-      return `<span class="text-blue-400">${open}${tagName}</span>${highlightedAttrs}<span class="text-blue-400">${selfClose}${close}</span>`
-    }
-  )
-
-  return safe
-}
-
-function HtmlCodeEditor({ value, onChange }) {
-  const textareaRef = useRef(null)
-  const highlightRef = useRef(null)
-  const lineNumRef = useRef(null)
-
-  const lineCount = value.split('\n').length
-
-  const handleScroll = useCallback(() => {
-    const ta = textareaRef.current
-    if (highlightRef.current) {
-      highlightRef.current.scrollTop = ta.scrollTop
-      highlightRef.current.scrollLeft = ta.scrollLeft
-    }
-    if (lineNumRef.current) {
-      lineNumRef.current.scrollTop = ta.scrollTop
-    }
-  }, [])
-
-  const handleKeyDown = useCallback((e) => {
-    if (e.key === 'Tab') {
-      e.preventDefault()
-      const ta = e.target
-      const start = ta.selectionStart
-      const end = ta.selectionEnd
-      const newVal = ta.value.substring(0, start) + '  ' + ta.value.substring(end)
-      onChange(newVal)
-      requestAnimationFrame(() => {
-        ta.selectionStart = ta.selectionEnd = start + 2
-      })
-    }
-  }, [onChange])
-
-  const highlighted = useMemo(() => highlightHtml(value), [value])
-
-  return (
-    <div className="bg-[#1e1e1e] font-mono text-[11px] h-[400px] flex relative">
-      <div
-        ref={lineNumRef}
-        className="text-gray-600 select-none text-right pr-3 pl-3 border-r border-gray-800 flex-shrink-0 overflow-hidden pt-4 pb-4 animate-fade-in"
-        style={{ width: 48, lineHeight: '1.625' }}
-      >
-        {Array.from({ length: lineCount }, (_, i) => (
-          <div key={i} className="h-[17.875px] flex items-center justify-end">{i + 1}</div>
-        ))}
-      </div>
-
-      <div className="relative flex-1 overflow-hidden">
-        <pre
-          ref={highlightRef}
-          className="absolute inset-0 p-4 m-0 overflow-hidden pointer-events-none text-gray-300 whitespace-pre-wrap break-words"
-          style={{ lineHeight: '1.625', wordBreak: 'break-all' }}
-          aria-hidden="true"
-          dangerouslySetInnerHTML={{ __html: highlighted + '\n' }}
-        />
-
-        <textarea
-          ref={textareaRef}
-          value={value}
-          onChange={(e) => onChange(e.target.value)}
-          onScroll={handleScroll}
-          onKeyDown={handleKeyDown}
-          spellCheck={false}
-          className="absolute inset-0 w-full h-full resize-none p-4 m-0 bg-transparent border-none outline-none overflow-auto"
-          style={{
-            lineHeight: '1.625',
-            color: 'transparent',
-            caretColor: '#d4d4d4',
-            whiteSpace: 'pre-wrap',
-            wordBreak: 'break-all',
-            fontFamily: 'inherit',
-            fontSize: 'inherit',
-          }}
-        />
-      </div>
-    </div>
-  )
-}
-
 /* ─── List Layout Helper Components ───────────────────────────────────── */
 
 function ThumbnailMockup({ page }) {
@@ -370,84 +262,6 @@ function CreateCard({ onClick }) {
 }
 
 /* ─── Client Preview Frame ───────────────────────────────────────────── */
-
-function ClientPreview({ html, sender, subject }) {
-  const [viewport, setViewport] = useState('desktop') // 'desktop', 'mobile'
-
-  const widthClass = {
-    desktop: 'w-full max-w-4xl',
-    mobile: 'w-[375px]'
-  }[viewport]
-
-  return (
-    <div className="w-full flex flex-col items-center space-y-4 animate-fade-in">
-      {/* Viewport Control Bar */}
-      <div className="flex items-center justify-between w-full max-w-4xl bg-white border border-gray-200 rounded-xl px-4 py-2 text-xs">
-        <div className="flex items-center gap-2">
-          <span className="font-semibold text-gray-500 mr-2">Viewport:</span>
-          <button
-            onClick={() => setViewport('desktop')}
-            className={clsx(
-              'px-2.5 py-1 rounded-md font-semibold transition-all flex items-center gap-1.5',
-              viewport === 'desktop' ? 'bg-violet-50 text-violet-600' : 'text-gray-600 hover:bg-gray-50'
-            )}
-          >
-            <i className="ti ti-device-desktop text-sm" /> Desktop
-          </button>
-          <button
-            onClick={() => setViewport('mobile')}
-            className={clsx(
-              'px-2.5 py-1 rounded-md font-semibold transition-all flex items-center gap-1.5',
-              viewport === 'mobile' ? 'bg-violet-50 text-violet-600' : 'text-gray-600 hover:bg-gray-50'
-            )}
-          >
-            <i className="ti ti-device-mobile text-sm" /> Mobile (375px)
-          </button>
-        </div>
-        <div className="text-gray-400 select-none text-[10px] flex items-center gap-1">
-          <span className="inline-block w-1.5 h-1.5 rounded-full bg-emerald-500" /> Interactive sandbox
-        </div>
-      </div>
-
-      {/* Simulated Email Client Envelope */}
-      <div className={clsx("bg-white border border-gray-200 rounded-xl overflow-hidden shadow-sm flex flex-col transition-all duration-300", widthClass)}>
-        <div className="bg-white border-b border-gray-150 p-4 space-y-3 shadow-sm select-none">
-          <div className="flex flex-wrap items-center justify-between text-xs border-b border-gray-100 pb-3 gap-2">
-            <div className="flex items-center gap-2">
-              <span className="font-bold text-gray-900">
-                {sender ? sender.split('<')[0].trim() : 'Sender Name'}
-              </span>
-              <span className="text-gray-400 font-mono text-[10px]">
-                {sender ? `<${sender.split('<')[1] || ''}` : '<sender@example.com>'}
-              </span>
-            </div>
-            <span className="text-gray-400">Hari ini, 10:24 AM</span>
-          </div>
-          <div className="text-xs space-y-1">
-            <div className="flex gap-2">
-              <span className="text-gray-400 w-16">To:</span>
-              <span className="text-gray-900 font-medium">{"{{.Email}} (Karyawan Target)"}</span>
-            </div>
-            <div className="flex gap-2">
-              <span className="text-gray-400 w-16">Subject:</span>
-              <span className="text-gray-900 font-semibold">{subject || 'No Subject'}</span>
-            </div>
-          </div>
-        </div>
-
-        {/* Content iframe */}
-        <div className="bg-gray-50 p-4 min-h-[400px] flex items-center justify-center">
-          <iframe
-            srcDoc={html || '<h3>No HTML body</h3>'}
-            title="Email Template Preview"
-            className="w-full min-h-[380px] bg-white border border-gray-200/80 rounded-lg shadow-sm"
-            sandbox="allow-scripts"
-          />
-        </div>
-      </div>
-    </div>
-  )
-}
 
 function PreviewFallback() {
   return (
@@ -543,7 +357,7 @@ function EditorPane({
 
             <div className="pt-2">
               <span className="block font-semibold text-gray-900 mb-1.5">Variabel dinamis</span>
-              <p class="text-[10px] text-gray-400 leading-relaxed">
+              <p className="text-[10px] text-gray-400 leading-relaxed">
                 Gunakan placeholder GoPhish berikut untuk personalisasi otomatis:
               </p>
               <div className="grid grid-cols-2 gap-1.5 mt-2 font-mono text-[9px] text-gray-600 select-all">
@@ -596,7 +410,6 @@ export default function EmailTemplates() {
   const [activeTab, setActiveTab] = useState('list')
   const [activeFilter, setActiveFilter] = useState('all')
   const [searchQuery, setSearchQuery] = useState('')
-  const [previewId, setPreviewId] = useState(null)
   const [previewTitle, setPreviewTitle] = useState('Microsoft Office 365 Alert')
 
   // Shared editing/preview status
@@ -657,7 +470,6 @@ export default function EmailTemplates() {
   const handlePreview = useCallback((id) => {
     const page = pages.find((p) => p.id === id)
     if (page) {
-      setPreviewId(id)
       setPreviewTitle(page.name)
       setEditingId(page.id)
       setEditingName(page.name)
