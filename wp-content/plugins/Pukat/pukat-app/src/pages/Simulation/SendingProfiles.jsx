@@ -10,6 +10,8 @@ import {
   hasDuplicateSmtpProfileName,
   profileToSmtpForm,
 } from '../../utils/smtpProfileHelpers.js'
+import PageHeader from '../../components/UI/PageHeader.jsx'
+import Button from '../../components/UI/Button.jsx'
 
 const INITIAL_PROFILES = [
   {
@@ -545,29 +547,19 @@ export default function SendingProfiles() {
 
   return (
     <div className="space-y-6 lg:flex lg:h-[calc(100vh-110px)] lg:min-h-[720px] lg:flex-col lg:overflow-hidden mt-4">
-      <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-        <div>
-          <h1 className="text-2xl font-bold tracking-tight text-gray-900">Sending profiles</h1>
-          <p className="mt-0.5 text-sm font-medium text-gray-500">SMTP configuration for phishing simulation delivery through GoPhish</p>
-        </div>
-        <div className="flex items-center gap-3">
-          <button
-            type="button"
-            onClick={syncGoPhish}
-            className="rounded-xl border border-gray-200 bg-white px-4 py-2 text-xs font-semibold text-gray-700 shadow-sm transition-all hover:bg-gray-50"
-          >
-            Sync GoPhish
-          </button>
-          <button
-            type="button"
-            onClick={openCreate}
-            className="inline-flex items-center gap-1.5 rounded-xl bg-violet-500 px-4 py-2 text-xs font-semibold text-white shadow-sm transition-all hover:bg-violet-600"
-          >
-            <i className="ti ti-plus text-sm" />
-            New SMTP
-          </button>
-        </div>
-      </div>
+      <PageHeader
+        title="Sending profiles"
+        subtitle="SMTP configuration for phishing simulation delivery through GoPhish"
+        actions={
+          <>
+            <Button variant="outline" onClick={syncGoPhish}>Sync GoPhish</Button>
+            <Button variant="primary" onClick={openCreate}>
+              <i className="ti ti-plus text-sm" />
+              New SMTP
+            </Button>
+          </>
+        }
+      />
 
       <div className="overflow-hidden rounded-2xl border border-gray-200 bg-white shadow-sm">
         <div className="flex items-center justify-between gap-4 border-b border-gray-100 bg-gray-50/40 p-5">

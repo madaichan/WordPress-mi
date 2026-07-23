@@ -32,10 +32,26 @@ class GoPhishService {
 	private int $timeout = 15;
 
 	public function __construct() {
-		$this->base_url = rtrim( (string) get_option( 'pukat_gophish_url', '' ), '/' );
+		$this->base_url = self::normalize_base_url( (string) get_option( 'pukat_gophish_url', '' ) );
 		$this->api_key  = EncryptionService::decrypt(
 			(string) get_option( 'pukat_gophish_api_key', '' )
 		);
+	}
+
+	/**
+	 * Normalize the configured GoPhish base URL.
+	 *
+	 * The service appends GoPhish API paths itself, but users sometimes paste
+	 * a tested endpoint prefix like https://host:3333/api/.
+	 */
+	public static function normalize_base_url( string $url ): string {
+		$url = rtrim( trim( $url ), '/' );
+
+		if ( preg_match( '#/api$#i', $url ) ) {
+			$url = substr( $url, 0, -4 );
+		}
+
+		return rtrim( $url, '/' );
 	}
 
 	// ===========================================================================

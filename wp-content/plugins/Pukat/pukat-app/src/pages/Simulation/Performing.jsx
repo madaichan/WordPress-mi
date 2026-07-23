@@ -1,5 +1,7 @@
 import clsx from 'clsx'
 import toast from 'react-hot-toast'
+import PageHeader from '../../components/UI/PageHeader.jsx'
+import Button from '../../components/UI/Button.jsx'
 
 const STATS = [
   { label: 'Sent', value: '1,240', sub: 'of 1,240 targets', icon: 'ti-send', subCls: 'text-gray-500' },
@@ -49,26 +51,26 @@ export default function Performing() {
 
   return (
     <div className="space-y-6 lg:flex lg:h-[calc(100vh-110px)] lg:min-h-[720px] lg:flex-col lg:overflow-hidden mt-4 animate-fade-in">
-      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-        <div>
-          <h1 className="text-2xl font-bold text-gray-900">Monitoring real-time</h1>
-          <p className="text-sm text-gray-500 mt-0.5">Updates automatically every 5 seconds</p>
-        </div>
-        <div className="flex items-center gap-3">
-          <div className="flex items-center gap-1.5 bg-red-50 text-red-600 rounded-full px-3 py-1 text-xs font-semibold select-none">
-            <span className="w-1.5 h-1.5 rounded-full bg-red-500 animate-pulse" />
-            <span>Live</span>
-          </div>
-          <select className="bg-white border border-gray-200 text-gray-700 text-xs font-semibold px-3 py-2 rounded-xl focus:outline-none focus:border-violet-500">
-            <option>Q2 Phishing Wave — Finance</option>
-            <option>BEC Scenario — Finance</option>
-            <option>Q1 Awareness Check</option>
-          </select>
-          <button onClick={() => toast.success('CSV export is being prepared.')} className="bg-white border border-gray-200 text-gray-700 hover:bg-gray-50 px-4 py-2 text-sm font-semibold rounded-xl transition-all">
-            Export CSV
-          </button>
-        </div>
-      </div>
+      <PageHeader
+        title="Monitoring real-time"
+        subtitle="Updates automatically every 5 seconds"
+        actions={
+          <>
+            <div className="flex items-center gap-1.5 bg-red-50 text-red-600 rounded-full px-3 py-1 text-xs font-semibold select-none">
+              <span className="w-1.5 h-1.5 rounded-full bg-red-500 animate-pulse" />
+              <span>Live</span>
+            </div>
+            <select className="bg-white border border-gray-200 text-gray-700 text-xs font-semibold px-3 py-2 rounded-xl focus:outline-none focus:border-violet-500">
+              <option>Q2 Phishing Wave — Finance</option>
+              <option>BEC Scenario — Finance</option>
+              <option>Q1 Awareness Check</option>
+            </select>
+            <Button variant="outline" onClick={() => toast.success('CSV export is being prepared.')}>
+              Export CSV
+            </Button>
+          </>
+        }
+      />
 
       <div className="grid grid-cols-1 sm:grid-cols-3 lg:grid-cols-5 gap-4">
         {STATS.map(stat => (

@@ -2,7 +2,7 @@ import { Suspense } from 'react'
 import { HashRouter, Routes, Route } from 'react-router-dom'
 import FrontendLayout from './components/Layout/FrontendLayout.jsx'
 import PageLoader from './components/UI/PageLoader.jsx'
-import AppToaster from './components/AppToaster.jsx'
+import AppToaster from './components/UI/AppToaster.jsx'
 import { frontendRoutes } from './config/appRoutes.jsx'
 
 

@@ -1,6 +1,6 @@
 import React from 'react'
 import clsx from 'clsx'
-import { useGophishStatus } from '../hooks/useGophishStatus.js'
+import { useGophishStatus } from '../../hooks/useGophishStatus.js'
 
 export default function GoPhishStatus({ collapsed = false }) {
   const { label, dotColor } = useGophishStatus()

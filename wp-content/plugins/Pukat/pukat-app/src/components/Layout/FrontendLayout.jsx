@@ -1,8 +1,9 @@
 import React from 'react'
-import { NavLink, useLocation } from 'react-router-dom'
-import GoPhishStatus from '../GoPhishStatus.jsx'
+import { useLocation } from 'react-router-dom'
+import GoPhishStatus from '../UI/GoPhishStatus.jsx'
 import SidebarBrand from './SidebarBrand.jsx'
 import SidebarNav from './SidebarNav.jsx'
+import Topbar from './Topbar.jsx'
 import { getRouteMeta } from '../../config/routeMeta.js'
 import { frontendNavGroups } from '../../config/appRoutes.jsx'
 
@@ -17,7 +18,7 @@ export default function FrontendLayout({ children }) {
   const { breadcrumb: activeLabel } = getRouteMeta(pathname, { breadcrumb: 'Dashboard' })
 
   return (
-    <div className="min-h-screen bg-gray-50">
+    <div className="flex min-h-screen bg-gray-50">
 
       {/* ── Sidebar ── */}
       <aside className="sidebar overflow-hidden no-scrollbar fixed top-0 left-0 h-screen z-30 w-[220px]">
@@ -37,29 +38,13 @@ export default function FrontendLayout({ children }) {
         </div>
       </aside>
 
-      {/* Topbar */}
-      <header className="fixed top-0 left-[220px] right-0 h-14 bg-white border-b border-gray-200 flex items-center justify-between px-6 z-20">
-        <div className="flex items-center gap-2 text-sm font-medium text-gray-500">
-          <NavLink to="/dashboard" className="hover:text-gray-900">Flow beyond</NavLink>
-          <span className="text-gray-300">/</span>
-          <span className="text-gray-900 font-semibold">{activeLabel}</span>
-        </div>
-
-        <div className="flex items-center gap-4">
-          <div className="flex items-center gap-1.5 bg-indigo-50 text-indigo-700 px-2.5 py-0.5 rounded-full text-xs font-semibold">
-            <span className="w-1.5 h-1.5 rounded-full bg-indigo-500" />
-            <span>WordPress plugin</span>
-          </div>
-          <div className="w-7 h-7 rounded-full bg-gray-100 flex items-center justify-center font-bold text-xs text-gray-700 select-none">
-            WP
-          </div>
-        </div>
-      </header>
-
-      {/* Page content */}
-      <main className="ml-[220px] pt-14 p-6 min-h-screen bg-gray-50 animate-fade-in">
-        {children}
-      </main>
+      {/* Main content — offset by sidebar width, same shape as admin's Layout.jsx */}
+      <div className="ml-[220px] flex flex-1 flex-col" style={{ minHeight: '100vh' }}>
+        <Topbar activeLabel={activeLabel} className="sticky top-0" />
+        <main className="flex-1 p-6 overflow-y-auto animate-fade-in">
+          {children}
+        </main>
+      </div>
     </div>
   )
 }

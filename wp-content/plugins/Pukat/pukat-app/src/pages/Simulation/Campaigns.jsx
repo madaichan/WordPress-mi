@@ -5,19 +5,20 @@ import { useSearchFilter } from '../../hooks/useSearchFilter.js'
 import { useCampaignList } from '../../hooks/queries/useCampaignQueries.js'
 import { useCreateCampaignMutation, useDeleteCampaignMutation } from '../../hooks/mutations/useCampaignMutations.js'
 import { buildCampaignLaunchPayload } from '../../utils/campaignLaunch.js'
-import WizardStepper from '../../components/Campaigns/WizardStepper.jsx'
-import DeleteModal from '../../components/Campaigns/DeleteModal.jsx'
-import WorkspaceHeader from '../../components/Campaigns/WorkspaceHeader.jsx'
-import WorkspaceTabs from '../../components/Campaigns/WorkspaceTabs.jsx'
-import Step1 from '../../components/Campaigns/Wizard/Step1.jsx'
-import Step2 from '../../components/Campaigns/Wizard/Step2.jsx'
-import Step3 from '../../components/Campaigns/Wizard/Step3.jsx'
-import { PLAYBOOKS } from '../../components/Campaigns/Wizard/wizardData.js'
-import OverviewView from '../../components/Campaigns/Overview/OverviewView.jsx'
-import CalendarView from '../../components/Campaigns/Views/CalendarView.jsx'
-import MonitoringView from '../../components/Campaigns/Views/MonitoringView.jsx'
-import AssetsView from '../../components/Campaigns/Reports/AssetsView.jsx'
-import ReportView from '../../components/Campaigns/Reports/ReportView.jsx'
+import WizardStepper from '../../features/campaigns/WizardStepper.jsx'
+import DeleteModal from '../../features/campaigns/DeleteModal.jsx'
+import WorkspaceHeader from '../../features/campaigns/WorkspaceHeader.jsx'
+import WorkspaceTabs from '../../features/campaigns/WorkspaceTabs.jsx'
+import Step1 from '../../features/campaigns/Wizard/Step1.jsx'
+import Step2 from '../../features/campaigns/Wizard/Step2.jsx'
+import Step3 from '../../features/campaigns/Wizard/Step3.jsx'
+import { PLAYBOOKS } from '../../features/campaigns/Wizard/wizardData.js'
+import OverviewView from '../../features/campaigns/Overview/OverviewView.jsx'
+import CalendarView from '../../features/campaigns/Views/CalendarView.jsx'
+import MonitoringView from '../../features/campaigns/Views/MonitoringView.jsx'
+import AssetsView from '../../features/campaigns/Reports/AssetsView.jsx'
+import ReportView from '../../features/campaigns/Reports/ReportView.jsx'
+import PageHeader from '../../components/UI/PageHeader.jsx'
 
 // ── Static data ──────────────────────────────────────────────────────────────
 
@@ -101,10 +102,7 @@ export default function Campaigns() {
     return (
       <div className="space-y-6 lg:flex lg:h-[calc(100vh-110px)] lg:min-h-[720px] lg:flex-col lg:overflow-hidden mt-4 animate-fade-in">
         {/* Header */}
-        <div>
-          <h1 className="text-2xl font-bold text-gray-900">New campaign</h1>
-          <p className="text-sm text-gray-500 mt-0.5">Simulation / New campaign</p>
-        </div>
+        <PageHeader title="New campaign" subtitle="Simulation / New campaign" />
 
         {/* Stepper */}
         <WizardStepper step={wizardStep} onStepChange={setWizardStep} />

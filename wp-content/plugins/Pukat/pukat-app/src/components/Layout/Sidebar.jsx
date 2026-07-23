@@ -1,7 +1,7 @@
 import React from 'react'
 import clsx from 'clsx'
 import useAppStore from '../../store/useAppStore.js'
-import GoPhishStatus from '../GoPhishStatus.jsx'
+import GoPhishStatus from '../UI/GoPhishStatus.jsx'
 import SidebarBrand from './SidebarBrand.jsx'
 import SidebarNav from './SidebarNav.jsx'
 import { adminNavGroups } from '../../config/appRoutes.jsx'

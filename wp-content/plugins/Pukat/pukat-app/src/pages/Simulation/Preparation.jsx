@@ -1,12 +1,19 @@
 import React, { useState } from 'react'
+import { useNavigate } from 'react-router-dom'
 import { post } from '../../api/client.js'
 import toast from 'react-hot-toast'
 import clsx from 'clsx'
 import { useCsvUpload } from '../../hooks/useCsvUpload.js'
 import { useCampaignItems } from '../../hooks/queries/useCampaignQueries.js'
 import { useGophishEmailTemplates, useGophishSmtpProfiles } from '../../hooks/queries/useGophishQueries.js'
+import Card from '../../components/UI/Card.jsx'
+import Label from '../../components/UI/Label.jsx'
+import Select from '../../components/UI/Select.jsx'
+import Button from '../../components/UI/Button.jsx'
+import Table from '../../components/UI/Table.jsx'
 
 export default function Preparation() {
+  const navigate = useNavigate()
   const { csvData, csvErrors, getRootProps, getInputProps, isDragActive } = useCsvUpload()
   const [step, setStep] = useState(1) // 1=targets, 2=templates, 3=review
 
@@ -71,7 +78,7 @@ export default function Preparation() {
 
       {/* Step 1: Target Import */}
       {step === 1 && (
-        <div className="card space-y-4">
+        <Card className="space-y-4">
           <div>
             <h2 className="text-sm font-semibold text-gray-900">Import Targets via CSV</h2>
             <p className="text-xs text-gray-500 mt-0.5">
@@ -81,10 +88,9 @@ export default function Preparation() {
 
           {/* Campaign selector */}
           <div>
-            <label className="label">Assign to Campaign</label>
-            <select
+            <Label>Assign to Campaign</Label>
+            <Select
               id="prep-campaign"
-              className="input"
               value={selectedCampaign}
               onChange={e => setSelectedCampaign(e.target.value)}
             >
@@ -92,7 +98,7 @@ export default function Preparation() {
               {campaigns.map(c => (
                 <option key={c.id} value={c.id}>{c.name}</option>
               ))}
-            </select>
+            </Select>
           </div>
 
           {/* Dropzone */}
@@ -117,32 +123,30 @@ export default function Preparation() {
             <div>
               <div className="flex items-center justify-between mb-2">
                 <p className="text-sm font-semibold text-gray-800">Preview ({csvData.length} targets)</p>
-                <button onClick={handleImport} id="btn-import-targets" className="btn btn-primary btn-sm">
+                <Button variant="primary" size="sm" onClick={handleImport} id="btn-import-targets">
                   <i className="ti ti-upload" /> Import
-                </button>
+                </Button>
               </div>
-              <div className="table-wrapper max-h-48 overflow-y-auto">
-                <table className="table text-xs">
-                  <thead>
-                    <tr>
-                      <th>Email</th><th>First Name</th><th>Last Name</th><th>Department</th>
+              <Table wrapperClassName="max-h-48 overflow-y-auto" className="text-xs">
+                <thead>
+                  <tr>
+                    <th>Email</th><th>First Name</th><th>Last Name</th><th>Department</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {csvData.slice(0, 20).map((r, i) => (
+                    <tr key={i}>
+                      <td>{r.email}</td>
+                      <td>{r.first_name || r.firstname}</td>
+                      <td>{r.last_name  || r.lastname}</td>
+                      <td>{r.department}</td>
                     </tr>
-                  </thead>
-                  <tbody>
-                    {csvData.slice(0, 20).map((r, i) => (
-                      <tr key={i}>
-                        <td>{r.email}</td>
-                        <td>{r.first_name || r.firstname}</td>
-                        <td>{r.last_name  || r.lastname}</td>
-                        <td>{r.department}</td>
-                      </tr>
-                    ))}
-                    {csvData.length > 20 && (
-                      <tr><td colSpan={4} className="text-center text-gray-400">...and {csvData.length - 20} more</td></tr>
-                    )}
-                  </tbody>
-                </table>
-              </div>
+                  ))}
+                  {csvData.length > 20 && (
+                    <tr><td colSpan={4} className="text-center text-gray-400">...and {csvData.length - 20} more</td></tr>
+                  )}
+                </tbody>
+              </Table>
               {csvErrors.length > 0 && (
                 <div className="mt-2 p-2 bg-amber-50 rounded text-xs text-amber-700">
                   <strong>{csvErrors.length} rows skipped:</strong> {csvErrors.slice(0,3).join(', ')}
@@ -152,16 +156,16 @@ export default function Preparation() {
           )}
 
           <div className="flex justify-end">
-            <button onClick={() => setStep(2)} className="btn btn-primary">
+            <Button variant="primary" onClick={() => setStep(2)}>
               Next: Templates <i className="ti ti-arrow-right" />
-            </button>
+            </Button>
           </div>
-        </div>
+        </Card>
       )}
 
       {/* Step 2: Template Selection */}
       {step === 2 && (
-        <div className="card space-y-6">
+        <Card className="space-y-6">
           <div>
             <h2 className="text-sm font-semibold text-gray-900">Select GoPhish Templates</h2>
             <p className="text-xs text-gray-500 mt-0.5">Choose email template, landing page, and SMTP sending profile.</p>
@@ -169,7 +173,7 @@ export default function Preparation() {
 
           {/* Email Templates */}
           <div>
-            <label className="label">Email Template</label>
+            <Label>Email Template</Label>
             <div className="grid gap-2">
               {emailTemplates.length === 0 ? (
                 <p className="text-xs text-gray-400 p-3 bg-gray-50 rounded-lg">No email templates found in GoPhish. Create one in GoPhish admin first.</p>
@@ -194,27 +198,27 @@ export default function Preparation() {
 
           {/* SMTP Profile */}
           <div>
-            <label className="label">Sending Profile (SMTP)</label>
-            <select id="smtp-profile" className="input" value={selectedSmtp || ''} onChange={e => setSelectedSmtp(e.target.value)}>
+            <Label>Sending Profile (SMTP)</Label>
+            <Select id="smtp-profile" value={selectedSmtp || ''} onChange={e => setSelectedSmtp(e.target.value)}>
               <option value="">— Select SMTP profile —</option>
               {smtpProfiles.map(s => <option key={s.id} value={s.id}>{s.name}</option>)}
-            </select>
+            </Select>
           </div>
 
           <div className="flex justify-between">
-            <button onClick={() => setStep(1)} className="btn btn-secondary">
+            <Button variant="secondary" onClick={() => setStep(1)}>
               <i className="ti ti-arrow-left" /> Back
-            </button>
-            <button onClick={() => setStep(3)} className="btn btn-primary">
+            </Button>
+            <Button variant="primary" onClick={() => setStep(3)}>
               Review <i className="ti ti-arrow-right" />
-            </button>
+            </Button>
           </div>
-        </div>
+        </Card>
       )}
 
       {/* Step 3: Review */}
       {step === 3 && (
-        <div className="card space-y-4">
+        <Card className="space-y-4">
           <h2 className="text-sm font-semibold text-gray-900">Review Configuration</h2>
           <div className="space-y-3 text-sm">
             <div className="flex justify-between py-2 border-b border-gray-50">
@@ -248,14 +252,14 @@ export default function Preparation() {
           )}
 
           <div className="flex justify-between">
-            <button onClick={() => setStep(2)} className="btn btn-secondary">
+            <Button variant="secondary" onClick={() => setStep(2)}>
               <i className="ti ti-arrow-left" /> Back
-            </button>
-            <a href="#/monitoring" className="btn btn-primary">
+            </Button>
+            <Button variant="primary" onClick={() => navigate('/monitoring')}>
               <i className="ti ti-player-play" /> Go to Monitoring
-            </a>
+            </Button>
           </div>
-        </div>
+        </Card>
       )}
     </div>
   )

@@ -3,6 +3,17 @@ import toast from 'react-hot-toast'
 import clsx from 'clsx'
 import { FALLBACK_USERS } from '../../data/fallbacks.js'
 import AssignmentPanel from '../../components/UI/AssignmentPanel.jsx'
+import PageHeader from '../../components/UI/PageHeader.jsx'
+import Button from '../../components/UI/Button.jsx'
+import Card from '../../components/UI/Card.jsx'
+import Table from '../../components/UI/Table.jsx'
+import Badge from '../../components/UI/Badge.jsx'
+import Input from '../../components/UI/Input.jsx'
+import Select from '../../components/UI/Select.jsx'
+import Textarea from '../../components/UI/Textarea.jsx'
+import Label from '../../components/UI/Label.jsx'
+import Checkbox from '../../components/UI/Checkbox.jsx'
+import Drawer from '../../components/UI/Drawer.jsx'
 import { useUsers } from '../../hooks/queries/useUserQueries.js'
 import { normalizePukatRole } from '../../utils/roles.js'
 
@@ -84,10 +95,10 @@ function normalizeUser(user) {
   }
 }
 
-function statusBadge(status) {
-  if (status === 'Published' || status === 'Valid') return 'badge-success'
-  if (status === 'Draft' || status === 'Not tested') return 'badge-warning'
-  return 'badge-gray'
+function statusTone(status) {
+  if (status === 'Published' || status === 'Valid') return 'success'
+  if (status === 'Draft' || status === 'Not tested') return 'warning'
+  return 'gray'
 }
 
 function slugify(value) {
@@ -274,17 +285,17 @@ function validateCreateForm(type, form) {
 
 function AssignmentSummary({ item, usersById }) {
   if (item.assignedTo === 'all') {
-    return <span className="badge-violet">All users</span>
+    return <Badge tone="violet">All users</Badge>
   }
 
   const selected = item.users.map(id => usersById.get(id)?.name).filter(Boolean)
   return (
     <div className="flex flex-wrap gap-1">
       {selected.slice(0, 2).map(name => (
-        <span key={name} className="badge-gray">{name}</span>
+        <Badge key={name} tone="gray">{name}</Badge>
       ))}
-      {selected.length > 2 && <span className="badge-gray">+{selected.length - 2}</span>}
-      {selected.length === 0 && <span className="badge-warning">No users</span>}
+      {selected.length > 2 && <Badge tone="gray">+{selected.length - 2}</Badge>}
+      {selected.length === 0 && <Badge tone="warning">No users</Badge>}
     </div>
   )
 }
@@ -326,51 +337,51 @@ function CreateAssetPanel({ type, config, users, onClose, onCreate }) {
       return (
         <section className="space-y-3">
           <div className="text-xs font-semibold uppercase tracking-wider text-gray-500">Playbook scenario</div>
-          <label className="block">
-            <span className="label">Description</span>
-            <textarea value={form.description} onChange={event => update('description', event.target.value)} className="input min-h-[80px] resize-none" placeholder="Brief summary shown in the playbook library" />
-          </label>
+          <div>
+            <Label>Description</Label>
+            <Textarea value={form.description} onChange={event => update('description', event.target.value)} className="min-h-[80px] resize-none" placeholder="Brief summary shown in the playbook library" />
+          </div>
           <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
-            <label className="block">
-              <span className="label">Attack type</span>
-              <select value={form.category} onChange={event => update('category', event.target.value)} className="input">
+            <div>
+              <Label>Attack type</Label>
+              <Select value={form.category} onChange={event => update('category', event.target.value)}>
                 {ATTACK_TYPE_OPTIONS.map(option => <option key={option}>{option}</option>)}
-              </select>
-            </label>
-            <label className="block">
-              <span className="label">Difficulty</span>
-              <select value={form.difficulty} onChange={event => update('difficulty', event.target.value)} className="input">
+              </Select>
+            </div>
+            <div>
+              <Label>Difficulty</Label>
+              <Select value={form.difficulty} onChange={event => update('difficulty', event.target.value)}>
                 {['Very Low', 'Low', 'Medium', 'High', 'Very High'].map(option => <option key={option}>{option}</option>)}
-              </select>
-            </label>
-            <label className="block">
-              <span className="label">Target department</span>
-              <input value={form.targetDepartment} onChange={event => update('targetDepartment', event.target.value)} className="input" />
-            </label>
+              </Select>
+            </div>
+            <div>
+              <Label>Target department</Label>
+              <Input value={form.targetDepartment} onChange={event => update('targetDepartment', event.target.value)} />
+            </div>
           </div>
           <div className="text-xs font-semibold uppercase tracking-wider text-gray-500">Technical components</div>
           <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-            <label className="block">
-              <span className="label">Email template</span>
-              <input value={form.emailTemplate} onChange={event => update('emailTemplate', event.target.value)} className="input" />
-            </label>
-            <label className="block">
-              <span className="label">Landing page</span>
-              <input value={form.landingPage} onChange={event => update('landingPage', event.target.value)} className="input" />
-            </label>
-            <label className="block">
-              <span className="label">Sending profile</span>
-              <input value={form.sendingProfile} onChange={event => update('sendingProfile', event.target.value)} className="input" />
-            </label>
-            <label className="block">
-              <span className="label">Dynamic domain</span>
-              <input value={form.domain} onChange={event => update('domain', event.target.value)} className="input" />
-            </label>
+            <div>
+              <Label>Email template</Label>
+              <Input value={form.emailTemplate} onChange={event => update('emailTemplate', event.target.value)} />
+            </div>
+            <div>
+              <Label>Landing page</Label>
+              <Input value={form.landingPage} onChange={event => update('landingPage', event.target.value)} />
+            </div>
+            <div>
+              <Label>Sending profile</Label>
+              <Input value={form.sendingProfile} onChange={event => update('sendingProfile', event.target.value)} />
+            </div>
+            <div>
+              <Label>Dynamic domain</Label>
+              <Input value={form.domain} onChange={event => update('domain', event.target.value)} />
+            </div>
           </div>
-          <label className="block">
-            <span className="label">Narrative shown to the target</span>
-            <textarea value={form.scenario} onChange={event => update('scenario', event.target.value)} className="input min-h-[110px] resize-none" placeholder="Describe the scenario used in this playbook" />
-          </label>
+          <div>
+            <Label>Narrative shown to the target</Label>
+            <Textarea value={form.scenario} onChange={event => update('scenario', event.target.value)} className="min-h-[110px] resize-none" placeholder="Describe the scenario used in this playbook" />
+          </div>
         </section>
       )
     }
@@ -380,39 +391,39 @@ function CreateAssetPanel({ type, config, users, onClose, onCreate }) {
         <section className="space-y-3">
           <div className="text-xs font-semibold uppercase tracking-wider text-gray-500">SMTP configuration</div>
           <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
-            <label className="block sm:col-span-2">
-              <span className="label">SMTP host</span>
-              <input value={form.host} onChange={event => update('host', event.target.value)} className="input" placeholder="smtp.example.com" />
-            </label>
-            <label className="block">
-              <span className="label">Port</span>
-              <input type="number" value={form.port} onChange={event => update('port', event.target.value)} className="input" />
-            </label>
+            <div className="sm:col-span-2">
+              <Label>SMTP host</Label>
+              <Input value={form.host} onChange={event => update('host', event.target.value)} placeholder="smtp.example.com" />
+            </div>
+            <div>
+              <Label>Port</Label>
+              <Input type="number" value={form.port} onChange={event => update('port', event.target.value)} />
+            </div>
           </div>
           <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
-            <label className="block">
-              <span className="label">Encryption</span>
-              <select value={form.encryption} onChange={event => update('encryption', event.target.value)} className="input">
+            <div>
+              <Label>Encryption</Label>
+              <Select value={form.encryption} onChange={event => update('encryption', event.target.value)}>
                 <option>TLS</option>
                 <option>SSL</option>
                 <option>None</option>
-              </select>
-            </label>
-            <label className="block">
-              <span className="label">Username</span>
-              <input value={form.username} onChange={event => update('username', event.target.value)} className="input" placeholder="smtp_user@example.com" />
-            </label>
-            <label className="block">
-              <span className="label">Password</span>
-              <input type="password" value={form.password} onChange={event => update('password', event.target.value)} className="input" placeholder="••••••••" />
-            </label>
+              </Select>
+            </div>
+            <div>
+              <Label>Username</Label>
+              <Input value={form.username} onChange={event => update('username', event.target.value)} placeholder="smtp_user@example.com" />
+            </div>
+            <div>
+              <Label>Password</Label>
+              <Input type="password" value={form.password} onChange={event => update('password', event.target.value)} placeholder="••••••••" />
+            </div>
           </div>
-          <label className="block">
-            <span className="label">From address</span>
-            <input value={form.from} onChange={event => update('from', event.target.value)} className="input" placeholder="Sender Name <sender@example.com>" />
-          </label>
+          <div>
+            <Label>From address</Label>
+            <Input value={form.from} onChange={event => update('from', event.target.value)} placeholder="Sender Name <sender@example.com>" />
+          </div>
           <label className="flex items-center gap-3 rounded-xl border border-gray-100 p-3">
-            <input type="checkbox" checked={form.ignoreCert} onChange={event => update('ignoreCert', event.target.checked)} className="rounded border-gray-300 text-violet-500 focus:ring-violet-500" />
+            <Checkbox checked={form.ignoreCert} onChange={event => update('ignoreCert', event.target.checked)} />
             <span>
               <span className="block text-sm font-semibold text-gray-900">Ignore certificate errors</span>
               <span className="block text-xs text-gray-500">Useful for self-signed SMTP certificates in lab environments.</span>
@@ -427,25 +438,25 @@ function CreateAssetPanel({ type, config, users, onClose, onCreate }) {
         <section className="space-y-3">
           <div className="text-xs font-semibold uppercase tracking-wider text-gray-500">Email template</div>
           <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-            <label className="block">
-              <span className="label">Attack type</span>
-              <select value={form.attackType} onChange={event => update('attackType', event.target.value)} className="input">
+            <div>
+              <Label>Attack type</Label>
+              <Select value={form.attackType} onChange={event => update('attackType', event.target.value)}>
                 {ATTACK_TYPE_OPTIONS.map(option => <option key={option}>{option}</option>)}
-              </select>
-            </label>
-            <label className="block">
-              <span className="label">Sender</span>
-              <input value={form.sender} onChange={event => update('sender', event.target.value)} className="input" placeholder="Security Team <security@example.com>" />
-            </label>
+              </Select>
+            </div>
+            <div>
+              <Label>Sender</Label>
+              <Input value={form.sender} onChange={event => update('sender', event.target.value)} placeholder="Security Team <security@example.com>" />
+            </div>
           </div>
-          <label className="block">
-            <span className="label">Subject</span>
-            <input value={form.subject} onChange={event => update('subject', event.target.value)} className="input" placeholder="Action Required: Verify your account" />
-          </label>
-          <label className="block">
-            <span className="label">HTML body</span>
-            <textarea value={form.body} onChange={event => update('body', event.target.value)} className="input min-h-[220px] resize-y font-mono text-xs" />
-          </label>
+          <div>
+            <Label>Subject</Label>
+            <Input value={form.subject} onChange={event => update('subject', event.target.value)} placeholder="Action Required: Verify your account" />
+          </div>
+          <div>
+            <Label>HTML body</Label>
+            <Textarea value={form.body} onChange={event => update('body', event.target.value)} className="min-h-[220px] resize-y font-mono text-xs" />
+          </div>
           <p className="text-xs text-gray-500">Supported GoPhish variables include <code className="rounded bg-gray-100 px-1 py-0.5">{'{{.FirstName}}'}</code>, <code className="rounded bg-gray-100 px-1 py-0.5">{'{{.Email}}'}</code>, and <code className="rounded bg-gray-100 px-1 py-0.5">{'{{.URL}}'}</code>.</p>
         </section>
       )
@@ -455,132 +466,119 @@ function CreateAssetPanel({ type, config, users, onClose, onCreate }) {
       <section className="space-y-3">
         <div className="text-xs font-semibold uppercase tracking-wider text-gray-500">Landing page template</div>
         <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-          <label className="block">
-            <span className="label">Capture mode</span>
-            <select value={form.captureMode} onChange={event => update('captureMode', event.target.value)} className="input">
+          <div>
+            <Label>Capture mode</Label>
+            <Select value={form.captureMode} onChange={event => update('captureMode', event.target.value)}>
               <option>Credentials</option>
               <option>Form data</option>
               <option>Redirect only</option>
-            </select>
-          </label>
-          <label className="block">
-            <span className="label">Theme</span>
-            <input value={form.theme} onChange={event => update('theme', event.target.value)} className="input" placeholder="Microsoft" />
-          </label>
+            </Select>
+          </div>
+          <div>
+            <Label>Theme</Label>
+            <Input value={form.theme} onChange={event => update('theme', event.target.value)} placeholder="Microsoft" />
+          </div>
         </div>
-        <label className="block">
-          <span className="label">Redirect URL after submit</span>
-          <input value={form.redirectUrl} onChange={event => update('redirectUrl', event.target.value)} className="input" placeholder="https://portal.office.com" />
-        </label>
+        <div>
+          <Label>Redirect URL after submit</Label>
+          <Input value={form.redirectUrl} onChange={event => update('redirectUrl', event.target.value)} placeholder="https://portal.office.com" />
+        </div>
         <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
           <label className="flex items-center gap-3 rounded-xl border border-gray-100 p-3">
-            <input type="checkbox" checked={form.captureData} onChange={event => update('captureData', event.target.checked)} className="rounded border-gray-300 text-violet-500 focus:ring-violet-500" />
+            <Checkbox checked={form.captureData} onChange={event => update('captureData', event.target.checked)} />
             <span className="text-sm font-semibold text-gray-900">Capture submitted data</span>
           </label>
           <label className="flex items-center gap-3 rounded-xl border border-gray-100 p-3">
-            <input type="checkbox" checked={form.capturePass} onChange={event => update('capturePass', event.target.checked)} className="rounded border-gray-300 text-violet-500 focus:ring-violet-500" />
+            <Checkbox checked={form.capturePass} onChange={event => update('capturePass', event.target.checked)} />
             <span className="text-sm font-semibold text-gray-900">Capture passwords</span>
           </label>
         </div>
-        <label className="block">
-          <span className="label">HTML source</span>
-          <textarea value={form.html} onChange={event => update('html', event.target.value)} className="input min-h-[260px] resize-y font-mono text-xs" />
-        </label>
+        <div>
+          <Label>HTML source</Label>
+          <Textarea value={form.html} onChange={event => update('html', event.target.value)} className="min-h-[260px] resize-y font-mono text-xs" />
+        </div>
       </section>
     )
   }
 
   return (
-    <div className="fixed inset-0 z-50 flex justify-end bg-gray-950/40 backdrop-blur-sm" onMouseDown={event => {
-      if (event.target === event.currentTarget) onClose()
-    }}>
-      <aside className="flex h-full w-full max-w-lg flex-col bg-white shadow-2xl">
-        <header className="flex items-start gap-3 border-b border-gray-100 p-5">
-          <div className={clsx('flex h-9 w-9 flex-shrink-0 items-center justify-center rounded-lg', ACCENT_CLASS[config.accent])}>
-            <i className={clsx('ti text-base', config.icon)} />
-          </div>
-          <div className="min-w-0 flex-1">
-            <h2 className="text-sm font-bold text-gray-900">{config.createLabel}</h2>
-            <p className="mt-0.5 text-xs text-gray-500">Create a master asset and choose who can use it.</p>
-          </div>
-          <button type="button" onClick={onClose} className="rounded-lg p-1.5 text-gray-400 hover:bg-gray-50 hover:text-gray-700" aria-label="Close create form">
-            <i className="ti ti-x text-base" />
-          </button>
-        </header>
-
-        <div className="flex-1 space-y-5 overflow-y-auto p-5">
-          <section className="space-y-3">
-            <div className="text-xs font-semibold uppercase tracking-wider text-gray-500">Asset details</div>
-            <label className="block">
-              <span className="label">Name</span>
-              <input value={form.name} onChange={event => update('name', event.target.value)} className="input" placeholder={`Example: ${config.items[0]?.name ?? 'New asset'}`} />
-            </label>
-            <label className="block">
-              <span className="label">Status</span>
-              <select value={form.status} onChange={event => update('status', event.target.value)} className="input">
-                {config.statusOptions.map(status => (
-                  <option key={status} value={status}>{status}</option>
-                ))}
-              </select>
-            </label>
-          </section>
-
-          {renderTemplateFields()}
-
-          <section className="space-y-3">
-            <div className="text-xs font-semibold uppercase tracking-wider text-gray-500">Assignment</div>
-            <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
-              <button
-                type="button"
-                onClick={() => update('assignedTo', 'all')}
-                className={clsx('rounded-xl border p-3 text-left transition-all', form.assignedTo === 'all' ? 'border-violet-300 bg-violet-50' : 'border-gray-200 hover:bg-gray-50')}
-              >
-                <span className="block text-sm font-semibold text-gray-900">All users</span>
-                <span className="mt-0.5 block text-xs text-gray-500">Available to everyone.</span>
-              </button>
-              <button
-                type="button"
-                onClick={() => update('assignedTo', 'specific')}
-                className={clsx('rounded-xl border p-3 text-left transition-all', form.assignedTo === 'specific' ? 'border-violet-300 bg-violet-50' : 'border-gray-200 hover:bg-gray-50')}
-              >
-                <span className="block text-sm font-semibold text-gray-900">Specific users</span>
-                <span className="mt-0.5 block text-xs text-gray-500">Limit visibility.</span>
-              </button>
-            </div>
-
-            {form.assignedTo === 'specific' && (
-              <div className="space-y-2">
-                {users.map(user => (
-                  <label key={user.id} className="flex cursor-pointer items-center gap-3 rounded-xl border border-gray-100 p-3 hover:bg-gray-50">
-                    <input
-                      type="checkbox"
-                      checked={form.users.includes(user.id)}
-                      onChange={() => toggleUser(user.id)}
-                      className="rounded border-gray-300 text-violet-500 focus:ring-violet-500"
-                    />
-                    <span className="flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-full bg-violet-100 text-xs font-bold text-violet-700">
-                      {user.name.charAt(0).toUpperCase()}
-                    </span>
-                    <span className="min-w-0">
-                      <span className="block truncate text-sm font-semibold text-gray-900">{user.name}</span>
-                      <span className="block truncate text-xs text-gray-500">{user.email}</span>
-                    </span>
-                  </label>
-                ))}
-              </div>
-            )}
-          </section>
+    <Drawer
+      onClose={onClose}
+      widthClass="max-w-lg"
+      title={config.createLabel}
+      subtitle="Create a master asset and choose who can use it."
+      icon={
+        <div className={clsx('flex h-9 w-9 flex-shrink-0 items-center justify-center rounded-lg', ACCENT_CLASS[config.accent])}>
+          <i className={clsx('ti text-base', config.icon)} />
         </div>
-
-        <footer className="flex items-center gap-3 border-t border-gray-100 bg-gray-50 p-5">
-          <button type="button" onClick={onClose} className="btn-secondary ml-auto">Cancel</button>
-          <button type="button" onClick={submit} className="btn-primary">
+      }
+      footer={
+        <>
+          <Button variant="secondary" className="ml-auto" onClick={onClose}>Cancel</Button>
+          <Button variant="primary" onClick={submit}>
             <i className="ti ti-plus" />
             Create asset
+          </Button>
+        </>
+      }
+    >
+      <section className="space-y-3">
+        <div className="text-xs font-semibold uppercase tracking-wider text-gray-500">Asset details</div>
+        <div>
+          <Label>Name</Label>
+          <Input value={form.name} onChange={event => update('name', event.target.value)} placeholder={`Example: ${config.items[0]?.name ?? 'New asset'}`} />
+        </div>
+        <div>
+          <Label>Status</Label>
+          <Select value={form.status} onChange={event => update('status', event.target.value)}>
+            {config.statusOptions.map(status => (
+              <option key={status} value={status}>{status}</option>
+            ))}
+          </Select>
+        </div>
+      </section>
+
+      {renderTemplateFields()}
+
+      <section className="space-y-3">
+        <div className="text-xs font-semibold uppercase tracking-wider text-gray-500">Assignment</div>
+        <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
+          <button
+            type="button"
+            onClick={() => update('assignedTo', 'all')}
+            className={clsx('rounded-xl border p-3 text-left transition-all', form.assignedTo === 'all' ? 'border-violet-300 bg-violet-50' : 'border-gray-200 hover:bg-gray-50')}
+          >
+            <span className="block text-sm font-semibold text-gray-900">All users</span>
+            <span className="mt-0.5 block text-xs text-gray-500">Available to everyone.</span>
           </button>
-        </footer>
-      </aside>
-    </div>
+          <button
+            type="button"
+            onClick={() => update('assignedTo', 'specific')}
+            className={clsx('rounded-xl border p-3 text-left transition-all', form.assignedTo === 'specific' ? 'border-violet-300 bg-violet-50' : 'border-gray-200 hover:bg-gray-50')}
+          >
+            <span className="block text-sm font-semibold text-gray-900">Specific users</span>
+            <span className="mt-0.5 block text-xs text-gray-500">Limit visibility.</span>
+          </button>
+        </div>
+
+        {form.assignedTo === 'specific' && (
+          <div className="space-y-2">
+            {users.map(user => (
+              <label key={user.id} className="flex cursor-pointer items-center gap-3 rounded-xl border border-gray-100 p-3 hover:bg-gray-50">
+                <Checkbox checked={form.users.includes(user.id)} onChange={() => toggleUser(user.id)} />
+                <span className="flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-full bg-violet-100 text-xs font-bold text-violet-700">
+                  {user.name.charAt(0).toUpperCase()}
+                </span>
+                <span className="min-w-0">
+                  <span className="block truncate text-sm font-semibold text-gray-900">{user.name}</span>
+                  <span className="block truncate text-xs text-gray-500">{user.email}</span>
+                </span>
+              </label>
+            ))}
+          </div>
+        )}
+      </section>
+    </Drawer>
   )
 }
 
@@ -631,20 +629,20 @@ export default function MasterAssetPage({ type }) {
   }
 
   return (
-    <div className="space-y-5 animate-fade-in">
-      <div className="page-header">
-        <div>
-          <h1 className="page-title">{config.title}</h1>
-          <p className="page-subtitle">{config.subtitle}</p>
-        </div>
-        <button type="button" onClick={() => setCreating(true)} className="btn-primary">
-          <i className="ti ti-plus" />
-          {config.createLabel}
-        </button>
-      </div>
+    <div className="space-y-5 animate-fade-in mt-4">
+      <PageHeader
+        title={config.title}
+        subtitle={config.subtitle}
+        actions={
+          <Button variant="primary" onClick={() => setCreating(true)}>
+            <i className="ti ti-plus" />
+            {config.createLabel}
+          </Button>
+        }
+      />
 
       <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
-        <div className="card flex items-center gap-4 p-4">
+        <Card className="flex items-center gap-4 p-4">
           <div className={clsx('flex h-11 w-11 items-center justify-center rounded-xl text-lg', ACCENT_CLASS[config.accent])}>
             <i className={clsx('ti', config.icon)} />
           </div>
@@ -652,82 +650,80 @@ export default function MasterAssetPage({ type }) {
             <div className="text-2xl font-bold text-gray-900">{items.length}</div>
             <div className="text-xs font-semibold text-gray-500">Master assets</div>
           </div>
-        </div>
-        <div className="card p-4">
+        </Card>
+        <Card className="p-4">
           <div className="text-2xl font-bold text-gray-900">{allAssigned}</div>
           <div className="text-xs font-semibold text-gray-500">Available to all users</div>
-        </div>
-        <div className="card p-4">
+        </Card>
+        <Card className="p-4">
           <div className="text-2xl font-bold text-gray-900">{specificAssigned}</div>
           <div className="text-xs font-semibold text-gray-500">Assigned to specific users</div>
-        </div>
+        </Card>
       </div>
 
-      <div className="card p-0">
+      <Card className="p-0">
         <div className="flex flex-col gap-3 border-b border-gray-100 p-4 sm:flex-row sm:items-center sm:justify-between">
           <div>
             <h2 className="text-sm font-bold text-gray-900">Library</h2>
             <p className="mt-0.5 text-xs text-gray-500">Manage visibility before users create campaigns.</p>
           </div>
-          <label className="relative w-full sm:w-72">
+          <div className="relative w-full sm:w-72">
             <i className="ti ti-search pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-sm text-gray-400" />
-            <input
+            <Input
               value={query}
               onChange={event => setQuery(event.target.value)}
               placeholder="Search assets..."
-              className="input pl-9"
+              className="pl-9"
               type="search"
             />
-          </label>
+          </div>
         </div>
 
-        <div className="table-wrapper rounded-none border-0">
-          <table className="table">
-            <thead>
-              <tr>
-                <th>Asset</th>
-                <th>{config.columns[0]}</th>
-                <th>{config.columns[1]}</th>
-                <th>Status</th>
-                <th>Assignment</th>
-                <th className="text-right">Actions</th>
-              </tr>
-            </thead>
-            <tbody>
-              {filteredItems.map(item => (
-                <tr key={item.id}>
-                  <td>
-                    <div className="flex items-center gap-3">
-                      <span className={clsx('flex h-9 w-9 flex-shrink-0 items-center justify-center rounded-lg', ACCENT_CLASS[config.accent])}>
-                        <i className={clsx('ti text-sm', config.icon)} />
-                      </span>
-                      <div>
-                        <div className="font-semibold text-gray-900">{item.name}</div>
-                        <div className="text-xs text-gray-400">{item.id}</div>
-                      </div>
+        <Table wrapperClassName="rounded-none border-0">
+          <thead>
+            <tr>
+              <th>Asset</th>
+              <th>{config.columns[0]}</th>
+              <th>{config.columns[1]}</th>
+              <th>Status</th>
+              <th>Assignment</th>
+              <th className="text-right">Actions</th>
+            </tr>
+          </thead>
+          <tbody>
+            {filteredItems.map(item => (
+              <tr key={item.id}>
+                <td>
+                  <div className="flex items-center gap-3">
+                    <span className={clsx('flex h-9 w-9 flex-shrink-0 items-center justify-center rounded-lg', ACCENT_CLASS[config.accent])}>
+                      <i className={clsx('ti text-sm', config.icon)} />
+                    </span>
+                    <div>
+                      <div className="font-semibold text-gray-900">{item.name}</div>
+                      <div className="text-xs text-gray-400">{item.id}</div>
                     </div>
-                  </td>
-                  <td>{item.metaA}</td>
-                  <td>{item.metaB}</td>
-                  <td><span className={clsx('badge', statusBadge(item.status))}>{item.status}</span></td>
-                  <td><AssignmentSummary item={item} usersById={usersById} /></td>
-                  <td className="text-right">
-                    <button type="button" onClick={() => setEditing(item)} className="btn-secondary btn-sm">
-                      <i className="ti ti-user-check" />
-                      Assign
-                    </button>
-                  </td>
-                </tr>
-              ))}
-              {filteredItems.length === 0 && (
-                <tr>
-                  <td colSpan={6} className="py-10 text-center text-sm text-gray-400">No assets found.</td>
-                </tr>
-              )}
-            </tbody>
-          </table>
-        </div>
-      </div>
+                  </div>
+                </td>
+                <td>{item.metaA}</td>
+                <td>{item.metaB}</td>
+                <td><Badge tone={statusTone(item.status)}>{item.status}</Badge></td>
+                <td><AssignmentSummary item={item} usersById={usersById} /></td>
+                <td className="text-right">
+                  <Button variant="secondary" size="sm" onClick={() => setEditing(item)}>
+                    <i className="ti ti-user-check" />
+                    Assign
+                  </Button>
+                </td>
+              </tr>
+            ))}
+            {filteredItems.length === 0 && (
+              <tr>
+                <td colSpan={6} className="py-10 text-center text-sm text-gray-400">No assets found.</td>
+              </tr>
+            )}
+          </tbody>
+        </Table>
+      </Card>
 
       {editing && (
         <AssignmentPanel

@@ -5,6 +5,9 @@ import { FALLBACK_USERS } from '../../data/fallbacks.js'
 import AssignmentBadge from '../../components/UI/AssignmentBadge.jsx'
 import AssignmentPanel from '../../components/UI/AssignmentPanel.jsx'
 import TableActionButton from '../../components/UI/TableActionButton.jsx'
+import PageHeader from '../../components/UI/PageHeader.jsx'
+import Button from '../../components/UI/Button.jsx'
+import Drawer from '../../components/UI/Drawer.jsx'
 import { useUsers } from '../../hooks/queries/useUserQueries.js'
 import {
   EMPTY_SMTP_FORM,
@@ -99,7 +102,7 @@ function normalizeUser(user) {
 }
 
 function inputClass() {
-  return 'w-full rounded-lg border border-gray-200 bg-white px-3 py-2 text-xs text-gray-800 outline-none transition-all focus:border-[#6C63FF] focus:ring-2 focus:ring-[#6C63FF]/10'
+  return 'w-full rounded-lg border border-gray-200 bg-white px-3 py-2 text-xs text-gray-800 outline-none transition-all focus:border-violet-500 focus:ring-2 focus:ring-violet-500/10'
 }
 
 function Toggle({ checked, onChange }) {
@@ -107,7 +110,7 @@ function Toggle({ checked, onChange }) {
     <button
       type="button"
       onClick={() => onChange(!checked)}
-      className={clsx('relative h-[18px] w-8 flex-shrink-0 rounded-full transition-colors', checked ? 'bg-[#6C63FF]' : 'bg-gray-300')}
+      className={clsx('relative h-[18px] w-8 flex-shrink-0 rounded-full transition-colors', checked ? 'bg-violet-500' : 'bg-gray-300')}
       aria-pressed={checked}
     >
       <span className={clsx('absolute top-0.5 h-3.5 w-3.5 rounded-full bg-white transition-all', checked ? 'right-0.5' : 'left-0.5')} />
@@ -152,37 +155,41 @@ function SmtpSlideover({
   const isDuplicate = mode === 'dup'
   const title = isUpdate ? 'Update Sending Profile' : isDuplicate ? 'Duplicate Sending Profile' : 'New Sending Profile'
   const icon = isUpdate ? 'ti-edit' : isDuplicate ? 'ti-copy' : 'ti-plus'
-  const iconColor = isUpdate ? '#92400E' : isDuplicate ? '#065F46' : '#6C63FF'
-  const iconBg = isUpdate ? '#FEF3C7' : isDuplicate ? '#D1FAE5' : '#EEEDFE'
+  const iconClass = isUpdate ? 'bg-amber-100 text-amber-800' : isDuplicate ? 'bg-emerald-100 text-emerald-800' : 'bg-violet-100 text-violet-500'
 
   return (
-    <div
-      className="fixed inset-0 z-50 flex justify-end bg-gray-900/50 backdrop-blur-sm"
-      onMouseDown={event => {
-        if (event.target === event.currentTarget) onClose()
-      }}
-    >
-      <aside className="flex h-full w-full max-w-[420px] flex-col bg-white shadow-2xl">
-        <header className="flex flex-shrink-0 items-center gap-3 border-b border-gray-100 p-4">
-          <div className="flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-lg" style={{ backgroundColor: iconBg }}>
-            <i className={clsx('ti text-sm', icon)} style={{ color: iconColor }} />
-          </div>
-          <div className="min-w-0 flex-1">
-            <h2 className="text-sm font-bold tracking-tight text-gray-900">{title}</h2>
-            {sourceName && <p className="mt-0.5 truncate text-[10px] font-medium text-gray-400">{sourceName}</p>}
-          </div>
-          {changed && (
-            <span className="inline-flex items-center gap-1 rounded-full border border-amber-100 bg-amber-50 px-2.5 py-1 text-[10px] font-semibold text-amber-700">
-              <span className="h-1.5 w-1.5 rounded-full bg-amber-500" />
-              Unsaved changes
-            </span>
+    <Drawer
+      onClose={onClose}
+      widthClass="max-w-[420px]"
+      title={title}
+      subtitle={sourceName}
+      icon={
+        <div className={clsx('flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-lg', iconClass)}>
+          <i className={clsx('ti text-sm', icon)} />
+        </div>
+      }
+      headerExtra={changed && (
+        <span className="inline-flex items-center gap-1 rounded-full border border-amber-100 bg-amber-50 px-2.5 py-1 text-[10px] font-semibold text-amber-700">
+          <span className="h-1.5 w-1.5 rounded-full bg-amber-500" />
+          Unsaved changes
+        </span>
+      )}
+      footer={
+        <>
+          {isUpdate && (
+            <Button variant="danger" onClick={onDelete}>
+              <i className="ti ti-trash" />
+              Delete profile
+            </Button>
           )}
-          <button type="button" onClick={onClose} className="rounded-lg p-1.5 text-gray-400 transition-all hover:bg-gray-50 hover:text-gray-600" aria-label="Close">
-            <i className="ti ti-x text-base" />
-          </button>
-        </header>
-
-        <div className="flex-grow space-y-4 overflow-y-auto p-5">
+          <Button variant="outline" className="ml-auto" onClick={onClose}>Cancel</Button>
+          <Button variant="primary" onClick={onSubmit}>
+            <i className="ti ti-check" />
+            {isUpdate ? 'Save changes' : 'Save profile'}
+          </Button>
+        </>
+      }
+    >
           {isUpdate && (
             <div className="flex gap-2.5 rounded-xl border border-indigo-100 bg-indigo-50 p-3 text-xs">
               <i className="ti ti-shield-check mt-0.5 flex-shrink-0 text-base text-indigo-600" />
@@ -296,7 +303,7 @@ function SmtpSlideover({
                 </button>
               </div>
             ))}
-            <button type="button" onClick={onAddHeader} className="inline-flex items-center gap-1 text-[11px] font-semibold text-[#6C63FF] hover:underline">
+            <button type="button" onClick={onAddHeader} className="inline-flex items-center gap-1 text-[11px] font-semibold text-violet-500 hover:underline">
               <i className="ti ti-plus text-xs" />
               Add header
             </button>
@@ -317,7 +324,7 @@ function SmtpSlideover({
           <Field label="Send test email to">
             <div className="flex gap-2">
               <input value={form.testTarget} onChange={event => onChange('testTarget', event.target.value)} className={inputClass()} placeholder="email@domain.com" />
-              <button type="button" onClick={onRunTest} disabled={testing} className="inline-flex items-center gap-1.5 rounded-lg border border-indigo-100 bg-indigo-50 px-4 py-2 text-xs font-semibold text-[#6C63FF] transition-all hover:bg-[#6C63FF] hover:text-white disabled:opacity-60">
+              <button type="button" onClick={onRunTest} disabled={testing} className="inline-flex items-center gap-1.5 rounded-lg border border-indigo-100 bg-indigo-50 px-4 py-2 text-xs font-semibold text-violet-500 transition-all hover:bg-violet-500 hover:text-white disabled:opacity-60">
                 <i className={clsx('ti', testing ? 'ti-loader animate-spin' : 'ti-send')} />
                 Send test
               </button>
@@ -340,25 +347,7 @@ function SmtpSlideover({
               </div>
             </div>
           )}
-        </div>
-
-        <footer className="flex flex-shrink-0 items-center gap-2 border-t border-gray-100 bg-gray-50/50 p-4">
-          {isUpdate && (
-            <button type="button" onClick={onDelete} className="inline-flex items-center gap-1 rounded-xl border border-rose-100 bg-rose-50 px-4 py-2 text-xs font-semibold text-rose-700 transition-all hover:bg-rose-100">
-              <i className="ti ti-trash" />
-              Delete profile
-            </button>
-          )}
-          <button type="button" onClick={onClose} className="ml-auto rounded-xl border border-gray-200 bg-white px-4 py-2 text-xs font-semibold text-gray-700 transition-all hover:bg-gray-50">
-            Cancel
-          </button>
-          <button type="button" onClick={onSubmit} className="inline-flex items-center gap-1 rounded-xl bg-[#6C63FF] px-4 py-2 text-xs font-semibold text-white transition-all hover:bg-[#5B52E1]">
-            <i className="ti ti-check" />
-            {isUpdate ? 'Save changes' : 'Save profile'}
-          </button>
-        </footer>
-      </aside>
-    </div>
+    </Drawer>
   )
 }
 
@@ -537,22 +526,20 @@ export default function MasterSendingProfiles() {
   }
 
   return (
-    <div className="space-y-6 lg:flex lg:h-[calc(100vh-110px)] lg:min-h-[720px] lg:flex-col lg:overflow-hidden">
-      <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-        <div>
-          <h1 className="text-2xl font-bold tracking-tight text-gray-900">Master sending profiles</h1>
-          <p className="mt-0.5 text-sm font-medium text-gray-500">SMTP configuration available to assigned users for GoPhish delivery</p>
-        </div>
-        <div className="flex items-center gap-3">
-          <button type="button" onClick={syncGoPhish} className="rounded-xl border border-gray-200 bg-white px-4 py-2 text-xs font-semibold text-gray-700 shadow-sm transition-all hover:bg-gray-50">
-            Sync GoPhish
-          </button>
-          <button type="button" onClick={openCreate} className="inline-flex items-center gap-1.5 rounded-xl bg-[#6C63FF] px-4 py-2 text-xs font-semibold text-white shadow-sm transition-all hover:bg-[#5B52E1]">
-            <i className="ti ti-plus text-sm" />
-            New SMTP
-          </button>
-        </div>
-      </div>
+    <div className="space-y-6 lg:flex lg:h-[calc(100vh-110px)] lg:min-h-[720px] lg:flex-col lg:overflow-hidden mt-4 animate-fade-in">
+      <PageHeader
+        title="Master sending profiles"
+        subtitle="SMTP configuration available to assigned users for GoPhish delivery"
+        actions={
+          <>
+            <Button variant="outline" onClick={syncGoPhish}>Sync GoPhish</Button>
+            <Button variant="primary" onClick={openCreate}>
+              <i className="ti ti-plus text-sm" />
+              New SMTP
+            </Button>
+          </>
+        }
+      />
 
       <div className="overflow-hidden rounded-2xl border border-gray-200 bg-white shadow-sm">
         <div className="flex items-center justify-between gap-4 border-b border-gray-100 bg-gray-50/40 p-5">
@@ -567,7 +554,7 @@ export default function MasterSendingProfiles() {
               value={query}
               onChange={event => setQuery(event.target.value)}
               placeholder="Search profiles..."
-              className="w-60 rounded-xl border border-gray-200 bg-white px-3 py-2 pl-9 text-xs text-gray-700 outline-none focus:border-[#6C63FF] focus:ring-2 focus:ring-[#6C63FF]/10"
+              className="w-60 rounded-xl border border-gray-200 bg-white px-3 py-2 pl-9 text-xs text-gray-700 outline-none focus:border-violet-500 focus:ring-2 focus:ring-violet-500/10"
             />
           </div>
         </div>
@@ -577,7 +564,7 @@ export default function MasterSendingProfiles() {
             <thead>
               <tr className="border-b border-gray-100 bg-gray-50 text-[10px] font-semibold uppercase tracking-wider text-gray-500">
                 <th className="w-10 p-4">
-                  <input type="checkbox" className="rounded border-gray-300 text-[#6C63FF] focus:ring-[#6C63FF]" />
+                  <input type="checkbox" className="rounded border-gray-300 text-violet-500 focus:ring-violet-500" />
                 </th>
                 <th className="p-4">Profile name</th>
                 <th className="p-4">Host / Port</th>
@@ -597,7 +584,7 @@ export default function MasterSendingProfiles() {
                 return (
                   <tr key={profile.id} className="group transition-colors hover:bg-gray-50/50">
                     <td className="w-10 p-4">
-                      <input type="checkbox" className="rounded border-gray-300 text-[#6C63FF] focus:ring-[#6C63FF]" />
+                      <input type="checkbox" className="rounded border-gray-300 text-violet-500 focus:ring-violet-500" />
                     </td>
                     <td className="p-4">
                       <div className="font-semibold text-gray-900">{profile.name}</div>
@@ -656,7 +643,7 @@ export default function MasterSendingProfiles() {
       </div>
 
       <div className="flex items-start gap-4 rounded-2xl border border-gray-200 bg-white p-5 shadow-sm">
-        <div className="flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-xl bg-[#EEEDFE] text-[#6C63FF]">
+        <div className="flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-xl bg-violet-100 text-violet-500">
           <i className="ti ti-info-circle text-lg" />
         </div>
         <div>

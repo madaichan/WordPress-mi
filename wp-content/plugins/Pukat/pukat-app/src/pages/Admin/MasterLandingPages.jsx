@@ -5,6 +5,10 @@ import { FALLBACK_USERS } from '../../data/fallbacks.js'
 import AssignmentBadge from '../../components/UI/AssignmentBadge.jsx'
 import AssignmentPanel from '../../components/UI/AssignmentPanel.jsx'
 import TableActionButton from '../../components/UI/TableActionButton.jsx'
+import PageHeader from '../../components/UI/PageHeader.jsx'
+import Button from '../../components/UI/Button.jsx'
+import Tabs from '../../components/UI/Tabs.jsx'
+import Badge from '../../components/UI/Badge.jsx'
 import { useUsers } from '../../hooks/queries/useUserQueries.js'
 import { normalizePukatRole } from '../../utils/roles.js'
 
@@ -117,11 +121,7 @@ function categoryForBadges(badges) {
 
 function CaptureBadge({ label }) {
   const isPass = label === 'Pass'
-  return (
-    <span className={clsx('rounded-full px-1.5 py-0.5 text-[9px] font-semibold', isPass ? 'bg-red-100 text-red-700' : 'bg-emerald-100 text-emerald-700')}>
-      {label} ✓
-    </span>
-  )
+  return <Badge tone={isPass ? 'danger' : 'success'} className="text-[9px]">{label} ✓</Badge>
 }
 
 function LandingPagesTable({ pages, usersById, onEdit, onPreview, onAssign }) {
@@ -144,7 +144,7 @@ function LandingPagesTable({ pages, usersById, onEdit, onPreview, onAssign }) {
               <tr key={page.id} className="transition-colors hover:bg-gray-50/70">
                 <td className="p-4">
                   <div className="flex items-center gap-3">
-                    <span className="flex h-9 w-9 flex-shrink-0 items-center justify-center rounded-lg bg-[#EEEDFE] text-[#6C63FF]">
+                    <span className="flex h-9 w-9 flex-shrink-0 items-center justify-center rounded-lg bg-violet-100 text-violet-500">
                       <i className="ti ti-browser text-sm" />
                     </span>
                     <div className="min-w-0">
@@ -154,9 +154,9 @@ function LandingPagesTable({ pages, usersById, onEdit, onPreview, onAssign }) {
                   </div>
                 </td>
                 <td className="p-4">
-                  <span className="rounded-full bg-gray-100 px-2 py-0.5 text-[10px] font-semibold capitalize text-gray-700">
+                  <Badge tone="gray" className="text-[10px] capitalize">
                     {page.category}
-                  </span>
+                  </Badge>
                 </td>
                 <td className="p-4">
                   <div className="flex flex-wrap gap-1.5">
@@ -267,6 +267,12 @@ function HtmlEditor({ value, onChange }) {
   )
 }
 
+const SUBTABS = [
+  { key: 'list', label: 'Landing page list', icon: 'ti-list' },
+  { key: 'editor', label: 'Editor', icon: 'ti-edit' },
+  { key: 'preview', label: 'Preview', icon: 'ti-eye' },
+]
+
 export default function MasterLandingPages() {
   const [pages, setPages] = useState(INITIAL_PAGES)
   const [activeTab, setActiveTab] = useState('list')
@@ -309,11 +315,6 @@ export default function MasterLandingPages() {
   }, [activeFilter, pages, searchQuery])
 
   const assignmentPage = pages.find(page => page.id === assignmentId)
-
-  const tabBtnClass = tab => clsx(
-    'flex items-center gap-2 border-b-2 px-1 py-3 text-sm font-semibold transition-all',
-    activeTab === tab ? 'border-[#6C63FF] text-[#6C63FF]' : 'border-transparent text-gray-500 hover:border-gray-300 hover:text-gray-700'
-  )
 
   const pillClass = key => clsx(
     'rounded-full px-4 py-1.5 text-xs font-semibold transition-all',
@@ -420,39 +421,39 @@ export default function MasterLandingPages() {
   }
 
   return (
-    <div className="space-y-6 animate-fade-in lg:flex lg:h-[calc(100vh-110px)] lg:min-h-[720px] lg:flex-col lg:overflow-hidden">
-      <div className="flex flex-col justify-between gap-4 md:flex-row md:items-center">
-        <div>
-          <h1 className="text-2xl font-bold text-gray-900">Master landing pages</h1>
-          <p className="mt-0.5 text-sm text-gray-500">Landing page templates available to assigned users.</p>
-        </div>
-        <div className="flex flex-wrap items-center gap-3">
-          <div className="relative w-64">
-            <span className="pointer-events-none absolute inset-y-0 left-0 flex items-center pl-3 text-gray-400">
-              <i className="ti ti-search text-base" />
-            </span>
-            <input
-              type="text"
-              value={searchQuery}
-              onChange={event => setSearchQuery(event.target.value)}
-              placeholder="Search landing pages..."
-              className="w-full rounded-xl border border-gray-200 bg-white py-2 pl-9 pr-4 text-sm text-gray-950 outline-none placeholder:text-gray-400 focus:border-violet-500"
-            />
-          </div>
-          <button onClick={() => toast.success('GoPhish sync will be connected to backend next.')} className="flex items-center gap-2 rounded-xl border border-gray-200 bg-white px-4 py-2 text-sm font-semibold text-gray-700 transition-all hover:bg-gray-50">
-            <i className="ti ti-refresh text-base" />
-            <span>Sync GoPhish</span>
-          </button>
-          <button onClick={handleCreate} className="flex items-center gap-1.5 rounded-xl bg-[#6C63FF] px-4 py-2 text-sm font-semibold text-white transition-all hover:bg-[#5B52E1]">
-            <i className="ti ti-plus text-base" />
-            <span>Create landing page</span>
-          </button>
-        </div>
-      </div>
+    <div className="space-y-6 animate-fade-in lg:flex lg:h-[calc(100vh-110px)] lg:min-h-[720px] lg:flex-col lg:overflow-hidden mt-4">
+      <PageHeader
+        title="Master landing pages"
+        subtitle="Landing page templates available to assigned users."
+        actions={
+          <>
+            <div className="relative w-64">
+              <span className="pointer-events-none absolute inset-y-0 left-0 flex items-center pl-3 text-gray-400">
+                <i className="ti ti-search text-base" />
+              </span>
+              <input
+                type="text"
+                value={searchQuery}
+                onChange={event => setSearchQuery(event.target.value)}
+                placeholder="Search landing pages..."
+                className="w-full rounded-xl border border-gray-200 bg-white py-2 pl-9 pr-4 text-sm text-gray-950 outline-none placeholder:text-gray-400 focus:border-violet-500"
+              />
+            </div>
+            <Button variant="outline" onClick={() => toast.success('GoPhish sync will be connected to backend next.')}>
+              <i className="ti ti-refresh text-base" />
+              <span>Sync GoPhish</span>
+            </Button>
+            <Button variant="primary" onClick={handleCreate}>
+              <i className="ti ti-plus text-base" />
+              <span>Create landing page</span>
+            </Button>
+          </>
+        }
+      />
 
       <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
         <div className="flex items-center gap-4 rounded-xl border border-gray-200 bg-white p-4 shadow-sm">
-          <div className="flex h-12 w-12 flex-shrink-0 items-center justify-center rounded-xl bg-[#D1FAE5] text-[#059669]">
+          <div className="flex h-12 w-12 flex-shrink-0 items-center justify-center rounded-xl bg-emerald-100 text-emerald-700">
             <i className="ti ti-browser text-xl" />
           </div>
           <div>
@@ -470,22 +471,7 @@ export default function MasterLandingPages() {
         </div>
       </div>
 
-      <div className="border-b border-gray-200">
-        <nav className="-mb-px flex gap-6" aria-label="Landing page subtabs">
-          <button onClick={() => switchTab('list')} className={tabBtnClass('list')}>
-            <i className="ti ti-list text-base" />
-            <span>Landing page list</span>
-          </button>
-          <button onClick={() => setActiveTab('editor')} className={tabBtnClass('editor')}>
-            <i className="ti ti-edit text-base" />
-            <span>Editor</span>
-          </button>
-          <button onClick={() => setActiveTab('preview')} className={tabBtnClass('preview')}>
-            <i className="ti ti-eye text-base" />
-            <span>Preview</span>
-          </button>
-        </nav>
-      </div>
+      <Tabs items={SUBTABS} active={activeTab} onChange={switchTab} ariaLabel="Landing page subtabs" />
 
       <div className="space-y-6 overflow-y-auto pb-4">
         {activeTab === 'list' && (
@@ -515,8 +501,8 @@ export default function MasterLandingPages() {
                 <p className="mt-0.5 text-xs text-gray-500">Configure the HTML template and capture behavior.</p>
               </div>
               <div className="flex items-center gap-3">
-                <button onClick={() => switchTab('list')} className="rounded-xl border border-gray-200 bg-white px-4 py-2 text-sm font-semibold text-gray-700 transition-all hover:bg-gray-50">Cancel</button>
-                <button onClick={handleSave} className="rounded-xl bg-[#6C63FF] px-4 py-2 text-sm font-semibold text-white transition-all hover:bg-[#5B52E1]">Save template</button>
+                <Button variant="outline" onClick={() => switchTab('list')}>Cancel</Button>
+                <Button variant="primary" onClick={handleSave}>Save template</Button>
               </div>
             </div>
             <div className="grid grid-cols-1 gap-6 lg:grid-cols-5">
@@ -573,7 +559,7 @@ export default function MasterLandingPages() {
                 <h2 className="text-lg font-bold text-gray-900">{previewTitle}</h2>
                 <p className="mt-0.5 text-xs text-gray-500">Preview how the landing page appears to the target.</p>
               </div>
-              <button onClick={() => switchTab('list')} className="rounded-xl border border-gray-200 bg-white px-4 py-2 text-sm font-semibold text-gray-700 transition-all hover:bg-gray-50">Back to list</button>
+              <Button variant="outline" onClick={() => switchTab('list')}>Back to list</Button>
             </div>
             <div className="flex min-h-[450px] flex-col items-center justify-center overflow-hidden rounded-xl border border-gray-200 bg-gray-100 p-6">
               {editingHtml ? (

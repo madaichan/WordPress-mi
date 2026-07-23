@@ -7,6 +7,10 @@ import ClientPreview from '../../components/Editor/ClientPreview.jsx'
 import AssignmentBadge from '../../components/UI/AssignmentBadge.jsx'
 import AssignmentPanel from '../../components/UI/AssignmentPanel.jsx'
 import TableActionButton from '../../components/UI/TableActionButton.jsx'
+import PageHeader from '../../components/UI/PageHeader.jsx'
+import Button from '../../components/UI/Button.jsx'
+import Tabs from '../../components/UI/Tabs.jsx'
+import Badge from '../../components/UI/Badge.jsx'
 import { useUsers } from '../../hooks/queries/useUserQueries.js'
 import { normalizePukatRole } from '../../utils/roles.js'
 
@@ -187,11 +191,7 @@ function normalizeUser(user) {
 
 function StatusBadge({ status }) {
   const published = status === 'Published'
-  return (
-    <span className={clsx('rounded-full px-2 py-0.5 text-[10px] font-semibold', published ? 'bg-emerald-100 text-emerald-700' : 'bg-amber-100 text-amber-700')}>
-      {status}
-    </span>
-  )
+  return <Badge tone={published ? 'success' : 'warning'} className="text-[10px]">{status}</Badge>
 }
 
 function EmailTemplatesTable({ templates, usersById, onEdit, onPreview, onAssign }) {
@@ -225,9 +225,9 @@ function EmailTemplatesTable({ templates, usersById, onEdit, onPreview, onAssign
                   </div>
                 </td>
                 <td className="p-4">
-                  <span className="rounded-full bg-gray-100 px-2 py-0.5 text-[10px] font-semibold capitalize text-gray-700">
+                  <Badge tone="gray" className="text-[10px] capitalize">
                     {template.category.replace('-', ' ')}
-                  </span>
+                  </Badge>
                 </td>
                 <td className="p-4">
                   <span className="block max-w-[180px] truncate text-[11px] font-medium text-gray-700">{template.sender}</span>
@@ -302,12 +302,8 @@ function EditorPane({
           <p className="mt-0.5 text-xs text-gray-500">Configure the envelope header and phishing email HTML source.</p>
         </div>
         <div className="flex items-center gap-3">
-          <button onClick={onBack} className="rounded-xl border border-gray-200 bg-white px-4 py-2 text-sm font-semibold text-gray-700 transition-all hover:bg-gray-50">
-            Cancel
-          </button>
-          <button onClick={onSave} className="rounded-xl bg-violet-500 px-4 py-2 text-sm font-semibold text-white transition-all hover:bg-violet-600">
-            Save template
-          </button>
+          <Button variant="outline" onClick={onBack}>Cancel</Button>
+          <Button variant="primary" onClick={onSave}>Save template</Button>
         </div>
       </div>
 
@@ -377,6 +373,12 @@ function EditorPane({
     </div>
   )
 }
+
+const SUBTABS = [
+  { key: 'list', label: 'Template list', icon: 'ti-list' },
+  { key: 'editor', label: 'Editor', icon: 'ti-edit' },
+  { key: 'preview', label: 'Preview', icon: 'ti-eye' },
+]
 
 export default function MasterEmailTemplates() {
   const [templates, setTemplates] = useState(INITIAL_TEMPLATES)
@@ -541,14 +543,6 @@ export default function MasterEmailTemplates() {
     setAssignmentId(null)
   }
 
-  const tabBtnClass = (tab) =>
-    clsx(
-      'flex items-center gap-2 border-b-2 px-1 py-3 text-sm font-semibold transition-all focus:outline-none select-none',
-      activeTab === tab
-        ? 'border-violet-500 text-violet-500'
-        : 'border-transparent text-gray-500 hover:border-gray-300 hover:text-gray-700'
-    )
-
   const pillClass = (key) =>
     clsx(
       'rounded-full px-4 py-1.5 text-xs font-semibold transition-all select-none',
@@ -559,34 +553,34 @@ export default function MasterEmailTemplates() {
 
   return (
     <div className="mt-4 space-y-6 lg:flex lg:h-[calc(100vh-110px)] lg:min-h-[720px] lg:flex-col lg:overflow-hidden animate-fade-in">
-      <div className="flex flex-col justify-between gap-4 md:flex-row md:items-center">
-        <div>
-          <h1 className="text-2xl font-bold text-gray-900">Master email templates</h1>
-          <p className="mt-0.5 text-sm text-gray-500">Manage approved GoPhish email templates and user availability.</p>
-        </div>
-        <div className="flex flex-wrap items-center gap-3">
-          <div className="relative w-64">
-            <span className="pointer-events-none absolute inset-y-0 left-0 flex items-center pl-3 text-gray-400">
-              <i className="ti ti-search text-base" />
-            </span>
-            <input
-              type="text"
-              value={searchQuery}
-              onChange={event => setSearchQuery(event.target.value)}
-              placeholder="Search templates..."
-              className="w-full rounded-xl border border-gray-200 bg-white py-2 pl-9 pr-4 text-sm text-gray-950 outline-none placeholder:text-gray-400 focus:border-violet-500"
-            />
-          </div>
-          <button onClick={handleSync} disabled={syncing} className="flex items-center gap-2 rounded-xl border border-gray-200 bg-white px-4 py-2 text-sm font-semibold text-gray-700 transition-all hover:bg-gray-50 disabled:opacity-60">
-            <i className={clsx('ti ti-refresh text-base', syncing && 'animate-spin')} />
-            <span>Sync GoPhish</span>
-          </button>
-          <button onClick={handleCreate} className="flex items-center gap-1.5 rounded-xl bg-violet-500 px-4 py-2 text-sm font-semibold text-white transition-all hover:bg-violet-600">
-            <i className="ti ti-plus text-base" />
-            <span>Create email template</span>
-          </button>
-        </div>
-      </div>
+      <PageHeader
+        title="Master email templates"
+        subtitle="Manage approved GoPhish email templates and user availability."
+        actions={
+          <>
+            <div className="relative w-64">
+              <span className="pointer-events-none absolute inset-y-0 left-0 flex items-center pl-3 text-gray-400">
+                <i className="ti ti-search text-base" />
+              </span>
+              <input
+                type="text"
+                value={searchQuery}
+                onChange={event => setSearchQuery(event.target.value)}
+                placeholder="Search templates..."
+                className="w-full rounded-xl border border-gray-200 bg-white py-2 pl-9 pr-4 text-sm text-gray-950 outline-none placeholder:text-gray-400 focus:border-violet-500"
+              />
+            </div>
+            <Button variant="outline" onClick={handleSync} disabled={syncing}>
+              <i className={clsx('ti ti-refresh text-base', syncing && 'animate-spin')} />
+              <span>Sync GoPhish</span>
+            </Button>
+            <Button variant="primary" onClick={handleCreate}>
+              <i className="ti ti-plus text-base" />
+              <span>Create email template</span>
+            </Button>
+          </>
+        }
+      />
 
       <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
         <div className="flex items-center gap-4 rounded-xl border border-gray-200 bg-white p-4 shadow-sm">
@@ -608,22 +602,7 @@ export default function MasterEmailTemplates() {
         </div>
       </div>
 
-      <div className="border-b border-gray-200">
-        <nav className="-mb-px flex gap-6" aria-label="Email template subtabs">
-          <button onClick={() => switchTab('list')} className={tabBtnClass('list')}>
-            <i className="ti ti-list text-base" />
-            <span>Template list</span>
-          </button>
-          <button onClick={() => setActiveTab('editor')} className={tabBtnClass('editor')}>
-            <i className="ti ti-edit text-base" />
-            <span>Editor</span>
-          </button>
-          <button onClick={() => setActiveTab('preview')} className={tabBtnClass('preview')}>
-            <i className="ti ti-eye text-base" />
-            <span>Preview</span>
-          </button>
-        </nav>
-      </div>
+      <Tabs items={SUBTABS} active={activeTab} onChange={switchTab} ariaLabel="Email template subtabs" />
 
       <div className="space-y-6 overflow-y-auto pb-4">
         {activeTab === 'list' && (
@@ -672,9 +651,7 @@ export default function MasterEmailTemplates() {
                 <h2 className="text-lg font-bold text-gray-900">{previewTitle}</h2>
                 <p className="mt-0.5 text-xs text-gray-500">Preview how this template appears in the target email client.</p>
               </div>
-              <button onClick={() => switchTab('list')} className="rounded-xl border border-gray-200 bg-white px-4 py-2 text-sm font-semibold text-gray-700 transition-all hover:bg-gray-50">
-                Back to list
-              </button>
+              <Button variant="outline" onClick={() => switchTab('list')}>Back to list</Button>
             </div>
             <div className="flex min-h-[450px] flex-col overflow-hidden rounded-xl border border-gray-200 bg-gray-50 p-4 md:p-6">
               {editingHtml ? (

@@ -2,6 +2,8 @@ import { useState } from 'react'
 import { Link } from 'react-router-dom'
 import clsx from 'clsx'
 import toast from 'react-hot-toast'
+import PageHeader from '../../components/UI/PageHeader.jsx'
+import Button from '../../components/UI/Button.jsx'
 
 const TABS = [
   { key: 'report', label: 'Report', icon: 'ti-file-analytics' },
@@ -333,21 +335,21 @@ export default function Reports() {
 
   return (
     <div className="space-y-6 lg:flex lg:h-[calc(100vh-110px)] lg:min-h-[720px] lg:flex-col lg:overflow-hidden mt-4 animate-fade-in">
-      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-        <div>
-          <h1 className="text-2xl font-bold text-gray-900">Q2 Phishing Wave — Finance</h1>
-          <p className="text-sm text-gray-500 mt-0.5">Completed 5 Jul 2025 · Duration 7 days · 1,240 targets</p>
-        </div>
-        <div className="flex items-center gap-3">
-          <button onClick={() => toast.success('CSV export is being prepared.')} className="bg-white border border-gray-200 text-gray-700 hover:bg-gray-50 px-4 py-2 text-sm font-semibold rounded-xl transition-all">
-            Export CSV
-          </button>
-          <button onClick={() => toast.success('PDF download is being prepared.')} className="bg-violet-500 text-white hover:bg-violet-600 px-4 py-2 text-sm font-semibold rounded-xl flex items-center gap-1.5 transition-all">
-            <i className="ti ti-download text-base" />
-            <span>Download PDF</span>
-          </button>
-        </div>
-      </div>
+      <PageHeader
+        title="Q2 Phishing Wave — Finance"
+        subtitle="Completed 5 Jul 2025 · Duration 7 days · 1,240 targets"
+        actions={
+          <>
+            <Button variant="outline" onClick={() => toast.success('CSV export is being prepared.')}>
+              Export CSV
+            </Button>
+            <Button variant="primary" onClick={() => toast.success('PDF download is being prepared.')}>
+              <i className="ti ti-download text-base" />
+              <span>Download PDF</span>
+            </Button>
+          </>
+        }
+      />
 
       <div className="border-b border-gray-200">
         <nav className="flex gap-6 -mb-px overflow-x-auto no-scrollbar" aria-label="Tabs">

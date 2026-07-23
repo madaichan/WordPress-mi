@@ -2,6 +2,8 @@ import { useMemo, useState } from 'react'
 import { Link } from 'react-router-dom'
 import toast from 'react-hot-toast'
 import clsx from 'clsx'
+import PageHeader from '../../../components/UI/PageHeader.jsx'
+import Button from '../../../components/UI/Button.jsx'
 
 const CATEGORY_FILTERS = ['all', 'BEC', 'Credential', 'Malware', 'Vishing']
 
@@ -1203,40 +1205,33 @@ export default function Playbooks() {
 
   return (
     <div className="space-y-6 lg:flex lg:h-[calc(100vh-110px)] lg:min-h-[720px] lg:flex-col lg:overflow-hidden mt-4 animate-fade-in">
-      <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between lg:flex-shrink-0">
-        <div>
-          <h1 className="text-2xl font-bold text-gray-900">Playbooks</h1>
-          <p className="mt-0.5 text-sm text-gray-500">Manage phishing simulation playbooks</p>
-        </div>
-        <div className="flex flex-wrap items-center gap-3">
-          <label className="relative w-64">
-            <i className="ti ti-search pointer-events-none absolute inset-y-0 left-3 flex items-center text-base text-gray-400" />
-            <input
-              type="search"
-              value={query}
-              onChange={event => setQuery(event.target.value)}
-              placeholder="Search playbooks..."
-              className="w-full rounded-xl border border-gray-200 bg-white py-2 pl-9 pr-4 text-sm text-gray-950 outline-none placeholder:text-gray-400 focus:border-violet-500"
-            />
-          </label>
-          <button
-            type="button"
-            onClick={handleSync}
-            className="inline-flex items-center gap-2 rounded-xl border border-gray-200 bg-white px-4 py-2 text-sm font-semibold text-gray-700 transition-all hover:bg-gray-50"
-          >
-            <i className={clsx('ti ti-refresh text-base', syncing && 'animate-spin')} />
-            Sync GoPhish
-          </button>
-          <button
-            type="button"
-            onClick={openCreatePlaybook}
-            className="inline-flex items-center gap-1.5 rounded-xl bg-violet-500 px-4 py-2 text-sm font-semibold text-white transition-all hover:bg-violet-600"
-          >
-            <i className="ti ti-plus text-base" />
-            Create playbook
-          </button>
-        </div>
-      </div>
+      <PageHeader
+        title="Playbooks"
+        subtitle="Manage phishing simulation playbooks"
+        className="lg:flex-shrink-0"
+        actions={
+          <>
+            <label className="relative w-64">
+              <i className="ti ti-search pointer-events-none absolute inset-y-0 left-3 flex items-center text-base text-gray-400" />
+              <input
+                type="search"
+                value={query}
+                onChange={event => setQuery(event.target.value)}
+                placeholder="Search playbooks..."
+                className="w-full rounded-xl border border-gray-200 bg-white py-2 pl-9 pr-4 text-sm text-gray-950 outline-none placeholder:text-gray-400 focus:border-violet-500"
+              />
+            </label>
+            <Button variant="outline" onClick={handleSync}>
+              <i className={clsx('ti ti-refresh text-base', syncing && 'animate-spin')} />
+              Sync GoPhish
+            </Button>
+            <Button variant="primary" onClick={openCreatePlaybook}>
+              <i className="ti ti-plus text-base" />
+              Create playbook
+            </Button>
+          </>
+        }
+      />
 
       <div className="grid grid-cols-1 gap-6 lg:min-h-0 lg:flex-1 lg:grid-cols-[350px_minmax(0,1fr)]">
         <aside className="flex min-h-[520px] flex-col overflow-hidden rounded-xl border border-gray-200 bg-white lg:min-h-0">

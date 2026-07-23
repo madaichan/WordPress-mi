@@ -2,6 +2,14 @@ import { useEffect, useMemo, useState } from 'react'
 import clsx from 'clsx'
 import toast from 'react-hot-toast'
 import TableActionButton from '../../components/UI/TableActionButton.jsx'
+import PageHeader from '../../components/UI/PageHeader.jsx'
+import Button from '../../components/UI/Button.jsx'
+import Drawer from '../../components/UI/Drawer.jsx'
+import Modal from '../../components/UI/Modal.jsx'
+import Label from '../../components/UI/Label.jsx'
+import Input from '../../components/UI/Input.jsx'
+import Select from '../../components/UI/Select.jsx'
+import Textarea from '../../components/UI/Textarea.jsx'
 
 const DOMAIN_TYPES = [
   { value: 'sending', label: 'Sending' },
@@ -239,7 +247,7 @@ function TypePill({ type }) {
   const className = {
     sending: 'bg-blue-100 text-blue-700',
     landing: 'bg-emerald-100 text-emerald-700',
-    both: 'bg-[#EEEDFE] text-[#6C63FF]',
+    both: 'bg-violet-100 text-violet-500',
   }[type]
 
   return (
@@ -251,7 +259,7 @@ function TypePill({ type }) {
 
 function SummaryCard({ icon, value, label, tone = 'violet' }) {
   const toneClass = {
-    violet: 'bg-[#EEEDFE] text-[#6C63FF]',
+    violet: 'bg-violet-100 text-violet-500',
     emerald: 'bg-[#D1FAE5] text-[#059669]',
     amber: 'bg-amber-100 text-amber-700',
     blue: 'bg-blue-100 text-blue-700',
@@ -278,101 +286,86 @@ function DomainSlideover({ mode, form, sourceDomain, onChange, onClose, onSubmit
   const title = isEdit ? 'Update domain' : isDuplicate ? 'Duplicate domain' : 'Add domain'
 
   return (
-    <div className="fixed inset-0 z-50 flex justify-end bg-gray-950/40 backdrop-blur-sm" onMouseDown={event => {
-      if (event.target === event.currentTarget) onClose()
-    }}>
-      <aside className="flex h-full w-full max-w-lg flex-col bg-white shadow-2xl">
-        <header className="flex items-start gap-3 border-b border-gray-100 p-5">
-          <div className="flex h-9 w-9 flex-shrink-0 items-center justify-center rounded-lg bg-[#EEEDFE] text-[#6C63FF]">
-            <i className={clsx('ti text-base', isDuplicate ? 'ti-copy' : isEdit ? 'ti-edit' : 'ti-plus')} />
-          </div>
-          <div className="min-w-0 flex-1">
-            <h2 className="text-sm font-bold text-gray-900">{title}</h2>
-            <p className="mt-0.5 text-xs text-gray-500">DNS checks run automatically when you save.</p>
-          </div>
-          <button type="button" onClick={onClose} className="rounded-lg p-1.5 text-gray-400 hover:bg-gray-50 hover:text-gray-700" aria-label="Close domain form">
-            <i className="ti ti-x text-base" />
-          </button>
-        </header>
-
-        <div className="flex-1 space-y-5 overflow-y-auto p-5">
-          {isDuplicate && (
-            <div className="rounded-xl border border-amber-200 bg-amber-50 p-3 text-xs font-medium text-amber-800">
-              This copy starts as a draft. Use a different domain name before syncing it to GoPhish.
-            </div>
-          )}
-
-          <section className="space-y-3">
-            <div className="text-xs font-semibold uppercase tracking-wider text-gray-500">Domain details</div>
-            <label className="block">
-              <span className="mb-1 block text-xs font-semibold text-gray-600">Domain name</span>
-              <input
-                value={form.name}
-                onChange={event => onChange('name', event.target.value)}
-                className="w-full rounded-lg border border-gray-200 bg-white px-3 py-2 text-sm text-gray-900 outline-none focus:border-[#6C63FF] focus:ring-2 focus:ring-[#6C63FF]/10"
-                placeholder="example-portal.net"
-              />
-            </label>
-            <label className="block">
-              <span className="mb-1 block text-xs font-semibold text-gray-600">Type</span>
-              <select
-                value={form.type}
-                onChange={event => onChange('type', event.target.value)}
-                className="w-full rounded-lg border border-gray-200 bg-white px-3 py-2 text-sm text-gray-900 outline-none focus:border-[#6C63FF] focus:ring-2 focus:ring-[#6C63FF]/10"
-              >
-                {DOMAIN_TYPES.map(option => (
-                  <option key={option.value} value={option.value}>{option.label}</option>
-                ))}
-              </select>
-            </label>
-            <label className="block">
-              <span className="mb-1 block text-xs font-semibold text-gray-600">Notes</span>
-              <textarea
-                value={form.notes}
-                onChange={event => onChange('notes', event.target.value)}
-                className="min-h-[90px] w-full resize-none rounded-lg border border-gray-200 bg-white px-3 py-2 text-sm text-gray-900 outline-none focus:border-[#6C63FF] focus:ring-2 focus:ring-[#6C63FF]/10"
-                placeholder="Use case, owner, DNS notes, registrar notes..."
-              />
-            </label>
-          </section>
-
-          <section className="space-y-3">
-            <div className="text-xs font-semibold uppercase tracking-wider text-gray-500">Dynamic domain pattern</div>
-            <label className="block">
-              <span className="mb-1 block text-xs font-semibold text-gray-600">Pattern</span>
-              <input
-                value={form.dynamicPattern}
-                onChange={event => onChange('dynamicPattern', event.target.value)}
-                className="w-full rounded-lg border border-gray-200 bg-white px-3 py-2 font-mono text-xs text-gray-900 outline-none focus:border-[#6C63FF] focus:ring-2 focus:ring-[#6C63FF]/10"
-                placeholder={`update-{random}.${form.name || 'example-portal.net'}`}
-              />
-              <span className="mt-1 block text-[10px] leading-relaxed text-gray-400">
-                Use <code className="rounded bg-gray-100 px-1 py-0.5">{'{random}'}</code> to generate a unique subdomain for each campaign.
-              </span>
-            </label>
-          </section>
-
-          {sourceDomain && (
-            <section className="space-y-2 rounded-xl border border-gray-100 bg-gray-50 p-3">
-              <div className="text-xs font-semibold uppercase tracking-wider text-gray-500">Current validation</div>
-              <div className="flex flex-wrap gap-1.5">
-                <DnsBadge label="SPF" status={sourceDomain.dns.spf} />
-                <DnsBadge label="DKIM" status={sourceDomain.dns.dkim} />
-                <DnsBadge label="MX" status={sourceDomain.dns.mx} />
-              </div>
-              <SslBadge validUntil={sourceDomain.sslValidUntil} />
-            </section>
-          )}
+    <Drawer
+      onClose={onClose}
+      widthClass="max-w-lg"
+      title={title}
+      subtitle="DNS checks run automatically when you save."
+      icon={
+        <div className="flex h-9 w-9 flex-shrink-0 items-center justify-center rounded-lg bg-violet-100 text-violet-500">
+          <i className={clsx('ti text-base', isDuplicate ? 'ti-copy' : isEdit ? 'ti-edit' : 'ti-plus')} />
         </div>
+      }
+      footer={
+        <>
+          <Button variant="outline" className="ml-auto" onClick={onClose}>Cancel</Button>
+          <Button variant="primary" onClick={onSubmit}>Save domain</Button>
+        </>
+      }
+    >
+      {isDuplicate && (
+        <div className="rounded-xl border border-amber-200 bg-amber-50 p-3 text-xs font-medium text-amber-800">
+          This copy starts as a draft. Use a different domain name before syncing it to GoPhish.
+        </div>
+      )}
 
-        <footer className="flex items-center gap-3 border-t border-gray-100 bg-gray-50 p-5">
-          <button type="button" onClick={onClose} className="ml-auto rounded-xl border border-gray-200 bg-white px-4 py-2 text-sm font-semibold text-gray-700 transition-all hover:bg-gray-50">Cancel</button>
-          <button type="button" onClick={onSubmit} className="rounded-xl bg-[#6C63FF] px-4 py-2 text-sm font-semibold text-white transition-all hover:bg-[#5B52E1]">
-            Save domain
-          </button>
-        </footer>
-      </aside>
-    </div>
+      <section className="space-y-3">
+        <div className="text-xs font-semibold uppercase tracking-wider text-gray-500">Domain details</div>
+        <div>
+          <Label>Domain name</Label>
+          <Input
+            value={form.name}
+            onChange={event => onChange('name', event.target.value)}
+            placeholder="example-portal.net"
+          />
+        </div>
+        <div>
+          <Label>Type</Label>
+          <Select value={form.type} onChange={event => onChange('type', event.target.value)}>
+            {DOMAIN_TYPES.map(option => (
+              <option key={option.value} value={option.value}>{option.label}</option>
+            ))}
+          </Select>
+        </div>
+        <div>
+          <Label>Notes</Label>
+          <Textarea
+            value={form.notes}
+            onChange={event => onChange('notes', event.target.value)}
+            className="min-h-[90px] resize-none"
+            placeholder="Use case, owner, DNS notes, registrar notes..."
+          />
+        </div>
+      </section>
+
+      <section className="space-y-3">
+        <div className="text-xs font-semibold uppercase tracking-wider text-gray-500">Dynamic domain pattern</div>
+        <div>
+          <Label>Pattern</Label>
+          <Input
+            value={form.dynamicPattern}
+            onChange={event => onChange('dynamicPattern', event.target.value)}
+            className="font-mono text-xs"
+            placeholder={`update-{random}.${form.name || 'example-portal.net'}`}
+          />
+          <span className="mt-1 block text-[10px] leading-relaxed text-gray-400">
+            Use <code className="rounded bg-gray-100 px-1 py-0.5">{'{random}'}</code> to generate a unique subdomain for each campaign.
+          </span>
+        </div>
+      </section>
+
+      {sourceDomain && (
+        <section className="space-y-2 rounded-xl border border-gray-100 bg-gray-50 p-3">
+          <div className="text-xs font-semibold uppercase tracking-wider text-gray-500">Current validation</div>
+          <div className="flex flex-wrap gap-1.5">
+            <DnsBadge label="SPF" status={sourceDomain.dns.spf} />
+            <DnsBadge label="DKIM" status={sourceDomain.dns.dkim} />
+            <DnsBadge label="MX" status={sourceDomain.dns.mx} />
+          </div>
+          <SslBadge validUntil={sourceDomain.sslValidUntil} />
+        </section>
+      )}
+    </Drawer>
   )
 }
 
@@ -380,36 +373,27 @@ function BlockedDeleteModal({ domain, onClose }) {
   if (!domain) return null
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-gray-950/40 p-4 backdrop-blur-sm" onMouseDown={event => {
-      if (event.target === event.currentTarget) onClose()
-    }}>
-      <div className="w-full max-w-md rounded-2xl bg-white shadow-2xl">
-        <header className="flex items-start gap-3 border-b border-gray-100 p-5">
-          <div className="flex h-9 w-9 flex-shrink-0 items-center justify-center rounded-lg bg-red-100 text-red-700">
-            <i className="ti ti-alert-triangle text-base" />
-          </div>
-          <div className="min-w-0 flex-1">
-            <h2 className="text-sm font-bold text-gray-900">Domain cannot be deleted</h2>
-            <p className="mt-0.5 text-xs text-gray-500">{domain.name} is used by active dependencies.</p>
-          </div>
-        </header>
-        <div className="space-y-3 p-5">
-          <div className="text-xs font-semibold uppercase tracking-wider text-gray-500">Dependencies</div>
-          <div className="space-y-2">
-            {domain.dependencies.map(item => (
-              <div key={item} className="rounded-lg border border-gray-100 bg-gray-50 px-3 py-2 text-xs font-semibold text-gray-700">
-                {item}
-              </div>
-            ))}
-          </div>
+    <Modal
+      onClose={onClose}
+      className="max-w-md"
+      icon={
+        <div className="flex h-9 w-9 flex-shrink-0 items-center justify-center rounded-lg bg-red-100 text-red-700">
+          <i className="ti ti-alert-triangle text-base" />
         </div>
-        <footer className="flex justify-end border-t border-gray-100 bg-gray-50 p-4">
-          <button type="button" onClick={onClose} className="rounded-xl bg-[#6C63FF] px-4 py-2 text-sm font-semibold text-white transition-all hover:bg-[#5B52E1]">
-            Got it
-          </button>
-        </footer>
+      }
+      title="Domain cannot be deleted"
+      subtitle={`${domain.name} is used by active dependencies.`}
+      footer={<Button variant="primary" className="ml-auto" onClick={onClose}>Got it</Button>}
+    >
+      <div className="text-xs font-semibold uppercase tracking-wider text-gray-500">Dependencies</div>
+      <div className="mt-2 space-y-2">
+        {domain.dependencies.map(item => (
+          <div key={item} className="rounded-lg border border-gray-100 bg-gray-50 px-3 py-2 text-xs font-semibold text-gray-700">
+            {item}
+          </div>
+        ))}
       </div>
-    </div>
+    </Modal>
   )
 }
 
@@ -587,22 +571,22 @@ export default function MasterDomains() {
   }
 
   return (
-    <div className="space-y-6 lg:flex lg:h-[calc(100vh-110px)] lg:min-h-[720px] lg:flex-col lg:overflow-hidden">
-      <div className="flex flex-col justify-between gap-4 md:flex-row md:items-center">
-        <div>
-          <h1 className="text-2xl font-bold tracking-tight text-gray-900">Domain Management</h1>
-          <p className="mt-0.5 text-sm font-medium text-gray-500">Manage lookalike domains for sending and landing page hosting.</p>
-        </div>
-        <div className="flex flex-wrap items-center gap-3">
-          <button type="button" onClick={() => setDomains(current => current.map(refreshDomain))} className="rounded-xl border border-gray-200 bg-white px-4 py-2 text-xs font-semibold text-gray-700 shadow-sm transition-all hover:bg-gray-50">
-            Refresh DNS
-          </button>
-          <button type="button" onClick={openCreate} className="inline-flex items-center gap-1.5 rounded-xl bg-[#6C63FF] px-4 py-2 text-xs font-semibold text-white shadow-sm transition-all hover:bg-[#5B52E1]">
-            <i className="ti ti-plus text-sm" />
-            Add domain
-          </button>
-        </div>
-      </div>
+    <div className="space-y-6 lg:flex lg:h-[calc(100vh-110px)] lg:min-h-[720px] lg:flex-col lg:overflow-hidden mt-4 animate-fade-in">
+      <PageHeader
+        title="Domain Management"
+        subtitle="Manage lookalike domains for sending and landing page hosting."
+        actions={
+          <>
+            <Button variant="outline" onClick={() => setDomains(current => current.map(refreshDomain))}>
+              Refresh DNS
+            </Button>
+            <Button variant="primary" onClick={openCreate}>
+              <i className="ti ti-plus text-sm" />
+              Add domain
+            </Button>
+          </>
+        }
+      />
 
       <div className="grid grid-cols-1 gap-4 md:grid-cols-4">
         <SummaryCard icon="ti-world" value={summary.total} label="Master domains" tone="violet" />
@@ -662,7 +646,7 @@ export default function MasterDomains() {
                 <tr key={domain.id} className="transition-colors hover:bg-gray-50/60">
                   <td className="p-4">
                     <div className="flex items-center gap-3">
-                      <span className="flex h-9 w-9 flex-shrink-0 items-center justify-center rounded-lg bg-[#EEEDFE] text-[#6C63FF]">
+                      <span className="flex h-9 w-9 flex-shrink-0 items-center justify-center rounded-lg bg-violet-100 text-violet-500">
                         <i className="ti ti-world text-sm" />
                       </span>
                       <div className="min-w-0">

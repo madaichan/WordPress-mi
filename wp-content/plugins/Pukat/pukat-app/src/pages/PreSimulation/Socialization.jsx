@@ -1,26 +1,29 @@
-import React from 'react'
+import PageHeader from '../../components/UI/PageHeader.jsx'
+import Card from '../../components/UI/Card.jsx'
+import Label from '../../components/UI/Label.jsx'
+import Input from '../../components/UI/Input.jsx'
+import Textarea from '../../components/UI/Textarea.jsx'
+import Button from '../../components/UI/Button.jsx'
 
 export default function Socialization() {
   return (
     <div className="space-y-6 lg:flex lg:h-[calc(100vh-110px)] lg:min-h-[720px] lg:flex-col lg:overflow-hidden mt-4">
-      <div className="page-header">
-        <div><h1 className="page-title">Pre-Simulation Socialization</h1><p className="page-subtitle">Notify users before the simulation begins</p></div>
-      </div>
-      <div className="card">
+      <PageHeader title="Pre-Simulation Socialization" subtitle="Notify users before the simulation begins" />
+      <Card>
         <div className="flex items-center gap-4 mb-4">
           <div className="w-12 h-12 rounded-xl bg-violet-100 flex items-center justify-center text-violet-600 text-2xl"><i className="ti ti-mail" /></div>
           <div><p className="text-sm font-semibold text-gray-800">Email Socialization</p><p className="text-xs text-gray-500">Send awareness email to all targets before simulation launch</p></div>
         </div>
         <div className="space-y-3">
-          <div><label className="label">Subject</label><input className="input" placeholder="[Security Awareness] Upcoming Phishing Simulation Notice" /></div>
-          <div><label className="label">Message</label><textarea className="input" rows={5} placeholder="Dear Team,&#10;&#10;We will be conducting a phishing simulation exercise between [date] and [date]..." /></div>
-          <div><label className="label">Schedule</label><input type="datetime-local" className="input" /></div>
+          <div><Label>Subject</Label><Input placeholder="[Security Awareness] Upcoming Phishing Simulation Notice" /></div>
+          <div><Label>Message</Label><Textarea rows={5} placeholder="Dear Team,&#10;&#10;We will be conducting a phishing simulation exercise between [date] and [date]..." /></div>
+          <div><Label>Schedule</Label><Input type="datetime-local" /></div>
         </div>
         <div className="flex justify-end mt-4">
-          <button className="btn btn-primary"><i className="ti ti-send" /> Schedule Send</button>
+          <Button variant="primary"><i className="ti ti-send" /> Schedule Send</Button>
         </div>
-      </div>
-      <div className="card bg-amber-50 border-amber-100">
+      </Card>
+      <Card className="bg-amber-50 border-amber-100">
         <div className="flex items-start gap-3">
           <i className="ti ti-alert-triangle text-amber-500 mt-0.5" />
           <div>
@@ -31,7 +34,7 @@ export default function Socialization() {
             </ul>
           </div>
         </div>
-      </div>
+      </Card>
     </div>
   )
 }

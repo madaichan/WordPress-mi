@@ -1,4 +1,5 @@
 import { useState } from 'react'
+import PageHeader from '../../components/UI/PageHeader.jsx'
 
 export default function Quiz() {
   const [result, setResult] = useState(null)
@@ -11,10 +12,7 @@ export default function Quiz() {
 
   return (
     <div className="space-y-6 lg:flex lg:h-[calc(100vh-110px)] lg:min-h-[720px] lg:flex-col lg:overflow-hidden mt-4">
-      <div>
-        <h1 className="text-2xl font-bold text-gray-900">Quiz</h1>
-        <p className="text-sm text-gray-500 mt-0.5">Cybersecurity evaluation mini quiz</p>
-      </div>
+      <PageHeader title="Quiz" subtitle="Cybersecurity evaluation mini quiz" />
 
       <div className="bg-white border border-gray-200 rounded-xl p-6 max-w-xl">
         <div className="space-y-4">

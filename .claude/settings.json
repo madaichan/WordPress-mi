@@ -1,0 +1,8 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(npm test *)",
+      "Bash(git -C /workspaces/WordPress-mi status --short wp-content/plugins/Pukat/pukat-app/src/pages/Admin/Users.jsx wp-content/plugins/Pukat/pukat-app/src/pages/Admin/MasterAssetPage.jsx wp-content/plugins/Pukat/pukat-app/src/pages/Admin/MasterLandingPages.jsx wp-content/plugins/Pukat/pukat-app/src/pages/Admin/MasterSendingProfiles.jsx wp-content/plugins/Pukat/pukat-app/src/pages/Admin/MasterDomains.jsx)"
+    ]
+  }
+}

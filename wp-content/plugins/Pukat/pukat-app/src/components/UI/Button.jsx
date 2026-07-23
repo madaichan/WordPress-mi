@@ -3,6 +3,7 @@ import clsx from 'clsx'
 const variantClass = {
   primary: 'bg-violet-500 text-white hover:bg-violet-600 focus:ring-violet-400 active:scale-95',
   secondary: 'bg-gray-100 text-gray-700 hover:bg-gray-200 focus:ring-gray-300 active:scale-95',
+  outline: 'border border-gray-200 bg-white text-gray-700 hover:bg-gray-50 focus:ring-gray-300 active:scale-95',
   danger: 'bg-danger/10 text-danger hover:bg-danger hover:text-white focus:ring-danger/40 active:scale-95',
   ghost: 'bg-transparent text-gray-600 hover:bg-gray-100 focus:ring-gray-200',
 }

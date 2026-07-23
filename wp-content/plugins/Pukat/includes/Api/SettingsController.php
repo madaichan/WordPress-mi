@@ -11,6 +11,7 @@ namespace Pukat\Api;
 
 use Pukat\Services\AuditLogService;
 use Pukat\Services\EncryptionService;
+use Pukat\Services\GoPhishService;
 use WP_REST_Request;
 use WP_REST_Response;
 
@@ -83,7 +84,7 @@ class SettingsController extends RestController {
 			if ( array_key_exists( $key, $params ) ) {
 				$value = match ( $key ) {
 					'pukat_quiz_pass_score' => min( max( (int) $params[ $key ], 0 ), 100 ),
-					'pukat_gophish_url'     => sanitize_url( (string) $params[ $key ] ),
+					'pukat_gophish_url'     => GoPhishService::normalize_base_url( sanitize_url( (string) $params[ $key ] ) ),
 					'pukat_risk_thresholds',
 					'pukat_blackout_dates'  => wp_json_encode( $params[ $key ] ),
 					default                 => sanitize_text_field( (string) $params[ $key ] ),

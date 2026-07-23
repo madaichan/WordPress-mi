@@ -1,5 +1,5 @@
 import clsx from 'clsx'
-import TableActionButton from '../UI/TableActionButton.jsx'
+import TableActionButton from '../../components/UI/TableActionButton.jsx'
 import { statusLabel, dotColor, formatDate } from '../../utils/campaignHelpers.js'
 
 const STATUS_FILTERS = [

@@ -1,10 +1,9 @@
+import PageHeader from '../../components/UI/PageHeader.jsx'
+
 export default function Coaching() {
   return (
     <div className="space-y-6 lg:flex lg:h-[calc(100vh-110px)] lg:min-h-[720px] lg:flex-col lg:overflow-hidden mt-4">
-      <div>
-        <h1 className="text-2xl font-bold text-gray-900">Coaching</h1>
-        <p className="text-sm text-gray-500 mt-0.5">Post-simulation awareness education and coaching program</p>
-      </div>
+      <PageHeader title="Coaching" subtitle="Post-simulation awareness education and coaching program" />
 
       <div className="bg-white border border-gray-200 rounded-xl p-5 max-w-xl">
         <h3 className="text-sm font-semibold text-gray-900 mb-3">Active education modules</h3>

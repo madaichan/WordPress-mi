@@ -1,5 +1,7 @@
-import { Link } from 'react-router-dom'
+import { useNavigate } from 'react-router-dom'
 import clsx from 'clsx'
+import PageHeader from '../../components/UI/PageHeader.jsx'
+import Button from '../../components/UI/Button.jsx'
 
 const DAYS = [
   26, 27, 28, 29, 30, 31, 1,
@@ -11,18 +13,20 @@ const DAYS = [
 ]
 
 export default function Calendar() {
+  const navigate = useNavigate()
+
   return (
     <div className="space-y-6 lg:flex lg:h-[calc(100vh-110px)] lg:min-h-[720px] lg:flex-col lg:overflow-hidden mt-4">
-      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-        <div>
-          <h1 className="text-2xl font-bold text-gray-900">Simulation calendar</h1>
-          <p className="text-sm text-gray-500 mt-0.5">Phishing simulation delivery schedule — June 2025</p>
-        </div>
-        <Link to="/campaigns" className="bg-violet-500 text-white hover:bg-violet-600 px-4 py-2 text-sm font-semibold rounded-xl inline-flex items-center gap-1.5 transition-all">
-          <i className="ti ti-circle-plus" />
-          New campaign
-        </Link>
-      </div>
+      <PageHeader
+        title="Simulation calendar"
+        subtitle="Phishing simulation delivery schedule — June 2025"
+        actions={
+          <Button variant="primary" onClick={() => navigate('/campaigns')}>
+            <i className="ti ti-circle-plus" />
+            New campaign
+          </Button>
+        }
+      />
 
       <div className="bg-white border border-gray-200 rounded-xl p-5">
         <div className="grid grid-cols-7 gap-2 text-center text-xs font-semibold text-gray-500 border-b border-gray-100 pb-3 mb-3">

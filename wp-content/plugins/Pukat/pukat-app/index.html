@@ -1,0 +1,19 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <title>Pukat dev harness (temporary — QA only)</title>
+    <script>
+      window.PukatData = {
+        context: new URLSearchParams(location.search).get('admin') ? 'admin' : 'frontend',
+        user: { id: 1, displayName: 'QA Tester', email: 'qa@example.com', role: 'pukat_admin' },
+        restUrl: 'http://localhost:39999/wp-json/pukat/v1',
+        nonce: '',
+      }
+    </script>
+  </head>
+  <body>
+    <div id="pukat-root"></div>
+    <script type="module" src="/src/main.jsx"></script>
+  </body>
+</html>

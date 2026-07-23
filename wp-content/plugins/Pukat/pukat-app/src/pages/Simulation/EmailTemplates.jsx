@@ -3,6 +3,8 @@ import clsx from 'clsx'
 import toast from 'react-hot-toast'
 import HtmlCodeEditor from '../../components/Editor/HtmlCodeEditor.jsx'
 import ClientPreview from '../../components/Editor/ClientPreview.jsx'
+import PageHeader from '../../components/UI/PageHeader.jsx'
+import Button from '../../components/UI/Button.jsx'
 
 /* ─── Default Data ───────────────────────────────────────────────────── */
 
@@ -562,44 +564,37 @@ export default function EmailTemplates() {
   return (
     <div className="space-y-6 lg:flex lg:h-[calc(100vh-110px)] lg:min-h-[720px] lg:flex-col lg:overflow-hidden mt-4 animate-fade-in">
       {/* ── Header ── */}
-      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
-        <div>
-          <h1 className="text-2xl font-bold text-gray-900">Email templates</h1>
-          <p className="text-sm text-gray-500 mt-0.5">Kelola template email phishing simulasi</p>
-        </div>
-        <div className="flex flex-wrap items-center gap-3">
-          {/* Search bar */}
-          <div className="relative w-64">
-            <span className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none text-gray-400">
-              <i className="ti ti-search text-base" />
-            </span>
-            <input
-              type="text"
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-              placeholder="Cari template..."
-              className="w-full bg-white border border-gray-200 rounded-xl pl-9 pr-4 py-2 text-sm text-gray-950 placeholder-gray-400 focus:outline-none focus:border-violet-500 transition-colors"
-            />
-          </div>
-          {/* Sync button */}
-          <button
-            onClick={handleSync}
-            disabled={syncing}
-            className="bg-white border border-gray-200 text-gray-700 hover:bg-gray-50 px-4 py-2 text-sm font-semibold rounded-xl flex items-center gap-2 transition-all disabled:opacity-60"
-          >
-            <i className={clsx('ti ti-refresh text-base', syncing && 'animate-spin')} />
-            <span>Sync GoPhish</span>
-          </button>
-          {/* Create button */}
-          <button
-            onClick={handleCreate}
-            className="bg-violet-500 text-white hover:bg-violet-600 px-4 py-2 text-sm font-semibold rounded-xl flex items-center gap-1.5 transition-all"
-          >
-            <i className="ti ti-plus text-base" />
-            <span>Buat email template</span>
-          </button>
-        </div>
-      </div>
+      <PageHeader
+        title="Email templates"
+        subtitle="Kelola template email phishing simulasi"
+        actions={
+          <>
+            {/* Search bar */}
+            <div className="relative w-64">
+              <span className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none text-gray-400">
+                <i className="ti ti-search text-base" />
+              </span>
+              <input
+                type="text"
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                placeholder="Cari template..."
+                className="w-full bg-white border border-gray-200 rounded-xl pl-9 pr-4 py-2 text-sm text-gray-950 placeholder-gray-400 focus:outline-none focus:border-violet-500 transition-colors"
+              />
+            </div>
+            {/* Sync button */}
+            <Button variant="outline" onClick={handleSync} disabled={syncing}>
+              <i className={clsx('ti ti-refresh text-base', syncing && 'animate-spin')} />
+              <span>Sync GoPhish</span>
+            </Button>
+            {/* Create button */}
+            <Button variant="primary" onClick={handleCreate}>
+              <i className="ti ti-plus text-base" />
+              <span>Buat email template</span>
+            </Button>
+          </>
+        }
+      />
 
       {/* ── Sub Tab Bar ── */}
       <div className="border-b border-gray-200">
