@@ -9,6 +9,7 @@ declare(strict_types=1);
 
 namespace Pukat\Api;
 
+use Pukat\Services\CampaignRunService;
 use Pukat\Services\GoPhishService;
 use Pukat\Services\RiskScoringService;
 use WP_REST_Request;
@@ -36,6 +37,18 @@ class ReportController extends RestController {
 		register_rest_route( $this->namespace, '/reports/(?P<campaign_id>\d+)/export', [
 			'methods'             => 'GET',
 			'callback'            => [ $this, 'export_csv' ],
+			'permission_callback' => [ $this, 'permission_read' ],
+		] );
+
+		register_rest_route( $this->namespace, '/reports/campaign-runs/(?P<campaign_run_id>\d+)', [
+			'methods'             => 'GET',
+			'callback'            => [ $this, 'get_campaign_run_report' ],
+			'permission_callback' => [ $this, 'permission_read' ],
+		] );
+
+		register_rest_route( $this->namespace, '/reports/campaign-runs/(?P<campaign_run_id>\d+)/export', [
+			'methods'             => 'GET',
+			'callback'            => [ $this, 'export_campaign_run_csv' ],
 			'permission_callback' => [ $this, 'permission_read' ],
 		] );
 
@@ -145,6 +158,33 @@ class ReportController extends RestController {
 		] );
 	}
 
+	public function get_campaign_run_report( WP_REST_Request $request ): WP_REST_Response {
+		$result = ( new CampaignRunService() )->report( (int) $request->get_param( 'campaign_run_id' ) );
+
+		return $this->result_response( $result );
+	}
+
+	public function export_campaign_run_csv( WP_REST_Request $request ): WP_REST_Response {
+		global $wpdb;
+		$campaign_run_id = (int) $request->get_param( 'campaign_run_id' );
+
+		$rows = $wpdb->get_results(
+			$wpdb->prepare(
+				"SELECT target_email, user_id, click_score, quiz_score, total_score, risk_tier, created_at
+				 FROM {$wpdb->prefix}pukat_risk_scores
+				 WHERE campaign_run_id = %d
+				 ORDER BY total_score DESC",
+				$campaign_run_id
+			),
+			ARRAY_A
+		);
+
+		return $this->success( [
+			'rows'     => $rows ?: [],
+			'filename' => "pukat-report-campaign-run-{$campaign_run_id}-" . gmdate( 'Ymd' ) . '.csv',
+		] );
+	}
+
 	public function get_user_risk_score( WP_REST_Request $request ): WP_REST_Response {
 		$email  = sanitize_email( urldecode( (string) $request->get_param( 'email' ) ) );
 		$score  = ( new RiskScoringService() )->get_latest_score( $email );
@@ -160,6 +200,7 @@ class ReportController extends RestController {
 		global $wpdb;
 
 		$campaign_id = (int) $request->get_param( 'campaign_id' );
+		$campaign_run_id = (int) $request->get_param( 'campaign_run_id' );
 		$tier        = sanitize_text_field( (string) $request->get_param( 'tier' ) );
 
 		$where  = [];
@@ -168,6 +209,10 @@ class ReportController extends RestController {
 		if ( $campaign_id ) {
 			$where[]  = 'campaign_id = %d';
 			$params[] = $campaign_id;
+		}
+		if ( $campaign_run_id ) {
+			$where[]  = 'campaign_run_id = %d';
+			$params[] = $campaign_run_id;
 		}
 		if ( $tier ) {
 			$where[]  = 'risk_tier = %s';
@@ -247,5 +292,13 @@ class ReportController extends RestController {
 		$clicked   = ( $prev_risk['high'] ?? 0 ) + ( $prev_risk['critical'] ?? 0 );
 
 		return $total > 0 ? round( ( $clicked / $total ) * 100, 1 ) : 0.0;
+	}
+
+	private function result_response( mixed $result, int $success_status = 200 ): WP_REST_Response {
+		if ( is_wp_error( $result ) ) {
+			return $this->from_wp_error( $result );
+		}
+
+		return $this->success( $result, $success_status );
 	}
 }

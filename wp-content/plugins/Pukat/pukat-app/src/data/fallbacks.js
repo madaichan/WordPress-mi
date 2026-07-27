@@ -17,10 +17,10 @@
  * (e.g. during local development or before the plugin is fully configured).
  *
  * Shape matches the userApi.list() response item:
- *  { id, display_name, email, pukat_role }
+ *  { id, display_name, email, pukat_role, entity }
  */
 export const FALLBACK_USERS = [
-  { id: 1, display_name: 'Admin User',    email: 'admin@example.com',    pukat_role: 'pukat_admin' },
-  { id: 2, display_name: 'Operator User', email: 'operator@example.com', pukat_role: 'pukat_operator' },
-  { id: 3, display_name: 'Viewer User',   email: 'viewer@example.com',   pukat_role: 'pukat_viewer' },
+  { id: 1, display_name: 'Admin User',    email: 'admin@example.com',    pukat_role: 'pukat_admin',    entity: 'General' },
+  { id: 2, display_name: 'Operator User', email: 'operator@example.com', pukat_role: 'pukat_operator', entity: 'EntityA' },
+  { id: 3, display_name: 'Viewer User',   email: 'viewer@example.com',   pukat_role: 'pukat_viewer',   entity: 'EntityA' },
 ]

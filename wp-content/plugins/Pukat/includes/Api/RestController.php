@@ -79,6 +79,30 @@ abstract class RestController {
 		);
 	}
 
+	/**
+	 * Mark a still-supported endpoint as legacy without changing its data shape.
+	 */
+	protected function legacy_response( WP_REST_Response $response, string $successor_route, string $message ): WP_REST_Response {
+		$successor_url = rest_url( $this->namespace . $successor_route );
+
+		$response->header( 'X-Pukat-Legacy', 'true' );
+		$response->header( 'X-Pukat-Replacement', $successor_url );
+		$response->header( 'Deprecation', 'true' );
+		$response->header( 'Link', '<' . $successor_url . '>; rel="successor-version"', false );
+
+		$data = $response->get_data();
+		if ( is_array( $data ) ) {
+			$data['legacy'] = [
+				'status'      => 'legacy_supported',
+				'message'     => $message,
+				'replacement' => $successor_url,
+			];
+			$response->set_data( $data );
+		}
+
+		return $response;
+	}
+
 	// ---------------------------------------------------------------------------
 	// Permission callbacks
 	// ---------------------------------------------------------------------------

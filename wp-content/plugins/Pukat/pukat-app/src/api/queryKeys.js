@@ -15,6 +15,19 @@ export const queryKeys = {
     groups: ['gophish', 'groups'],
   },
 
+  masterAssets: {
+    all: ['master-assets'],
+    emailTemplates: ['master-assets', 'email-templates'],
+    landingPages: ['master-assets', 'landing-pages'],
+    sendingProfiles: ['master-assets', 'sending-profiles'],
+    dynamicDomains: ['master-assets', 'dynamic-domains'],
+  },
+
+  playbooks: {
+    all: ['playbooks'],
+    list: ['playbooks', 'list'],
+  },
+
   reports: {
     all: ['reports'],
     riskScores: (params = {}) => ['reports', 'risk-scores', params],

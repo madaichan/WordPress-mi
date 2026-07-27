@@ -1,10 +1,16 @@
-import { useState, useMemo, useCallback } from 'react'
+import { useState, useMemo, useCallback, useEffect } from 'react'
 import clsx from 'clsx'
 import toast from 'react-hot-toast'
 import HtmlCodeEditor from '../../components/Editor/HtmlCodeEditor.jsx'
 import ClientPreview from '../../components/Editor/ClientPreview.jsx'
 import PageHeader from '../../components/UI/PageHeader.jsx'
 import Button from '../../components/UI/Button.jsx'
+import { useGophishEmailTemplates } from '../../hooks/queries/useGophishQueries.js'
+import { useCreateEmailTemplateMutation, useUpdateEmailTemplateMutation } from '../../hooks/mutations/useGophishMutations.js'
+import useAppStore from '../../store/useAppStore.js'
+import { canManagePukat } from '../../utils/roles.js'
+import { assetEntityForUser, canUserCreateAsset, canUserEditAsset, filterAssetsForUser } from '../../utils/entityAssignmentHelpers.js'
+import { buildGophishEmailTemplatePayload, gophishEmailTemplateToUiTemplate } from '../../utils/gophishAssetHelpers.js'
 
 /* ─── Default Data ───────────────────────────────────────────────────── */
 
@@ -29,172 +35,7 @@ const DEFAULT_HTML = `<!DOCTYPE html>
 </body>
 </html>`
 
-const EMAIL_TEMPLATES = [
-  {
-    id: 'ms',
-    name: 'Microsoft Office 365 Alert',
-    category: 'alert',
-    description: 'Gaya email security login dengan permintaan pembaruan sandi mendesak.',
-    sender: 'Microsoft Security <security@microsoft-update.net>',
-    subject: 'Tindakan Diperlukan: Percobaan login tidak sah terdeteksi',
-    thumbnail: {
-      icon: 'ti-mail-opened',
-      bg: 'bg-red-500/20 text-red-500',
-      bars: [{ w: 'w-16' }, { w: 'w-24' }]
-    },
-    html: `<!DOCTYPE html>
-<html>
-<head>
-  <style>
-    body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; color: #333; line-height: 1.5; }
-    .container { max-width: 600px; margin: 0 auto; padding: 20px; border: 1px solid #e1e1e1; }
-    .header { display: flex; align-items: center; gap: 8px; font-weight: bold; color: #555; }
-    .logo-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 1px; width: 14px; height: 14px; }
-    .blue-btn { background-color: #0067b8; color: white !important; padding: 10px 24px; text-decoration: none; font-weight: bold; border-radius: 4px; display: inline-block; }
-  </style>
-</head>
-<body>
-  <div class="container">
-    <div class="header">
-      <div class="logo-grid" style="display: grid; grid-template-columns: 1fr 1fr; gap: 1px; width: 14px; height: 14px; float: left; margin-right: 6px;">
-        <div style="background:#f25022; width: 6px; height: 6px;"></div>
-        <div style="background:#7fba00; width: 6px; height: 6px;"></div>
-        <div style="background:#00a4ef; width: 6px; height: 6px;"></div>
-        <div style="background:#ffb900; width: 6px; height: 6px;"></div>
-      </div>
-      <span style="font-size: 14px; font-weight: 600; color: #5e5e5e;">Microsoft Account Security</span>
-    </div>
-    <hr style="border: 0; border-top: 1px solid #eee; margin: 15px 0; clear: both;">
-    <h3 style="font-size: 16px; font-weight: 600; color: #111;">Security alert</h3>
-    <p>Dear {{.FirstName}},</p>
-    <p>We detected unusual sign-in activity on your Microsoft 365 Account ({{.Email}}) from an unrecognized device or IP address. If this was not you, please secure your account immediately by verifying your credentials.</p>
-    <div style="background: #f9f9f9; border-radius: 6px; padding: 12px; margin: 15px 0; font-size: 12px;">
-      <div><strong>Country/Region:</strong> Netherlands</div>
-      <div><strong>IP Address:</strong> 185.220.101.4</div>
-      <div><strong>Browser:</strong> Chrome / Windows 10</div>
-    </div>
-    <p>Please click the button below to verify your login credentials and prevent account lockout.</p>
-    <div style="text-align: center; margin-top: 20px;">
-      <a href="{{.URL}}" class="blue-btn">Verify account</a>
-    </div>
-  </div>
-</body>
-</html>`
-  },
-  {
-    id: 'google',
-    name: 'Google Security Notification',
-    category: 'alert',
-    description: 'Menginfokan adanya login tidak dikenal dari perangkat baru.',
-    sender: 'Google Security <support@google-help.com>',
-    subject: 'Waspada Keamanan: Percobaan sign-in diblokir',
-    thumbnail: {
-      icon: 'ti-shield',
-      bg: 'bg-blue-500/20 text-blue-500',
-      bars: [{ w: 'w-20' }, { w: 'w-28' }]
-    },
-    html: `<!DOCTYPE html>
-<html>
-<head>
-  <style>
-    body { font-family: Roboto, sans-serif; color: #333; line-height: 1.5; }
-    .container { max-width: 600px; margin: 0 auto; padding: 20px; border: 1px solid #e1e1e1; border-top: 4px solid #ea4335; }
-    .google-text { font-size: 18px; font-weight: bold; margin-bottom: 20px; }
-    .btn { background-color: #1a73e8; color: white !important; padding: 10px 24px; text-decoration: none; font-weight: bold; border-radius: 4px; display: inline-block; }
-  </style>
-</head>
-<body>
-  <div class="container">
-    <div class="google-text">
-      <span style="color:#4285f4">G</span><span style="color:#ea4335">o</span><span style="color:#fbbc05">o</span><span style="color:#4285f4">g</span><span style="color:#34a853">l</span><span style="color:#ea4335">e</span>
-    </div>
-    <h3 style="font-size: 16px; font-weight: bold; color: #111; margin-top: 0;">Security alert: Critical Sign-in Blocked</h3>
-    <p>Halo {{.FirstName}},</p>
-    <p>Google blocked a critical login attempt to your Google Workspace Account ({{.Email}}). Someone just used your password to try to sign in to your account. Google blocked them, but you should check what happened.</p>
-    <div style="text-align: center; margin: 25px 0;">
-      <a href="{{.URL}}" class="btn">Check activity</a>
-    </div>
-  </div>
-</body>
-</html>`
-  },
-  {
-    id: 'hr',
-    name: 'Internal HR Payroll Info',
-    category: 'info',
-    description: 'Email notifikasi gaji kuartal baru dengan tautan dokumen terlampir.',
-    sender: 'HR Department <payroll@internal-company.id>',
-    subject: 'Info HR: Pembaruan Slip Gaji Kuartal Q3',
-    thumbnail: {
-      icon: 'ti-receipt',
-      bg: 'bg-emerald-500/20 text-emerald-500',
-      bars: [{ w: 'w-16' }]
-    },
-    html: `<!DOCTYPE html>
-<html>
-<head>
-  <style>
-    body { font-family: sans-serif; color: #444; line-height: 1.5; }
-    .container { max-width: 600px; margin: 0 auto; padding: 20px; border: 1px solid #eee; }
-    .hr-logo { width: 32px; height: 32px; border-radius: 50%; background: #f5f3ff; color: #8b5cf6; display: inline-flex; align-items: center; justify-content: center; font-weight: bold; margin-right: 8px; }
-    .btn { background-color: #8b5cf6; color: white !important; padding: 10px 24px; text-decoration: none; font-weight: bold; border-radius: 6px; display: inline-block; }
-  </style>
-</head>
-<body>
-  <div class="container">
-    <div style="display: flex; align-items: center; margin-bottom: 15px;">
-      <span class="hr-logo">HR</span>
-      <span style="font-weight: bold; color: #111;">Human Resources Department</span>
-    </div>
-    <hr style="border:0; border-top: 1px solid #eee; margin: 15px 0;">
-    <p>Dear Employee {{.FirstName}},</p>
-    <p>Please find attached the payroll details and adjustment slip for the upcoming Q3 corporate tax calculation. All employees are required to check their payroll updates by logging into the corporate registry portal below.</p>
-    <div style="text-align: center; margin: 25px 0;">
-      <a href="{{.URL}}" class="btn">Check payroll statement</a>
-    </div>
-  </div>
-</body>
-</html>`
-  },
-  {
-    id: 'djp',
-    name: 'DJP Online Tax Warning',
-    category: 'urgent',
-    description: 'Notifikasi e-billing pajak kurang bayar yang harus diselesaikan segera.',
-    sender: 'DJP Online <e-filing@pajak.go.id>',
-    subject: 'Pemberitahuan: Tunggakan Pajak Tahun Pajak 2024',
-    thumbnail: {
-      icon: 'ti-alert-triangle',
-      bg: 'bg-yellow-500/20 text-yellow-500',
-      bars: [{ w: 'w-24' }]
-    },
-    html: `<!DOCTYPE html>
-<html>
-<head>
-  <style>
-    body { font-family: sans-serif; color: #333; line-height: 1.5; }
-    .container { max-width: 600px; margin: 0 auto; padding: 20px; border: 1px solid #eee; }
-    .logo { width: 36px; height: 36px; border-radius: 50%; background: rgba(234,179,8,0.1); border: 1px solid rgba(234,179,8,0.2); color: #d97706; display: inline-flex; align-items: center; justify-content: center; font-weight: bold; margin-right: 8px; }
-    .btn { background-color: #eab308; color: #0b172a !important; padding: 10px 24px; text-decoration: none; font-weight: bold; border-radius: 4px; display: inline-block; }
-  </style>
-</head>
-<body>
-  <div class="container">
-    <div style="display: flex; align-items: center; margin-bottom: 15px;">
-      <span class="logo">DJP</span>
-      <span style="font-weight: bold; color: #111;">DIREKTORAT JENDERAL PAJAK</span>
-    </div>
-    <hr style="border:0; border-top: 1px solid #eee; margin: 15px 0;">
-    <p>Yth. {{.FirstName}},</p>
-    <p>Surat peringatan elektronik ini diterbitkan sehubungan dengan adanya verifikasi tunggakan pajak tahunan Anda. Anda diwajibkan menyelesaikan pembayaran pajak tertunggak melalui e-billing untuk menghindari denda administratif.</p>
-    <div style="text-align: center; margin: 25px 0;">
-      <a href="{{.URL}}" class="btn">BAYAR E-BILLING</a>
-    </div>
-  </div>
-</body>
-</html>`
-  }
-]
+const EMAIL_TEMPLATES = []
 
 /* ─── List Layout Helper Components ───────────────────────────────────── */
 
@@ -221,7 +62,7 @@ function ThumbnailMockup({ page }) {
   )
 }
 
-function EmailTemplateCard({ page, onEdit, onPreview }) {
+function EmailTemplateCard({ page, canEdit, onEdit, onPreview }) {
   return (
     <div className="email-page-card bg-white border border-gray-200 rounded-xl p-5 shadow-none flex flex-col justify-between h-80 transition-all hover:border-gray-300">
       <div className="space-y-4">
@@ -229,16 +70,23 @@ function EmailTemplateCard({ page, onEdit, onPreview }) {
         <div>
           <h3 className="text-sm font-bold text-gray-900">{page.name}</h3>
           <p className="text-xs text-gray-500 mt-1 line-clamp-2">{page.description}</p>
+          {page.entity && (
+            <span className="mt-2 inline-flex rounded-full bg-gray-100 px-2 py-0.5 text-[9px] font-semibold text-gray-600">
+              {page.entity}
+            </span>
+          )}
         </div>
       </div>
       <div className="flex gap-2 mt-4 pt-3 border-t border-gray-50">
-        <button
-          onClick={() => onEdit(page.id)}
-          className="flex-1 bg-white border border-gray-200 text-gray-700 hover:bg-gray-50 py-1.5 text-xs font-semibold rounded-lg flex items-center justify-center gap-1 transition-all"
-        >
-          <i className="ti ti-edit text-sm" />
-          <span>Edit</span>
-        </button>
+        {canEdit && (
+          <button
+            onClick={() => onEdit(page.id)}
+            className="flex-1 bg-white border border-gray-200 text-gray-700 hover:bg-gray-50 py-1.5 text-xs font-semibold rounded-lg flex items-center justify-center gap-1 transition-all"
+          >
+            <i className="ti ti-edit text-sm" />
+            <span>Edit</span>
+          </button>
+        )}
         <button
           onClick={() => onPreview(page.id)}
           className="flex-1 bg-white border border-gray-200 text-gray-700 hover:bg-gray-50 py-1.5 text-xs font-semibold rounded-lg flex items-center justify-center gap-1 transition-all"
@@ -284,10 +132,14 @@ function EditorPane({
   setName,
   sender,
   setSender,
+  entity,
+  setEntity,
   subject,
   setSubject,
   htmlCode,
   setHtmlCode,
+  saving,
+  entityLocked,
   onBack,
   onSave
 }) {
@@ -311,9 +163,10 @@ function EditorPane({
           </button>
           <button
             onClick={() => onSave(name, htmlCode)}
-            className="bg-violet-500 text-white hover:bg-violet-600 px-4 py-2 text-sm font-semibold rounded-xl transition-all"
+            disabled={saving}
+            className="bg-violet-500 text-white hover:bg-violet-600 px-4 py-2 text-sm font-semibold rounded-xl transition-all disabled:opacity-60"
           >
-            Simpan template
+            {saving ? 'Menyimpan...' : 'Simpan template'}
           </button>
         </div>
       </div>
@@ -344,6 +197,20 @@ function EditorPane({
                 onChange={(e) => setSender(e.target.value)}
                 placeholder="Contoh: Admin <admin@company.id>"
                 className="w-full bg-white border border-gray-200 rounded-lg px-3 py-2 text-gray-950 focus:outline-none focus:border-violet-500"
+              />
+            </div>
+            <div className="space-y-1">
+              <label className="block font-semibold text-gray-700">Entity</label>
+              <input
+                type="text"
+                value={entity}
+                onChange={(e) => setEntity(e.target.value)}
+                disabled={entityLocked}
+                placeholder="Contoh: EntityA"
+                className={clsx(
+                  'w-full border border-gray-200 rounded-lg px-3 py-2 text-gray-950 focus:outline-none focus:border-violet-500',
+                  entityLocked ? 'bg-gray-50 text-gray-500' : 'bg-white'
+                )}
               />
             </div>
             <div className="space-y-1">
@@ -408,7 +275,9 @@ function EditorPane({
 /* ─── Main Component ─────────────────────────────────────────────────── */
 
 export default function EmailTemplates() {
-  const [pages, setPages] = useState(EMAIL_TEMPLATES)
+  const { data: gophishTemplates = [], isLoading, isFetching, refetch } = useGophishEmailTemplates()
+  const currentUser = useAppStore(state => state.user)
+  const [pages, setPages] = useState(() => EMAIL_TEMPLATES.slice(0, 0))
   const [activeTab, setActiveTab] = useState('list')
   const [activeFilter, setActiveFilter] = useState('all')
   const [searchQuery, setSearchQuery] = useState('')
@@ -418,10 +287,41 @@ export default function EmailTemplates() {
   const [editingId, setEditingId] = useState(null)
   const [editingName, setEditingName] = useState('')
   const [editingSender, setEditingSender] = useState('')
+  const [editingEntity, setEditingEntity] = useState('')
   const [editingSubject, setEditingSubject] = useState('')
   const [editingHtml, setEditingHtml] = useState('')
 
   const [syncing, setSyncing] = useState(false)
+
+  const resetEditorState = useCallback(() => {
+    setEditingId(null)
+    setEditingName('')
+    setEditingSender('')
+    setEditingEntity('')
+    setEditingSubject('')
+    setEditingHtml('')
+  }, [])
+
+  const closeEditor = useCallback(() => {
+    setSearchQuery('')
+    setActiveTab('list')
+    resetEditorState()
+  }, [resetEditorState])
+
+  const createMutation = useCreateEmailTemplateMutation({ onSuccess: closeEditor })
+  const updateMutation = useUpdateEmailTemplateMutation({ onSuccess: closeEditor })
+  const saving = createMutation.isPending || updateMutation.isPending
+  const defaultEntity = useMemo(() => assetEntityForUser(currentUser), [currentUser])
+  const canCreateAssets = useMemo(() => canUserCreateAsset(currentUser), [currentUser])
+  const entityLocked = !canManagePukat(currentUser.role)
+
+  useEffect(() => {
+    const visibleTemplates = filterAssetsForUser(
+      gophishTemplates.map(gophishEmailTemplateToUiTemplate),
+      currentUser
+    )
+    setPages(visibleTemplates)
+  }, [currentUser, gophishTemplates])
 
   /* ── Filtered cards ── */
   const filteredPages = useMemo(() => {
@@ -447,27 +347,34 @@ export default function EmailTemplates() {
 
   /* ── Handlers ── */
   const switchTab = useCallback((tab) => {
+    if (tab === 'editor') {
+      toast.error('Editor hanya tersedia dari tombol buat atau edit asset yang sesuai entity user.')
+      return
+    }
+
     setActiveTab(tab)
     if (tab === 'list') {
-      setEditingId(null)
-      setEditingName('')
-      setEditingSender('')
-      setEditingSubject('')
-      setEditingHtml('')
+      resetEditorState()
     }
-  }, [])
+  }, [resetEditorState])
 
   const handleEdit = useCallback((id) => {
     const page = pages.find((p) => p.id === id)
     if (page) {
+      if (!canUserEditAsset(page, currentUser)) {
+        toast.error('Asset General hanya bisa diedit admin. Non-admin hanya bisa edit asset sesuai entity user.')
+        return
+      }
+
       setEditingId(page.id)
       setEditingName(page.name)
       setEditingSender(page.sender || '')
+      setEditingEntity(page.entity || '')
       setEditingSubject(page.subject || '')
       setEditingHtml(page.html || '')
       setActiveTab('editor')
     }
-  }, [pages])
+  }, [currentUser, pages])
 
   const handlePreview = useCallback((id) => {
     const page = pages.find((p) => p.id === id)
@@ -476,6 +383,7 @@ export default function EmailTemplates() {
       setEditingId(page.id)
       setEditingName(page.name)
       setEditingSender(page.sender || '')
+      setEditingEntity(page.entity || '')
       setEditingSubject(page.subject || '')
       setEditingHtml(page.html || '')
       setActiveTab('preview')
@@ -483,65 +391,64 @@ export default function EmailTemplates() {
   }, [pages])
 
   const handleCreate = useCallback(() => {
+    if (!canCreateAssets) {
+      toast.error('User non-admin harus memiliki entity untuk membuat asset.')
+      return
+    }
+
     setEditingId(null)
     setEditingName('')
     setEditingSender('Admin <admin@company.id>')
+    setEditingEntity(defaultEntity)
     setEditingSubject('Tindakan Diperlukan: Notifikasi Penting')
     setEditingHtml(DEFAULT_HTML)
     setActiveTab('editor')
-  }, [])
+  }, [canCreateAssets, defaultEntity])
 
   const handleSave = useCallback((name, html) => {
-    if (editingId) {
-      setPages((prev) =>
-        prev.map((p) =>
-          p.id === editingId
-            ? {
-              ...p,
-              name: name || p.name,
-              sender: editingSender,
-              subject: editingSubject,
-              html,
-            }
-            : p
-        )
-      )
-      toast.success(`Template "${name || 'Email Template'}" berhasil disimpan`)
-    } else {
-      const newId = 'custom_' + Date.now()
-      const newPage = {
-        id: newId,
-        name: name || 'Email Template Baru',
-        category: 'alert',
-        description: 'Template email kustom dibuat oleh pengguna.',
-        sender: editingSender,
-        subject: editingSubject,
-        html,
-        thumbnail: {
-          icon: 'ti-mail',
-          bg: 'bg-violet-500/20 text-violet-500',
-          bars: [{ w: 'w-20' }, { w: 'w-24' }]
-        }
-      }
-      setPages((prev) => [...prev, newPage])
-      toast.success(`Template baru "${newPage.name}" berhasil dibuat`)
+    const currentAsset = editingId ? pages.find((page) => page.id === editingId) : null
+    if (currentAsset && !canUserEditAsset(currentAsset, currentUser)) {
+      toast.error('Asset ini hanya bisa diedit oleh admin atau user dengan entity yang sama.')
+      return
     }
-    setActiveTab('list')
-    setEditingId(null)
-    setEditingName('')
-    setEditingSender('')
-    setEditingSubject('')
-    setEditingHtml('')
-  }, [editingId, editingSender, editingSubject])
+    if (!currentAsset && !canCreateAssets) {
+      toast.error('User non-admin harus memiliki entity untuk membuat asset.')
+      return
+    }
 
-  const handleSync = useCallback(() => {
+    if (!name.trim() || !editingSender.trim() || !editingSubject.trim() || !html.trim()) {
+      toast.error('Nama template, pengirim, subjek, dan HTML wajib diisi.')
+      return
+    }
+
+    const payloadEntity = entityLocked ? defaultEntity : editingEntity
+    const payload = buildGophishEmailTemplatePayload({
+      name,
+      sender: editingSender,
+      entity: payloadEntity,
+      subject: editingSubject,
+      html,
+    })
+
+    if (editingId) {
+      updateMutation.mutate({ id: editingId, data: payload })
+    } else {
+      createMutation.mutate(payload)
+    }
+  }, [canCreateAssets, createMutation, currentUser, defaultEntity, editingEntity, editingId, editingSender, editingSubject, entityLocked, pages, updateMutation])
+
+  const handleSync = useCallback(async () => {
     setSyncing(true)
-    toast('Menyinkronkan email template dari GoPhish...', { icon: '🔄' })
-    setTimeout(() => {
-      setSyncing(false)
-      toast.success('Sinkronisasi selesai — 4 email templates')
-    }, 1500)
-  }, [])
+    const result = await refetch()
+    setSyncing(false)
+
+    if (result.error) {
+      toast.error(result.error.message || 'Gagal menyinkronkan email template dari GoPhish.')
+      return
+    }
+
+    toast.success(`Sinkronisasi selesai - ${result.data?.length ?? 0} email templates`)
+  }, [refetch])
 
   /* ── Tab button classes ── */
   const tabBtnClass = (tab) =>
@@ -583,15 +490,17 @@ export default function EmailTemplates() {
               />
             </div>
             {/* Sync button */}
-            <Button variant="outline" onClick={handleSync} disabled={syncing}>
-              <i className={clsx('ti ti-refresh text-base', syncing && 'animate-spin')} />
+            <Button variant="outline" onClick={handleSync} disabled={syncing || isFetching}>
+              <i className={clsx('ti ti-refresh text-base', (syncing || isFetching) && 'animate-spin')} />
               <span>Sync GoPhish</span>
             </Button>
             {/* Create button */}
-            <Button variant="primary" onClick={handleCreate}>
-              <i className="ti ti-plus text-base" />
-              <span>Buat email template</span>
-            </Button>
+            {canCreateAssets && (
+              <Button variant="primary" onClick={handleCreate}>
+                <i className="ti ti-plus text-base" />
+                <span>Buat email template</span>
+              </Button>
+            )}
           </>
         }
       />
@@ -603,10 +512,12 @@ export default function EmailTemplates() {
             <i className="ti ti-list text-base" />
             <span>Daftar template</span>
           </button>
-          <button onClick={() => switchTab('editor')} className={tabBtnClass('editor')}>
-            <i className="ti ti-edit text-base" />
-            <span>Editor</span>
-          </button>
+          {activeTab === 'editor' && (
+            <button onClick={() => switchTab('list')} className={tabBtnClass('editor')}>
+              <i className="ti ti-edit text-base" />
+              <span>Editor</span>
+            </button>
+          )}
           <button onClick={() => switchTab('preview')} className={tabBtnClass('preview')}>
             <i className="ti ti-eye text-base" />
             <span>Preview</span>
@@ -634,15 +545,21 @@ export default function EmailTemplates() {
 
             {/* Email Templates Grid */}
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-              {filteredPages.map((page) => (
+              {isLoading && (
+                <div className="bg-white border border-gray-200 rounded-xl p-8 text-center text-sm text-gray-400">
+                  Memuat email template dari GoPhish...
+                </div>
+              )}
+              {!isLoading && filteredPages.map((page) => (
                 <EmailTemplateCard
                   key={page.id}
                   page={page}
+                  canEdit={canUserEditAsset(page, currentUser)}
                   onEdit={handleEdit}
                   onPreview={handlePreview}
                 />
               ))}
-              <CreateCard onClick={handleCreate} />
+              {canCreateAssets && <CreateCard onClick={handleCreate} />}
             </div>
           </div>
         )}
@@ -655,10 +572,14 @@ export default function EmailTemplates() {
             setName={setEditingName}
             sender={editingSender}
             setSender={setEditingSender}
+            entity={editingEntity}
+            setEntity={setEditingEntity}
             subject={editingSubject}
             setSubject={setEditingSubject}
             htmlCode={editingHtml}
             setHtmlCode={setEditingHtml}
+            saving={saving}
+            entityLocked={entityLocked}
             onBack={() => switchTab('list')}
             onSave={handleSave}
           />

@@ -33,3 +33,11 @@ export function useGophishSmtpProfiles(options = {}) {
     ...options,
   })
 }
+
+export function useGophishGroups(options = {}) {
+  return useQuery({
+    queryKey: queryKeys.gophish.groups,
+    queryFn: gophishApi.groups,
+    ...options,
+  })
+}

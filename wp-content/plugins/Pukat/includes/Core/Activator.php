@@ -34,7 +34,7 @@ class Activator {
 
 		// Store the version so we can handle future migrations.
 		update_option( 'pukat_version', PUKAT_VERSION );
-		update_option( 'pukat_db_version', '1.0.0' );
+		update_option( 'pukat_db_version', '1.3.0' );
 	}
 
 	/**
@@ -99,10 +99,223 @@ class Activator {
 			gophish_page_id      BIGINT UNSIGNED DEFAULT NULL,
 			gophish_smtp_id      BIGINT UNSIGNED DEFAULT NULL,
 			difficulty           TINYINT UNSIGNED DEFAULT 1,
+			entity               VARCHAR(255)    NOT NULL DEFAULT 'General',
 			created_by           BIGINT UNSIGNED NOT NULL DEFAULT 0,
 			created_at           DATETIME        NOT NULL DEFAULT CURRENT_TIMESTAMP,
 			updated_at           DATETIME        NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
 			PRIMARY KEY (id)
+		) $charset_collate;";
+
+		// -----------------------------------------------------------------------
+		// pukat_email_template_masters — WordPress-owned email template masters
+		// -----------------------------------------------------------------------
+		$sql[] = "CREATE TABLE IF NOT EXISTS {$prefix}email_template_masters (
+			id          BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
+			name        VARCHAR(255)    NOT NULL,
+			description TEXT            DEFAULT NULL,
+			category    VARCHAR(100)    DEFAULT NULL,
+			entity      VARCHAR(255)    NOT NULL DEFAULT 'General',
+			status      VARCHAR(50)     NOT NULL DEFAULT 'draft',
+			created_by  BIGINT UNSIGNED NOT NULL DEFAULT 0,
+			updated_by  BIGINT UNSIGNED DEFAULT NULL,
+			created_at  DATETIME        NOT NULL DEFAULT CURRENT_TIMESTAMP,
+			updated_at  DATETIME        NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+			PRIMARY KEY (id),
+			KEY status (status),
+			KEY entity (entity)
+		) $charset_collate;";
+
+		// -----------------------------------------------------------------------
+		// pukat_email_template_versions — versioned email template content
+		// -----------------------------------------------------------------------
+		$sql[] = "CREATE TABLE IF NOT EXISTS {$prefix}email_template_versions (
+			id                 BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
+			template_master_id BIGINT UNSIGNED NOT NULL,
+			version            INT UNSIGNED    NOT NULL DEFAULT 1,
+			subject            VARCHAR(500)    NOT NULL DEFAULT '',
+			html_body          LONGTEXT        NOT NULL,
+			text_body          LONGTEXT        DEFAULT NULL,
+			variables_json     LONGTEXT        DEFAULT NULL,
+			language           VARCHAR(20)     DEFAULT NULL,
+			status             VARCHAR(50)     NOT NULL DEFAULT 'draft',
+			created_by         BIGINT UNSIGNED NOT NULL DEFAULT 0,
+			updated_by         BIGINT UNSIGNED DEFAULT NULL,
+			approved_by        BIGINT UNSIGNED DEFAULT NULL,
+			created_at         DATETIME        NOT NULL DEFAULT CURRENT_TIMESTAMP,
+			updated_at         DATETIME        NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+			approved_at        DATETIME        DEFAULT NULL,
+			PRIMARY KEY (id),
+			UNIQUE KEY template_version (template_master_id, version),
+			KEY template_master_id (template_master_id),
+			KEY status (status)
+		) $charset_collate;";
+
+		// -----------------------------------------------------------------------
+		// pukat_landing_page_masters — WordPress-owned landing page masters
+		// -----------------------------------------------------------------------
+		$sql[] = "CREATE TABLE IF NOT EXISTS {$prefix}landing_page_masters (
+			id          BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
+			name        VARCHAR(255)    NOT NULL,
+			description TEXT            DEFAULT NULL,
+			category    VARCHAR(100)    DEFAULT NULL,
+			entity      VARCHAR(255)    NOT NULL DEFAULT 'General',
+			status      VARCHAR(50)     NOT NULL DEFAULT 'draft',
+			created_by  BIGINT UNSIGNED NOT NULL DEFAULT 0,
+			updated_by  BIGINT UNSIGNED DEFAULT NULL,
+			created_at  DATETIME        NOT NULL DEFAULT CURRENT_TIMESTAMP,
+			updated_at  DATETIME        NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+			PRIMARY KEY (id),
+			KEY status (status),
+			KEY entity (entity)
+		) $charset_collate;";
+
+		// -----------------------------------------------------------------------
+		// pukat_landing_page_versions — versioned landing page content
+		// -----------------------------------------------------------------------
+		$sql[] = "CREATE TABLE IF NOT EXISTS {$prefix}landing_page_versions (
+			id                     BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
+			landing_page_master_id BIGINT UNSIGNED NOT NULL,
+			version                INT UNSIGNED    NOT NULL DEFAULT 1,
+			html_body              LONGTEXT        NOT NULL,
+			capture_settings_json  LONGTEXT        DEFAULT NULL,
+			redirect_settings_json LONGTEXT        DEFAULT NULL,
+			variables_json         LONGTEXT        DEFAULT NULL,
+			language               VARCHAR(20)     DEFAULT NULL,
+			status                 VARCHAR(50)     NOT NULL DEFAULT 'draft',
+			created_by             BIGINT UNSIGNED NOT NULL DEFAULT 0,
+			updated_by             BIGINT UNSIGNED DEFAULT NULL,
+			approved_by            BIGINT UNSIGNED DEFAULT NULL,
+			created_at             DATETIME        NOT NULL DEFAULT CURRENT_TIMESTAMP,
+			updated_at             DATETIME        NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+			approved_at            DATETIME        DEFAULT NULL,
+			PRIMARY KEY (id),
+			UNIQUE KEY landing_page_version (landing_page_master_id, version),
+			KEY landing_page_master_id (landing_page_master_id),
+			KEY status (status)
+		) $charset_collate;";
+
+		// -----------------------------------------------------------------------
+		// pukat_sending_profile_refs — WordPress-owned references to GoPhish SMTP profiles
+		// -----------------------------------------------------------------------
+		$sql[] = "CREATE TABLE IF NOT EXISTS {$prefix}sending_profile_refs (
+			id                         BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
+			name                       VARCHAR(255)    NOT NULL,
+			from_name                  VARCHAR(255)    DEFAULT NULL,
+			from_email                 VARCHAR(255)    NOT NULL DEFAULT '',
+			reply_to                   VARCHAR(255)    DEFAULT NULL,
+			gophish_sending_profile_id BIGINT UNSIGNED DEFAULT NULL,
+			environment                VARCHAR(50)     NOT NULL DEFAULT 'production',
+			allowed_domains_json       LONGTEXT        DEFAULT NULL,
+			rate_limit_json            LONGTEXT        DEFAULT NULL,
+			entity                     VARCHAR(255)    NOT NULL DEFAULT 'General',
+			status                     VARCHAR(50)     NOT NULL DEFAULT 'draft',
+			created_by                 BIGINT UNSIGNED NOT NULL DEFAULT 0,
+			updated_by                 BIGINT UNSIGNED DEFAULT NULL,
+			created_at                 DATETIME        NOT NULL DEFAULT CURRENT_TIMESTAMP,
+			updated_at                 DATETIME        NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+			PRIMARY KEY (id),
+			KEY gophish_sending_profile_id (gophish_sending_profile_id),
+			KEY status (status),
+			KEY entity (entity)
+		) $charset_collate;";
+
+		// -----------------------------------------------------------------------
+		// pukat_dynamic_domains — authorized domains usable by campaign runs
+		// -----------------------------------------------------------------------
+		$sql[] = "CREATE TABLE IF NOT EXISTS {$prefix}dynamic_domains (
+			id                              BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
+			domain                          VARCHAR(255)    NOT NULL,
+			base_landing_url                VARCHAR(500)    DEFAULT NULL,
+			tracking_url                    VARCHAR(500)    DEFAULT NULL,
+			environment                     VARCHAR(50)     NOT NULL DEFAULT 'production',
+			owner_entity                    VARCHAR(255)    NOT NULL DEFAULT 'General',
+			authorization_status            VARCHAR(50)     NOT NULL DEFAULT 'pending',
+			dns_status                      VARCHAR(50)     NOT NULL DEFAULT 'unknown',
+			tls_status                      VARCHAR(50)     NOT NULL DEFAULT 'unknown',
+			allowed_playbooks_json          LONGTEXT        DEFAULT NULL,
+			allowed_sending_profiles_json   LONGTEXT        DEFAULT NULL,
+			status                          VARCHAR(50)     NOT NULL DEFAULT 'draft',
+			created_by                      BIGINT UNSIGNED NOT NULL DEFAULT 0,
+			updated_by                      BIGINT UNSIGNED DEFAULT NULL,
+			created_at                      DATETIME        NOT NULL DEFAULT CURRENT_TIMESTAMP,
+			updated_at                      DATETIME        NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+			PRIMARY KEY (id),
+			UNIQUE KEY domain (domain),
+			KEY status (status),
+			KEY owner_entity (owner_entity),
+			KEY authorization_status (authorization_status)
+		) $charset_collate;";
+
+		// -----------------------------------------------------------------------
+		// pukat_playbook_masters — WordPress-owned campaign blueprints
+		// -----------------------------------------------------------------------
+		$sql[] = "CREATE TABLE IF NOT EXISTS {$prefix}playbook_masters (
+			id                                BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
+			name                              VARCHAR(255)    NOT NULL,
+			description                       TEXT            DEFAULT NULL,
+			objective                         TEXT            DEFAULT NULL,
+			scenario                          VARCHAR(255)    DEFAULT NULL,
+			difficulty                        TINYINT UNSIGNED DEFAULT 1,
+			risk_level                        VARCHAR(50)     DEFAULT NULL,
+			default_email_template_version_id BIGINT UNSIGNED DEFAULT NULL,
+			default_landing_page_version_id   BIGINT UNSIGNED DEFAULT NULL,
+			default_sending_profile_ref_id    BIGINT UNSIGNED DEFAULT NULL,
+			default_dynamic_domain_id         BIGINT UNSIGNED DEFAULT NULL,
+			allowed_overrides_json            LONGTEXT        DEFAULT NULL,
+			rules_json                        LONGTEXT        DEFAULT NULL,
+			metrics_json                      LONGTEXT        DEFAULT NULL,
+			entity                            VARCHAR(255)    NOT NULL DEFAULT 'General',
+			status                            VARCHAR(50)     NOT NULL DEFAULT 'draft',
+			version                           INT UNSIGNED    NOT NULL DEFAULT 1,
+			legacy_playbook_id                BIGINT UNSIGNED DEFAULT NULL,
+			created_by                        BIGINT UNSIGNED NOT NULL DEFAULT 0,
+			updated_by                        BIGINT UNSIGNED DEFAULT NULL,
+			approved_by                       BIGINT UNSIGNED DEFAULT NULL,
+			created_at                        DATETIME        NOT NULL DEFAULT CURRENT_TIMESTAMP,
+			updated_at                        DATETIME        NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+			approved_at                       DATETIME        DEFAULT NULL,
+			PRIMARY KEY (id),
+			KEY status (status),
+			KEY entity (entity),
+			KEY default_email_template_version_id (default_email_template_version_id),
+			KEY default_landing_page_version_id (default_landing_page_version_id),
+			KEY default_sending_profile_ref_id (default_sending_profile_ref_id),
+			KEY default_dynamic_domain_id (default_dynamic_domain_id),
+			KEY legacy_playbook_id (legacy_playbook_id)
+		) $charset_collate;";
+
+		// -----------------------------------------------------------------------
+		// pukat_campaign_runs — immutable execution snapshots from Playbook Master
+		// -----------------------------------------------------------------------
+		$sql[] = "CREATE TABLE IF NOT EXISTS {$prefix}campaign_runs (
+			id                         BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
+			playbook_master_id         BIGINT UNSIGNED NOT NULL,
+			playbook_version           INT UNSIGNED    NOT NULL DEFAULT 1,
+			name                       VARCHAR(255)    NOT NULL,
+			target_segment_id          BIGINT UNSIGNED DEFAULT NULL,
+			target_group_name          VARCHAR(255)    DEFAULT NULL,
+			schedule_at                DATETIME        DEFAULT NULL,
+			timezone                   VARCHAR(100)    NOT NULL DEFAULT 'UTC',
+			status                     VARCHAR(50)     NOT NULL DEFAULT 'draft_run',
+			snapshot_json              LONGTEXT        DEFAULT NULL,
+			gophish_template_id        BIGINT UNSIGNED DEFAULT NULL,
+			gophish_page_id            BIGINT UNSIGNED DEFAULT NULL,
+			gophish_group_id           BIGINT UNSIGNED DEFAULT NULL,
+			gophish_sending_profile_id BIGINT UNSIGNED DEFAULT NULL,
+			gophish_campaign_id        BIGINT UNSIGNED DEFAULT NULL,
+			sync_state_json            LONGTEXT        DEFAULT NULL,
+			metrics_json               LONGTEXT        DEFAULT NULL,
+			created_by                 BIGINT UNSIGNED NOT NULL DEFAULT 0,
+			launched_by                BIGINT UNSIGNED DEFAULT NULL,
+			created_at                 DATETIME        NOT NULL DEFAULT CURRENT_TIMESTAMP,
+			updated_at                 DATETIME        NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+			launched_at                DATETIME        DEFAULT NULL,
+			completed_at               DATETIME        DEFAULT NULL,
+			PRIMARY KEY (id),
+			KEY playbook_master_id (playbook_master_id),
+			KEY status (status),
+			KEY gophish_campaign_id (gophish_campaign_id),
+			KEY schedule_at (schedule_at)
 		) $charset_collate;";
 
 		// -----------------------------------------------------------------------
@@ -145,7 +358,8 @@ class Activator {
 			id           BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
 			target_email VARCHAR(255)    NOT NULL,
 			user_id      BIGINT UNSIGNED DEFAULT NULL,
-			campaign_id  BIGINT UNSIGNED NOT NULL,
+			campaign_id  BIGINT UNSIGNED NOT NULL DEFAULT 0,
+			campaign_run_id BIGINT UNSIGNED DEFAULT NULL,
 			click_score  TINYINT UNSIGNED DEFAULT 0 COMMENT '0-50',
 			quiz_score   TINYINT UNSIGNED DEFAULT 0 COMMENT '0-50',
 			total_score  TINYINT UNSIGNED DEFAULT 0 COMMENT '0-100',
@@ -153,6 +367,8 @@ class Activator {
 			created_at   DATETIME        NOT NULL DEFAULT CURRENT_TIMESTAMP,
 			PRIMARY KEY (id),
 			KEY target_email (target_email),
+			KEY campaign_id (campaign_id),
+			KEY campaign_run_id (campaign_run_id),
 			KEY risk_tier (risk_tier)
 		) $charset_collate;";
 
@@ -215,6 +431,102 @@ class Activator {
 
 		foreach ( $sql as $query ) {
 			dbDelta( $query );
+		}
+
+		self::ensure_playbook_entity_column();
+		self::ensure_campaign_run_risk_score_column();
+		self::ensure_playbook_master_legacy_column();
+	}
+
+	/**
+	 * Apply incremental database changes for already-active installations.
+	 */
+	public static function maybe_upgrade(): void {
+		$db_version = (string) get_option( 'pukat_db_version', '0.0.0' );
+
+		if ( version_compare( $db_version, '1.1.0', '<' ) ) {
+			self::create_tables();
+			update_option( 'pukat_db_version', '1.1.0' );
+			$db_version = '1.1.0';
+		}
+
+		if ( version_compare( $db_version, '1.2.0', '<' ) ) {
+			self::create_tables();
+			self::ensure_campaign_run_risk_score_column();
+			update_option( 'pukat_db_version', '1.2.0' );
+			$db_version = '1.2.0';
+		}
+
+		if ( version_compare( $db_version, '1.3.0', '<' ) ) {
+			self::create_tables();
+			self::ensure_playbook_master_legacy_column();
+			update_option( 'pukat_db_version', '1.3.0' );
+		}
+	}
+
+	/**
+	 * Ensure existing playbook tables can store assignment entity metadata.
+	 */
+	private static function ensure_playbook_entity_column(): void {
+		global $wpdb;
+
+		$table  = $wpdb->prefix . 'pukat_playbooks';
+		$column = $wpdb->get_var(
+			$wpdb->prepare( "SHOW COLUMNS FROM {$table} LIKE %s", 'entity' )
+		);
+
+		if ( ! $column ) {
+			$wpdb->query( "ALTER TABLE {$table} ADD entity VARCHAR(255) NOT NULL DEFAULT 'General' AFTER difficulty" );
+		}
+	}
+
+	/**
+	 * Ensure risk scores can be linked to Campaign Run records in the new flow.
+	 */
+	private static function ensure_campaign_run_risk_score_column(): void {
+		global $wpdb;
+
+		$table = $wpdb->prefix . 'pukat_risk_scores';
+
+		$column = $wpdb->get_var(
+			$wpdb->prepare( "SHOW COLUMNS FROM {$table} LIKE %s", 'campaign_run_id' )
+		);
+
+		if ( ! $column ) {
+			$wpdb->query( "ALTER TABLE {$table} ADD campaign_run_id BIGINT UNSIGNED DEFAULT NULL AFTER campaign_id" );
+		}
+
+		$index = $wpdb->get_var(
+			$wpdb->prepare( "SHOW INDEX FROM {$table} WHERE Key_name = %s", 'campaign_run_id' )
+		);
+
+		if ( ! $index ) {
+			$wpdb->query( "ALTER TABLE {$table} ADD INDEX campaign_run_id (campaign_run_id)" );
+		}
+	}
+
+	/**
+	 * Ensure migrated Playbook Masters can reference their legacy playbook source.
+	 */
+	private static function ensure_playbook_master_legacy_column(): void {
+		global $wpdb;
+
+		$table = $wpdb->prefix . 'pukat_playbook_masters';
+
+		$column = $wpdb->get_var(
+			$wpdb->prepare( "SHOW COLUMNS FROM {$table} LIKE %s", 'legacy_playbook_id' )
+		);
+
+		if ( ! $column ) {
+			$wpdb->query( "ALTER TABLE {$table} ADD legacy_playbook_id BIGINT UNSIGNED DEFAULT NULL AFTER version" );
+		}
+
+		$index = $wpdb->get_var(
+			$wpdb->prepare( "SHOW INDEX FROM {$table} WHERE Key_name = %s", 'legacy_playbook_id' )
+		);
+
+		if ( ! $index ) {
+			$wpdb->query( "ALTER TABLE {$table} ADD INDEX legacy_playbook_id (legacy_playbook_id)" );
 		}
 	}
 

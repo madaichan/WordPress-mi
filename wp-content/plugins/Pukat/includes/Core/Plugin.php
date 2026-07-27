@@ -11,8 +11,11 @@ namespace Pukat\Core;
 
 use Pukat\Admin\AdminMenu;
 use Pukat\Api\CampaignController;
+use Pukat\Api\CampaignRunController;
 use Pukat\Api\GoPhishProxy;
+use Pukat\Api\MasterComponentController;
 use Pukat\Api\PlaybookController;
+use Pukat\Api\PlaybookMasterController;
 use Pukat\Api\QuizController;
 use Pukat\Api\ReportController;
 use Pukat\Api\SettingsController;
@@ -67,6 +70,8 @@ final class Plugin {
 	 * Register all WordPress hooks.
 	 */
 	private function init_hooks(): void {
+		Activator::maybe_upgrade();
+
 		// Admin UI.
 		add_action( 'admin_menu', [ new AdminMenu(), 'register' ] );
 		add_action( 'admin_enqueue_scripts', [ $this, 'enqueue_admin_assets' ] );
@@ -170,6 +175,9 @@ final class Plugin {
 	 */
 	public function register_rest_routes(): void {
 		( new GoPhishProxy() )->register_routes();
+		( new MasterComponentController() )->register_routes();
+		( new PlaybookMasterController() )->register_routes();
+		( new CampaignRunController() )->register_routes();
 		( new CampaignController() )->register_routes();
 		( new PlaybookController() )->register_routes();
 		( new SettingsController() )->register_routes();

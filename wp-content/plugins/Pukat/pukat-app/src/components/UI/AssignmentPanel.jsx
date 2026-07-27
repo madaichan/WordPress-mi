@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useMemo, useState } from 'react'
 import clsx from 'clsx'
 import toast from 'react-hot-toast'
 import Button, { IconButton } from './Button.jsx'
@@ -12,8 +12,26 @@ export default function AssignmentPanel({
   onSave,
   showUserRole = true,
 }) {
-  const [mode, setMode] = useState(item.assignedTo)
-  const [selected, setSelected] = useState(item.users)
+  const [mode, setMode] = useState(item.assignedTo ?? 'all')
+  const [selected, setSelected] = useState(item.users ?? [])
+  const [searchQuery, setSearchQuery] = useState('')
+
+  const filteredUsers = useMemo(() => {
+    const query = searchQuery.trim().toLowerCase()
+    if (!query) return users
+
+    return users.filter(user => {
+      const roleLabel = getPukatRoleLabel(user.role)
+      const text = [
+        user.name,
+        user.email,
+        user.entity,
+        roleLabel,
+      ].filter(Boolean).join(' ').toLowerCase()
+
+      return text.includes(query)
+    })
+  }, [searchQuery, users])
 
   function toggleUser(userId) {
     setSelected(current => (
@@ -89,9 +107,32 @@ export default function AssignmentPanel({
 
           {mode === 'specific' && (
             <section>
-              <div className="mb-2 text-xs font-semibold uppercase tracking-wider text-gray-500">Users</div>
+              <div className="mb-2 flex items-center justify-between gap-3">
+                <div className="text-xs font-semibold uppercase tracking-wider text-gray-500">Users</div>
+                <div className="text-[10px] font-semibold text-gray-400">{selected.length} selected</div>
+              </div>
+              <div className="relative mb-3">
+                <i className="ti ti-search pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-sm text-gray-400" />
+                <input
+                  type="search"
+                  value={searchQuery}
+                  onChange={event => setSearchQuery(event.target.value)}
+                  placeholder="Search users..."
+                  className="w-full rounded-xl border border-gray-200 bg-white py-2 pl-9 pr-9 text-sm text-gray-900 outline-none transition-all placeholder:text-gray-400 focus:border-violet-500 focus:ring-2 focus:ring-violet-500/10"
+                />
+                {searchQuery && (
+                  <button
+                    type="button"
+                    onClick={() => setSearchQuery('')}
+                    className="absolute right-2 top-1/2 flex h-6 w-6 -translate-y-1/2 items-center justify-center rounded-md text-gray-400 transition-colors hover:bg-gray-50 hover:text-gray-700"
+                    aria-label="Clear user search"
+                  >
+                    <i className="ti ti-x text-sm" />
+                  </button>
+                )}
+              </div>
               <div className="space-y-2">
-                {users.map(user => (
+                {filteredUsers.map(user => (
                   <label key={user.id} className="flex cursor-pointer items-center gap-3 rounded-xl border border-gray-100 p-3 hover:bg-gray-50">
                     <input
                       type="checkbox"
@@ -113,6 +154,11 @@ export default function AssignmentPanel({
                     )}
                   </label>
                 ))}
+                {filteredUsers.length === 0 && (
+                  <div className="rounded-xl border border-dashed border-gray-200 p-6 text-center text-xs font-medium text-gray-400">
+                    No users found.
+                  </div>
+                )}
               </div>
             </section>
           )}

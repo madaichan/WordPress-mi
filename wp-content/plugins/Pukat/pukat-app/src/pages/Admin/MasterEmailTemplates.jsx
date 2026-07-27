@@ -1,4 +1,4 @@
-import { useCallback, useMemo, useState } from 'react'
+import { useCallback, useEffect, useMemo, useState } from 'react'
 import toast from 'react-hot-toast'
 import clsx from 'clsx'
 import { FALLBACK_USERS } from '../../data/fallbacks.js'
@@ -11,8 +11,11 @@ import PageHeader from '../../components/UI/PageHeader.jsx'
 import Button from '../../components/UI/Button.jsx'
 import Tabs from '../../components/UI/Tabs.jsx'
 import Badge from '../../components/UI/Badge.jsx'
+import { useMasterEmailTemplates } from '../../hooks/queries/useMasterAssetQueries.js'
 import { useUsers } from '../../hooks/queries/useUserQueries.js'
-import { normalizePukatRole } from '../../utils/roles.js'
+import { useAssignMasterEmailTemplateEntityMutation, useCreateMasterEmailTemplateMutation, useUpdateMasterEmailTemplateMutation } from '../../hooks/mutations/useMasterAssetMutations.js'
+import { applyAssignmentFromEntity, entityFromAssignment, userForAssignmentPanel } from '../../utils/entityAssignmentHelpers.js'
+import { buildMasterEmailTemplatePayload, masterEmailTemplateToUiTemplate } from '../../utils/masterAssetHelpers.js'
 
 
 const DEFAULT_HTML = `<!DOCTYPE html>
@@ -36,158 +39,7 @@ const DEFAULT_HTML = `<!DOCTYPE html>
 </body>
 </html>`
 
-const INITIAL_TEMPLATES = [
-  {
-    id: 'ms',
-    name: 'Microsoft Office 365 Alert',
-    category: 'alert',
-    status: 'Published',
-    description: 'Security login email style with an urgent password update request.',
-    sender: 'Microsoft Security <security@microsoft-update.net>',
-    subject: 'Action Required: Unauthorized login attempt detected',
-    assignedTo: 'all',
-    users: [],
-    thumbnail: { icon: 'ti-mail-opened', bg: 'bg-red-500/20 text-red-500' },
-    html: `<!DOCTYPE html>
-<html>
-<head>
-  <style>
-    body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; color: #333; line-height: 1.5; }
-    .container { max-width: 600px; margin: 0 auto; padding: 20px; border: 1px solid #e1e1e1; }
-    .blue-btn { background-color: #0067b8; color: white !important; padding: 10px 24px; text-decoration: none; font-weight: bold; border-radius: 4px; display: inline-block; }
-  </style>
-</head>
-<body>
-  <div class="container">
-    <div style="font-size: 14px; font-weight: 600; color: #5e5e5e;">Microsoft Account Security</div>
-    <hr style="border: 0; border-top: 1px solid #eee; margin: 15px 0;">
-    <h3 style="font-size: 16px; font-weight: 600; color: #111;">Security alert</h3>
-    <p>Dear {{.FirstName}},</p>
-    <p>We detected unusual sign-in activity on your Microsoft 365 Account ({{.Email}}) from an unrecognized device or IP address.</p>
-    <div style="background: #f9f9f9; border-radius: 6px; padding: 12px; margin: 15px 0; font-size: 12px;">
-      <div><strong>Country/Region:</strong> Netherlands</div>
-      <div><strong>IP Address:</strong> 185.220.101.4</div>
-      <div><strong>Browser:</strong> Chrome / Windows 10</div>
-    </div>
-    <p>Please click the button below to verify your login credentials and prevent account lockout.</p>
-    <div style="text-align: center; margin-top: 20px;">
-      <a href="{{.URL}}" class="blue-btn">Verify account</a>
-    </div>
-  </div>
-</body>
-</html>`,
-  },
-  {
-    id: 'google',
-    name: 'Google Security Notification',
-    category: 'alert',
-    status: 'Published',
-    description: 'Warns about an unknown login from a new device.',
-    sender: 'Google Security <support@google-help.com>',
-    subject: 'Security alert: Critical sign-in blocked',
-    assignedTo: 'specific',
-    users: [2],
-    thumbnail: { icon: 'ti-shield', bg: 'bg-blue-500/20 text-blue-500' },
-    html: `<!DOCTYPE html>
-<html>
-<head>
-  <style>
-    body { font-family: Roboto, sans-serif; color: #333; line-height: 1.5; }
-    .container { max-width: 600px; margin: 0 auto; padding: 20px; border: 1px solid #e1e1e1; border-top: 4px solid #ea4335; }
-    .btn { background-color: #1a73e8; color: white !important; padding: 10px 24px; text-decoration: none; font-weight: bold; border-radius: 4px; display: inline-block; }
-  </style>
-</head>
-<body>
-  <div class="container">
-    <div style="font-size: 18px; font-weight: bold; margin-bottom: 20px;">
-      <span style="color:#4285f4">G</span><span style="color:#ea4335">o</span><span style="color:#fbbc05">o</span><span style="color:#4285f4">g</span><span style="color:#34a853">l</span><span style="color:#ea4335">e</span>
-    </div>
-    <h3 style="font-size: 16px; font-weight: bold; color: #111; margin-top: 0;">Security alert: Critical Sign-in Blocked</h3>
-    <p>Hello {{.FirstName}},</p>
-    <p>Google blocked a critical login attempt to your Google Workspace Account ({{.Email}}).</p>
-    <div style="text-align: center; margin: 25px 0;">
-      <a href="{{.URL}}" class="btn">Check activity</a>
-    </div>
-  </div>
-</body>
-</html>`,
-  },
-  {
-    id: 'hr',
-    name: 'Internal HR Payroll Info',
-    category: 'info',
-    status: 'Draft',
-    description: 'Quarterly payroll notification with a linked document.',
-    sender: 'HR Department <payroll@internal-company.id>',
-    subject: 'HR Info: Q3 Payroll Statement Update',
-    assignedTo: 'specific',
-    users: [1, 3],
-    thumbnail: { icon: 'ti-receipt', bg: 'bg-emerald-500/20 text-emerald-500' },
-    html: `<!DOCTYPE html>
-<html>
-<head>
-  <style>
-    body { font-family: sans-serif; color: #444; line-height: 1.5; }
-    .container { max-width: 600px; margin: 0 auto; padding: 20px; border: 1px solid #eee; }
-    .btn { background-color: #8b5cf6; color: white !important; padding: 10px 24px; text-decoration: none; font-weight: bold; border-radius: 6px; display: inline-block; }
-  </style>
-</head>
-<body>
-  <div class="container">
-    <strong>Human Resources Department</strong>
-    <hr style="border:0; border-top: 1px solid #eee; margin: 15px 0;">
-    <p>Dear Employee {{.FirstName}},</p>
-    <p>Please review the payroll details and adjustment slip for the upcoming Q3 corporate tax calculation.</p>
-    <div style="text-align: center; margin: 25px 0;">
-      <a href="{{.URL}}" class="btn">Check payroll statement</a>
-    </div>
-  </div>
-</body>
-</html>`,
-  },
-  {
-    id: 'djp',
-    name: 'DJP Online Tax Warning',
-    category: 'urgent',
-    status: 'Published',
-    description: 'Urgent tax e-billing notification requiring immediate action.',
-    sender: 'DJP Online <e-filing@pajak.go.id>',
-    subject: 'Notification: 2024 Tax Arrears Warning',
-    assignedTo: 'all',
-    users: [],
-    thumbnail: { icon: 'ti-alert-triangle', bg: 'bg-yellow-500/20 text-yellow-500' },
-    html: `<!DOCTYPE html>
-<html>
-<head>
-  <style>
-    body { font-family: sans-serif; color: #333; line-height: 1.5; }
-    .container { max-width: 600px; margin: 0 auto; padding: 20px; border: 1px solid #eee; }
-    .btn { background-color: #eab308; color: #0b172a !important; padding: 10px 24px; text-decoration: none; font-weight: bold; border-radius: 4px; display: inline-block; }
-  </style>
-</head>
-<body>
-  <div class="container">
-    <strong>DIREKTORAT JENDERAL PAJAK</strong>
-    <hr style="border:0; border-top: 1px solid #eee; margin: 15px 0;">
-    <p>Dear {{.FirstName}},</p>
-    <p>This electronic notice is issued because an annual tax arrears verification is pending.</p>
-    <div style="text-align: center; margin: 25px 0;">
-      <a href="{{.URL}}" class="btn">PAY E-BILLING</a>
-    </div>
-  </div>
-</body>
-</html>`,
-  },
-]
-
-function normalizeUser(user) {
-  return {
-    id: Number(user.id),
-    name: user.display_name || user.name || user.email || `User ${user.id}`,
-    email: user.email || '',
-    role: normalizePukatRole(user.pukat_role ?? user.role),
-  }
-}
+const INITIAL_TEMPLATES = []
 
 function StatusBadge({ status }) {
   const published = status === 'Published'
@@ -207,7 +59,8 @@ function EmailTemplatesTable({ templates, usersById, onEdit, onPreview, onAssign
               <th className="p-4">Subject</th>
               <th className="p-4">Status</th>
               <th className="p-4">Assignment</th>
-              <th className="w-32 p-4 pr-6 text-right">Actions</th>
+              <th className="p-4">Entity</th>
+              <th className="w-40 p-4 pr-6 text-right">Actions</th>
             </tr>
           </thead>
           <tbody className="divide-y divide-gray-100">
@@ -230,7 +83,7 @@ function EmailTemplatesTable({ templates, usersById, onEdit, onPreview, onAssign
                   </Badge>
                 </td>
                 <td className="p-4">
-                  <span className="block max-w-[180px] truncate text-[11px] font-medium text-gray-700">{template.sender}</span>
+                  <span className="block max-w-[180px] truncate text-[11px] font-medium text-gray-700">{template.sender || '-'}</span>
                 </td>
                 <td className="p-4">
                   <span className="block max-w-[220px] truncate text-[11px] text-gray-500">{template.subject}</span>
@@ -241,18 +94,23 @@ function EmailTemplatesTable({ templates, usersById, onEdit, onPreview, onAssign
                 <td className="p-4">
                   <AssignmentBadge item={template} usersById={usersById} />
                 </td>
-                <td className="w-32 p-4 pr-6 text-right">
+                <td className="p-4">
+                  <Badge tone={template.entity ? 'gray' : 'warning'} className="text-[10px]">
+                    {template.entity || 'No entity'}
+                  </Badge>
+                </td>
+                <td className="w-40 p-4 pr-6 text-right">
                   <div className="inline-flex items-center gap-1.5">
+                    <TableActionButton icon="ti-user-check" label={`Assign ${template.name}`} title="Assign" tone="green" onClick={() => onAssign(template.id)} />
                     <TableActionButton icon="ti-edit" label={`Edit ${template.name}`} title="Edit" onClick={() => onEdit(template.id)} />
                     <TableActionButton icon="ti-eye" label={`Preview ${template.name}`} title="Preview" tone="blue" onClick={() => onPreview(template.id)} />
-                    <TableActionButton icon="ti-user-check" label={`Assign ${template.name}`} title="Assign" onClick={() => onAssign(template.id)} />
                   </div>
                 </td>
               </tr>
             ))}
             {templates.length === 0 && (
               <tr>
-                <td colSpan={7} className="p-8 text-center text-sm text-gray-400">
+                <td colSpan={8} className="p-8 text-center text-sm text-gray-400">
                   No email templates found.
                 </td>
               </tr>
@@ -285,10 +143,13 @@ function EditorPane({
   setStatus,
   sender,
   setSender,
+  entity,
+  setEntity,
   subject,
   setSubject,
   htmlCode,
   setHtmlCode,
+  saving,
   onBack,
   onSave,
 }) {
@@ -299,11 +160,13 @@ function EditorPane({
       <div className="flex items-center justify-between">
         <div>
           <h2 className="text-lg font-bold text-gray-900">{title}</h2>
-          <p className="mt-0.5 text-xs text-gray-500">Configure the envelope header and phishing email HTML source.</p>
+          <p className="mt-0.5 text-xs text-gray-500">Configure master metadata and the versioned email HTML source.</p>
         </div>
         <div className="flex items-center gap-3">
           <Button variant="outline" onClick={onBack}>Cancel</Button>
-          <Button variant="primary" onClick={onSave}>Save template</Button>
+          <Button variant="primary" onClick={onSave} disabled={saving}>
+            {saving ? 'Saving...' : 'Save template'}
+          </Button>
         </div>
       </div>
 
@@ -333,8 +196,12 @@ function EditorPane({
               </label>
             </div>
             <label className="block space-y-1">
-              <span className="block font-semibold text-gray-700">Sender *</span>
+              <span className="block font-semibold text-gray-700">Preview sender</span>
               <input value={sender} onChange={event => setSender(event.target.value)} placeholder="Example: Admin <admin@company.id>" className="w-full rounded-lg border border-gray-200 bg-white px-3 py-2 text-gray-950 outline-none focus:border-violet-500" />
+            </label>
+            <label className="block space-y-1">
+              <span className="block font-semibold text-gray-700">Entity</span>
+              <input value={entity} onChange={event => setEntity(event.target.value)} placeholder="Example: EntityA" className="w-full rounded-lg border border-gray-200 bg-white px-3 py-2 text-gray-950 outline-none focus:border-violet-500" />
             </label>
             <label className="block space-y-1">
               <span className="block font-semibold text-gray-700">Subject *</span>
@@ -381,30 +248,30 @@ const SUBTABS = [
 ]
 
 export default function MasterEmailTemplates() {
-  const [templates, setTemplates] = useState(INITIAL_TEMPLATES)
+  const { data: masterTemplates = [], isFetching, refetch } = useMasterEmailTemplates()
+  const { data: usersData } = useUsers({ per_page: 100 })
+  const [templates, setTemplates] = useState(() => INITIAL_TEMPLATES.slice(0, 0))
   const [activeTab, setActiveTab] = useState('list')
   const [activeFilter, setActiveFilter] = useState('all')
   const [searchQuery, setSearchQuery] = useState('')
-  const [assignmentId, setAssignmentId] = useState(null)
   const [previewTitle, setPreviewTitle] = useState('Microsoft Office 365 Alert')
   const [editingId, setEditingId] = useState(null)
   const [editingName, setEditingName] = useState('')
   const [editingCategory, setEditingCategory] = useState('alert')
   const [editingStatus, setEditingStatus] = useState('Published')
   const [editingSender, setEditingSender] = useState('')
+  const [editingEntity, setEditingEntity] = useState('')
   const [editingSubject, setEditingSubject] = useState('')
   const [editingHtml, setEditingHtml] = useState('')
+  const [assignmentTemplateId, setAssignmentTemplateId] = useState(null)
   const [syncing, setSyncing] = useState(false)
-
-  const { data: usersData } = useUsers({ per_page: 100 })
 
   const users = useMemo(() => {
     const source = usersData?.users?.length ? usersData.users : FALLBACK_USERS
-    return source.map(normalizeUser)
+    return source.map(userForAssignmentPanel)
   }, [usersData])
 
   const usersById = useMemo(() => new Map(users.map(user => [user.id, user])), [users])
-  const assignmentTemplate = templates.find(template => template.id === assignmentId)
 
   const filteredTemplates = useMemo(() => {
     let list = templates
@@ -419,6 +286,7 @@ export default function MasterEmailTemplates() {
       template.name.toLowerCase().includes(query)
       || template.description.toLowerCase().includes(query)
       || template.sender.toLowerCase().includes(query)
+      || template.entity.toLowerCase().includes(query)
       || template.subject.toLowerCase().includes(query)
     ))
   }, [activeFilter, searchQuery, templates])
@@ -429,8 +297,8 @@ export default function MasterEmailTemplates() {
     { key: 'info', label: 'Internal info', count: templates.filter(template => template.category === 'info').length },
     { key: 'urgent', label: 'Urgent notification', count: templates.filter(template => template.category === 'urgent').length },
   ]), [templates])
-  const availableToAllCount = templates.filter(template => template.assignedTo === 'all').length
-  const assignedToSpecificCount = templates.length - availableToAllCount
+  const entityCount = new Set(templates.map(template => template.entity).filter(Boolean)).size
+  const noEntityCount = templates.filter(template => !template.entity).length
 
   const clearEditingState = useCallback(() => {
     setEditingId(null)
@@ -438,6 +306,7 @@ export default function MasterEmailTemplates() {
     setEditingCategory('alert')
     setEditingStatus('Published')
     setEditingSender('')
+    setEditingEntity('')
     setEditingSubject('')
     setEditingHtml('')
   }, [])
@@ -446,6 +315,29 @@ export default function MasterEmailTemplates() {
     setActiveTab(tab)
     if (tab === 'list') clearEditingState()
   }, [clearEditingState])
+
+  const closeEditor = useCallback(() => {
+    setSearchQuery('')
+    switchTab('list')
+  }, [switchTab])
+
+  const createMutation = useCreateMasterEmailTemplateMutation({ onSuccess: closeEditor })
+  const updateMutation = useUpdateMasterEmailTemplateMutation({ onSuccess: closeEditor })
+  const assignEntityMutation = useAssignMasterEmailTemplateEntityMutation({
+    onSuccess: () => setAssignmentTemplateId(null),
+  })
+  const saving = createMutation.isPending || updateMutation.isPending
+
+  useEffect(() => {
+    setTemplates(masterTemplates
+      .map(masterEmailTemplateToUiTemplate)
+      .map(template => applyAssignmentFromEntity(template, users))
+    )
+  }, [masterTemplates, users])
+
+  const assignmentTemplate = useMemo(() => (
+    templates.find(template => template.id === assignmentTemplateId) ?? null
+  ), [assignmentTemplateId, templates])
 
   const loadTemplateForWork = useCallback((id) => {
     const template = templates.find(item => item.id === id)
@@ -456,6 +348,7 @@ export default function MasterEmailTemplates() {
     setEditingCategory(template.category || 'alert')
     setEditingStatus(template.status || 'Published')
     setEditingSender(template.sender || '')
+    setEditingEntity(template.entity || '')
     setEditingSubject(template.subject || '')
     setEditingHtml(template.html || '')
     return template
@@ -478,70 +371,65 @@ export default function MasterEmailTemplates() {
     setEditingCategory('alert')
     setEditingStatus('Published')
     setEditingSender('Admin <admin@company.id>')
+    setEditingEntity('')
     setEditingSubject('Action Required: Important Notification')
     setEditingHtml(DEFAULT_HTML)
     setActiveTab('editor')
   }, [])
 
+  const handleAssign = useCallback((id) => {
+    setAssignmentTemplateId(id)
+  }, [])
+
   const handleSave = useCallback(() => {
-    if (!editingName.trim() || !editingSender.trim() || !editingSubject.trim() || !editingHtml.trim()) {
-      toast.error('Template name, sender, subject, and HTML source are required.')
+    if (!editingName.trim() || !editingSubject.trim() || !editingHtml.trim()) {
+      toast.error('Template name, subject, and HTML source are required.')
       return
     }
 
+    const payload = buildMasterEmailTemplatePayload({
+      name: editingName,
+      category: editingCategory,
+      status: editingStatus,
+      entity: editingEntity,
+      subject: editingSubject,
+      html: editingHtml,
+    })
+
     if (editingId) {
-      setTemplates(current => current.map(template => (
-        template.id === editingId
-          ? {
-            ...template,
-            name: editingName.trim(),
-            category: editingCategory,
-            status: editingStatus,
-            sender: editingSender.trim(),
-            subject: editingSubject.trim(),
-            html: editingHtml,
-          }
-          : template
-      )))
-      toast.success(`Template "${editingName.trim()}" saved.`)
+      updateMutation.mutate({ id: editingId, data: payload })
     } else {
-      const newTemplate = {
-        id: `custom_${Date.now()}`,
-        name: editingName.trim(),
-        category: editingCategory,
-        status: editingStatus,
-        description: 'Custom email template created from the master library.',
-        sender: editingSender.trim(),
-        subject: editingSubject.trim(),
-        html: editingHtml,
-        assignedTo: 'all',
-        users: [],
-        thumbnail: { icon: 'ti-mail', bg: 'bg-violet-500/20 text-violet-500' },
-      }
-      setTemplates(current => [newTemplate, ...current])
-      toast.success(`Template "${newTemplate.name}" created.`)
+      createMutation.mutate(payload)
+    }
+  }, [createMutation, editingCategory, editingEntity, editingHtml, editingId, editingName, editingStatus, editingSubject, updateMutation])
+
+  const handleSync = useCallback(async () => {
+    setSyncing(true)
+    const result = await refetch()
+    setSyncing(false)
+
+    if (result.error) {
+      toast.error(result.error.message || 'Failed to refresh email template masters.')
+      return
     }
 
-    setSearchQuery('')
-    switchTab('list')
-  }, [editingCategory, editingHtml, editingId, editingName, editingSender, editingStatus, editingSubject, switchTab])
+    toast.success(`Refresh complete - ${result.data?.length ?? 0} email template masters`)
+  }, [refetch])
 
-  const handleSync = useCallback(() => {
-    setSyncing(true)
-    toast('Syncing email templates from GoPhish...', { icon: 'sync' })
-    window.setTimeout(() => {
-      setSyncing(false)
-      toast.success(`Sync complete - ${templates.length} email templates`)
-    }, 1200)
-  }, [templates.length])
+  const saveAssignment = useCallback((assignment) => {
+    if (!assignmentTemplate) return
 
-  function saveAssignment(nextAssignment) {
-    setTemplates(current => current.map(template => (
-      template.id === assignmentId ? { ...template, ...nextAssignment } : template
-    )))
-    toast.success('Assignment updated.')
-    setAssignmentId(null)
-  }
+    const result = entityFromAssignment(assignment, users)
+    if (result.error) {
+      toast.error(result.error)
+      return
+    }
+
+    assignEntityMutation.mutate({
+      id: assignmentTemplate.id,
+      entity: result.entity,
+    })
+  }, [assignEntityMutation, assignmentTemplate, users])
 
   const pillClass = (key) =>
     clsx(
@@ -555,7 +443,7 @@ export default function MasterEmailTemplates() {
     <div className="mt-4 space-y-6 lg:flex lg:h-[calc(100vh-110px)] lg:min-h-[720px] lg:flex-col lg:overflow-hidden animate-fade-in">
       <PageHeader
         title="Master email templates"
-        subtitle="Manage approved GoPhish email templates and user availability."
+        subtitle="Manage WordPress-owned email template masters by entity."
         actions={
           <>
             <div className="relative w-64">
@@ -570,9 +458,9 @@ export default function MasterEmailTemplates() {
                 className="w-full rounded-xl border border-gray-200 bg-white py-2 pl-9 pr-4 text-sm text-gray-950 outline-none placeholder:text-gray-400 focus:border-violet-500"
               />
             </div>
-            <Button variant="outline" onClick={handleSync} disabled={syncing}>
-              <i className={clsx('ti ti-refresh text-base', syncing && 'animate-spin')} />
-              <span>Sync GoPhish</span>
+            <Button variant="outline" onClick={handleSync} disabled={syncing || isFetching}>
+              <i className={clsx('ti ti-refresh text-base', (syncing || isFetching) && 'animate-spin')} />
+              <span>Refresh</span>
             </Button>
             <Button variant="primary" onClick={handleCreate}>
               <i className="ti ti-plus text-base" />
@@ -593,12 +481,12 @@ export default function MasterEmailTemplates() {
           </div>
         </div>
         <div className="rounded-xl border border-gray-200 bg-white p-4 shadow-sm">
-          <div className="text-2xl font-bold text-gray-900">{availableToAllCount}</div>
-          <div className="mt-1 text-xs font-semibold text-gray-500">Available to all users</div>
+          <div className="text-2xl font-bold text-gray-900">{entityCount}</div>
+          <div className="mt-1 text-xs font-semibold text-gray-500">Entities</div>
         </div>
         <div className="rounded-xl border border-gray-200 bg-white p-4 shadow-sm">
-          <div className="text-2xl font-bold text-gray-900">{assignedToSpecificCount}</div>
-          <div className="mt-1 text-xs font-semibold text-gray-500">Assigned to specific users</div>
+          <div className="text-2xl font-bold text-gray-900">{noEntityCount}</div>
+          <div className="mt-1 text-xs font-semibold text-gray-500">Without entity</div>
         </div>
       </div>
 
@@ -619,7 +507,7 @@ export default function MasterEmailTemplates() {
               usersById={usersById}
               onEdit={handleEdit}
               onPreview={handlePreview}
-              onAssign={setAssignmentId}
+              onAssign={handleAssign}
             />
           </div>
         )}
@@ -635,10 +523,13 @@ export default function MasterEmailTemplates() {
             setStatus={setEditingStatus}
             sender={editingSender}
             setSender={setEditingSender}
+            entity={editingEntity}
+            setEntity={setEditingEntity}
             subject={editingSubject}
             setSubject={setEditingSubject}
             htmlCode={editingHtml}
             setHtmlCode={setEditingHtml}
+            saving={saving}
             onBack={() => switchTab('list')}
             onSave={handleSave}
           />
@@ -672,10 +563,11 @@ export default function MasterEmailTemplates() {
 
       {assignmentTemplate && (
         <AssignmentPanel
+          key={assignmentTemplate.id}
           item={assignmentTemplate}
-          resourceLabel="email template"
+          resourceLabel="asset"
           users={users}
-          onClose={() => setAssignmentId(null)}
+          onClose={() => setAssignmentTemplateId(null)}
           onSave={saveAssignment}
         />
       )}

@@ -1,1 +1,0 @@
-import{j as t,c as e}from"./main-CWwUWTsm.js";function i({error:n,errorMessage:s,className:r,...x}){return t.jsxs(t.Fragment,{children:[t.jsx("input",{className:e("input",n&&"input-error",r),...x}),s&&t.jsx("p",{className:"mt-1 text-xs text-danger",children:s})]})}export{i as I};

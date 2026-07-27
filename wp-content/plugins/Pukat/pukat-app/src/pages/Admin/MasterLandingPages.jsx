@@ -1,4 +1,4 @@
-import { useCallback, useMemo, useState } from 'react'
+import { useCallback, useEffect, useMemo, useState } from 'react'
 import toast from 'react-hot-toast'
 import clsx from 'clsx'
 import { FALLBACK_USERS } from '../../data/fallbacks.js'
@@ -9,8 +9,11 @@ import PageHeader from '../../components/UI/PageHeader.jsx'
 import Button from '../../components/UI/Button.jsx'
 import Tabs from '../../components/UI/Tabs.jsx'
 import Badge from '../../components/UI/Badge.jsx'
+import { useMasterLandingPages } from '../../hooks/queries/useMasterAssetQueries.js'
 import { useUsers } from '../../hooks/queries/useUserQueries.js'
-import { normalizePukatRole } from '../../utils/roles.js'
+import { useAssignMasterLandingPageEntityMutation, useCreateMasterLandingPageMutation, useUpdateMasterLandingPageMutation } from '../../hooks/mutations/useMasterAssetMutations.js'
+import { applyAssignmentFromEntity, entityFromAssignment, userForAssignmentPanel } from '../../utils/entityAssignmentHelpers.js'
+import { buildMasterLandingPagePayload, masterLandingPageToUiPage } from '../../utils/masterAssetHelpers.js'
 
 
 const DEFAULT_HTML = `<!DOCTYPE html>
@@ -36,88 +39,7 @@ const DEFAULT_HTML = `<!DOCTYPE html>
 </body>
 </html>`
 
-const INITIAL_PAGES = [
-  {
-    id: 'lp-m365',
-    name: 'Microsoft 365 Login',
-    category: 'login',
-    description: 'Corporate Outlook 365 login clone for credential simulations.',
-    html: DEFAULT_HTML,
-    redirectUrl: 'https://portal.office.com',
-    badges: ['Data', 'Pass'],
-    assignedTo: 'all',
-    users: [],
-    thumbnail: {
-      accent: <div className="h-2.5 w-12 rounded bg-blue-500/80" />,
-      bars: [{ w: 'w-full' }, { w: 'w-4/5' }],
-    },
-  },
-  {
-    id: 'lp-hr-data',
-    name: 'HR Portal — Data Update',
-    category: 'form',
-    description: 'Employee data update form for HR-themed simulations.',
-    html: `<!DOCTYPE html>
-<html>
-<body style="font-family:sans-serif;background:#f9fafb;display:flex;align-items:center;justify-content:center;min-height:100vh">
-  <form style="width:400px;background:white;border:1px solid #e5e7eb;border-radius:8px;padding:32px">
-    <h2>Employee Data Update</h2>
-    <input name="fullname" placeholder="Full name" style="width:100%;padding:8px;margin-bottom:12px" />
-    <input name="employee_id" placeholder="Employee ID" style="width:100%;padding:8px;margin-bottom:12px" />
-    <input name="email" placeholder="Corporate email" style="width:100%;padding:8px;margin-bottom:12px" />
-    <button style="width:100%;padding:10px;background:#dc2626;color:white;border:0">Submit data</button>
-  </form>
-</body>
-</html>`,
-    redirectUrl: 'https://hr.example.com',
-    badges: ['Data'],
-    assignedTo: 'specific',
-    users: [2],
-    thumbnail: {
-      accent: <div className="h-2.5 w-12 rounded bg-red-500/80" />,
-      bars: [{ w: 'w-full' }, { w: 'w-4/5' }],
-    },
-  },
-  {
-    id: 'lp-redirect',
-    name: 'Security Awareness Redirect',
-    category: 'redirect',
-    description: 'Redirect-only education page after link click.',
-    html: `<!DOCTYPE html>
-<html>
-<head><meta http-equiv="refresh" content="3;url=https://example.com/security-awareness"></head>
-<body style="font-family:sans-serif;background:#f0fdf4;display:flex;align-items:center;justify-content:center;min-height:100vh">
-  <div style="text-align:center">
-    <h2>Thank you</h2>
-    <p>You will be redirected to the official page.</p>
-  </div>
-</body>
-</html>`,
-    redirectUrl: 'https://example.com/security-awareness',
-    badges: ['Data'],
-    assignedTo: 'specific',
-    users: [1, 3],
-    thumbnail: {
-      accent: <div className="h-2.5 w-12 rounded bg-emerald-500/80" />,
-      bars: [{ w: 'w-3/4' }],
-    },
-  },
-]
-
-function normalizeUser(user) {
-  return {
-    id: Number(user.id),
-    name: user.display_name || user.name || user.email || `User ${user.id}`,
-    email: user.email || '',
-    role: normalizePukatRole(user.pukat_role ?? user.role),
-  }
-}
-
-function categoryForBadges(badges) {
-  if (badges.includes('Pass')) return 'login'
-  if (badges.includes('Data')) return 'form'
-  return 'redirect'
-}
+const INITIAL_PAGES = []
 
 function CaptureBadge({ label }) {
   const isPass = label === 'Pass'
@@ -135,8 +57,9 @@ function LandingPagesTable({ pages, usersById, onEdit, onPreview, onAssign }) {
               <th className="p-4">Type</th>
               <th className="p-4">Capture</th>
               <th className="p-4">Assignment</th>
+              <th className="p-4">Entity</th>
               <th className="p-4">Redirect URL</th>
-              <th className="w-32 p-4 pr-6 text-right">Actions</th>
+              <th className="w-40 p-4 pr-6 text-right">Actions</th>
             </tr>
           </thead>
           <tbody className="divide-y divide-gray-100">
@@ -167,22 +90,27 @@ function LandingPagesTable({ pages, usersById, onEdit, onPreview, onAssign }) {
                   <AssignmentBadge item={page} usersById={usersById} />
                 </td>
                 <td className="p-4">
+                  <Badge tone={page.entity ? 'gray' : 'warning'} className="text-[10px]">
+                    {page.entity || 'No entity'}
+                  </Badge>
+                </td>
+                <td className="p-4">
                   <span className="block max-w-[220px] truncate font-mono text-[11px] text-gray-500">
                     {page.redirectUrl || '-'}
                   </span>
                 </td>
-                <td className="w-32 p-4 pr-6 text-right">
+                <td className="w-40 p-4 pr-6 text-right">
                   <div className="inline-flex items-center gap-1.5">
+                    <TableActionButton icon="ti-user-check" label={`Assign ${page.name}`} title="Assign" tone="green" onClick={() => onAssign(page.id)} />
                     <TableActionButton icon="ti-edit" label={`Edit ${page.name}`} title="Edit" onClick={() => onEdit(page.id)} />
                     <TableActionButton icon="ti-eye" label={`Preview ${page.name}`} title="Preview" tone="blue" onClick={() => onPreview(page.id)} />
-                    <TableActionButton icon="ti-user-check" label={`Assign ${page.name}`} title="Assign" onClick={() => onAssign(page.id)} />
                   </div>
                 </td>
               </tr>
             ))}
             {pages.length === 0 && (
               <tr>
-                <td colSpan={6} className="p-8 text-center text-sm text-gray-400">
+                <td colSpan={7} className="p-8 text-center text-sm text-gray-400">
                   No landing pages found.
                 </td>
               </tr>
@@ -274,24 +202,26 @@ const SUBTABS = [
 ]
 
 export default function MasterLandingPages() {
-  const [pages, setPages] = useState(INITIAL_PAGES)
+  const { data: masterPages = [], isFetching, refetch } = useMasterLandingPages()
+  const { data: usersData } = useUsers({ per_page: 100 })
+  const [pages, setPages] = useState(() => INITIAL_PAGES.slice(0, 0))
   const [activeTab, setActiveTab] = useState('list')
   const [activeFilter, setActiveFilter] = useState('all')
   const [searchQuery, setSearchQuery] = useState('')
   const [editingId, setEditingId] = useState(null)
   const [editingName, setEditingName] = useState('')
+  const [editingStatus, setEditingStatus] = useState('Published')
   const [editingHtml, setEditingHtml] = useState('')
+  const [editingEntity, setEditingEntity] = useState('')
   const [editingRedirectUrl, setEditingRedirectUrl] = useState('https://portal.office.com')
   const [editingCaptureData, setEditingCaptureData] = useState(true)
   const [editingCapturePass, setEditingCapturePass] = useState(true)
   const [previewTitle, setPreviewTitle] = useState('Microsoft 365 Login')
-  const [assignmentId, setAssignmentId] = useState(null)
-
-  const { data: usersData } = useUsers({ per_page: 100 })
+  const [assignmentPageId, setAssignmentPageId] = useState(null)
 
   const users = useMemo(() => {
     const source = usersData?.users?.length ? usersData.users : FALLBACK_USERS
-    return source.map(normalizeUser)
+    return source.map(userForAssignmentPanel)
   }, [usersData])
 
   const usersById = useMemo(() => new Map(users.map(user => [user.id, user])), [users])
@@ -302,43 +232,68 @@ export default function MasterLandingPages() {
     { key: 'form', label: 'Form submission', count: pages.filter(page => page.category === 'form').length },
     { key: 'redirect', label: 'Redirect only', count: pages.filter(page => page.category === 'redirect').length },
   ], [pages])
-  const availableToAllCount = pages.filter(page => page.assignedTo === 'all').length
-  const assignedToSpecificCount = pages.length - availableToAllCount
+  const entityCount = new Set(pages.map(page => page.entity).filter(Boolean)).size
+  const noEntityCount = pages.filter(page => !page.entity).length
 
   const filteredPages = useMemo(() => {
     const term = searchQuery.trim().toLowerCase()
     return pages.filter(page => {
       const matchesFilter = activeFilter === 'all' || page.category === activeFilter
-      const matchesSearch = !term || page.name.toLowerCase().includes(term) || page.description?.toLowerCase().includes(term)
+      const matchesSearch = !term || page.name.toLowerCase().includes(term) || page.description?.toLowerCase().includes(term) || page.entity.toLowerCase().includes(term)
       return matchesFilter && matchesSearch
     })
   }, [activeFilter, pages, searchQuery])
-
-  const assignmentPage = pages.find(page => page.id === assignmentId)
 
   const pillClass = key => clsx(
     'rounded-full px-4 py-1.5 text-xs font-semibold transition-all',
     activeFilter === key ? 'bg-gray-950 text-white' : 'border border-gray-200 bg-white text-gray-600 hover:bg-gray-50'
   )
 
-  function resetEditor() {
+  const resetEditor = useCallback(() => {
     setEditingId(null)
     setEditingName('')
+    setEditingStatus('Published')
     setEditingHtml('')
+    setEditingEntity('')
     setEditingRedirectUrl('https://portal.office.com')
     setEditingCaptureData(true)
     setEditingCapturePass(true)
-  }
+  }, [])
 
-  function switchTab(tab) {
+  const switchTab = useCallback((tab) => {
     setActiveTab(tab)
     if (tab === 'list') resetEditor()
-  }
+  }, [resetEditor])
+
+  const closeEditor = useCallback(() => {
+    setSearchQuery('')
+    switchTab('list')
+  }, [switchTab])
+
+  const createMutation = useCreateMasterLandingPageMutation({ onSuccess: closeEditor })
+  const updateMutation = useUpdateMasterLandingPageMutation({ onSuccess: closeEditor })
+  const assignEntityMutation = useAssignMasterLandingPageEntityMutation({
+    onSuccess: () => setAssignmentPageId(null),
+  })
+  const saving = createMutation.isPending || updateMutation.isPending
+
+  useEffect(() => {
+    setPages(masterPages
+      .map(masterLandingPageToUiPage)
+      .map(page => applyAssignmentFromEntity(page, users))
+    )
+  }, [masterPages, users])
+
+  const assignmentPage = useMemo(() => (
+    pages.find(page => page.id === assignmentPageId) ?? null
+  ), [assignmentPageId, pages])
 
   const handleCreate = useCallback(() => {
     setEditingId(null)
     setEditingName('')
+    setEditingStatus('Published')
     setEditingHtml(DEFAULT_HTML)
+    setEditingEntity('')
     setEditingRedirectUrl('https://portal.office.com')
     setEditingCaptureData(true)
     setEditingCapturePass(true)
@@ -350,7 +305,9 @@ export default function MasterLandingPages() {
     if (!page) return
     setEditingId(page.id)
     setEditingName(page.name)
+    setEditingStatus(page.status || 'Published')
     setEditingHtml(page.html || '')
+    setEditingEntity(page.entity || '')
     setEditingRedirectUrl(page.redirectUrl || 'https://portal.office.com')
     setEditingCaptureData(page.badges?.includes('Data') ?? true)
     setEditingCapturePass(page.badges?.includes('Pass') ?? true)
@@ -362,13 +319,19 @@ export default function MasterLandingPages() {
     if (!page) return
     setEditingId(page.id)
     setEditingName(page.name)
+    setEditingStatus(page.status || 'Published')
     setEditingHtml(page.html || '')
+    setEditingEntity(page.entity || '')
     setEditingRedirectUrl(page.redirectUrl || 'https://portal.office.com')
     setEditingCaptureData(page.badges?.includes('Data') ?? true)
     setEditingCapturePass(page.badges?.includes('Pass') ?? true)
     setPreviewTitle(page.name)
     setActiveTab('preview')
   }, [pages])
+
+  const handleAssign = useCallback((id) => {
+    setAssignmentPageId(id)
+  }, [])
 
   function handleSave() {
     const name = editingName.trim()
@@ -377,54 +340,52 @@ export default function MasterLandingPages() {
       return
     }
 
-    const badges = [
-      ...(editingCaptureData ? ['Data'] : []),
-      ...(editingCapturePass ? ['Pass'] : []),
-    ]
+    const payload = buildMasterLandingPagePayload({
+      name: editingName,
+      html: editingHtml,
+      redirectUrl: editingRedirectUrl,
+      entity: editingEntity,
+      status: editingStatus,
+      captureData: editingCaptureData,
+      capturePass: editingCapturePass,
+    })
 
     if (editingId) {
-      setPages(current => current.map(page => page.id === editingId ? {
-        ...page,
-        name,
-        html: editingHtml,
-        redirectUrl: editingRedirectUrl,
-        badges,
-        category: categoryForBadges(badges),
-      } : page))
-      toast.success(`Landing page "${name}" saved.`)
+      updateMutation.mutate({ id: editingId, data: payload })
     } else {
-      setPages(current => [{
-        id: `lp-${Date.now().toString(36)}`,
-        name,
-        category: categoryForBadges(badges),
-        description: 'Custom master landing page.',
-        html: editingHtml,
-        redirectUrl: editingRedirectUrl,
-        badges,
-        assignedTo: 'all',
-        users: [],
-        thumbnail: {
-          accent: <div className="h-2.5 w-12 rounded bg-violet-500/80" />,
-          bars: [{ w: 'w-3/4' }, { w: 'w-1/2' }],
-        },
-      }, ...current])
-      toast.success(`Landing page "${name}" created.`)
+      createMutation.mutate(payload)
     }
-
-    switchTab('list')
   }
 
-  function saveAssignment(nextAssignment) {
-    setPages(current => current.map(page => page.id === assignmentId ? { ...page, ...nextAssignment } : page))
-    toast.success('Assignment updated.')
-    setAssignmentId(null)
+  const saveAssignment = useCallback((assignment) => {
+    if (!assignmentPage) return
+
+    const result = entityFromAssignment(assignment, users)
+    if (result.error) {
+      toast.error(result.error)
+      return
+    }
+
+    assignEntityMutation.mutate({
+      id: assignmentPage.id,
+      entity: result.entity,
+    })
+  }, [assignEntityMutation, assignmentPage, users])
+
+  async function syncGoPhish() {
+    const result = await refetch()
+    if (result.error) {
+      toast.error(result.error.message || 'Failed to refresh landing page masters.')
+      return
+    }
+    toast.success(`Refresh complete - ${result.data?.length ?? 0} landing page masters`)
   }
 
   return (
     <div className="space-y-6 animate-fade-in lg:flex lg:h-[calc(100vh-110px)] lg:min-h-[720px] lg:flex-col lg:overflow-hidden mt-4">
       <PageHeader
         title="Master landing pages"
-        subtitle="Landing page templates available to assigned users."
+        subtitle="WordPress-owned landing page masters grouped by entity."
         actions={
           <>
             <div className="relative w-64">
@@ -439,9 +400,9 @@ export default function MasterLandingPages() {
                 className="w-full rounded-xl border border-gray-200 bg-white py-2 pl-9 pr-4 text-sm text-gray-950 outline-none placeholder:text-gray-400 focus:border-violet-500"
               />
             </div>
-            <Button variant="outline" onClick={() => toast.success('GoPhish sync will be connected to backend next.')}>
-              <i className="ti ti-refresh text-base" />
-              <span>Sync GoPhish</span>
+            <Button variant="outline" onClick={syncGoPhish} disabled={isFetching}>
+              <i className={clsx('ti ti-refresh text-base', isFetching && 'animate-spin')} />
+              <span>Refresh</span>
             </Button>
             <Button variant="primary" onClick={handleCreate}>
               <i className="ti ti-plus text-base" />
@@ -462,12 +423,12 @@ export default function MasterLandingPages() {
           </div>
         </div>
         <div className="rounded-xl border border-gray-200 bg-white p-4 shadow-sm">
-          <div className="text-2xl font-bold text-gray-900">{availableToAllCount}</div>
-          <div className="mt-1 text-xs font-semibold text-gray-500">Available to all users</div>
+          <div className="text-2xl font-bold text-gray-900">{entityCount}</div>
+          <div className="mt-1 text-xs font-semibold text-gray-500">Entities</div>
         </div>
         <div className="rounded-xl border border-gray-200 bg-white p-4 shadow-sm">
-          <div className="text-2xl font-bold text-gray-900">{assignedToSpecificCount}</div>
-          <div className="mt-1 text-xs font-semibold text-gray-500">Assigned to specific users</div>
+          <div className="text-2xl font-bold text-gray-900">{noEntityCount}</div>
+          <div className="mt-1 text-xs font-semibold text-gray-500">Without entity</div>
         </div>
       </div>
 
@@ -488,7 +449,7 @@ export default function MasterLandingPages() {
               usersById={usersById}
               onEdit={handleEdit}
               onPreview={handlePreview}
-              onAssign={setAssignmentId}
+              onAssign={handleAssign}
             />
           </div>
         )}
@@ -502,7 +463,9 @@ export default function MasterLandingPages() {
               </div>
               <div className="flex items-center gap-3">
                 <Button variant="outline" onClick={() => switchTab('list')}>Cancel</Button>
-                <Button variant="primary" onClick={handleSave}>Save template</Button>
+                <Button variant="primary" onClick={handleSave} disabled={saving}>
+                  {saving ? 'Saving...' : 'Save template'}
+                </Button>
               </div>
             </div>
             <div className="grid grid-cols-1 gap-6 lg:grid-cols-5">
@@ -515,6 +478,17 @@ export default function MasterLandingPages() {
                 <label className="block space-y-1 text-xs">
                   <span className="font-semibold text-gray-700">Redirect URL after submit</span>
                   <input value={editingRedirectUrl} onChange={event => setEditingRedirectUrl(event.target.value)} placeholder="https://..." className="w-full rounded-lg border border-gray-200 bg-white px-3 py-2 text-gray-950 outline-none focus:border-violet-500" />
+                </label>
+                <label className="block space-y-1 text-xs">
+                  <span className="font-semibold text-gray-700">Entity</span>
+                  <input value={editingEntity} onChange={event => setEditingEntity(event.target.value)} placeholder="Example: EntityA" className="w-full rounded-lg border border-gray-200 bg-white px-3 py-2 text-gray-950 outline-none focus:border-violet-500" />
+                </label>
+                <label className="block space-y-1 text-xs">
+                  <span className="font-semibold text-gray-700">Status</span>
+                  <select value={editingStatus} onChange={event => setEditingStatus(event.target.value)} className="w-full rounded-lg border border-gray-200 bg-white px-3 py-2 text-gray-950 outline-none focus:border-violet-500">
+                    <option>Published</option>
+                    <option>Draft</option>
+                  </select>
                 </label>
                 <div className="space-y-3 pt-2 text-xs">
                   <label className="flex cursor-pointer items-start gap-2.5">
@@ -577,11 +551,11 @@ export default function MasterLandingPages() {
 
       {assignmentPage && (
         <AssignmentPanel
+          key={assignmentPage.id}
           item={assignmentPage}
-          resourceLabel="landing page"
-          showUserRole={false}
+          resourceLabel="asset"
           users={users}
-          onClose={() => setAssignmentId(null)}
+          onClose={() => setAssignmentPageId(null)}
           onSave={saveAssignment}
         />
       )}

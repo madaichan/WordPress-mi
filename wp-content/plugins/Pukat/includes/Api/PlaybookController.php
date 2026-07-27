@@ -55,30 +55,36 @@ class PlaybookController extends RestController {
 				'permission_callback' => [ $this, 'permission_manage' ],
 			],
 		] );
+
+		register_rest_route( $this->namespace, '/playbooks/(?P<id>\d+)/migrate-to-master', [
+			'methods'             => 'POST',
+			'callback'            => [ $this, 'migrate_to_master' ],
+			'permission_callback' => [ $this, 'permission_manage' ],
+		] );
 	}
 
 	public function get_playbooks( WP_REST_Request $request ): WP_REST_Response {
-		return $this->success( $this->playbooks->list() );
+		return $this->legacy_playbook_response( $this->success( $this->playbooks->list() ) );
 	}
 
 	public function get_playbook( WP_REST_Request $request ): WP_REST_Response {
 		$playbook = $this->playbooks->get( (int) $request->get_param( 'id' ) );
 
 		if ( ! $playbook ) {
-			return $this->error( 'not_found', __( 'Playbook not found.', 'pukat' ), 404 );
+			return $this->legacy_playbook_response( $this->error( 'not_found', __( 'Playbook not found.', 'pukat' ), 404 ) );
 		}
 
-		return $this->success( $playbook );
+		return $this->legacy_playbook_response( $this->success( $playbook ) );
 	}
 
 	public function create_playbook( WP_REST_Request $request ): WP_REST_Response {
 		$result = $this->playbooks->create( $request->get_params(), get_current_user_id() );
 
 		if ( is_wp_error( $result ) ) {
-			return $this->from_wp_error( $result );
+			return $this->legacy_playbook_response( $this->from_wp_error( $result ) );
 		}
 
-		return $this->success( $result );
+		return $this->legacy_playbook_response( $this->success( $result ) );
 	}
 
 	public function update_playbook( WP_REST_Request $request ): WP_REST_Response {
@@ -88,15 +94,36 @@ class PlaybookController extends RestController {
 		);
 
 		if ( is_wp_error( $result ) ) {
-			return $this->from_wp_error( $result );
+			return $this->legacy_playbook_response( $this->from_wp_error( $result ) );
 		}
 
-		return $this->success( $result );
+		return $this->legacy_playbook_response( $this->success( $result ) );
 	}
 
 	public function delete_playbook( WP_REST_Request $request ): WP_REST_Response {
-		$this->playbooks->delete( (int) $request->get_param( 'id' ) );
+		$result = $this->playbooks->delete( (int) $request->get_param( 'id' ) );
+		if ( is_wp_error( $result ) ) {
+			return $this->legacy_playbook_response( $this->from_wp_error( $result ) );
+		}
 
-		return $this->success( [ 'deleted' => true ] );
+		return $this->legacy_playbook_response( $this->success( [ 'deleted' => true ] ) );
+	}
+
+	public function migrate_to_master( WP_REST_Request $request ): WP_REST_Response {
+		$result = $this->playbooks->migrate_to_master( (int) $request->get_param( 'id' ), get_current_user_id() );
+
+		if ( is_wp_error( $result ) ) {
+			return $this->from_wp_error( $result );
+		}
+
+		return $this->success( $result, ! empty( $result['migrated'] ) ? 201 : 200 );
+	}
+
+	private function legacy_playbook_response( WP_REST_Response $response ): WP_REST_Response {
+		return $this->legacy_response(
+			$response,
+			'/playbook-masters',
+			__( 'The /playbooks endpoints are legacy compatibility endpoints. Use Playbook Master endpoints for new workflows.', 'pukat' )
+		);
 	}
 }

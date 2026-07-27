@@ -90,6 +90,7 @@ class UserController extends RestController {
 				'email'        => $user->user_email,
 				'wp_roles'     => $roles,
 				'pukat_role'   => $pukat_role,
+				'entity'       => $this->get_user_entity( (int) $user->ID ),
 			];
 		}
 
@@ -134,6 +135,19 @@ class UserController extends RestController {
 			'user_id'    => $user_id,
 			'pukat_role' => $new_role,
 		] );
+	}
+
+	/**
+	 * Resolve a user's entity code from WordPress user meta.
+	 */
+	private function get_user_entity( int $user_id ): string {
+		$entity = (string) get_user_meta( $user_id, 'entity', true );
+
+		if ( '' === trim( $entity ) ) {
+			$entity = (string) get_user_meta( $user_id, 'pukat_entity', true );
+		}
+
+		return sanitize_text_field( $entity );
 	}
 
 	public function get_audit_logs( WP_REST_Request $request ): WP_REST_Response {

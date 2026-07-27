@@ -35,8 +35,22 @@ class UserContextService {
 				'displayName' => $current_user->display_name,
 				'email'       => $current_user->user_email,
 				'role'        => $this->pukat_role( $current_user->roles ?? [] ),
+				'entity'      => $this->user_entity( (int) $current_user->ID ),
 			],
 		];
+	}
+
+	/**
+	 * Resolve the current user's entity code from WordPress user meta.
+	 */
+	private function user_entity( int $user_id ): string {
+		$entity = (string) get_user_meta( $user_id, 'entity', true );
+
+		if ( '' === trim( $entity ) ) {
+			$entity = (string) get_user_meta( $user_id, 'pukat_entity', true );
+		}
+
+		return sanitize_text_field( $entity );
 	}
 
 	/**

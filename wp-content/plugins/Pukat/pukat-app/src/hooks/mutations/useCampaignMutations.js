@@ -9,12 +9,30 @@ export function useCreateCampaignMutation(options = {}) {
   return useMutation({
     mutationFn: campaignApi.create,
     onSuccess: (data, variables, context) => {
-      toast.success('Campaign launched successfully!')
+      toast.success('Campaign saved successfully.')
       qc.invalidateQueries({ queryKey: queryKeys.campaigns.all })
       options.onSuccess?.(data, variables, context)
     },
     onError: (err, variables, context) => {
       toast.error(err.message || 'Failed meluncurkan campaign.')
+      options.onError?.(err, variables, context)
+    },
+  })
+}
+
+export function useLaunchCampaignMutation(options = {}) {
+  const qc = useQueryClient()
+
+  return useMutation({
+    mutationFn: ({ id, data }) => campaignApi.launch(id, data),
+    onSuccess: (data, variables, context) => {
+      toast.success('Campaign launched in GoPhish.')
+      qc.invalidateQueries({ queryKey: queryKeys.campaigns.all })
+      qc.invalidateQueries({ queryKey: queryKeys.gophish.all })
+      options.onSuccess?.(data, variables, context)
+    },
+    onError: (err, variables, context) => {
+      toast.error(err.message || 'Failed to launch campaign.')
       options.onError?.(err, variables, context)
     },
   })

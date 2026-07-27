@@ -5,7 +5,8 @@ import toast from 'react-hot-toast'
 import clsx from 'clsx'
 import { useCsvUpload } from '../../hooks/useCsvUpload.js'
 import { useCampaignItems } from '../../hooks/queries/useCampaignQueries.js'
-import { useGophishEmailTemplates, useGophishSmtpProfiles } from '../../hooks/queries/useGophishQueries.js'
+import { useLaunchCampaignMutation } from '../../hooks/mutations/useCampaignMutations.js'
+import { useGophishEmailTemplates, useGophishLandingPages, useGophishSmtpProfiles } from '../../hooks/queries/useGophishQueries.js'
 import Card from '../../components/UI/Card.jsx'
 import Label from '../../components/UI/Label.jsx'
 import Select from '../../components/UI/Select.jsx'
@@ -19,12 +20,21 @@ export default function Preparation() {
 
   // GoPhish data
   const { data: emailTemplates = [] } = useGophishEmailTemplates()
+  const { data: landingPages = [] } = useGophishLandingPages()
   const { data: smtpProfiles = [] } = useGophishSmtpProfiles()
   const { data: campaigns = [] } = useCampaignItems({ per_page: 100 })
 
   const [selectedTemplate, setSelectedTemplate] = useState(null)
+  const [selectedLandingPage, setSelectedLandingPage] = useState(null)
   const [selectedSmtp,     setSelectedSmtp]     = useState(null)
   const [selectedCampaign, setSelectedCampaign] = useState('')
+  const [targetsImportedForCampaign, setTargetsImportedForCampaign] = useState('')
+
+  const targetsSynced = targetsImportedForCampaign === String(selectedCampaign) && csvData.length > 0
+
+  const launchMutation = useLaunchCampaignMutation({
+    onSuccess: () => navigate('/monitoring'),
+  })
 
   const handleImport = async () => {
     if (!selectedCampaign) return toast.error('Please select a campaign first.')
@@ -40,10 +50,34 @@ export default function Preparation() {
           position:   r.position   || '',
         })),
       })
+      setTargetsImportedForCampaign(String(selectedCampaign))
       toast.success(`${csvData.length} targets imported!`)
     } catch (err) {
       toast.error(err.message)
     }
+  }
+
+  const handleCampaignChange = (e) => {
+    setSelectedCampaign(e.target.value)
+    setTargetsImportedForCampaign('')
+  }
+
+  const handleLaunch = () => {
+    if (!selectedCampaign) return toast.error('Please select a campaign first.')
+    if (!targetsSynced) return toast.error('Import targets to GoPhish before launching.')
+    if (!selectedTemplate) return toast.error('Please select an email template.')
+    if (!selectedLandingPage) return toast.error('Please select a landing page.')
+    if (!selectedSmtp) return toast.error('Please select an SMTP sending profile.')
+
+    launchMutation.mutate({
+      id: selectedCampaign,
+      data: {
+        group_name: `Group-Campaign-${selectedCampaign}`,
+        gophish_template_id: Number(selectedTemplate),
+        gophish_page_id: Number(selectedLandingPage),
+        gophish_smtp_id: Number(selectedSmtp),
+      },
+    })
   }
 
   return (
@@ -92,7 +126,7 @@ export default function Preparation() {
             <Select
               id="prep-campaign"
               value={selectedCampaign}
-              onChange={e => setSelectedCampaign(e.target.value)}
+              onChange={handleCampaignChange}
             >
               <option value="">— Select campaign —</option>
               {campaigns.map(c => (
@@ -196,6 +230,34 @@ export default function Preparation() {
             </div>
           </div>
 
+          {/* Landing Pages */}
+          <div>
+            <Label>Landing Page</Label>
+            <div className="grid gap-2">
+              {landingPages.length === 0 ? (
+                <p className="text-xs text-gray-400 p-3 bg-gray-50 rounded-lg">No landing pages found in GoPhish. Create one in GoPhish admin first.</p>
+              ) : landingPages.map(page => (
+                <button
+                  key={page.id}
+                  type="button"
+                  onClick={() => setSelectedLandingPage(page.id)}
+                  className={clsx(
+                    'text-left p-3 rounded-lg border transition-all',
+                    selectedLandingPage === page.id
+                      ? 'border-violet-500 bg-violet-50 text-violet-700'
+                      : 'border-gray-200 hover:border-violet-200'
+                  )}
+                >
+                  <p className="text-sm font-medium">{page.name}</p>
+                  <p className="text-xs text-gray-500 mt-0.5">
+                    {page.capture_credentials ? 'Captures credentials' : 'No credential capture'}
+                    {page.redirect_url ? ` · Redirects after submit` : ''}
+                  </p>
+                </button>
+              ))}
+            </div>
+          </div>
+
           {/* SMTP Profile */}
           <div>
             <Label>Sending Profile (SMTP)</Label>
@@ -203,6 +265,11 @@ export default function Preparation() {
               <option value="">— Select SMTP profile —</option>
               {smtpProfiles.map(s => <option key={s.id} value={s.id}>{s.name}</option>)}
             </Select>
+            {smtpProfiles.length === 0 && (
+              <p className="text-xs text-amber-700 bg-amber-50 rounded-lg p-3 mt-2">
+                No SMTP profiles found in GoPhish. Create a sending profile in GoPhish before launching.
+              </p>
+            )}
           </div>
 
           <div className="flex justify-between">
@@ -223,7 +290,9 @@ export default function Preparation() {
           <div className="space-y-3 text-sm">
             <div className="flex justify-between py-2 border-b border-gray-50">
               <span className="text-gray-500">Targets</span>
-              <span className="font-medium text-gray-800">{csvData.length} imported</span>
+              <span className="font-medium text-gray-800">
+                {csvData.length} loaded {targetsSynced ? 'and synced' : ''}
+              </span>
             </div>
             <div className="flex justify-between py-2 border-b border-gray-50">
               <span className="text-gray-500">Campaign</span>
@@ -238,6 +307,12 @@ export default function Preparation() {
               </span>
             </div>
             <div className="flex justify-between py-2">
+              <span className="text-gray-500">Landing Page</span>
+              <span className="font-medium text-gray-800">
+                {landingPages.find(page => page.id === selectedLandingPage)?.name || '—'}
+              </span>
+            </div>
+            <div className="flex justify-between py-2 border-t border-gray-50">
               <span className="text-gray-500">SMTP Profile</span>
               <span className="font-medium text-gray-800">
                 {smtpProfiles.find(s => String(s.id) === String(selectedSmtp))?.name || '—'}
@@ -251,12 +326,33 @@ export default function Preparation() {
             </div>
           )}
 
+          {csvData.length > 0 && !targetsSynced && (
+            <div className="p-3 bg-amber-50 rounded-lg text-xs text-amber-700">
+              <i className="ti ti-alert-triangle mr-1" /> Targets are loaded locally but have not been imported to GoPhish yet.
+            </div>
+          )}
+
+          {(!selectedTemplate || !selectedLandingPage || !selectedSmtp) && (
+            <div className="p-3 bg-amber-50 rounded-lg text-xs text-amber-700">
+              <i className="ti ti-alert-triangle mr-1" /> Complete the GoPhish template, landing page, and SMTP selections before launch.
+            </div>
+          )}
+
           <div className="flex justify-between">
             <Button variant="secondary" onClick={() => setStep(2)}>
               <i className="ti ti-arrow-left" /> Back
             </Button>
-            <Button variant="primary" onClick={() => navigate('/monitoring')}>
-              <i className="ti ti-player-play" /> Go to Monitoring
+            <Button variant="primary" onClick={handleLaunch} disabled={launchMutation.isPending}>
+              {launchMutation.isPending ? (
+                <>
+                  <span className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                  Launching...
+                </>
+              ) : (
+                <>
+                  <i className="ti ti-player-play" /> Launch in GoPhish
+                </>
+              )}
             </Button>
           </div>
         </Card>

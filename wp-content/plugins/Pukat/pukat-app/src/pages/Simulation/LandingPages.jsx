@@ -1,240 +1,19 @@
-import { useState, useMemo, useCallback } from 'react'
+import { useState, useMemo, useCallback, useEffect } from 'react'
 import clsx from 'clsx'
 import toast from 'react-hot-toast'
 import HtmlCodeEditor from '../../components/Editor/HtmlCodeEditor.jsx'
 import PageHeader from '../../components/UI/PageHeader.jsx'
 import Button from '../../components/UI/Button.jsx'
+import { useGophishLandingPages } from '../../hooks/queries/useGophishQueries.js'
+import { useCreateLandingPageMutation, useUpdateLandingPageMutation } from '../../hooks/mutations/useGophishMutations.js'
+import useAppStore from '../../store/useAppStore.js'
+import { canManagePukat } from '../../utils/roles.js'
+import { assetEntityForUser, canUserCreateAsset, canUserEditAsset, filterAssetsForUser } from '../../utils/entityAssignmentHelpers.js'
+import { buildGophishLandingPagePayload, gophishLandingPageToUiPage } from '../../utils/gophishAssetHelpers.js'
 
 /* ─── Data ───────────────────────────────────────────────────────────── */
 
-const LANDING_PAGES = [
-  {
-    id: 'djp',
-    name: 'DJP Pajak Login',
-    category: 'login',
-    description: 'Kloning form login portal DJP Online Direktorat Jenderal Pajak.',
-    html: `<!DOCTYPE html>
-<html lang="id">
-<head>
-  <meta charset="UTF-8">
-  <title>DJP Online - Login</title>
-  <style>
-    body { margin:0; font-family:sans-serif; background:#0b172a; color:#fff; display:flex; align-items:center; justify-content:center; min-height:100vh; }
-    .card { width:360px; padding:32px; text-align:center; }
-    .logo { width:48px; height:48px; border-radius:50%; background:rgba(234,179,8,.2); border:1px solid rgba(234,179,8,.4); color:#eab308; font-weight:700; font-size:14px; display:flex; align-items:center; justify-content:center; margin:0 auto 12px; }
-    h3 { font-size:11px; color:#9ca3af; margin:0 0 4px; }
-    h4 { font-size:14px; margin:0 0 24px; }
-    input { width:100%; box-sizing:border-box; background:rgba(255,255,255,.05); border:1px solid rgba(255,255,255,.1); border-radius:4px; padding:8px 12px; font-size:12px; color:#fff; margin-bottom:12px; }
-    input::placeholder { color:#6b7280; }
-    button { width:100%; background:#eab308; color:#0b172a; border:none; padding:10px; font-size:12px; font-weight:700; border-radius:4px; cursor:pointer; }
-  </style>
-</head>
-<body>
-  <div class="card">
-    <div class="logo">DJP</div>
-    <h3>DIREKTORAT JENDERAL PAJAK</h3>
-    <h4>DJP Online Login Portal</h4>
-    <form action="" method="POST">
-      <input type="text" name="npwp" placeholder="NPWP / NIK" />
-      <input type="password" name="password" placeholder="Kata Sandi" />
-      <button type="submit">MASUK</button>
-    </form>
-  </div>
-</body>
-</html>`,
-    thumbnail: {
-      accent: (
-        <div className="flex items-center gap-1.5">
-          <div className="w-8 h-8 rounded bg-blue-700/60 flex-shrink-0" />
-          <div className="h-3 bg-blue-700/40 w-16 rounded" />
-        </div>
-      ),
-      bars: [{ w: 'w-full' }, { w: 'w-4/5' }],
-    },
-    badges: ['Data', 'Pass'],
-  },
-  {
-    id: 'ms',
-    name: 'Microsoft 365 Login',
-    category: 'login',
-    description: 'Kloning form login portal email korporat Outlook 365.',
-    html: `<!DOCTYPE html>
-<html>
-<head>
-  <title>Sign in to your account</title>
-  <style>
-    body { margin:0; font-family:'Segoe UI',sans-serif; background:#f2f2f2; display:flex; align-items:center; justify-content:center; min-height:100vh; }
-    .card { width:440px; background:#fff; padding:44px; box-shadow:0 2px 6px rgba(0,0,0,.2); }
-    .logo { display:flex; align-items:center; gap:4px; margin-bottom:16px; }
-    .logo .grid { display:grid; grid-template-columns:1fr 1fr; gap:2px; width:16px; height:16px; }
-    .logo .grid div:nth-child(1) { background:#f25022; }
-    .logo .grid div:nth-child(2) { background:#7fba00; }
-    .logo .grid div:nth-child(3) { background:#00a4ef; }
-    .logo .grid div:nth-child(4) { background:#ffb900; }
-    .logo span { font-size:14px; font-weight:600; color:#5e5e5e; }
-    h2 { font-size:24px; font-weight:600; margin:0 0 24px; }
-    input { width:100%; box-sizing:border-box; border:none; border-bottom:1px solid #666; padding:6px 0; font-size:14px; outline:none; margin-bottom:16px; }
-    .link { font-size:13px; color:#0067b8; text-decoration:none; }
-    .actions { display:flex; justify-content:flex-end; margin-top:24px; }
-    button { background:#0067b8; color:#fff; border:none; padding:8px 24px; font-size:14px; cursor:pointer; }
-  </style>
-</head>
-<body>
-  <div class="card">
-    <div class="logo"><div class="grid"><div></div><div></div><div></div><div></div></div><span>Microsoft</span></div>
-    <h2>Sign in</h2>
-    <form action="" method="POST">
-      <input type="email" name="email" placeholder="Email, phone, or Skype" />
-      <p style="font-size:13px;color:#666">No account? <a href="#" class="link">Create one!</a></p>
-      <div class="actions"><button type="submit">Next</button></div>
-    </form>
-  </div>
-</body>
-</html>`,
-    thumbnail: {
-      accent: (
-        <div className="flex items-center gap-1.5">
-          <div className="w-12 h-2.5 bg-blue-500/80 rounded" />
-        </div>
-      ),
-      bars: [{ w: 'w-full' }, { w: 'w-4/5' }],
-    },
-    badges: ['Data', 'Pass'],
-  },
-  {
-    id: 'hr',
-    name: 'HR Portal — Data',
-    category: 'form',
-    description: 'Form input pembaruan data karyawan korporat.',
-    html: `<!DOCTYPE html>
-<html>
-<head>
-  <title>HR Portal - Data Update</title>
-  <style>
-    body { margin:0; font-family:sans-serif; background:#f9fafb; display:flex; align-items:center; justify-content:center; min-height:100vh; }
-    .card { width:400px; background:#fff; border:1px solid #e5e7eb; border-radius:8px; padding:32px; }
-    h2 { font-size:18px; margin:0 0 4px; }
-    p { font-size:12px; color:#6b7280; margin:0 0 24px; }
-    label { display:block; font-size:12px; font-weight:600; color:#374151; margin-bottom:4px; }
-    input, select { width:100%; box-sizing:border-box; border:1px solid #d1d5db; border-radius:6px; padding:8px 12px; font-size:13px; margin-bottom:16px; }
-    button { width:100%; background:#dc2626; color:#fff; border:none; padding:10px; font-size:13px; font-weight:600; border-radius:6px; cursor:pointer; }
-  </style>
-</head>
-<body>
-  <div class="card">
-    <h2>Pembaruan Data Karyawan</h2>
-    <p>Silakan lengkapi data berikut untuk verifikasi HR</p>
-    <form action="" method="POST">
-      <label>Nama Lengkap</label>
-      <input type="text" name="fullname" placeholder="Nama sesuai KTP" />
-      <label>NIK Karyawan</label>
-      <input type="text" name="nik" placeholder="Nomor Induk Karyawan" />
-      <label>Email Korporat</label>
-      <input type="email" name="email" placeholder="nama@perusahaan.co.id" />
-      <label>Departemen</label>
-      <select name="department">
-        <option>Finance</option>
-        <option>Engineering</option>
-        <option>Human Resources</option>
-        <option>Marketing</option>
-      </select>
-      <button type="submit">Kirim Data</button>
-    </form>
-  </div>
-</body>
-</html>`,
-    thumbnail: {
-      accent: (
-        <div className="flex items-center gap-1.5">
-          <div className="w-12 h-2.5 bg-red-500/80 rounded" />
-        </div>
-      ),
-      bars: [{ w: 'w-full' }, { w: 'w-4/5' }],
-    },
-    badges: ['Data'],
-  },
-  {
-    id: 'vpn',
-    name: 'IT Helpdesk — VPN Reset',
-    category: 'login',
-    html: `<!DOCTYPE html>
-<html>
-<head>
-  <title>VPN Portal Gateway</title>
-  <style>
-    body { margin:0; font-family:sans-serif; background:#f3f4f6; display:flex; align-items:center; justify-content:center; min-height:100vh; }
-    .card { width:380px; background:#fff; border:1px solid #e5e7eb; border-radius:8px; padding:32px; text-align:center; }
-    .icon { width:40px; height:40px; background:#eff6ff; color:#2563eb; display:flex; align-items:center; justify-content:center; margin:0 auto 8px; border-radius:6px; font-size:20px; }
-    h3 { font-size:14px; margin:0 0 4px; }
-    p { font-size:12px; color:#6b7280; margin:0 0 20px; }
-    input { width:100%; box-sizing:border-box; border:1px solid #e5e7eb; border-radius:4px; padding:8px 12px; font-size:12px; margin-bottom:12px; }
-    button { width:100%; background:#2563eb; color:#fff; border:none; padding:10px; font-size:12px; font-weight:700; border-radius:4px; cursor:pointer; }
-  </style>
-</head>
-<body>
-  <div class="card">
-    <div class="icon">🔑</div>
-    <h3>VPN Portal Gateway</h3>
-    <p>Autentikasi Ulang Koneksi VPN Korporat</p>
-    <form action="" method="POST">
-      <input type="text" name="username" placeholder="Username Korporat" />
-      <input type="password" name="password" placeholder="Password Active Directory" />
-      <button type="submit">RESET KONEKSI</button>
-    </form>
-  </div>
-</body>
-</html>`,
-    description: null,
-    meta: 'Belum dipakai · Dibuat kemarin',
-    chips: [
-      { label: 'Login page', cls: 'bg-blue-50 text-blue-700' },
-      { label: 'Cleartext ⚠', cls: 'bg-red-50 text-red-700 border border-red-200' },
-    ],
-    thumbnail: {
-      accent: null,
-      bars: [{ w: 'w-3/4' }, { w: 'w-1/2' }],
-    },
-    badges: ['Data', 'Pass'],
-  },
-  {
-    id: 'google',
-    name: 'Google Redirect',
-    category: 'redirect',
-    description: 'Halaman edukasi landing page yang me-redirect target langsung ke portal resmi setelah klik.',
-    html: `<!DOCTYPE html>
-<html>
-<head>
-  <title>Redirecting...</title>
-  <meta http-equiv="refresh" content="3;url=https://www.google.com">
-  <style>
-    body { margin:0; font-family:sans-serif; background:#f0fdf4; display:flex; align-items:center; justify-content:center; min-height:100vh; }
-    .card { text-align:center; padding:40px; }
-    .icon { font-size:48px; margin-bottom:16px; }
-    h2 { font-size:18px; color:#166534; margin:0 0 8px; }
-    p { font-size:13px; color:#6b7280; margin:0 0 24px; max-width:360px; }
-    a { color:#2563eb; font-size:13px; }
-  </style>
-</head>
-<body>
-  <div class="card">
-    <div class="icon">✅</div>
-    <h2>Terima kasih!</h2>
-    <p>Anda akan dialihkan ke halaman resmi dalam beberapa detik...</p>
-    <a href="https://www.google.com">Klik di sini jika tidak otomatis redirect</a>
-  </div>
-</body>
-</html>`,
-    thumbnail: {
-      accent: (
-        <div className="flex items-center gap-1.5">
-          <div className="w-12 h-2.5 bg-emerald-500/80 rounded" />
-        </div>
-      ),
-      bars: [{ w: 'w-3/4' }],
-    },
-    badges: ['Data'],
-  },
-]
+const LANDING_PAGES = []
 
 /* ─── Sub-components ─────────────────────────────────────────────────── */
 
@@ -280,7 +59,7 @@ function ThumbnailMockup({ page }) {
   )
 }
 
-function LandingPageCard({ page, onEdit, onPreview }) {
+function LandingPageCard({ page, canEdit, onEdit, onPreview }) {
   return (
     <div
       className="landing-page-card bg-white border border-gray-200 rounded-xl p-5 shadow-none flex flex-col justify-between h-80 transition-all hover:border-gray-300"
@@ -315,18 +94,25 @@ function LandingPageCard({ page, onEdit, onPreview }) {
               {page.description && (
                 <p className="text-xs text-gray-500 mt-1">{page.description}</p>
               )}
+              {page.entity && (
+                <span className="mt-2 inline-flex rounded-full bg-gray-100 px-2 py-0.5 text-[9px] font-semibold text-gray-600">
+                  {page.entity}
+                </span>
+              )}
             </>
           )}
         </div>
       </div>
       <div className="flex gap-2 mt-4 pt-3 border-t border-gray-50">
-        <button
-          onClick={() => onEdit(page.id)}
-          className="flex-1 bg-white border border-gray-200 text-gray-700 hover:bg-gray-50 py-1.5 text-xs font-semibold rounded-lg flex items-center justify-center gap-1 transition-all"
-        >
-          <i className="ti ti-edit text-sm" />
-          <span>Edit</span>
-        </button>
+        {canEdit && (
+          <button
+            onClick={() => onEdit(page.id)}
+            className="flex-1 bg-white border border-gray-200 text-gray-700 hover:bg-gray-50 py-1.5 text-xs font-semibold rounded-lg flex items-center justify-center gap-1 transition-all"
+          >
+            <i className="ti ti-edit text-sm" />
+            <span>Edit</span>
+          </button>
+        )}
         <button
           onClick={() => onPreview(page.id)}
           className="flex-1 bg-white border border-gray-200 text-gray-700 hover:bg-gray-50 py-1.5 text-xs font-semibold rounded-lg flex items-center justify-center gap-1 transition-all"
@@ -471,12 +257,16 @@ function EditorPane({
   setName,
   htmlCode,
   setHtmlCode,
+  entity,
+  setEntity,
   redirectUrl,
   setRedirectUrl,
   captureData,
   setCaptureData,
   capturePass,
   setCapturePass,
+  saving,
+  entityLocked,
   onBack,
   onSave
 }) {
@@ -500,9 +290,10 @@ function EditorPane({
           </button>
           <button
             onClick={() => onSave(name, htmlCode)}
-            className="bg-violet-500 text-white hover:bg-violet-600 px-4 py-2 text-sm font-semibold rounded-xl transition-all"
+            disabled={saving}
+            className="bg-violet-500 text-white hover:bg-violet-600 px-4 py-2 text-sm font-semibold rounded-xl transition-all disabled:opacity-60"
           >
-            Simpan template
+            {saving ? 'Menyimpan...' : 'Simpan template'}
           </button>
         </div>
       </div>
@@ -535,6 +326,20 @@ function EditorPane({
                 onChange={(e) => setRedirectUrl(e.target.value)}
                 placeholder="https://..."
                 className="w-full bg-white border border-gray-200 rounded-lg px-3 py-2 text-gray-950 focus:outline-none focus:border-violet-500"
+              />
+            </div>
+            <div className="space-y-1">
+              <label className="block font-semibold text-gray-700">Entity</label>
+              <input
+                type="text"
+                value={entity}
+                onChange={(e) => setEntity(e.target.value)}
+                disabled={entityLocked}
+                placeholder="Contoh: EntityA"
+                className={clsx(
+                  'w-full border border-gray-200 rounded-lg px-3 py-2 text-gray-950 focus:outline-none focus:border-violet-500',
+                  entityLocked ? 'bg-gray-50 text-gray-500' : 'bg-white'
+                )}
               />
             </div>
 
@@ -600,7 +405,9 @@ function EditorPane({
 /* ─── Main Component ─────────────────────────────────────────────────── */
 
 export default function LandingPages() {
-  const [pages, setPages] = useState(LANDING_PAGES)
+  const { data: gophishPages = [], isLoading, isFetching, refetch } = useGophishLandingPages()
+  const currentUser = useAppStore(state => state.user)
+  const [pages, setPages] = useState(() => LANDING_PAGES.slice(0, 0))
   const [activeTab, setActiveTab] = useState('list')
   const [activeFilter, setActiveFilter] = useState('all')
   const [searchQuery, setSearchQuery] = useState('')
@@ -610,11 +417,43 @@ export default function LandingPages() {
   const [editingId, setEditingId] = useState(null)
   const [editingName, setEditingName] = useState('')
   const [editingHtml, setEditingHtml] = useState('')
+  const [editingEntity, setEditingEntity] = useState('')
   const [editingRedirectUrl, setEditingRedirectUrl] = useState('https://portal.office.com')
   const [editingCaptureData, setEditingCaptureData] = useState(true)
   const [editingCapturePass, setEditingCapturePass] = useState(true)
 
   const [syncing, setSyncing] = useState(false)
+
+  const resetEditorState = useCallback(() => {
+    setEditingId(null)
+    setEditingName('')
+    setEditingHtml('')
+    setEditingEntity('')
+    setEditingRedirectUrl('https://portal.office.com')
+    setEditingCaptureData(true)
+    setEditingCapturePass(true)
+  }, [])
+
+  const closeEditor = useCallback(() => {
+    setSearchQuery('')
+    setActiveTab('list')
+    resetEditorState()
+  }, [resetEditorState])
+
+  const createMutation = useCreateLandingPageMutation({ onSuccess: closeEditor })
+  const updateMutation = useUpdateLandingPageMutation({ onSuccess: closeEditor })
+  const saving = createMutation.isPending || updateMutation.isPending
+  const defaultEntity = useMemo(() => assetEntityForUser(currentUser), [currentUser])
+  const canCreateAssets = useMemo(() => canUserCreateAsset(currentUser), [currentUser])
+  const entityLocked = !canManagePukat(currentUser.role)
+
+  useEffect(() => {
+    const visiblePages = filterAssetsForUser(
+      gophishPages.map(gophishLandingPageToUiPage),
+      currentUser
+    )
+    setPages(visiblePages)
+  }, [currentUser, gophishPages])
 
   /* ── Filtered cards ── */
   const filteredPages = useMemo(() => {
@@ -640,29 +479,35 @@ export default function LandingPages() {
 
   /* ── Handlers ── */
   const switchTab = useCallback((tab) => {
+    if (tab === 'editor') {
+      toast.error('Editor hanya tersedia dari tombol buat atau edit asset yang sesuai entity user.')
+      return
+    }
+
     setActiveTab(tab)
     if (tab === 'list') {
-      setEditingId(null)
-      setEditingName('')
-      setEditingHtml('')
-      setEditingRedirectUrl('https://portal.office.com')
-      setEditingCaptureData(true)
-      setEditingCapturePass(true)
+      resetEditorState()
     }
-  }, [])
+  }, [resetEditorState])
 
   const handleEdit = useCallback((id) => {
     const page = pages.find((p) => p.id === id)
     if (page) {
+      if (!canUserEditAsset(page, currentUser)) {
+        toast.error('Asset General hanya bisa diedit admin. Non-admin hanya bisa edit asset sesuai entity user.')
+        return
+      }
+
       setEditingId(page.id)
       setEditingName(page.name)
       setEditingHtml(page.html || '')
+      setEditingEntity(page.entity || '')
       setEditingRedirectUrl(page.redirectUrl || 'https://portal.office.com')
       setEditingCaptureData(page.badges?.includes('Data') ?? true)
       setEditingCapturePass(page.badges?.includes('Pass') ?? true)
       setActiveTab('editor')
     }
-  }, [pages])
+  }, [currentUser, pages])
 
   const handlePreview = useCallback((id) => {
     const page = pages.find((p) => p.id === id)
@@ -671,6 +516,7 @@ export default function LandingPages() {
       setEditingId(page.id)
       setEditingName(page.name)
       setEditingHtml(page.html || '')
+      setEditingEntity(page.entity || '')
       setEditingRedirectUrl(page.redirectUrl || 'https://portal.office.com')
       setEditingCaptureData(page.badges?.includes('Data') ?? true)
       setEditingCapturePass(page.badges?.includes('Pass') ?? true)
@@ -679,66 +525,66 @@ export default function LandingPages() {
   }, [pages])
 
   const handleCreate = useCallback(() => {
+    if (!canCreateAssets) {
+      toast.error('User non-admin harus memiliki entity untuk membuat asset.')
+      return
+    }
+
     setEditingId(null)
     setEditingName('')
     setEditingHtml(DEFAULT_HTML)
+    setEditingEntity(defaultEntity)
     setEditingRedirectUrl('https://portal.office.com')
     setEditingCaptureData(true)
     setEditingCapturePass(true)
     setActiveTab('editor')
-  }, [])
+  }, [canCreateAssets, defaultEntity])
 
   const handleSave = useCallback((name, html) => {
-    if (editingId) {
-      setPages(prev => prev.map(p => p.id === editingId ? {
-        ...p,
-        name: name || p.name,
-        html,
-        redirectUrl: editingRedirectUrl,
-        badges: [
-          ...(editingCaptureData ? ['Data'] : []),
-          ...(editingCapturePass ? ['Pass'] : [])
-        ]
-      } : p))
-      toast.success(`Template "${name || 'Landing Page'}" berhasil disimpan`)
-    } else {
-      const newId = 'custom_' + Date.now()
-      const newPage = {
-        id: newId,
-        name: name || 'Landing Page Baru',
-        category: 'login',
-        description: 'Template kustom dibuat oleh pengguna.',
-        html,
-        redirectUrl: editingRedirectUrl,
-        thumbnail: {
-          accent: null,
-          bars: [{ w: 'w-3/4' }, { w: 'w-1/2' }],
-        },
-        badges: [
-          ...(editingCaptureData ? ['Data'] : []),
-          ...(editingCapturePass ? ['Pass'] : [])
-        ]
-      }
-      setPages(prev => [...prev, newPage])
-      toast.success(`Template baru "${newPage.name}" berhasil dibuat`)
+    const currentAsset = editingId ? pages.find((page) => page.id === editingId) : null
+    if (currentAsset && !canUserEditAsset(currentAsset, currentUser)) {
+      toast.error('Asset ini hanya bisa diedit oleh admin atau user dengan entity yang sama.')
+      return
     }
-    setActiveTab('list')
-    setEditingId(null)
-    setEditingName('')
-    setEditingHtml('')
-    setEditingRedirectUrl('https://portal.office.com')
-    setEditingCaptureData(true)
-    setEditingCapturePass(true)
-  }, [editingId, editingRedirectUrl, editingCaptureData, editingCapturePass])
+    if (!currentAsset && !canCreateAssets) {
+      toast.error('User non-admin harus memiliki entity untuk membuat asset.')
+      return
+    }
 
-  const handleSync = useCallback(() => {
+    if (!name.trim() || !html.trim()) {
+      toast.error('Nama landing page dan HTML wajib diisi.')
+      return
+    }
+
+    const payloadEntity = entityLocked ? defaultEntity : editingEntity
+    const payload = buildGophishLandingPagePayload({
+      name,
+      html,
+      redirectUrl: editingRedirectUrl,
+      entity: payloadEntity,
+      captureData: editingCaptureData,
+      capturePass: editingCapturePass,
+    })
+
+    if (editingId) {
+      updateMutation.mutate({ id: editingId, data: payload })
+    } else {
+      createMutation.mutate(payload)
+    }
+  }, [canCreateAssets, createMutation, currentUser, defaultEntity, editingCaptureData, editingCapturePass, editingEntity, editingId, editingRedirectUrl, entityLocked, pages, updateMutation])
+
+  const handleSync = useCallback(async () => {
     setSyncing(true)
-    toast('Menyinkronkan data dari GoPhish...', { icon: '🔄' })
-    setTimeout(() => {
-      setSyncing(false)
-      toast.success('Sinkronisasi selesai — 5 landing pages')
-    }, 1500)
-  }, [])
+    const result = await refetch()
+    setSyncing(false)
+
+    if (result.error) {
+      toast.error(result.error.message || 'Gagal menyinkronkan landing page dari GoPhish.')
+      return
+    }
+
+    toast.success(`Sinkronisasi selesai - ${result.data?.length ?? 0} landing pages`)
+  }, [refetch])
 
   /* ── Tab button classes ── */
   const tabBtnClass = (tab) =>
@@ -780,15 +626,17 @@ export default function LandingPages() {
               />
             </div>
             {/* Sync button */}
-            <Button variant="outline" onClick={handleSync} disabled={syncing}>
-              <i className={clsx('ti ti-refresh text-base', syncing && 'animate-spin')} />
+            <Button variant="outline" onClick={handleSync} disabled={syncing || isFetching}>
+              <i className={clsx('ti ti-refresh text-base', (syncing || isFetching) && 'animate-spin')} />
               <span>Sync GoPhish</span>
             </Button>
             {/* Create button */}
-            <Button variant="primary" onClick={handleCreate}>
-              <i className="ti ti-plus text-base" />
-              <span>Buat landing page</span>
-            </Button>
+            {canCreateAssets && (
+              <Button variant="primary" onClick={handleCreate}>
+                <i className="ti ti-plus text-base" />
+                <span>Buat landing page</span>
+              </Button>
+            )}
           </>
         }
       />
@@ -800,10 +648,12 @@ export default function LandingPages() {
             <i className="ti ti-list text-base" />
             <span>Daftar landing page</span>
           </button>
-          <button onClick={() => switchTab('editor')} className={tabBtnClass('editor')}>
-            <i className="ti ti-edit text-base" />
-            <span>Editor</span>
-          </button>
+          {activeTab === 'editor' && (
+            <button onClick={() => switchTab('list')} className={tabBtnClass('editor')}>
+              <i className="ti ti-edit text-base" />
+              <span>Editor</span>
+            </button>
+          )}
           <button onClick={() => switchTab('preview')} className={tabBtnClass('preview')}>
             <i className="ti ti-eye text-base" />
             <span>Preview</span>
@@ -832,15 +682,21 @@ export default function LandingPages() {
 
             {/* Landing Pages Grid */}
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-              {filteredPages.map((page) => (
+              {isLoading && (
+                <div className="bg-white border border-gray-200 rounded-xl p-8 text-center text-sm text-gray-400">
+                  Memuat landing page dari GoPhish...
+                </div>
+              )}
+              {!isLoading && filteredPages.map((page) => (
                 <LandingPageCard
                   key={page.id}
                   page={page}
+                  canEdit={canUserEditAsset(page, currentUser)}
                   onEdit={handleEdit}
                   onPreview={handlePreview}
                 />
               ))}
-              <CreateCard onClick={handleCreate} />
+              {canCreateAssets && <CreateCard onClick={handleCreate} />}
             </div>
           </div>
         )}
@@ -853,12 +709,16 @@ export default function LandingPages() {
             setName={setEditingName}
             htmlCode={editingHtml}
             setHtmlCode={setEditingHtml}
+            entity={editingEntity}
+            setEntity={setEditingEntity}
             redirectUrl={editingRedirectUrl}
             setRedirectUrl={setEditingRedirectUrl}
             captureData={editingCaptureData}
             setCaptureData={setEditingCaptureData}
             capturePass={editingCapturePass}
             setCapturePass={setEditingCapturePass}
+            saving={saving}
+            entityLocked={entityLocked}
             onBack={() => switchTab('list')}
             onSave={handleSave}
           />

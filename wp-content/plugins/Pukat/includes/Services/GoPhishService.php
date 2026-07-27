@@ -207,6 +207,16 @@ class GoPhishService {
 	}
 
 	/**
+	 * Get a single email template by ID.
+	 *
+	 * @param int $id Template ID.
+	 * @return array|WP_Error
+	 */
+	public function get_email_template( int $id ): array|WP_Error {
+		return $this->get( "/api/templates/{$id}" );
+	}
+
+	/**
 	 * Create an email template.
 	 *
 	 * @param array $data Template data.
@@ -214,6 +224,17 @@ class GoPhishService {
 	 */
 	public function create_email_template( array $data ): array|WP_Error {
 		return $this->post( '/api/templates/', $data );
+	}
+
+	/**
+	 * Update an email template.
+	 *
+	 * @param int   $id   Template ID.
+	 * @param array $data Full template data.
+	 * @return array|WP_Error
+	 */
+	public function update_email_template( int $id, array $data ): array|WP_Error {
+		return $this->put( "/api/templates/{$id}", $data );
 	}
 
 	/**
@@ -240,6 +261,16 @@ class GoPhishService {
 	}
 
 	/**
+	 * Get a single landing page by ID.
+	 *
+	 * @param int $id Page ID.
+	 * @return array|WP_Error
+	 */
+	public function get_landing_page( int $id ): array|WP_Error {
+		return $this->get( "/api/pages/{$id}" );
+	}
+
+	/**
 	 * Create a landing page.
 	 *
 	 * @param array $data Page data.
@@ -247,6 +278,27 @@ class GoPhishService {
 	 */
 	public function create_landing_page( array $data ): array|WP_Error {
 		return $this->post( '/api/pages/', $data );
+	}
+
+	/**
+	 * Update a landing page.
+	 *
+	 * @param int   $id   Page ID.
+	 * @param array $data Full page data.
+	 * @return array|WP_Error
+	 */
+	public function update_landing_page( int $id, array $data ): array|WP_Error {
+		return $this->put( "/api/pages/{$id}", $data );
+	}
+
+	/**
+	 * Delete a landing page.
+	 *
+	 * @param int $id Page ID.
+	 * @return array|WP_Error
+	 */
+	public function delete_landing_page( int $id ): array|WP_Error {
+		return $this->delete( "/api/pages/{$id}" );
 	}
 
 	// ===========================================================================
@@ -262,12 +314,53 @@ class GoPhishService {
 		return $this->get( '/api/smtp/' );
 	}
 
+	/**
+	 * Get a sending profile by ID.
+	 *
+	 * @param int $id Sending profile ID.
+	 * @return array|WP_Error
+	 */
+	public function get_sending_profile( int $id ): array|WP_Error {
+		return $this->get( "/api/smtp/{$id}" );
+	}
+
+	/**
+	 * Create a sending profile.
+	 *
+	 * @param array $data Sending profile data.
+	 * @return array|WP_Error
+	 */
+	public function create_sending_profile( array $data ): array|WP_Error {
+		return $this->post( '/api/smtp/', $data );
+	}
+
+	/**
+	 * Update a sending profile.
+	 *
+	 * @param int   $id   Sending profile ID.
+	 * @param array $data Full sending profile data.
+	 * @return array|WP_Error
+	 */
+	public function update_sending_profile( int $id, array $data ): array|WP_Error {
+		return $this->put( "/api/smtp/{$id}", $data );
+	}
+
+	/**
+	 * Delete a sending profile.
+	 *
+	 * @param int $id Sending profile ID.
+	 * @return array|WP_Error
+	 */
+	public function delete_sending_profile( int $id ): array|WP_Error {
+		return $this->delete( "/api/smtp/{$id}" );
+	}
+
 	// ===========================================================================
 	// Cron: Sync active campaigns
 	// ===========================================================================
 
 	/**
-	 * Pull results for all active Pukat campaigns from GoPhish.
+	 * Pull results for active legacy campaigns and Campaign Runs from GoPhish.
 	 * Called by WP-Cron every 5 minutes.
 	 */
 	public function sync_all_active_campaigns(): void {
@@ -281,18 +374,18 @@ class GoPhishService {
 			)
 		);
 
-		if ( empty( $active ) ) {
-			return;
+		if ( ! empty( $active ) ) {
+			foreach ( $active as $campaign ) {
+				$results = $this->get_campaign_results( (int) $campaign->gophish_id );
+				if ( is_wp_error( $results ) ) {
+					continue;
+				}
+				// Trigger event for other services to process results.
+				do_action( 'pukat_campaign_results_synced', (int) $campaign->id, $results );
+			}
 		}
 
-		foreach ( $active as $campaign ) {
-			$results = $this->get_campaign_results( (int) $campaign->gophish_id );
-			if ( is_wp_error( $results ) ) {
-				continue;
-			}
-			// Trigger event for other services to process results.
-			do_action( 'pukat_campaign_results_synced', (int) $campaign->id, $results );
-		}
+		( new CampaignRunService() )->sync_all_results();
 	}
 
 	// ===========================================================================
@@ -327,6 +420,23 @@ class GoPhishService {
 		$args['headers']['Content-Type'] = 'application/json';
 
 		$response = wp_remote_post( $this->base_url . $endpoint, $args );
+		return $this->parse_response( $response );
+	}
+
+	/**
+	 * Perform a PUT request to GoPhish API.
+	 *
+	 * @param string $endpoint API endpoint path.
+	 * @param array  $body     Request body (will be JSON-encoded).
+	 * @return array|WP_Error Decoded JSON array or WP_Error.
+	 */
+	private function put( string $endpoint, array $body = [] ): array|WP_Error {
+		$args          = $this->build_request_args();
+		$args['method'] = 'PUT';
+		$args['body']   = wp_json_encode( $body );
+		$args['headers']['Content-Type'] = 'application/json';
+
+		$response = wp_remote_request( $this->base_url . $endpoint, $args );
 		return $this->parse_response( $response );
 	}
 

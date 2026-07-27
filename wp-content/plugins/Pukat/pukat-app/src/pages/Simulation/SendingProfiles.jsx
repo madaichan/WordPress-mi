@@ -1,80 +1,25 @@
-import { useMemo, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import clsx from 'clsx'
 import toast from 'react-hot-toast'
 import {
   EMPTY_SMTP_FORM,
-  buildSmtpProfilePayload,
+  buildGophishSmtpPayload,
+  gophishSmtpProfileToUiProfile,
   getSmtpEncryptionClass,
   getSmtpPortForEncryption,
   getSmtpStatusClasses,
   hasDuplicateSmtpProfileName,
   profileToSmtpForm,
 } from '../../utils/smtpProfileHelpers.js'
+import { useGophishSmtpProfiles } from '../../hooks/queries/useGophishQueries.js'
+import { useCreateSmtpProfileMutation, useDeleteSmtpProfileMutation, useUpdateSmtpProfileMutation } from '../../hooks/mutations/useGophishMutations.js'
 import PageHeader from '../../components/UI/PageHeader.jsx'
 import Button from '../../components/UI/Button.jsx'
+import useAppStore from '../../store/useAppStore.js'
+import { canManagePukat } from '../../utils/roles.js'
+import { assetEntityForUser, canUserCreateAsset, canUserEditAsset, filterAssetsForUser } from '../../utils/entityAssignmentHelpers.js'
 
-const INITIAL_PROFILES = [
-  {
-    id: 'finance-relay-01',
-    name: 'finance-relay-01',
-    host: 'smtp.relay-pool.internal',
-    port: 587,
-    from: 'CEO Corp <ceo@corp-internal.net>',
-    encryption: 'TLS',
-    status: 'Valid',
-    used: '3 playbooks',
-    lastTest: '2 hours ago',
-    username: 'relay-user@corp.internal',
-    password: 'password123',
-    ignoreCert: false,
-    headers: [{ key: 'X-Mailer', val: 'Microsoft Outlook 16.0' }],
-  },
-  {
-    id: 'general-relay-02',
-    name: 'general-relay-02',
-    host: 'mail.outbound.internal',
-    port: 465,
-    from: 'noreply@updates-corp.net',
-    encryption: 'SSL',
-    status: 'Valid',
-    used: '5 playbooks',
-    lastTest: '1 day ago',
-    username: 'general-relay@updates-corp.net',
-    password: 'password456',
-    ignoreCert: false,
-    headers: [],
-  },
-  {
-    id: 'hr-relay-03',
-    name: 'hr-relay-03',
-    host: 'smtp.hr-mailer.internal',
-    port: 587,
-    from: 'HR Department <hr@corp-hr-portal.net>',
-    encryption: 'TLS',
-    status: 'Not tested',
-    used: '1 playbook',
-    lastTest: '-',
-    username: 'hr-mailer@corp-hr-portal.net',
-    password: 'password789',
-    ignoreCert: false,
-    headers: [],
-  },
-  {
-    id: 'it-relay-04',
-    name: 'it-relay-04',
-    host: 'smtp.it-notif.internal',
-    port: 25,
-    from: 'IT Helpdesk <it-helpdesk@corp-it.net>',
-    encryption: 'None',
-    status: 'Error',
-    used: '0 playbooks',
-    lastTest: 'Failed · 3 hours ago',
-    username: '',
-    password: '',
-    ignoreCert: true,
-    headers: [],
-  },
-]
+const INITIAL_PROFILES = []
 
 function inputClass() {
   return 'w-full rounded-lg border border-gray-200 bg-white px-3 py-2 text-xs text-gray-800 outline-none transition-all focus:border-violet-500 focus:ring-2 focus:ring-violet-500/10'
@@ -122,6 +67,8 @@ function SmtpSlideover({
   showPassword,
   testing,
   testResult,
+  saving,
+  entityLocked,
   onClose,
   onChange,
   onHeaderChange,
@@ -263,8 +210,17 @@ function SmtpSlideover({
             <i className="ti ti-mail text-xs" />
             <span>Sender identity</span>
           </div>
-          <Field label="From address" required hint="Format: Display Name <email@domain.com> - make sure the domain has SPF/DKIM configured">
-            <input value={form.from} onChange={event => onChange('from', event.target.value)} className={inputClass()} placeholder="Sender Name <sender@domain.com>" />
+          <Field label="From address" required hint="GoPhish SMTP expects an email address. Display-name format will be reduced to the mailbox address.">
+            <input value={form.from} onChange={event => onChange('from', event.target.value)} className={inputClass()} placeholder="security@example.com" />
+          </Field>
+          <Field label="Entity">
+            <input
+              value={form.entity}
+              onChange={event => onChange('entity', event.target.value)}
+              disabled={entityLocked}
+              className={clsx(inputClass(), entityLocked && 'bg-gray-50 text-gray-500')}
+              placeholder="EntityA"
+            />
           </Field>
 
           <button
@@ -385,10 +341,11 @@ function SmtpSlideover({
           <button
             type="button"
             onClick={onSubmit}
+            disabled={saving}
             className="inline-flex items-center gap-1 rounded-xl bg-violet-500 px-4 py-2 text-xs font-semibold text-white transition-all hover:bg-violet-600"
           >
-            <i className="ti ti-check" />
-            {isUpdate ? 'Save changes' : 'Save profile'}
+            <i className={clsx('ti', saving ? 'ti-loader animate-spin' : 'ti-check')} />
+            {saving ? 'Saving...' : isUpdate ? 'Save changes' : 'Save profile'}
           </button>
         </footer>
       </aside>
@@ -397,6 +354,8 @@ function SmtpSlideover({
 }
 
 export default function SendingProfiles() {
+  const { data: gophishProfiles = [], isLoading, isFetching, refetch } = useGophishSmtpProfiles()
+  const currentUser = useAppStore(state => state.user)
   const [profiles, setProfiles] = useState(INITIAL_PROFILES)
   const [query, setQuery] = useState('')
   const [slideoverMode, setSlideoverMode] = useState(null)
@@ -407,6 +366,22 @@ export default function SendingProfiles() {
   const [testing, setTesting] = useState(false)
   const [testResult, setTestResult] = useState(null)
 
+  const createMutation = useCreateSmtpProfileMutation({ onSuccess: () => closeSlideover() })
+  const updateMutation = useUpdateSmtpProfileMutation({ onSuccess: () => closeSlideover() })
+  const deleteMutation = useDeleteSmtpProfileMutation({ onSuccess: () => closeSlideover() })
+  const saving = createMutation.isPending || updateMutation.isPending
+  const defaultEntity = useMemo(() => assetEntityForUser(currentUser), [currentUser])
+  const canCreateProfiles = useMemo(() => canUserCreateAsset(currentUser), [currentUser])
+  const entityLocked = !canManagePukat(currentUser.role)
+
+  useEffect(() => {
+    const visibleProfiles = filterAssetsForUser(
+      gophishProfiles.map(gophishSmtpProfileToUiProfile),
+      currentUser
+    )
+    setProfiles(visibleProfiles)
+  }, [currentUser, gophishProfiles])
+
   const filteredProfiles = useMemo(() => {
     const term = query.trim().toLowerCase()
     if (!term) return profiles
@@ -415,13 +390,19 @@ export default function SendingProfiles() {
       profile.name.toLowerCase().includes(term)
       || profile.host.toLowerCase().includes(term)
       || profile.from.toLowerCase().includes(term)
+      || profile.entity.toLowerCase().includes(term)
       || profile.encryption.toLowerCase().includes(term)
     ))
   }, [profiles, query])
 
   function openCreate() {
+    if (!canCreateProfiles) {
+      toast.error('User non-admin harus memiliki entity untuk membuat SMTP profile.')
+      return
+    }
+
     setSourceProfile(null)
-    setForm(EMPTY_SMTP_FORM)
+    setForm({ ...EMPTY_SMTP_FORM, entity: defaultEntity })
     setSlideoverMode('new')
     setChanged(false)
     setTestResult(null)
@@ -429,6 +410,11 @@ export default function SendingProfiles() {
   }
 
   function openEdit(profile) {
+    if (!canUserEditAsset(profile, currentUser)) {
+      toast.error('Profile General hanya bisa diedit admin. Non-admin hanya bisa edit profile sesuai entity user.')
+      return
+    }
+
     setSourceProfile(profile)
     setForm(profileToSmtpForm(profile, 'update'))
     setSlideoverMode('update')
@@ -438,6 +424,11 @@ export default function SendingProfiles() {
   }
 
   function openDuplicate(profile) {
+    if (!canUserEditAsset(profile, currentUser)) {
+      toast.error('Profile General hanya bisa diduplikasi admin. Non-admin hanya bisa memakai editor sesuai entity user.')
+      return
+    }
+
     setSourceProfile(profile)
     setForm(profileToSmtpForm(profile, 'dup'))
     setSlideoverMode('dup')
@@ -488,7 +479,12 @@ export default function SendingProfiles() {
     setChanged(true)
   }
 
-  function syncGoPhish() {
+  async function syncGoPhish() {
+    const result = await refetch()
+    if (result.error) {
+      toast.error(result.error.message || 'Failed to sync SMTP profiles.')
+      return
+    }
     toast.success('SMTP profiles synced with GoPhish.')
   }
 
@@ -502,6 +498,15 @@ export default function SendingProfiles() {
   }
 
   function submitProfile() {
+    if (slideoverMode === 'update' && !canUserEditAsset(sourceProfile, currentUser)) {
+      toast.error('Profile ini hanya bisa diedit oleh admin atau user dengan entity yang sama.')
+      return
+    }
+    if (slideoverMode !== 'update' && !canCreateProfiles) {
+      toast.error('User non-admin harus memiliki entity untuk membuat SMTP profile.')
+      return
+    }
+
     const name = form.name.trim()
     const host = form.host.trim()
     const port = Number(form.port)
@@ -519,30 +524,27 @@ export default function SendingProfiles() {
       return
     }
 
-    const payload = buildSmtpProfilePayload({ form, mode: slideoverMode, sourceProfile })
+    const writableForm = entityLocked ? { ...form, entity: defaultEntity } : form
+    const payload = buildGophishSmtpPayload({ form: writableForm })
 
     if (slideoverMode === 'update') {
-      setProfiles(current => current.map(profile => (
-        profile.id === sourceProfile.id ? payload : profile
-      )))
-      toast.success(`SMTP profile "${name}" saved.`)
+      updateMutation.mutate({ id: sourceProfile.id, data: payload })
     } else {
-      setProfiles(current => [...current, payload])
-      toast.success(`SMTP profile "${name}" created.`)
+      createMutation.mutate(payload)
     }
-
-    closeSlideover()
   }
 
   function deleteProfile() {
     if (!sourceProfile) return
+    if (!canUserEditAsset(sourceProfile, currentUser)) {
+      toast.error('Profile ini hanya bisa dihapus oleh admin atau user dengan entity yang sama.')
+      return
+    }
 
     const confirmed = window.confirm(`Are you sure you want to delete SMTP profile "${sourceProfile.name}"?`)
     if (!confirmed) return
 
-    setProfiles(current => current.filter(profile => profile.id !== sourceProfile.id))
-    toast.success(`SMTP profile "${sourceProfile.name}" deleted.`)
-    closeSlideover()
+    deleteMutation.mutate(sourceProfile.id)
   }
 
   return (
@@ -552,11 +554,13 @@ export default function SendingProfiles() {
         subtitle="SMTP configuration for phishing simulation delivery through GoPhish"
         actions={
           <>
-            <Button variant="outline" onClick={syncGoPhish}>Sync GoPhish</Button>
-            <Button variant="primary" onClick={openCreate}>
-              <i className="ti ti-plus text-sm" />
-              New SMTP
-            </Button>
+            <Button variant="outline" onClick={syncGoPhish} disabled={isFetching}>Sync GoPhish</Button>
+            {canCreateProfiles && (
+              <Button variant="primary" onClick={openCreate}>
+                <i className="ti ti-plus text-sm" />
+                New SMTP
+              </Button>
+            )}
           </>
         }
       />
@@ -589,6 +593,7 @@ export default function SendingProfiles() {
                 <th className="p-4">Profile name</th>
                 <th className="p-4">Host / Port</th>
                 <th className="p-4">From address</th>
+                <th className="p-4">Entity</th>
                 <th className="p-4">Encryption</th>
                 <th className="p-4">Status</th>
                 <th className="p-4">Used</th>
@@ -597,8 +602,14 @@ export default function SendingProfiles() {
               </tr>
             </thead>
             <tbody className="divide-y divide-gray-100">
-              {filteredProfiles.map(profile => {
+              {isLoading && (
+                <tr>
+                  <td colSpan={10} className="p-8 text-center text-sm text-gray-400">Loading GoPhish SMTP profiles...</td>
+                </tr>
+              )}
+              {!isLoading && filteredProfiles.map(profile => {
                 const status = getSmtpStatusClasses(profile.status)
+                const canEditProfile = canUserEditAsset(profile, currentUser)
 
                 return (
                   <tr key={profile.id} className="group transition-colors hover:bg-gray-50/50">
@@ -614,6 +625,11 @@ export default function SendingProfiles() {
                     </td>
                     <td className="p-4 text-gray-600">{profile.from}</td>
                     <td className="p-4">
+                      <span className={clsx('inline-flex rounded-full px-2 py-0.5 text-[10px] font-semibold', profile.entity ? 'bg-gray-100 text-gray-700' : 'bg-amber-100 text-amber-700')}>
+                        {profile.entity || 'No entity'}
+                      </span>
+                    </td>
+                    <td className="p-4">
                       <span className={clsx('inline-flex rounded-full px-2 py-0.5 text-[10px] font-semibold', getSmtpEncryptionClass(profile.encryption))}>{profile.encryption}</span>
                     </td>
                     <td className="p-4">
@@ -625,42 +641,49 @@ export default function SendingProfiles() {
                     <td className="p-4 text-gray-500">{profile.used}</td>
                     <td className="p-4 text-gray-500">{profile.lastTest}</td>
                     <td className="w-28 p-4 pr-6 text-right">
-                      <div className="inline-flex items-center gap-1.5 opacity-100 transition-opacity md:opacity-0 md:group-hover:opacity-100">
-                        <button
-                          type="button"
-                          onClick={() => openEdit(profile)}
-                          className="flex h-7 w-7 items-center justify-center rounded-lg border border-gray-200 bg-white text-gray-500 transition-all hover:border-violet-500 hover:text-violet-500"
-                          title="Edit"
-                          aria-label={`Edit ${profile.name}`}
-                        >
-                          <i className="ti ti-edit text-xs" />
-                        </button>
-                        <button
-                          type="button"
-                          onClick={() => openDuplicate(profile)}
-                          className="flex h-7 w-7 items-center justify-center rounded-lg border border-gray-200 bg-white text-gray-500 transition-all hover:border-green-600 hover:text-green-600"
-                          title="Duplicate"
-                          aria-label={`Duplicate ${profile.name}`}
-                        >
-                          <i className="ti ti-copy text-xs" />
-                        </button>
-                        <button
-                          type="button"
-                          onClick={() => {
-                            openEdit(profile)
-                            window.setTimeout(runConnectionTest, 50)
-                          }}
-                          className="flex h-7 w-7 items-center justify-center rounded-lg border border-gray-200 bg-white text-gray-500 transition-all hover:border-blue-600 hover:text-blue-600"
-                          title="Test"
-                          aria-label={`Test ${profile.name}`}
-                        >
-                          <i className="ti ti-send text-xs" />
-                        </button>
-                      </div>
+                      {canEditProfile && (
+                        <div className="inline-flex items-center gap-1.5 opacity-100 transition-opacity md:opacity-0 md:group-hover:opacity-100">
+                          <button
+                            type="button"
+                            onClick={() => openEdit(profile)}
+                            className="flex h-7 w-7 items-center justify-center rounded-lg border border-gray-200 bg-white text-gray-500 transition-all hover:border-violet-500 hover:text-violet-500"
+                            title="Edit"
+                            aria-label={`Edit ${profile.name}`}
+                          >
+                            <i className="ti ti-edit text-xs" />
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => openDuplicate(profile)}
+                            className="flex h-7 w-7 items-center justify-center rounded-lg border border-gray-200 bg-white text-gray-500 transition-all hover:border-green-600 hover:text-green-600"
+                            title="Duplicate"
+                            aria-label={`Duplicate ${profile.name}`}
+                          >
+                            <i className="ti ti-copy text-xs" />
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => {
+                              openEdit(profile)
+                              window.setTimeout(runConnectionTest, 50)
+                            }}
+                            className="flex h-7 w-7 items-center justify-center rounded-lg border border-gray-200 bg-white text-gray-500 transition-all hover:border-blue-600 hover:text-blue-600"
+                            title="Test"
+                            aria-label={`Test ${profile.name}`}
+                          >
+                            <i className="ti ti-send text-xs" />
+                          </button>
+                        </div>
+                      )}
                     </td>
                   </tr>
                 )
               })}
+              {!isLoading && filteredProfiles.length === 0 && (
+                <tr>
+                  <td colSpan={10} className="p-8 text-center text-sm text-gray-400">No SMTP profiles found in GoPhish.</td>
+                </tr>
+              )}
             </tbody>
           </table>
         </div>
@@ -690,6 +713,8 @@ export default function SendingProfiles() {
         showPassword={showPassword}
         testing={testing}
         testResult={testResult}
+        saving={saving}
+        entityLocked={entityLocked}
         onClose={closeSlideover}
         onChange={updateForm}
         onHeaderChange={updateHeader}

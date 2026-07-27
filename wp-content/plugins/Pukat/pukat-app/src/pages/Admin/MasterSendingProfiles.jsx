@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import clsx from 'clsx'
 import toast from 'react-hot-toast'
 import { FALLBACK_USERS } from '../../data/fallbacks.js'
@@ -8,98 +8,23 @@ import TableActionButton from '../../components/UI/TableActionButton.jsx'
 import PageHeader from '../../components/UI/PageHeader.jsx'
 import Button from '../../components/UI/Button.jsx'
 import Drawer from '../../components/UI/Drawer.jsx'
+import { useGophishSmtpProfiles } from '../../hooks/queries/useGophishQueries.js'
 import { useUsers } from '../../hooks/queries/useUserQueries.js'
+import { useAssignSmtpProfileEntityMutation, useCreateSmtpProfileMutation, useDeleteSmtpProfileMutation, useUpdateSmtpProfileMutation } from '../../hooks/mutations/useGophishMutations.js'
+import { applyAssignmentFromEntity, entityFromAssignment, userForAssignmentPanel } from '../../utils/entityAssignmentHelpers.js'
 import {
   EMPTY_SMTP_FORM,
-  buildSmtpProfilePayload,
+  buildGophishSmtpPayload,
   getSmtpEncryptionClass,
   getSmtpPortForEncryption,
   getSmtpStatusClasses,
+  gophishSmtpProfileToUiProfile,
   hasDuplicateSmtpProfileName,
   profileToSmtpForm,
 } from '../../utils/smtpProfileHelpers.js'
-import { normalizePukatRole } from '../../utils/roles.js'
 
 
-const INITIAL_PROFILES = [
-  {
-    id: 'finance-relay-01',
-    name: 'finance-relay-01',
-    host: 'smtp.relay-pool.internal',
-    port: 587,
-    from: 'CEO Corp <ceo@corp-internal.net>',
-    encryption: 'TLS',
-    status: 'Valid',
-    used: '3 playbooks',
-    lastTest: '2 hours ago',
-    username: 'relay-user@corp.internal',
-    password: 'password123',
-    ignoreCert: false,
-    headers: [{ key: 'X-Mailer', val: 'Microsoft Outlook 16.0' }],
-    assignedTo: 'all',
-    users: [],
-  },
-  {
-    id: 'general-relay-02',
-    name: 'general-relay-02',
-    host: 'mail.outbound.internal',
-    port: 465,
-    from: 'noreply@updates-corp.net',
-    encryption: 'SSL',
-    status: 'Valid',
-    used: '5 playbooks',
-    lastTest: '1 day ago',
-    username: 'general-relay@updates-corp.net',
-    password: 'password456',
-    ignoreCert: false,
-    headers: [],
-    assignedTo: 'all',
-    users: [],
-  },
-  {
-    id: 'hr-relay-03',
-    name: 'hr-relay-03',
-    host: 'smtp.hr-mailer.internal',
-    port: 587,
-    from: 'HR Department <hr@corp-hr-portal.net>',
-    encryption: 'TLS',
-    status: 'Not tested',
-    used: '1 playbook',
-    lastTest: '-',
-    username: 'hr-mailer@corp-hr-portal.net',
-    password: 'password789',
-    ignoreCert: false,
-    headers: [],
-    assignedTo: 'specific',
-    users: [2],
-  },
-  {
-    id: 'it-relay-04',
-    name: 'it-relay-04',
-    host: 'smtp.it-notif.internal',
-    port: 25,
-    from: 'IT Helpdesk <it-helpdesk@corp-it.net>',
-    encryption: 'None',
-    status: 'Error',
-    used: '0 playbooks',
-    lastTest: 'Failed - 3 hours ago',
-    username: '',
-    password: '',
-    ignoreCert: true,
-    headers: [],
-    assignedTo: 'specific',
-    users: [1, 3],
-  },
-]
-
-function normalizeUser(user) {
-  return {
-    id: Number(user.id),
-    name: user.display_name || user.name || user.email || `User ${user.id}`,
-    email: user.email || '',
-    role: normalizePukatRole(user.pukat_role ?? user.role),
-  }
-}
+const INITIAL_PROFILES = []
 
 function inputClass() {
   return 'w-full rounded-lg border border-gray-200 bg-white px-3 py-2 text-xs text-gray-800 outline-none transition-all focus:border-violet-500 focus:ring-2 focus:ring-violet-500/10'
@@ -139,6 +64,7 @@ function SmtpSlideover({
   showPassword,
   testing,
   testResult,
+  saving,
   onClose,
   onChange,
   onHeaderChange,
@@ -177,15 +103,15 @@ function SmtpSlideover({
       footer={
         <>
           {isUpdate && (
-            <Button variant="danger" onClick={onDelete}>
+            <Button variant="danger" onClick={onDelete} disabled={saving}>
               <i className="ti ti-trash" />
               Delete profile
             </Button>
           )}
           <Button variant="outline" className="ml-auto" onClick={onClose}>Cancel</Button>
-          <Button variant="primary" onClick={onSubmit}>
-            <i className="ti ti-check" />
-            {isUpdate ? 'Save changes' : 'Save profile'}
+          <Button variant="primary" onClick={onSubmit} disabled={saving}>
+            <i className={clsx('ti', saving ? 'ti-loader animate-spin' : 'ti-check')} />
+            {saving ? 'Saving...' : isUpdate ? 'Save changes' : 'Save profile'}
           </Button>
         </>
       }
@@ -272,8 +198,11 @@ function SmtpSlideover({
             <i className="ti ti-mail text-xs" />
             <span>Sender identity</span>
           </div>
-          <Field label="From address" required hint="Format: Display Name <email@domain.com>. Make sure the domain has SPF/DKIM configured.">
-            <input value={form.from} onChange={event => onChange('from', event.target.value)} className={inputClass()} placeholder="Sender Name <sender@domain.com>" />
+          <Field label="From address" required hint="GoPhish SMTP expects an email address. Display-name format will be reduced to the mailbox address.">
+            <input value={form.from} onChange={event => onChange('from', event.target.value)} className={inputClass()} placeholder="security@example.com" />
+          </Field>
+          <Field label="Entity">
+            <input value={form.entity} onChange={event => onChange('entity', event.target.value)} className={inputClass()} placeholder="EntityA" />
           </Field>
 
           <button type="button" onClick={() => onChange('ignoreCert', !form.ignoreCert)} className="flex w-full items-center gap-3 rounded-xl border border-gray-100 bg-gray-50 p-3 text-left">
@@ -352,26 +281,44 @@ function SmtpSlideover({
 }
 
 export default function MasterSendingProfiles() {
-  const [profiles, setProfiles] = useState(INITIAL_PROFILES)
+  const { data: gophishProfiles = [], isLoading, isFetching, refetch } = useGophishSmtpProfiles()
+  const { data: usersData } = useUsers({ per_page: 100 })
+  const [profiles, setProfiles] = useState(() => INITIAL_PROFILES.slice(0, 0))
   const [query, setQuery] = useState('')
   const [slideoverMode, setSlideoverMode] = useState(null)
   const [sourceProfile, setSourceProfile] = useState(null)
   const [form, setForm] = useState(EMPTY_SMTP_FORM)
+  const [assignmentProfileId, setAssignmentProfileId] = useState(null)
   const [changed, setChanged] = useState(false)
   const [showPassword, setShowPassword] = useState(false)
   const [testing, setTesting] = useState(false)
   const [testResult, setTestResult] = useState(null)
-  const [assignmentId, setAssignmentId] = useState(null)
-
-  const { data: usersData } = useUsers({ per_page: 100 })
 
   const users = useMemo(() => {
     const source = usersData?.users?.length ? usersData.users : FALLBACK_USERS
-    return source.map(normalizeUser)
+    return source.map(userForAssignmentPanel)
   }, [usersData])
 
   const usersById = useMemo(() => new Map(users.map(user => [user.id, user])), [users])
-  const assignmentProfile = profiles.find(profile => profile.id === assignmentId)
+
+  const createMutation = useCreateSmtpProfileMutation({ onSuccess: () => closeSlideover() })
+  const updateMutation = useUpdateSmtpProfileMutation({ onSuccess: () => closeSlideover() })
+  const deleteMutation = useDeleteSmtpProfileMutation({ onSuccess: () => closeSlideover() })
+  const assignEntityMutation = useAssignSmtpProfileEntityMutation({
+    onSuccess: () => setAssignmentProfileId(null),
+  })
+  const saving = createMutation.isPending || updateMutation.isPending || deleteMutation.isPending
+
+  useEffect(() => {
+    setProfiles(gophishProfiles
+      .map(gophishSmtpProfileToUiProfile)
+      .map(profile => applyAssignmentFromEntity(profile, users))
+    )
+  }, [gophishProfiles, users])
+
+  const assignmentProfile = useMemo(() => (
+    profiles.find(profile => profile.id === assignmentProfileId) ?? null
+  ), [assignmentProfileId, profiles])
 
   const filteredProfiles = useMemo(() => {
     const term = query.trim().toLowerCase()
@@ -381,6 +328,7 @@ export default function MasterSendingProfiles() {
       profile.name.toLowerCase().includes(term)
       || profile.host.toLowerCase().includes(term)
       || profile.from.toLowerCase().includes(term)
+      || profile.entity.toLowerCase().includes(term)
       || profile.encryption.toLowerCase().includes(term)
       || profile.status.toLowerCase().includes(term)
     ))
@@ -411,6 +359,10 @@ export default function MasterSendingProfiles() {
     setChanged(false)
     setTestResult(null)
     setShowPassword(false)
+  }
+
+  function openAssignment(profile) {
+    setAssignmentProfileId(profile.id)
   }
 
   function closeSlideover() {
@@ -455,7 +407,12 @@ export default function MasterSendingProfiles() {
     setChanged(true)
   }
 
-  function syncGoPhish() {
+  async function syncGoPhish() {
+    const result = await refetch()
+    if (result.error) {
+      toast.error(result.error.message || 'Failed to sync SMTP profiles.')
+      return
+    }
     toast.success('SMTP profiles synced with GoPhish.')
   }
 
@@ -486,24 +443,13 @@ export default function MasterSendingProfiles() {
       return
     }
 
-    const payload = buildSmtpProfilePayload({
-      form,
-      mode: slideoverMode,
-      sourceProfile,
-      includeAssignment: true,
-    })
+    const payload = buildGophishSmtpPayload({ form })
 
     if (slideoverMode === 'update') {
-      setProfiles(current => current.map(profile => (
-        profile.id === sourceProfile.id ? payload : profile
-      )))
-      toast.success(`SMTP profile "${name}" saved.`)
+      updateMutation.mutate({ id: sourceProfile.id, data: payload })
     } else {
-      setProfiles(current => [...current, payload])
-      toast.success(`SMTP profile "${name}" created.`)
+      createMutation.mutate(payload)
     }
-
-    closeSlideover()
   }
 
   function deleteProfile() {
@@ -512,27 +458,35 @@ export default function MasterSendingProfiles() {
     const confirmed = window.confirm(`Are you sure you want to delete SMTP profile "${sourceProfile.name}"?`)
     if (!confirmed) return
 
-    setProfiles(current => current.filter(profile => profile.id !== sourceProfile.id))
-    toast.success(`SMTP profile "${sourceProfile.name}" deleted.`)
-    closeSlideover()
+    deleteMutation.mutate(sourceProfile.id)
   }
 
-  function saveAssignment(nextAssignment) {
-    setProfiles(current => current.map(profile => (
-      profile.id === assignmentId ? { ...profile, ...nextAssignment } : profile
-    )))
-    toast.success('Assignment updated.')
-    setAssignmentId(null)
+  function saveAssignment(assignment) {
+    if (!assignmentProfile) return
+
+    const result = entityFromAssignment(assignment, users)
+    if (result.error) {
+      toast.error(result.error)
+      return
+    }
+
+    assignEntityMutation.mutate({
+      id: assignmentProfile.id,
+      entity: result.entity,
+    })
   }
 
   return (
     <div className="space-y-6 lg:flex lg:h-[calc(100vh-110px)] lg:min-h-[720px] lg:flex-col lg:overflow-hidden mt-4 animate-fade-in">
       <PageHeader
         title="Master sending profiles"
-        subtitle="SMTP configuration available to assigned users for GoPhish delivery"
+        subtitle="SMTP configuration grouped by GoPhish entity for delivery"
         actions={
           <>
-            <Button variant="outline" onClick={syncGoPhish}>Sync GoPhish</Button>
+            <Button variant="outline" onClick={syncGoPhish} disabled={isFetching}>
+              <i className={clsx('ti ti-refresh text-base', isFetching && 'animate-spin')} />
+              Sync GoPhish
+            </Button>
             <Button variant="primary" onClick={openCreate}>
               <i className="ti ti-plus text-sm" />
               New SMTP
@@ -574,11 +528,17 @@ export default function MasterSendingProfiles() {
                 <th className="p-4">Used</th>
                 <th className="p-4">Last tested</th>
                 <th className="p-4">Assignment</th>
-                <th className="w-36 p-4 pr-6 text-right">Actions</th>
+                <th className="p-4">Entity</th>
+                <th className="w-44 p-4 pr-6 text-right">Actions</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-gray-100">
-              {filteredProfiles.map(profile => {
+              {isLoading && (
+                <tr>
+                  <td colSpan={11} className="p-8 text-center text-sm text-gray-400">Loading GoPhish SMTP profiles...</td>
+                </tr>
+              )}
+              {!isLoading && filteredProfiles.map(profile => {
                 const status = getSmtpStatusClasses(profile.status)
 
                 return (
@@ -608,8 +568,14 @@ export default function MasterSendingProfiles() {
                     <td className="p-4">
                       <AssignmentBadge item={profile} usersById={usersById} />
                     </td>
-                    <td className="w-36 p-4 pr-6 text-right">
+                    <td className="p-4">
+                      <span className={clsx('inline-flex rounded-full px-2 py-0.5 text-[10px] font-semibold', profile.entity ? 'bg-gray-100 text-gray-700' : 'bg-amber-100 text-amber-700')}>
+                        {profile.entity || 'No entity'}
+                      </span>
+                    </td>
+                    <td className="w-44 p-4 pr-6 text-right">
                       <div className="inline-flex items-center justify-end gap-1.5">
+                        <TableActionButton icon="ti-user-check" label={`Assign ${profile.name}`} title="Assign" tone="green" onClick={() => openAssignment(profile)} />
                         <TableActionButton icon="ti-edit" label={`Edit ${profile.name}`} title="Edit" onClick={() => openEdit(profile)} />
                         <TableActionButton icon="ti-copy" label={`Duplicate ${profile.name}`} title="Duplicate" tone="green" onClick={() => openDuplicate(profile)} />
                         <TableActionButton
@@ -622,15 +588,14 @@ export default function MasterSendingProfiles() {
                             window.setTimeout(runConnectionTest, 50)
                           }}
                         />
-                        <TableActionButton icon="ti-user-check" label={`Assign ${profile.name}`} title="Assign" onClick={() => setAssignmentId(profile.id)} />
                       </div>
                     </td>
                   </tr>
                 )
               })}
-              {filteredProfiles.length === 0 && (
+              {!isLoading && filteredProfiles.length === 0 && (
                 <tr>
-                  <td colSpan={10} className="p-8 text-center text-sm text-gray-400">No sending profiles found.</td>
+                  <td colSpan={11} className="p-8 text-center text-sm text-gray-400">No sending profiles found in GoPhish.</td>
                 </tr>
               )}
             </tbody>
@@ -662,6 +627,7 @@ export default function MasterSendingProfiles() {
         showPassword={showPassword}
         testing={testing}
         testResult={testResult}
+        saving={saving}
         onClose={closeSlideover}
         onChange={updateForm}
         onHeaderChange={updateHeader}
@@ -675,10 +641,11 @@ export default function MasterSendingProfiles() {
 
       {assignmentProfile && (
         <AssignmentPanel
+          key={assignmentProfile.id}
           item={assignmentProfile}
-          resourceLabel="sending profile"
+          resourceLabel="asset"
           users={users}
-          onClose={() => setAssignmentId(null)}
+          onClose={() => setAssignmentProfileId(null)}
           onSave={saveAssignment}
         />
       )}

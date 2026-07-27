@@ -1,9 +1,19 @@
-import { useMemo, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { Link } from 'react-router-dom'
 import toast from 'react-hot-toast'
 import clsx from 'clsx'
 import PageHeader from '../../../components/UI/PageHeader.jsx'
 import Button from '../../../components/UI/Button.jsx'
+import {
+  useMasterDynamicDomains,
+  useMasterEmailTemplates,
+  useMasterLandingPages,
+  useMasterSendingProfiles,
+} from '../../../hooks/queries/useMasterAssetQueries.js'
+import { usePlaybooks } from '../../../hooks/queries/usePlaybookQueries.js'
+import { useCreatePlaybookMutation, useDeletePlaybookMutation, useUpdatePlaybookMutation } from '../../../hooks/mutations/usePlaybookMutations.js'
+import useAppStore from '../../../store/useAppStore.js'
+import { GENERAL_ENTITY, assetEntityForUser, canUserCreateAsset, canUserEditAsset, filterAssetsForUser } from '../../../utils/entityAssignmentHelpers.js'
 
 const CATEGORY_FILTERS = ['all', 'BEC', 'Credential', 'Malware', 'Vishing']
 
@@ -14,6 +24,7 @@ const INITIAL_PLAYBOOKS = [
     desc: 'CEO impersonation requesting an urgent funds transfer by email',
     longDesc: 'A Business Email Compromise scenario where the attacker impersonates the CEO and requests an immediate funds transfer through an email that feels urgent and personal.',
     category: 'BEC',
+    entity: GENERAL_ENTITY,
     diffScore: '4/5',
     diffText: 'High (4/5)',
     dept: 'Finance',
@@ -46,6 +57,7 @@ const INITIAL_PLAYBOOKS = [
     desc: 'Fake Microsoft login page for all departments',
     longDesc: 'A credential phishing scenario that duplicates the Microsoft 365 sign-in page. Targets are directed to revalidate their corporate email session.',
     category: 'Credential',
+    entity: GENERAL_ENTITY,
     diffScore: '3/5',
     diffText: 'Medium (3/5)',
     dept: 'All departments',
@@ -78,6 +90,7 @@ const INITIAL_PLAYBOOKS = [
     desc: 'Malicious attachment in a fake HR policy email',
     longDesc: 'Simulates a malware delivery scenario where targets are asked to download an HR benefits policy update attachment that contains a macro/executable simulation file.',
     category: 'Malware',
+    entity: GENERAL_ENTITY,
     diffScore: '2/5',
     diffText: 'Low (2/5)',
     dept: 'HR · All departments',
@@ -110,6 +123,7 @@ const INITIAL_PLAYBOOKS = [
     desc: 'Fake password reset notification from IT helpdesk',
     longDesc: 'A social engineering tactic where a fake IT staff member requests an immediate password reset due to a suspected security anomaly on the target Active Directory account.',
     category: 'Credential',
+    entity: GENERAL_ENTITY,
     diffScore: '3/5',
     diffText: 'Medium (3/5)',
     dept: 'All departments',
@@ -142,6 +156,7 @@ const INITIAL_PLAYBOOKS = [
     desc: 'Urgent vendor bank account change request',
     longDesc: 'An advanced Business Email Compromise scenario targeting accounting and finance staff. The email appears to come from a key vendor announcing an updated bank account for invoice payments.',
     category: 'BEC',
+    entity: GENERAL_ENTITY,
     diffScore: '5/5',
     diffText: 'Very High (5/5)',
     dept: 'Finance · Legal',
@@ -174,6 +189,7 @@ const INITIAL_PLAYBOOKS = [
     desc: 'Fake prize notification email with a login link',
     longDesc: 'A classic phishing scenario that exploits excitement by telling targets they have won a giveaway or company anniversary reward.',
     category: 'Credential',
+    entity: GENERAL_ENTITY,
     diffScore: '1/5',
     diffText: 'Very Low (1/5)',
     dept: 'All departments',
@@ -238,39 +254,240 @@ const DEFAULT_FORM = {
   category: 'BEC',
   dept: 'All departments',
   difficulty: '3',
-  email: 'Urgent: Invoice approval needed',
-  page: 'Generic credential landing page',
-  smtp: 'standard-relay-02',
-  domain: 'Domain — campaign-{random}.corp-sim.local',
+  email: '',
+  page: '',
+  smtp: '',
+  domain: '',
   scenario: '',
 }
 
 const COMPONENT_OPTIONS = {
-  email: [
-    'Urgent: Invoice approval needed',
-    'Action Required: Sync your corporate inbox',
-    'HR Update: New welfare policy 2025',
-    'CRITICAL: Reset your Active Directory password',
-    'URGENT: Change in billing details for invoice #892',
-    'Congratulations! You won employee of the month rewards',
-  ],
-  page: [
-    'Generic credential landing page',
-    'Fake invoice confirmation portal',
-    'Microsoft Outlook Web Login Clone',
-    'Direct file download link',
-    'IT Self-Service Password Reset Portal',
-    'Vendor Bank Update Portal',
-    'Prize Claim portal',
-  ],
-  smtp: [
-    'standard-relay-02',
-    'finance-relay-01',
-    'Internal relay server',
-    'Corporate gateway simulator',
-    'Custom vendor relay server',
-    'Public marketing server pool',
-  ],
+  email: [],
+  page: [],
+  smtp: [],
+  domain: [],
+}
+
+function latestVersion(master) {
+  if (master?.latest_version) return master.latest_version
+  if (Array.isArray(master?.versions) && master.versions.length) return master.versions[0]
+  return null
+}
+
+function compactOptions(options) {
+  const seen = new Set()
+
+  return options.filter(option => {
+    if (!option.value || seen.has(option.value)) return false
+    seen.add(option.value)
+    return true
+  })
+}
+
+function playbookComponentOptions({ emailTemplates, landingPages, sendingProfiles, dynamicDomains }) {
+  return {
+    email: compactOptions(emailTemplates.map(template => {
+      const version = latestVersion(template)
+      return {
+        value: version?.id ? String(version.id) : '',
+        label: template.name || `Email template ${template.id}`,
+        description: version?.subject ? `v${version.version || 1} · ${version.subject}` : 'No approved version yet',
+      }
+    })),
+    page: compactOptions(landingPages.map(page => {
+      const version = latestVersion(page)
+      const redirect = version?.redirect_settings?.redirect_url
+      return {
+        value: version?.id ? String(version.id) : '',
+        label: page.name || `Landing page ${page.id}`,
+        description: redirect ? `v${version.version || 1} · redirects to ${redirect}` : `v${version?.version || 1}`,
+      }
+    })),
+    smtp: compactOptions(sendingProfiles.map(profile => ({
+      value: profile.id ? String(profile.id) : '',
+      label: profile.name || `Sending profile ${profile.id}`,
+      description: profile.gophish_sending_profile_id
+        ? `GoPhish ID #${profile.gophish_sending_profile_id} · ${profile.from_email || '-'}`
+        : `Unmapped · ${profile.from_email || '-'}`,
+    }))),
+    domain: compactOptions(dynamicDomains.map(domain => ({
+      value: domain.id ? String(domain.id) : '',
+      label: domain.domain || `Dynamic domain ${domain.id}`,
+      description: [domain.authorization_status, domain.dns_status, domain.tls_status]
+        .filter(Boolean)
+        .join(' · '),
+    }))),
+  }
+}
+
+function firstOption(options, key) {
+  return options?.[key]?.[0]?.value || ''
+}
+
+function defaultFormForOptions(options) {
+  return {
+    ...DEFAULT_FORM,
+    email: firstOption(options, 'email'),
+    page: firstOption(options, 'page'),
+    smtp: firstOption(options, 'smtp'),
+    domain: firstOption(options, 'domain'),
+  }
+}
+
+function findAssetById(items, id) {
+  const numericId = Number(id)
+  return items.find(item => Number(item?.id) === numericId)
+}
+
+function findEmailTemplateByVersionId(items, versionId) {
+  const numericId = Number(versionId)
+  return items.find(item => (
+    Number(latestVersion(item)?.id || 0) === numericId
+    || (item.versions || []).some(version => Number(version?.id || 0) === numericId)
+  ))
+}
+
+function findLandingPageByVersionId(items, versionId) {
+  const numericId = Number(versionId)
+  return items.find(item => (
+    Number(latestVersion(item)?.id || 0) === numericId
+    || (item.versions || []).some(version => Number(version?.id || 0) === numericId)
+  ))
+}
+
+function optionLabel(options, value, fallback = 'Not selected') {
+  return options.find(option => option.value === String(value || ''))?.label || fallback
+}
+
+function optionDescription(options, value, fallback = '') {
+  return options.find(option => option.value === String(value || ''))?.description || fallback
+}
+
+function categoryFromText(value) {
+  const text = String(value || '').toLowerCase()
+
+  if (/(bec|invoice|vendor|ceo|payment|billing)/.test(text)) return 'BEC'
+  if (/(malware|attachment|file|policy|hr)/.test(text)) return 'Malware'
+  if (/(vishing|voice|phone|call)/.test(text)) return 'Vishing'
+
+  return 'Credential'
+}
+
+function difficultyNumber(value) {
+  const number = Number(value)
+  if (!Number.isFinite(number)) return 3
+  return Math.min(Math.max(number, 1), 5)
+}
+
+function playbookMasterToUiPlaybook(row, assets, componentOptions) {
+  const emailVersionId = Number(row.default_email_template_version_id || 0)
+  const landingVersionId = Number(row.default_landing_page_version_id || 0)
+  const sendingProfileId = Number(row.default_sending_profile_ref_id || 0)
+  const dynamicDomainId = Number(row.default_dynamic_domain_id || 0)
+  const template = findEmailTemplateByVersionId(assets.emailTemplates, emailVersionId)
+  const emailVersion = latestVersion(template) || row.components?.email_template_version
+  const page = findLandingPageByVersionId(assets.landingPages, landingVersionId)
+  const landingVersion = latestVersion(page) || row.components?.landing_page_version
+  const smtp = findAssetById(assets.sendingProfiles, sendingProfileId) || row.components?.sending_profile_ref
+  const domain = findAssetById(assets.dynamicDomains, dynamicDomainId) || row.components?.dynamic_domain
+  const difficulty = difficultyNumber(row.difficulty)
+  const name = row.name || `Playbook ${row.id}`
+  const description = row.description || 'Reusable Pukat playbook linked to GoPhish assets.'
+  const category = categoryFromText(`${name} ${description} ${row.scenario || ''} ${emailVersion?.subject || ''}`)
+  const meta = CATEGORY_META[category] ?? CATEGORY_META.Credential
+  const entity = row.entity || GENERAL_ENTITY
+  const domainLabel = optionLabel(componentOptions.domain, dynamicDomainId, domain?.domain || 'Not selected')
+  const domainDescription = optionDescription(
+    componentOptions.domain,
+    dynamicDomainId,
+    domain?.authorization_status ? `${domain.authorization_status} · ${domain.dns_status || 'dns unknown'} · ${domain.tls_status || 'tls unknown'}` : 'No dynamic domain selected'
+  )
+
+  return {
+    id: String(row.id),
+    source: 'api',
+    name,
+    desc: description,
+    longDesc: description,
+    category,
+    entity,
+    diffScore: `${difficulty}/5`,
+    diffText: DIFFICULTY_TEXT[difficulty] ?? DIFFICULTY_TEXT[3],
+    dept: 'All departments',
+    deptTag: ['All departments'],
+    usedCount: '0x',
+    clickAvg: '0%',
+    submitAvg: '0%',
+    clickSub: 'not tested yet',
+    submitSub: 'not tested yet',
+    iconColor: meta.iconColor,
+    iconBg: meta.iconBg,
+    iconName: meta.iconName,
+    nistInfo: `This playbook uses GoPhish assets with ${DIFFICULTY_TEXT[difficulty] ?? DIFFICULTY_TEXT[3]} difficulty.`,
+    scenarioText: row.objective || row.scenario || description,
+    emailValue: String(emailVersionId || ''),
+    pageValue: String(landingVersionId || ''),
+    smtpValue: String(sendingProfileId || ''),
+    domainValue: String(dynamicDomainId || ''),
+    components: [
+      {
+        type: 'email',
+        name: `Email template — "${template?.name || 'Not selected'}"`,
+        sub: emailVersion?.subject ? `Subject: ${emailVersion.subject}` : 'No email template version selected',
+        badge: 'Master template',
+        bg: '#DBEAFE',
+        icon: 'ti-mail',
+        color: '#1D4ED8',
+      },
+      {
+        type: 'page',
+        name: `Landing page — ${page?.name || 'Not selected'}`,
+        sub: landingVersion?.redirect_settings?.redirect_url ? `Redirects to ${landingVersion.redirect_settings.redirect_url}` : 'No landing page version selected',
+        badge: 'Master page',
+        bg: '#D1FAE5',
+        icon: 'ti-world',
+        color: '#065F46',
+      },
+      {
+        type: 'smtp',
+        name: `SMTP — ${smtp?.name || 'Not selected'}`,
+        sub: smtp?.gophish_sending_profile_id ? `GoPhish ID #${smtp.gophish_sending_profile_id} · From: ${smtp.from_email || '-'}` : 'No sending profile reference selected',
+        badge: 'Sending profile',
+        bg: '#FEF3C7',
+        icon: 'ti-send',
+        color: '#92400E',
+      },
+      {
+        type: 'domain',
+        name: `Domain — ${domainLabel}`,
+        sub: domainDescription || 'No dynamic domain selected',
+        badge: 'Dynamic domain',
+        bg: '#F3E8FF',
+        icon: 'ti-network',
+        color: '#7C3AED',
+      },
+    ],
+    insights: [
+      { text: 'Historical results will appear after this playbook is used', sub: 'No campaign telemetry is linked yet', icon: 'ti-trending-up', color: '#EF4444' },
+      { text: `Visible to entity: ${entity}`, sub: 'Assignment is controlled by the playbook entity field', icon: 'ti-building', color: '#F59E0B' },
+    ],
+  }
+}
+
+function playbookPayloadFromForm(form, entity) {
+  return {
+    name: form.name.trim(),
+    description: form.desc.trim() || form.scenario.trim(),
+    objective: form.scenario.trim(),
+    scenario: form.category,
+    default_email_template_version_id: Number(form.email) || null,
+    default_landing_page_version_id: Number(form.page) || null,
+    default_sending_profile_ref_id: Number(form.smtp) || null,
+    default_dynamic_domain_id: Number(form.domain) || null,
+    difficulty: difficultyNumber(form.difficulty),
+    entity,
+    status: 'draft',
+  }
 }
 
 function pillClass(active) {
@@ -316,10 +533,10 @@ function formFromPlaybook(playbook) {
     category: playbook.category ?? 'BEC',
     dept: playbook.dept ?? 'All departments',
     difficulty: playbook.diffScore?.charAt(0) ?? '3',
-    email: getComponentValue(playbook, 'email', DEFAULT_FORM.email),
-    page: getComponentValue(playbook, 'page', DEFAULT_FORM.page),
-    smtp: getComponentValue(playbook, 'smtp', DEFAULT_FORM.smtp),
-    domain: getComponentValue(playbook, 'domain', DEFAULT_FORM.domain),
+    email: playbook.emailValue ?? getComponentValue(playbook, 'email', DEFAULT_FORM.email),
+    page: playbook.pageValue ?? getComponentValue(playbook, 'page', DEFAULT_FORM.page),
+    smtp: playbook.smtpValue ?? getComponentValue(playbook, 'smtp', DEFAULT_FORM.smtp),
+    domain: playbook.domainValue ?? getComponentValue(playbook, 'domain', DEFAULT_FORM.domain),
     scenario: playbook.scenarioText ?? '',
   }
 }
@@ -339,6 +556,7 @@ function buildPlaybookFromForm(form, existing) {
     desc,
     longDesc: desc,
     category: form.category,
+    entity: existing?.entity ?? GENERAL_ENTITY,
     diffScore: `${difficulty}/5`,
     diffText: DIFFICULTY_TEXT[difficulty] ?? DIFFICULTY_TEXT[3],
     dept,
@@ -470,7 +688,28 @@ function fieldClass() {
   return 'w-full rounded-md border border-gray-300 bg-white px-3 py-2 text-[13px] text-gray-800 outline-none transition-colors focus:border-violet-500'
 }
 
+function normalizeSelectOption(option) {
+  if (typeof option === 'string') {
+    return { value: option, label: option, description: '' }
+  }
+
+  return {
+    value: String(option?.value || ''),
+    label: option?.label || String(option?.value || ''),
+    description: option?.description || '',
+  }
+}
+
 function ComponentSelect({ icon, bg, color, label, value, options, onChange, onPreview }) {
+  const normalizedOptions = options.map(normalizeSelectOption).filter(option => option.value)
+  const currentOption = normalizedOptions.find(option => option.value === String(value || ''))
+  const selectOptions = value && !currentOption
+    ? [{ value: String(value), label: String(value), description: '' }, ...normalizedOptions]
+    : normalizedOptions
+  const displayLabel = currentOption?.label || (value ? String(value) : 'No data in database')
+  const displayDescription = currentOption?.description || ''
+  const disabled = selectOptions.length === 0
+
   return (
     <div className="overflow-hidden rounded-lg border border-gray-200 bg-white">
       <div className="flex items-center gap-3 p-3">
@@ -479,7 +718,8 @@ function ComponentSelect({ icon, bg, color, label, value, options, onChange, onP
         </span>
         <span className="min-w-0 flex-1">
           <span className="block text-[13px] font-semibold text-gray-800">{label}</span>
-          <span className="block truncate text-xs font-medium text-gray-500">{value}</span>
+          <span className="block truncate text-xs font-medium text-gray-500">{displayLabel}</span>
+          {displayDescription && <span className="block truncate text-[10px] font-medium text-gray-400">{displayDescription}</span>}
         </span>
         {onPreview && (
           <button
@@ -493,9 +733,10 @@ function ComponentSelect({ icon, bg, color, label, value, options, onChange, onP
         )}
       </div>
       <div className="border-t border-gray-200 bg-gray-50 p-3">
-        <select value={value} onChange={event => onChange(event.target.value)} className={fieldClass()}>
-          {options.map(option => (
-            <option key={option} value={option}>{option}</option>
+        <select value={value} onChange={event => onChange(event.target.value)} className={fieldClass()} disabled={disabled}>
+          {disabled && <option value="">No data in database</option>}
+          {selectOptions.map(option => (
+            <option key={option.value} value={option.value}>{option.label}</option>
           ))}
         </select>
       </div>
@@ -507,6 +748,8 @@ function PlaybookSlideover({
   mode,
   form,
   dirty,
+  componentOptions = COMPONENT_OPTIONS,
+  saving = false,
   onClose,
   onChange,
   onSubmit,
@@ -518,6 +761,8 @@ function PlaybookSlideover({
 
   const isEdit = mode === 'edit'
   const difficultyScore = Number(form.difficulty || 3)
+  const emailPreviewLabel = optionLabel(componentOptions.email, form.email, form.email)
+  const landingPreviewLabel = optionLabel(componentOptions.page, form.page, form.page)
 
   return (
     <div
@@ -625,9 +870,9 @@ function PlaybookSlideover({
               color="#1D4ED8"
               label="Email template"
               value={form.email}
-              options={COMPONENT_OPTIONS.email}
+              options={componentOptions.email}
               onChange={value => onChange('email', value)}
-              onPreview={() => onPreviewEmail(form.email)}
+              onPreview={() => onPreviewEmail(emailPreviewLabel)}
             />
             <ComponentSelect
               icon="ti-world"
@@ -635,9 +880,9 @@ function PlaybookSlideover({
               color="#065F46"
               label="Landing page"
               value={form.page}
-              options={COMPONENT_OPTIONS.page}
+              options={componentOptions.page}
               onChange={value => onChange('page', value)}
-              onPreview={() => onPreviewLanding(form.page)}
+              onPreview={() => onPreviewLanding(landingPreviewLabel)}
             />
             <ComponentSelect
               icon="ti-send"
@@ -645,16 +890,18 @@ function PlaybookSlideover({
               color="#92400E"
               label="SMTP profile"
               value={form.smtp}
-              options={COMPONENT_OPTIONS.smtp}
+              options={componentOptions.smtp}
               onChange={value => onChange('smtp', value)}
             />
-            <Field label="Dynamic domain">
-              <input
-                value={form.domain}
-                onChange={event => onChange('domain', event.target.value)}
-                className={fieldClass()}
-              />
-            </Field>
+            <ComponentSelect
+              icon="ti-network"
+              bg="#F3E8FF"
+              color="#7C3AED"
+              label="Dynamic domain"
+              value={form.domain}
+              options={componentOptions.domain}
+              onChange={value => onChange('domain', value)}
+            />
           </section>
 
           <div className="h-px bg-gray-100" />
@@ -694,10 +941,11 @@ function PlaybookSlideover({
           <button
             type="button"
             onClick={onSubmit}
+            disabled={saving}
             className="inline-flex items-center gap-1.5 rounded-lg border border-violet-500 bg-violet-500 px-4 py-2 text-xs font-semibold text-white transition-colors hover:bg-violet-600"
           >
             <i className="ti ti-device-floppy" />
-            {isEdit ? 'Save changes' : 'Create playbook'}
+            {saving ? 'Saving...' : isEdit ? 'Save changes' : 'Create playbook'}
           </button>
         </footer>
       </aside>
@@ -959,7 +1207,19 @@ function DifficultyBlock({ playbook }) {
   )
 }
 
-function DetailPanel({ playbook, onDuplicate, onEdit, onPreviewComponent }) {
+function DetailPanel({ playbook, canManage, onDuplicate, onEdit, onPreviewComponent }) {
+  if (!playbook) {
+    return (
+      <section className="flex min-h-[620px] items-center justify-center rounded-xl border border-dashed border-gray-200 bg-white p-6 text-center">
+        <div>
+          <i className="ti ti-books mb-2 block text-3xl text-gray-300" />
+          <h2 className="text-sm font-bold text-gray-900">No playbooks available</h2>
+          <p className="mt-1 text-xs text-gray-500">Only General playbooks and playbooks assigned to your entity are shown here.</p>
+        </div>
+      </section>
+    )
+  }
+
   const difficulty = playbook.diffScore.charAt(0)
 
   return (
@@ -992,14 +1252,18 @@ function DetailPanel({ playbook, onDuplicate, onEdit, onPreviewComponent }) {
             <i className="ti ti-player-play" />
             Use this playbook
           </Link>
-          <button type="button" onClick={onDuplicate} className="inline-flex items-center gap-1.5 rounded-lg border border-gray-200 bg-white px-4 py-2 text-xs font-semibold text-gray-700 transition-colors hover:bg-gray-50">
-            <i className="ti ti-copy" />
-            Duplicate
-          </button>
-          <button type="button" onClick={onEdit} className="inline-flex items-center gap-1.5 rounded-lg border border-gray-200 bg-white px-4 py-2 text-xs font-semibold text-gray-700 transition-colors hover:bg-gray-50">
-            <i className="ti ti-edit" />
-            Edit
-          </button>
+          {canManage && (
+            <>
+              <button type="button" onClick={onDuplicate} className="inline-flex items-center gap-1.5 rounded-lg border border-gray-200 bg-white px-4 py-2 text-xs font-semibold text-gray-700 transition-colors hover:bg-gray-50">
+                <i className="ti ti-copy" />
+                Duplicate
+              </button>
+              <button type="button" onClick={onEdit} className="inline-flex items-center gap-1.5 rounded-lg border border-gray-200 bg-white px-4 py-2 text-xs font-semibold text-gray-700 transition-colors hover:bg-gray-50">
+                <i className="ti ti-edit" />
+                Edit
+              </button>
+            </>
+          )}
         </div>
       </div>
 
@@ -1056,8 +1320,10 @@ function DetailPanel({ playbook, onDuplicate, onEdit, onPreviewComponent }) {
 }
 
 export default function Playbooks() {
-  const [playbooks, setPlaybooks] = useState(INITIAL_PLAYBOOKS)
-  const [activeId, setActiveId] = useState('cred-prize')
+  const currentUser = useAppStore(state => state.user)
+  const canCreatePlaybooks = canUserCreateAsset(currentUser)
+  const [playbooks, setPlaybooks] = useState(() => INITIAL_PLAYBOOKS.slice(0, 0))
+  const [activeId, setActiveId] = useState('')
   const [category, setCategory] = useState('all')
   const [query, setQuery] = useState('')
   const [syncing, setSyncing] = useState(false)
@@ -1065,61 +1331,133 @@ export default function Playbooks() {
   const [slideoverForm, setSlideoverForm] = useState(DEFAULT_FORM)
   const [slideoverDirty, setSlideoverDirty] = useState(false)
   const [previewPanel, setPreviewPanel] = useState(null)
+  const { data: storedPlaybooks = [], isLoading: playbooksLoading, refetch: refetchPlaybooks } = usePlaybooks({
+    placeholderData: previous => previous,
+  })
+  const { data: emailTemplates = [], refetch: refetchEmailTemplates } = useMasterEmailTemplates()
+  const { data: landingPages = [], refetch: refetchLandingPages } = useMasterLandingPages()
+  const { data: sendingProfiles = [], refetch: refetchSendingProfiles } = useMasterSendingProfiles()
+  const { data: dynamicDomains = [], refetch: refetchDynamicDomains } = useMasterDynamicDomains()
+  const defaultEntity = useMemo(() => assetEntityForUser(currentUser), [currentUser])
+  const masterAssets = useMemo(() => ({
+    emailTemplates,
+    landingPages,
+    sendingProfiles,
+    dynamicDomains,
+  }), [dynamicDomains, emailTemplates, landingPages, sendingProfiles])
+  const storedPlaybookRows = useMemo(() => (
+    Array.isArray(storedPlaybooks)
+      ? storedPlaybooks.filter(row => row?.status !== 'archived')
+      : []
+  ), [storedPlaybooks])
+  const componentOptions = useMemo(() => (
+    playbookComponentOptions(masterAssets)
+  ), [masterAssets])
+  const storedPlaybookCards = useMemo(() => (
+    storedPlaybookRows.map(row => playbookMasterToUiPlaybook(row, masterAssets, componentOptions))
+  ), [componentOptions, masterAssets, storedPlaybookRows])
+  const availablePlaybooks = useMemo(() => (
+    filterAssetsForUser(playbooks, currentUser)
+  ), [currentUser, playbooks])
+
+  const createPlaybookMutation = useCreatePlaybookMutation({
+    onSuccess: data => {
+      if (data?.id) setActiveId(String(data.id))
+      setCategory('all')
+      setQuery('')
+      closePlaybookForm()
+    },
+  })
+  const updatePlaybookMutation = useUpdatePlaybookMutation({
+    onSuccess: data => {
+      if (data?.id) setActiveId(String(data.id))
+      closePlaybookForm()
+    },
+  })
+  const deletePlaybookMutation = useDeletePlaybookMutation({
+    onSuccess: () => {
+      setActiveId('')
+      closePlaybookForm()
+    },
+  })
+  const playbookSaving = createPlaybookMutation.isPending || updatePlaybookMutation.isPending
+
+  useEffect(() => {
+    setPlaybooks(storedPlaybookCards)
+  }, [storedPlaybookCards])
 
   const filteredPlaybooks = useMemo(() => {
     const term = query.trim().toLowerCase()
 
-    return playbooks.filter(playbook => {
+    return availablePlaybooks.filter(playbook => {
       const matchesCategory = category === 'all' || playbook.category === category
       const matchesQuery = !term
         || playbook.name.toLowerCase().includes(term)
         || playbook.desc.toLowerCase().includes(term)
         || playbook.longDesc.toLowerCase().includes(term)
+        || (playbook.entity || '').toLowerCase().includes(term)
 
       return matchesCategory && matchesQuery
     })
-  }, [category, playbooks, query])
+  }, [availablePlaybooks, category, query])
 
-  const activePlaybook = playbooks.find(playbook => playbook.id === activeId) ?? playbooks[0]
+  const activePlaybook = availablePlaybooks.find(playbook => playbook.id === activeId) ?? availablePlaybooks[0]
+  const canEditActivePlaybook = canUserEditAsset(activePlaybook, currentUser)
 
-  function handleSync() {
+  async function handleSync() {
     setSyncing(true)
-    window.setTimeout(() => {
+    try {
+      await Promise.all([
+        refetchPlaybooks(),
+        refetchEmailTemplates(),
+        refetchLandingPages(),
+        refetchSendingProfiles(),
+        refetchDynamicDomains(),
+      ])
+      toast.success('Playbook master list refreshed from database.')
+    } catch (error) {
+      toast.error(error.message || 'Failed to sync playbooks.')
+    } finally {
       setSyncing(false)
-      toast.success('Playbook synced with GoPhish.')
-    }, 800)
+    }
   }
 
   function duplicateSelectedPlaybook() {
     const source = activePlaybook
-    const clone = {
-      ...source,
-      id: `custom-${Date.now()}`,
-      name: `${source.name} (Copy)`,
-      usedCount: '0x',
-      clickAvg: '0%',
-      submitAvg: '0%',
-      clickSub: 'not tested yet',
-      submitSub: 'not tested yet',
-      components: source.components.map(component => ({ ...component })),
-      deptTag: [...source.deptTag],
-      insights: source.insights.map(insight => ({ ...insight })),
+    if (!source) return
+    if (!canUserEditAsset(source, currentUser)) {
+      toast.error('Playbook General hanya bisa diduplikasi admin. Non-admin hanya bisa memakai editor sesuai entity user.')
+      return
     }
 
-    setPlaybooks(current => [...current, clone])
-    setActiveId(clone.id)
-    setCategory('all')
-    setQuery('')
-    toast.success(`Playbook "${source.name}" duplicated.`)
+    const cloneForm = {
+      ...formFromPlaybook(source),
+      name: `${source.name} (Copy)`,
+    }
+
+    createPlaybookMutation.mutate(
+      playbookPayloadFromForm(cloneForm, source.entity || defaultEntity)
+    )
   }
 
   function openCreatePlaybook() {
-    setSlideoverForm(DEFAULT_FORM)
+    if (!canCreatePlaybooks) {
+      toast.error('User non-admin harus memiliki entity untuk membuat playbook.')
+      return
+    }
+
+    setSlideoverForm(defaultFormForOptions(componentOptions))
     setSlideoverDirty(false)
     setSlideoverMode('create')
   }
 
   function openEditPlaybook() {
+    if (!activePlaybook) return
+    if (!canUserEditAsset(activePlaybook, currentUser)) {
+      toast.error('Playbook General hanya bisa diedit admin. Non-admin hanya bisa edit playbook sesuai entity user.')
+      return
+    }
+
     setSlideoverForm(formFromPlaybook(activePlaybook))
     setSlideoverDirty(false)
     setSlideoverMode('edit')
@@ -1137,6 +1475,15 @@ export default function Playbooks() {
   }
 
   function submitPlaybookForm() {
+    if (slideoverMode === 'create' && !canCreatePlaybooks) {
+      toast.error('User non-admin harus memiliki entity untuk membuat playbook.')
+      return
+    }
+    if (slideoverMode === 'edit' && !canUserEditAsset(activePlaybook, currentUser)) {
+      toast.error('Playbook ini hanya bisa diedit oleh admin atau user dengan entity yang sama.')
+      return
+    }
+
     if (!slideoverForm.name.trim()) {
       toast.error('Playbook name is required.')
       return
@@ -1148,18 +1495,21 @@ export default function Playbooks() {
     }
 
     if (slideoverMode === 'create') {
-      const created = buildPlaybookFromForm(slideoverForm)
-
-      setPlaybooks(current => [...current, created])
-      setActiveId(created.id)
-      setCategory('all')
-      setQuery('')
-      closePlaybookForm()
-      toast.success(`Playbook "${created.name}" created.`)
+      createPlaybookMutation.mutate(
+        playbookPayloadFromForm(slideoverForm, defaultEntity)
+      )
       return
     }
 
     const updated = buildPlaybookFromForm(slideoverForm, activePlaybook)
+
+    if (activePlaybook?.source === 'api') {
+      updatePlaybookMutation.mutate({
+        id: activePlaybook.id,
+        data: playbookPayloadFromForm(slideoverForm, activePlaybook.entity || defaultEntity),
+      })
+      return
+    }
 
     setPlaybooks(current => current.map(playbook => (
       playbook.id === activePlaybook.id ? updated : playbook
@@ -1171,6 +1521,11 @@ export default function Playbooks() {
 
   function deleteActivePlaybook() {
     if (slideoverMode !== 'edit') return
+    if (!activePlaybook) return
+    if (!canUserEditAsset(activePlaybook, currentUser)) {
+      toast.error('Playbook ini hanya bisa dihapus oleh admin atau user dengan entity yang sama.')
+      return
+    }
 
     if (playbooks.length <= 1) {
       toast.error('At least one playbook must remain available.')
@@ -1179,6 +1534,11 @@ export default function Playbooks() {
 
     const confirmed = window.confirm(`Delete playbook "${activePlaybook.name}"?`)
     if (!confirmed) return
+
+    if (activePlaybook.source === 'api') {
+      deletePlaybookMutation.mutate(activePlaybook.id)
+      return
+    }
 
     const remaining = playbooks.filter(playbook => playbook.id !== activePlaybook.id)
     const nextActive = remaining[0]
@@ -1221,14 +1581,16 @@ export default function Playbooks() {
                 className="w-full rounded-xl border border-gray-200 bg-white py-2 pl-9 pr-4 text-sm text-gray-950 outline-none placeholder:text-gray-400 focus:border-violet-500"
               />
             </label>
-            <Button variant="outline" onClick={handleSync}>
+            <Button variant="outline" onClick={handleSync} disabled={syncing}>
               <i className={clsx('ti ti-refresh text-base', syncing && 'animate-spin')} />
-              Sync GoPhish
+              Refresh
             </Button>
-            <Button variant="primary" onClick={openCreatePlaybook}>
-              <i className="ti ti-plus text-base" />
-              Create playbook
-            </Button>
+            {canCreatePlaybooks && (
+              <Button variant="primary" onClick={openCreatePlaybook}>
+                <i className="ti ti-plus text-base" />
+                Create playbook
+              </Button>
+            )}
           </>
         }
       />
@@ -1238,14 +1600,16 @@ export default function Playbooks() {
           <div className="space-y-3 border-b border-gray-200 p-4">
             <div className="flex items-center justify-between">
               <h2 className="text-lg font-bold text-gray-900">Playbooks</h2>
-              <button
-                type="button"
-                onClick={openCreatePlaybook}
-                className="inline-flex items-center gap-1 text-xs font-semibold text-violet-500 hover:text-violet-600"
-              >
-                <i className="ti ti-plus" />
-                New
-              </button>
+              {canCreatePlaybooks && (
+                <button
+                  type="button"
+                  onClick={openCreatePlaybook}
+                  className="inline-flex items-center gap-1 text-xs font-semibold text-violet-500 hover:text-violet-600"
+                >
+                  <i className="ti ti-plus" />
+                  New
+                </button>
+              )}
             </div>
 
             <label className="relative block">
@@ -1275,13 +1639,13 @@ export default function Playbooks() {
 
           <div className="flex-1 space-y-2 overflow-y-auto px-3 py-2">
             <div className="px-1 pb-1 pt-0.5 text-[10px] font-semibold text-gray-500">
-              {filteredPlaybooks.length} {filteredPlaybooks.length === 1 ? 'playbook' : 'playbooks'} available
+              {playbooksLoading ? 'Loading playbooks...' : `${filteredPlaybooks.length} ${filteredPlaybooks.length === 1 ? 'playbook' : 'playbooks'} available`}
             </div>
             {filteredPlaybooks.map(playbook => (
               <PlaybookListItem
                 key={playbook.id}
                 playbook={playbook}
-                selected={playbook.id === activePlaybook.id}
+                selected={playbook.id === activePlaybook?.id}
                 onSelect={() => setActiveId(playbook.id)}
               />
             ))}
@@ -1295,6 +1659,7 @@ export default function Playbooks() {
 
         <DetailPanel
           playbook={activePlaybook}
+          canManage={canEditActivePlaybook}
           onDuplicate={duplicateSelectedPlaybook}
           onEdit={openEditPlaybook}
           onPreviewComponent={previewDetailComponent}
@@ -1305,6 +1670,8 @@ export default function Playbooks() {
         mode={slideoverMode}
         form={slideoverForm}
         dirty={slideoverDirty}
+        componentOptions={componentOptions}
+        saving={playbookSaving}
         onClose={closePlaybookForm}
         onChange={updatePlaybookForm}
         onSubmit={submitPlaybookForm}

@@ -6,6 +6,10 @@
 
 A comprehensive phishing simulation management platform built as a WordPress plugin, powered by [GoPhish](https://getgophish.com/) as the simulation engine.
 
+env -u GH_TOKEN -u GITHUB_TOKEN \
+  gh codespace ports forward 3333:3333 \
+  --codespace ideal-trout-wrqpx679wxpxh5jp9
+
 ---
 
 ## Architecture

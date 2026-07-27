@@ -222,22 +222,22 @@ class CampaignController extends RestController {
 		);
 
 		if ( ! $campaign ) {
-			return $this->error( 'not_found', __( 'Campaign not found.', 'pukat' ), 404 );
+			return $this->legacy_campaign_launch_response( $this->error( 'not_found', __( 'Campaign not found.', 'pukat' ), 404 ) );
 		}
 
 		if ( 'active' === $campaign['status'] ) {
-			return $this->error( 'already_active', __( 'Campaign is already running.', 'pukat' ), 409 );
+			return $this->legacy_campaign_launch_response( $this->error( 'already_active', __( 'Campaign is already running.', 'pukat' ), 409 ) );
 		}
 
 		// Build GoPhish campaign payload from our campaign + playbook.
 		$gp_payload = $this->build_gophish_payload( $campaign, $request );
 		if ( is_array( $gp_payload ) && isset( $gp_payload['error'] ) ) {
-			return $this->error( 'payload_error', $gp_payload['error'], 422 );
+			return $this->legacy_campaign_launch_response( $this->error( 'payload_error', $gp_payload['error'], 422 ) );
 		}
 
 		$gp_result = ( new GoPhishService() )->create_campaign( $gp_payload );
 		if ( is_wp_error( $gp_result ) ) {
-			return $this->from_wp_error( $gp_result );
+			return $this->legacy_campaign_launch_response( $this->from_wp_error( $gp_result ) );
 		}
 
 		$gophish_id = (int) ( $gp_result['id'] ?? 0 );
@@ -255,9 +255,11 @@ class CampaignController extends RestController {
 		AuditLogService::log( 'campaign.launched', [
 			'campaign_id' => $id,
 			'gophish_id'  => $gophish_id,
+			'legacy'      => true,
+			'replacement' => 'campaign_runs',
 		], null, 'campaign', $id );
 
-		return $this->success( [ 'gophish_id' => $gophish_id, 'status' => 'active' ] );
+		return $this->legacy_campaign_launch_response( $this->success( [ 'gophish_id' => $gophish_id, 'status' => 'active' ] ) );
 	}
 
 	public function complete_campaign( WP_REST_Request $request ): WP_REST_Response {
@@ -367,6 +369,10 @@ class CampaignController extends RestController {
 			++$inserted;
 		}
 
+		if ( 0 === $inserted ) {
+			return $this->error( 'validation_error', __( 'No valid target email addresses were found.', 'pukat' ), 422 );
+		}
+
 		// Push the group to GoPhish so it's ready when the campaign launches.
 		$gophish_targets = array_map( static function ( array $t ): array {
 			return [
@@ -392,11 +398,11 @@ class CampaignController extends RestController {
 		}
 
 		$gp_result = $gp->create_group( [ 'name' => $group_name, 'targets' => array_values( $gophish_targets ) ] );
-
-		$gophish_group_id = null;
-		if ( ! is_wp_error( $gp_result ) ) {
-			$gophish_group_id = $gp_result['id'] ?? null;
+		if ( is_wp_error( $gp_result ) ) {
+			return $this->from_wp_error( $gp_result );
 		}
+
+		$gophish_group_id = $gp_result['id'] ?? null;
 
 		AuditLogService::log(
 			'targets.imported',
@@ -466,15 +472,136 @@ class CampaignController extends RestController {
 			}
 		}
 
+		if ( ! $template_id || ! $page_id || ! $smtp_id ) {
+			return [
+				'error' => __( 'Select a GoPhish email template, landing page, and SMTP sending profile before launch.', 'pukat' ),
+			];
+		}
+
+		$asset_names = $this->resolve_gophish_asset_names( $template_id, $page_id, $smtp_id, $group_name );
+		if ( isset( $asset_names['error'] ) ) {
+			return $asset_names;
+		}
+
 		return [
 			'name'              => $campaign['name'],
-			'template'          => [ 'name' => '' ], // GoPhish references by ID inside groups.
+			'template'          => [ 'name' => $asset_names['template'] ],
 			'url'               => $url ?: home_url(),
-			'page'              => [ 'id' => $page_id ],
-			'smtp'              => [ 'id' => $smtp_id ],
-			'launch_date'       => $campaign['scheduled_at'] ?? gmdate( 'Y-m-d\TH:i:s+00:00' ),
+			'page'              => [ 'name' => $asset_names['page'] ],
+			'smtp'              => [ 'name' => $asset_names['smtp'] ],
+			'launch_date'       => $this->format_gophish_datetime( $campaign['scheduled_at'] ?? null ),
 			'send_by_date'      => null,
 			'groups'            => [ [ 'name' => $group_name ] ],
 		];
+	}
+
+	/**
+	 * Resolve selected GoPhish IDs into resource names required by campaign creation.
+	 *
+	 * @return array{template?: string, page?: string, smtp?: string, error?: string}
+	 */
+	private function resolve_gophish_asset_names( int $template_id, int $page_id, int $smtp_id, string $group_name ): array {
+		$gp = new GoPhishService();
+
+		$template = $this->find_gophish_name_by_id( $gp->get_email_templates(), $template_id, __( 'email template', 'pukat' ) );
+		if ( isset( $template['error'] ) ) {
+			return $template;
+		}
+
+		$page = $this->find_gophish_name_by_id( $gp->get_landing_pages(), $page_id, __( 'landing page', 'pukat' ) );
+		if ( isset( $page['error'] ) ) {
+			return $page;
+		}
+
+		$smtp = $this->find_gophish_name_by_id( $gp->get_sending_profiles(), $smtp_id, __( 'SMTP sending profile', 'pukat' ) );
+		if ( isset( $smtp['error'] ) ) {
+			return $smtp;
+		}
+
+		$group = $this->find_gophish_group_by_name( $gp->get_groups(), $group_name );
+		if ( isset( $group['error'] ) ) {
+			return $group;
+		}
+
+		return [
+			'template' => $template['name'],
+			'page'     => $page['name'],
+			'smtp'     => $smtp['name'],
+		];
+	}
+
+	/**
+	 * Find the name for a GoPhish resource by ID.
+	 *
+	 * @param mixed  $items Resource list or WP_Error from GoPhishService.
+	 * @param int    $id    Selected GoPhish ID.
+	 * @param string $label Human label for error messages.
+	 * @return array{name?: string, error?: string}
+	 */
+	private function find_gophish_name_by_id( mixed $items, int $id, string $label ): array {
+		if ( is_wp_error( $items ) ) {
+			return [ 'error' => $items->get_error_message() ];
+		}
+
+		foreach ( (array) $items as $item ) {
+			if ( $id === (int) ( $item['id'] ?? 0 ) && ! empty( $item['name'] ) ) {
+				return [ 'name' => sanitize_text_field( (string) $item['name'] ) ];
+			}
+		}
+
+		return [
+			'error' => sprintf(
+				/* translators: %s: GoPhish resource type. */
+				__( 'Selected GoPhish %s was not found.', 'pukat' ),
+				$label
+			),
+		];
+	}
+
+	/**
+	 * Confirm the target group exists in GoPhish before launch.
+	 *
+	 * @param mixed  $groups     Group list or WP_Error from GoPhishService.
+	 * @param string $group_name Expected group name.
+	 * @return array{name?: string, error?: string}
+	 */
+	private function find_gophish_group_by_name( mixed $groups, string $group_name ): array {
+		if ( is_wp_error( $groups ) ) {
+			return [ 'error' => $groups->get_error_message() ];
+		}
+
+		foreach ( (array) $groups as $group ) {
+			if ( $group_name === (string) ( $group['name'] ?? '' ) ) {
+				return [ 'name' => $group_name ];
+			}
+		}
+
+		return [
+			'error' => __( 'Target group was not found in GoPhish. Import targets before launch.', 'pukat' ),
+		];
+	}
+
+	/**
+	 * Format campaign launch date for GoPhish.
+	 */
+	private function format_gophish_datetime( ?string $datetime ): string {
+		if ( empty( $datetime ) ) {
+			return gmdate( 'Y-m-d\TH:i:s+00:00' );
+		}
+
+		$timestamp = strtotime( $datetime );
+		if ( false === $timestamp ) {
+			return gmdate( 'Y-m-d\TH:i:s+00:00' );
+		}
+
+		return gmdate( 'Y-m-d\TH:i:s+00:00', $timestamp );
+	}
+
+	private function legacy_campaign_launch_response( WP_REST_Response $response ): WP_REST_Response {
+		return $this->legacy_response(
+			$response,
+			'/campaign-runs',
+			__( 'The /campaigns/{id}/launch endpoint uses the legacy campaign flow. Use Campaign Run endpoints for new launches.', 'pukat' )
+		);
 	}
 }
