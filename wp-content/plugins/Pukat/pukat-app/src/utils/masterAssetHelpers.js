@@ -31,12 +31,27 @@ function versionVariables(variables) {
   return Array.isArray(variables) ? variables : []
 }
 
+export function masterAssetLockMessage(asset, label = 'Asset') {
+  const runCount = Number(asset?.activeCampaignRunCount || asset?.usage?.active_campaign_run_count || 0)
+  const playbookCount = Number(asset?.activePlaybookCount || asset?.usage?.active_playbook_count || 0)
+  const legacyCampaignCount = Number(asset?.activeLegacyCampaignCount || asset?.usage?.active_legacy_campaign_count || 0)
+  const count = Number(asset?.activeUsageCount || asset?.usage?.active_usage_count || runCount + playbookCount + legacyCampaignCount || 0)
+  if (count > 0) {
+    return `${label} is locked because it is used by ${count} active Campaign or Playbook reference${count > 1 ? 's' : ''}.`
+  }
+
+  return asset?.editLockReason || `${label} is locked while it is used by an active Campaign or Playbook.`
+}
+
 export function masterEmailTemplateToUiTemplate(master) {
   const version = latestVersion(master)
   const category = master.category || inferEmailTemplateCategory({
     name: master.name,
     subject: version?.subject,
   })
+  const activeCampaignRunCount = Number(master.usage?.active_campaign_run_count || master.active_campaign_run_count || 0)
+  const activePlaybookCount = Number(master.usage?.active_playbook_count || master.active_playbook_count || 0)
+  const activeUsageCount = Number(master.usage?.active_usage_count || activeCampaignRunCount + activePlaybookCount || 0)
 
   return {
     id: master.id,
@@ -58,6 +73,11 @@ export function masterEmailTemplateToUiTemplate(master) {
     entity: master.entity || '',
     assignedTo: 'all',
     users: [],
+    editLocked: Boolean(master.edit_locked) || activeUsageCount > 0,
+    activeCampaignRunCount,
+    activePlaybookCount,
+    activeUsageCount,
+    editLockReason: master.edit_lock_reason || 'This email template is used by an active campaign or playbook.',
     thumbnail: emailTemplateThumbnail(category),
     raw: master,
   }
@@ -102,6 +122,9 @@ export function masterLandingPageToUiPage(master) {
   const capturePass = Boolean(captureSettings.capture_passwords)
   const redirectUrl = redirectSettings.redirect_url || ''
   const category = master.category || landingCategoryForCapture({ captureData, capturePass, redirectUrl })
+  const activeCampaignRunCount = Number(master.usage?.active_campaign_run_count || master.active_campaign_run_count || 0)
+  const activePlaybookCount = Number(master.usage?.active_playbook_count || master.active_playbook_count || 0)
+  const activeUsageCount = Number(master.usage?.active_usage_count || activeCampaignRunCount + activePlaybookCount || 0)
 
   return {
     id: master.id,
@@ -119,6 +142,11 @@ export function masterLandingPageToUiPage(master) {
     badges: landingBadges({ captureData, capturePass }),
     assignedTo: 'all',
     users: [],
+    editLocked: Boolean(master.edit_locked) || activeUsageCount > 0,
+    activeCampaignRunCount,
+    activePlaybookCount,
+    activeUsageCount,
+    editLockReason: master.edit_lock_reason || 'This landing page is used by an active campaign or playbook.',
     thumbnail: landingPageThumbnail(category),
     raw: master,
   }

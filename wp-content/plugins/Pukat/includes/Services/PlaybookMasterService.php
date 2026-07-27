@@ -30,6 +30,15 @@ class PlaybookMasterService {
 
 	private const READY_STATUSES = [ 'approved', 'active' ];
 
+	private const ACTIVE_CAMPAIGN_RUN_STATUSES = [
+		'ready_for_sync',
+		'syncing',
+		'sync_failed',
+		'synced',
+		'scheduled',
+		'running',
+	];
+
 	private PlaybookMasterRepository $repository;
 
 	public function __construct( ?PlaybookMasterRepository $repository = null ) {
@@ -110,6 +119,16 @@ class PlaybookMasterService {
 		$existing = $this->repository->find( $id );
 		if ( ! $existing ) {
 			return $this->not_found_error( __( 'Playbook Master not found.', 'pukat' ) );
+		}
+
+		$status_error = $this->enforce_not_active_playbook( $existing );
+		if ( $status_error ) {
+			return $status_error;
+		}
+
+		$usage_error = $this->enforce_not_used_by_active_campaign_run( $existing );
+		if ( $usage_error ) {
+			return $usage_error;
 		}
 
 		$data             = $this->sanitize_data( $params, $existing );
@@ -232,9 +251,18 @@ class PlaybookMasterService {
 			return $this->not_found_error( __( 'Playbook Master not found.', 'pukat' ) );
 		}
 
+		if ( 'active' === (string) ( $existing['status'] ?? '' ) && 'active' !== $status ) {
+			return $this->active_playbook_error();
+		}
+
 		$permission_error = $this->enforce_existing_playbook_editable( $existing );
 		if ( $permission_error ) {
 			return $permission_error;
+		}
+
+		$usage_error = $this->enforce_not_used_by_active_campaign_run( $existing );
+		if ( $usage_error ) {
+			return $usage_error;
 		}
 
 		if ( 'archived' === (string) $existing['status'] && 'archived' !== $status ) {
@@ -275,6 +303,15 @@ class PlaybookMasterService {
 	 */
 	private function prepare_playbook( array $playbook ): array {
 		$components = $this->resolve_components( $playbook );
+		$usage      = $this->active_campaign_run_usage( (int) ( $playbook['id'] ?? 0 ) );
+		$status_locked = 'active' === (string) ( $playbook['status'] ?? '' );
+		$usage_locked  = $usage['active_campaign_run_count'] > 0;
+		$lock_reason   = '';
+		if ( $status_locked ) {
+			$lock_reason = __( 'This Playbook Master is active. Clone it or create a draft before changing it.', 'pukat' );
+		} elseif ( $usage_locked ) {
+			$lock_reason = __( 'This Playbook Master is used by an active Campaign Run.', 'pukat' );
+		}
 
 		return $this->decode_json_fields(
 			array_merge(
@@ -282,6 +319,9 @@ class PlaybookMasterService {
 				[
 					'components'        => $components,
 					'readiness'         => $this->readiness_summary( $playbook ),
+					'usage'             => $usage,
+					'edit_locked'       => $usage_locked || $status_locked,
+					'edit_lock_reason'  => $lock_reason,
 				]
 			),
 			[
@@ -359,6 +399,55 @@ class PlaybookMasterService {
 				'status' => 422,
 				'errors' => $errors,
 			]
+		);
+	}
+
+	/**
+	 * @return array{active_campaign_run_count: int, active_statuses: array<int, string>}
+	 */
+	private function active_campaign_run_usage( int $playbook_id ): array {
+		$count = $playbook_id > 0
+			? $this->repository->count_campaign_runs_for_playbook( $playbook_id, self::ACTIVE_CAMPAIGN_RUN_STATUSES )
+			: 0;
+
+		return [
+			'active_campaign_run_count' => $count,
+			'active_statuses'           => self::ACTIVE_CAMPAIGN_RUN_STATUSES,
+		];
+	}
+
+	/**
+	 * @param array<string, mixed> $playbook Existing DB row.
+	 */
+	private function enforce_not_used_by_active_campaign_run( array $playbook ): ?WP_Error {
+		$usage = $this->active_campaign_run_usage( (int) ( $playbook['id'] ?? 0 ) );
+		if ( $usage['active_campaign_run_count'] <= 0 ) {
+			return null;
+		}
+
+		return new WP_Error(
+			'playbook_locked_by_campaign_run',
+			__( 'Playbook Master cannot be edited while it is used by an active Campaign Run.', 'pukat' ),
+			[
+				'status' => 409,
+				'usage'  => $usage,
+			]
+		);
+	}
+
+	private function enforce_not_active_playbook( array $playbook ): ?WP_Error {
+		if ( 'active' !== (string) ( $playbook['status'] ?? '' ) ) {
+			return null;
+		}
+
+		return $this->active_playbook_error();
+	}
+
+	private function active_playbook_error(): WP_Error {
+		return new WP_Error(
+			'playbook_locked_by_active_status',
+			__( 'Active Playbook Masters cannot be edited or archived. Clone it or create a draft before changing it.', 'pukat' ),
+			[ 'status' => 409 ]
 		);
 	}
 

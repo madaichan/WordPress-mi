@@ -1,0 +1,1 @@
+import{j as t,c as n}from"./main-BwuZ4w6R.js";function i({error:s,errorMessage:e,rows:a=4,className:r,...x}){return t.jsxs(t.Fragment,{children:[t.jsx("textarea",{rows:a,className:n("input",s&&"input-error",r),...x}),e&&t.jsx("p",{className:"mt-1 text-xs text-danger",children:e})]})}export{i as T};

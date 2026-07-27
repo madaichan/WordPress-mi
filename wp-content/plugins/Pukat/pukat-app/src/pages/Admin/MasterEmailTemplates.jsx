@@ -7,15 +7,21 @@ import ClientPreview from '../../components/Editor/ClientPreview.jsx'
 import AssignmentBadge from '../../components/UI/AssignmentBadge.jsx'
 import AssignmentPanel from '../../components/UI/AssignmentPanel.jsx'
 import TableActionButton from '../../components/UI/TableActionButton.jsx'
+import AlertConfirmation from '../../components/UI/AlertConfirmation.jsx'
 import PageHeader from '../../components/UI/PageHeader.jsx'
 import Button from '../../components/UI/Button.jsx'
 import Tabs from '../../components/UI/Tabs.jsx'
 import Badge from '../../components/UI/Badge.jsx'
 import { useMasterEmailTemplates } from '../../hooks/queries/useMasterAssetQueries.js'
 import { useUsers } from '../../hooks/queries/useUserQueries.js'
-import { useAssignMasterEmailTemplateEntityMutation, useCreateMasterEmailTemplateMutation, useUpdateMasterEmailTemplateMutation } from '../../hooks/mutations/useMasterAssetMutations.js'
+import {
+  useAssignMasterEmailTemplateEntityMutation,
+  useCreateMasterEmailTemplateMutation,
+  useDeleteMasterEmailTemplateMutation,
+  useUpdateMasterEmailTemplateMutation,
+} from '../../hooks/mutations/useMasterAssetMutations.js'
 import { applyAssignmentFromEntity, entityFromAssignment, userForAssignmentPanel } from '../../utils/entityAssignmentHelpers.js'
-import { buildMasterEmailTemplatePayload, masterEmailTemplateToUiTemplate } from '../../utils/masterAssetHelpers.js'
+import { buildMasterEmailTemplatePayload, masterAssetLockMessage, masterEmailTemplateToUiTemplate } from '../../utils/masterAssetHelpers.js'
 
 
 const DEFAULT_HTML = `<!DOCTYPE html>
@@ -46,7 +52,7 @@ function StatusBadge({ status }) {
   return <Badge tone={published ? 'success' : 'warning'} className="text-[10px]">{status}</Badge>
 }
 
-function EmailTemplatesTable({ templates, usersById, onEdit, onPreview, onAssign }) {
+function EmailTemplatesTable({ templates, usersById, onEdit, onPreview, onAssign, onDelete }) {
   return (
     <div className="overflow-hidden rounded-xl border border-gray-200 bg-white">
       <div className="overflow-x-auto">
@@ -73,7 +79,15 @@ function EmailTemplatesTable({ templates, usersById, onEdit, onPreview, onAssign
                     </span>
                     <div className="min-w-0">
                       <div className="font-semibold text-gray-900">{template.name}</div>
-                      <div className="mt-0.5 max-w-xs truncate text-[11px] text-gray-500">{template.description || template.id}</div>
+                      <div className="mt-0.5 flex max-w-xs flex-wrap items-center gap-1.5 text-[11px] text-gray-500">
+                        <span className="truncate">{template.description || template.id}</span>
+                        {template.editLocked && (
+                          <span className="inline-flex items-center gap-1 rounded-full bg-red-50 px-2 py-0.5 text-[10px] font-semibold text-red-700" title={masterAssetLockMessage(template, 'Email template')}>
+                            <i className="ti ti-lock text-[10px]" />
+                            Locked
+                          </span>
+                        )}
+                      </div>
                     </div>
                   </div>
                 </td>
@@ -101,9 +115,30 @@ function EmailTemplatesTable({ templates, usersById, onEdit, onPreview, onAssign
                 </td>
                 <td className="w-40 p-4 pr-6 text-right">
                   <div className="inline-flex items-center gap-1.5">
-                    <TableActionButton icon="ti-user-check" label={`Assign ${template.name}`} title="Assign" tone="green" onClick={() => onAssign(template.id)} />
-                    <TableActionButton icon="ti-edit" label={`Edit ${template.name}`} title="Edit" onClick={() => onEdit(template.id)} />
+                    <TableActionButton
+                      icon="ti-user-check"
+                      label={`Assign ${template.name}`}
+                      title={template.editLocked ? masterAssetLockMessage(template, 'Email template') : 'Assign'}
+                      tone="green"
+                      disabled={template.editLocked}
+                      onClick={() => onAssign(template.id)}
+                    />
+                    <TableActionButton
+                      icon="ti-edit"
+                      label={`Edit ${template.name}`}
+                      title={template.editLocked ? masterAssetLockMessage(template, 'Email template') : 'Edit'}
+                      disabled={template.editLocked}
+                      onClick={() => onEdit(template.id)}
+                    />
                     <TableActionButton icon="ti-eye" label={`Preview ${template.name}`} title="Preview" tone="blue" onClick={() => onPreview(template.id)} />
+                    <TableActionButton
+                      icon="ti-trash"
+                      label={`Delete ${template.name}`}
+                      title={template.editLocked ? masterAssetLockMessage(template, 'Email template') : 'Delete'}
+                      tone="red"
+                      disabled={template.editLocked}
+                      onClick={() => onDelete(template.id)}
+                    />
                   </div>
                 </td>
               </tr>
@@ -264,6 +299,7 @@ export default function MasterEmailTemplates() {
   const [editingSubject, setEditingSubject] = useState('')
   const [editingHtml, setEditingHtml] = useState('')
   const [assignmentTemplateId, setAssignmentTemplateId] = useState(null)
+  const [deletingTemplateId, setDeletingTemplateId] = useState(null)
   const [syncing, setSyncing] = useState(false)
 
   const users = useMemo(() => {
@@ -323,10 +359,13 @@ export default function MasterEmailTemplates() {
 
   const createMutation = useCreateMasterEmailTemplateMutation({ onSuccess: closeEditor })
   const updateMutation = useUpdateMasterEmailTemplateMutation({ onSuccess: closeEditor })
+  const deleteMutation = useDeleteMasterEmailTemplateMutation({
+    onSuccess: () => setDeletingTemplateId(null),
+  })
   const assignEntityMutation = useAssignMasterEmailTemplateEntityMutation({
     onSuccess: () => setAssignmentTemplateId(null),
   })
-  const saving = createMutation.isPending || updateMutation.isPending
+  const saving = createMutation.isPending || updateMutation.isPending || deleteMutation.isPending
 
   useEffect(() => {
     setTemplates(masterTemplates
@@ -338,6 +377,9 @@ export default function MasterEmailTemplates() {
   const assignmentTemplate = useMemo(() => (
     templates.find(template => template.id === assignmentTemplateId) ?? null
   ), [assignmentTemplateId, templates])
+  const deletingTemplate = useMemo(() => (
+    templates.find(template => template.id === deletingTemplateId) ?? null
+  ), [deletingTemplateId, templates])
 
   const loadTemplateForWork = useCallback((id) => {
     const template = templates.find(item => item.id === id)
@@ -355,8 +397,14 @@ export default function MasterEmailTemplates() {
   }, [templates])
 
   const handleEdit = useCallback((id) => {
+    const template = templates.find(item => item.id === id)
+    if (template?.editLocked) {
+      toast.error(masterAssetLockMessage(template, 'Email template'))
+      return
+    }
+
     if (loadTemplateForWork(id)) setActiveTab('editor')
-  }, [loadTemplateForWork])
+  }, [loadTemplateForWork, templates])
 
   const handlePreview = useCallback((id) => {
     const template = loadTemplateForWork(id)
@@ -378,10 +426,44 @@ export default function MasterEmailTemplates() {
   }, [])
 
   const handleAssign = useCallback((id) => {
+    const template = templates.find(item => item.id === id)
+    if (template?.editLocked) {
+      toast.error(masterAssetLockMessage(template, 'Email template'))
+      return
+    }
+
     setAssignmentTemplateId(id)
-  }, [])
+  }, [templates])
+
+  const handleDelete = useCallback((id) => {
+    const template = templates.find(item => item.id === id)
+    if (!template) return
+    if (template.editLocked) {
+      toast.error(masterAssetLockMessage(template, 'Email template'))
+      return
+    }
+
+    setDeletingTemplateId(id)
+  }, [templates])
+
+  const confirmDelete = useCallback(() => {
+    if (!deletingTemplate) return
+    if (deletingTemplate.editLocked) {
+      toast.error(masterAssetLockMessage(deletingTemplate, 'Email template'))
+      setDeletingTemplateId(null)
+      return
+    }
+
+    deleteMutation.mutate(deletingTemplate.id)
+  }, [deleteMutation, deletingTemplate])
 
   const handleSave = useCallback(() => {
+    const currentTemplate = templates.find(template => template.id === editingId)
+    if (currentTemplate?.editLocked) {
+      toast.error(masterAssetLockMessage(currentTemplate, 'Email template'))
+      return
+    }
+
     if (!editingName.trim() || !editingSubject.trim() || !editingHtml.trim()) {
       toast.error('Template name, subject, and HTML source are required.')
       return
@@ -401,7 +483,7 @@ export default function MasterEmailTemplates() {
     } else {
       createMutation.mutate(payload)
     }
-  }, [createMutation, editingCategory, editingEntity, editingHtml, editingId, editingName, editingStatus, editingSubject, updateMutation])
+  }, [createMutation, editingCategory, editingEntity, editingHtml, editingId, editingName, editingStatus, editingSubject, templates, updateMutation])
 
   const handleSync = useCallback(async () => {
     setSyncing(true)
@@ -418,6 +500,11 @@ export default function MasterEmailTemplates() {
 
   const saveAssignment = useCallback((assignment) => {
     if (!assignmentTemplate) return
+    if (assignmentTemplate.editLocked) {
+      toast.error(masterAssetLockMessage(assignmentTemplate, 'Email template'))
+      setAssignmentTemplateId(null)
+      return
+    }
 
     const result = entityFromAssignment(assignment, users)
     if (result.error) {
@@ -508,6 +595,7 @@ export default function MasterEmailTemplates() {
               onEdit={handleEdit}
               onPreview={handlePreview}
               onAssign={handleAssign}
+              onDelete={handleDelete}
             />
           </div>
         )}
@@ -569,6 +657,19 @@ export default function MasterEmailTemplates() {
           users={users}
           onClose={() => setAssignmentTemplateId(null)}
           onSave={saveAssignment}
+        />
+      )}
+      {deletingTemplate && (
+        <AlertConfirmation
+          title="Delete email template?"
+          message={`"${deletingTemplate.name}" will be deleted from the master email template library.`}
+          icon="ti-trash"
+          tone="danger"
+          confirmLabel="Delete"
+          pendingLabel="Deleting..."
+          isPending={deleteMutation.isPending}
+          onCancel={() => setDeletingTemplateId(null)}
+          onConfirm={confirmDelete}
         />
       )}
     </div>

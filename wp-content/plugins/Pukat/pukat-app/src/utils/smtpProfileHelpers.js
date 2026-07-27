@@ -163,9 +163,14 @@ export function buildSmtpProfilePayload({ form, mode, sourceProfile, includeAssi
 
 export function gophishSmtpProfileToUiProfile(profile) {
   const { host, port } = splitSmtpHost(profile.host)
+  const activeCampaignRunCount = Number(profile.usage?.active_campaign_run_count || 0)
+  const activePlaybookCount = Number(profile.usage?.active_playbook_count || 0)
+  const activeLegacyCampaignCount = Number(profile.usage?.active_legacy_campaign_count || 0)
+  const activeUsageCount = Number(profile.usage?.active_usage_count || activeCampaignRunCount + activePlaybookCount + activeLegacyCampaignCount || 0)
 
   return {
     id: profile.id,
+    gophishId: profile.id,
     name: profile.name,
     host,
     port,
@@ -182,12 +187,22 @@ export function gophishSmtpProfileToUiProfile(profile) {
       key: header.key ?? '',
       val: header.value ?? header.val ?? '',
     })),
+    editLocked: Boolean(profile.edit_locked) || activeUsageCount > 0,
+    activeCampaignRunCount,
+    activePlaybookCount,
+    activeLegacyCampaignCount,
+    activeUsageCount,
+    editLockReason: profile.edit_lock_reason || 'This sending profile is used by an active campaign or playbook.',
+    raw: profile,
   }
 }
 
 export function masterSendingProfileToUiProfile(profile) {
   const gophishId = profile.gophish_sending_profile_id ? String(profile.gophish_sending_profile_id) : ''
   const statusValue = profile.status || 'draft'
+  const activeCampaignRunCount = Number(profile.usage?.active_campaign_run_count || profile.active_campaign_run_count || 0)
+  const activePlaybookCount = Number(profile.usage?.active_playbook_count || profile.active_playbook_count || 0)
+  const activeUsageCount = Number(profile.usage?.active_usage_count || activeCampaignRunCount + activePlaybookCount || 0)
 
   return {
     id: profile.id,
@@ -210,6 +225,12 @@ export function masterSendingProfileToUiProfile(profile) {
     entity: profile.entity || '',
     ignoreCert: false,
     headers: [],
+    editLocked: Boolean(profile.edit_locked) || activeUsageCount > 0,
+    activeCampaignRunCount,
+    activePlaybookCount,
+    activeUsageCount,
+    editLockReason: profile.edit_lock_reason || 'This sending profile is used by an active campaign or playbook.',
+    raw: profile,
   }
 }
 

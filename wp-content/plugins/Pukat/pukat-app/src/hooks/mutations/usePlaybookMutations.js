@@ -37,6 +37,23 @@ export function useUpdatePlaybookMutation(options = {}) {
   })
 }
 
+export function useDuplicatePlaybookMutation(options = {}) {
+  const qc = useQueryClient()
+
+  return useMutation({
+    mutationFn: ({ id, data }) => playbookApi.duplicate(id, data),
+    onSuccess: (data, variables, context) => {
+      toast.success('Playbook cloned.')
+      qc.invalidateQueries({ queryKey: queryKeys.playbooks.all })
+      options.onSuccess?.(data, variables, context)
+    },
+    onError: (err, variables, context) => {
+      toast.error(err.message || 'Failed to clone playbook.')
+      options.onError?.(err, variables, context)
+    },
+  })
+}
+
 export function useDeletePlaybookMutation(options = {}) {
   const qc = useQueryClient()
 

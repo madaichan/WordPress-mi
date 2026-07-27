@@ -4,12 +4,13 @@ import toast from 'react-hot-toast'
 import HtmlCodeEditor from '../../components/Editor/HtmlCodeEditor.jsx'
 import PageHeader from '../../components/UI/PageHeader.jsx'
 import Button from '../../components/UI/Button.jsx'
-import { useGophishLandingPages } from '../../hooks/queries/useGophishQueries.js'
-import { useCreateLandingPageMutation, useUpdateLandingPageMutation } from '../../hooks/mutations/useGophishMutations.js'
+import AlertConfirmation from '../../components/UI/AlertConfirmation.jsx'
+import { useMasterLandingPages } from '../../hooks/queries/useMasterAssetQueries.js'
+import { useCreateMasterLandingPageMutation, useDeleteMasterLandingPageMutation, useUpdateMasterLandingPageMutation } from '../../hooks/mutations/useMasterAssetMutations.js'
 import useAppStore from '../../store/useAppStore.js'
 import { canManagePukat } from '../../utils/roles.js'
 import { assetEntityForUser, canUserCreateAsset, canUserEditAsset, filterAssetsForUser } from '../../utils/entityAssignmentHelpers.js'
-import { buildGophishLandingPagePayload, gophishLandingPageToUiPage } from '../../utils/gophishAssetHelpers.js'
+import { buildMasterLandingPagePayload, masterAssetLockMessage, masterLandingPageToUiPage } from '../../utils/masterAssetHelpers.js'
 
 /* ─── Data ───────────────────────────────────────────────────────────── */
 
@@ -34,9 +35,9 @@ function CaptureBadge({ label }) {
 function ThumbnailMockup({ page }) {
   return (
     <div className="h-32 bg-[#1F1F1F] rounded-lg border border-gray-800 p-3 relative flex flex-col justify-center gap-2 overflow-hidden select-none">
-      {/* GoPhish badge */}
+      {/* Master badge */}
       <span className="absolute top-2 right-2 rounded-full text-[9px] font-semibold px-2 py-0.5 bg-amber-100 text-amber-700">
-        GoPhish
+        Master
       </span>
 
       {/* Accent element */}
@@ -59,7 +60,9 @@ function ThumbnailMockup({ page }) {
   )
 }
 
-function LandingPageCard({ page, canEdit, onEdit, onPreview }) {
+function LandingPageCard({ page, canEdit, onEdit, onPreview, onDelete }) {
+  const lockMessage = masterAssetLockMessage(page, 'Landing page')
+
   return (
     <div
       className="landing-page-card bg-white border border-gray-200 rounded-xl p-5 shadow-none flex flex-col justify-between h-80 transition-all hover:border-gray-300"
@@ -94,11 +97,19 @@ function LandingPageCard({ page, canEdit, onEdit, onPreview }) {
               {page.description && (
                 <p className="text-xs text-gray-500 mt-1">{page.description}</p>
               )}
-              {page.entity && (
-                <span className="mt-2 inline-flex rounded-full bg-gray-100 px-2 py-0.5 text-[9px] font-semibold text-gray-600">
-                  {page.entity}
-                </span>
-              )}
+              <div className="mt-2 flex flex-wrap gap-1.5">
+                {page.entity && (
+                  <span className="inline-flex rounded-full bg-gray-100 px-2 py-0.5 text-[9px] font-semibold text-gray-600">
+                    {page.entity}
+                  </span>
+                )}
+                {page.editLocked && (
+                  <span className="inline-flex items-center gap-1 rounded-full bg-red-50 px-2 py-0.5 text-[9px] font-semibold text-red-700" title={lockMessage}>
+                    <i className="ti ti-lock text-[10px]" />
+                    Locked
+                  </span>
+                )}
+              </div>
             </>
           )}
         </div>
@@ -107,10 +118,23 @@ function LandingPageCard({ page, canEdit, onEdit, onPreview }) {
         {canEdit && (
           <button
             onClick={() => onEdit(page.id)}
-            className="flex-1 bg-white border border-gray-200 text-gray-700 hover:bg-gray-50 py-1.5 text-xs font-semibold rounded-lg flex items-center justify-center gap-1 transition-all"
+            disabled={page.editLocked}
+            title={page.editLocked ? lockMessage : 'Edit'}
+            className="flex-1 bg-white border border-gray-200 text-gray-700 hover:bg-gray-50 py-1.5 text-xs font-semibold rounded-lg flex items-center justify-center gap-1 transition-all disabled:cursor-not-allowed disabled:opacity-50"
           >
             <i className="ti ti-edit text-sm" />
             <span>Edit</span>
+          </button>
+        )}
+        {canEdit && (
+          <button
+            onClick={() => onDelete(page.id)}
+            disabled={page.editLocked}
+            title={page.editLocked ? lockMessage : 'Delete'}
+            className="flex-1 bg-white border border-red-100 text-red-600 hover:bg-red-50 py-1.5 text-xs font-semibold rounded-lg flex items-center justify-center gap-1 transition-all disabled:cursor-not-allowed disabled:opacity-50"
+          >
+            <i className="ti ti-trash text-sm" />
+            <span>Delete</span>
           </button>
         )}
         <button
@@ -405,7 +429,7 @@ function EditorPane({
 /* ─── Main Component ─────────────────────────────────────────────────── */
 
 export default function LandingPages() {
-  const { data: gophishPages = [], isLoading, isFetching, refetch } = useGophishLandingPages()
+  const { data: masterPages = [], isLoading, isFetching, refetch } = useMasterLandingPages()
   const currentUser = useAppStore(state => state.user)
   const [pages, setPages] = useState(() => LANDING_PAGES.slice(0, 0))
   const [activeTab, setActiveTab] = useState('list')
@@ -421,6 +445,7 @@ export default function LandingPages() {
   const [editingRedirectUrl, setEditingRedirectUrl] = useState('https://portal.office.com')
   const [editingCaptureData, setEditingCaptureData] = useState(true)
   const [editingCapturePass, setEditingCapturePass] = useState(true)
+  const [deletingPage, setDeletingPage] = useState(null)
 
   const [syncing, setSyncing] = useState(false)
 
@@ -440,20 +465,23 @@ export default function LandingPages() {
     resetEditorState()
   }, [resetEditorState])
 
-  const createMutation = useCreateLandingPageMutation({ onSuccess: closeEditor })
-  const updateMutation = useUpdateLandingPageMutation({ onSuccess: closeEditor })
-  const saving = createMutation.isPending || updateMutation.isPending
+  const createMutation = useCreateMasterLandingPageMutation({ onSuccess: closeEditor })
+  const updateMutation = useUpdateMasterLandingPageMutation({ onSuccess: closeEditor })
+  const deleteMutation = useDeleteMasterLandingPageMutation({
+    onSuccess: () => setDeletingPage(null),
+  })
+  const saving = createMutation.isPending || updateMutation.isPending || deleteMutation.isPending
   const defaultEntity = useMemo(() => assetEntityForUser(currentUser), [currentUser])
   const canCreateAssets = useMemo(() => canUserCreateAsset(currentUser), [currentUser])
   const entityLocked = !canManagePukat(currentUser.role)
 
   useEffect(() => {
     const visiblePages = filterAssetsForUser(
-      gophishPages.map(gophishLandingPageToUiPage),
+      masterPages.map(masterLandingPageToUiPage),
       currentUser
     )
     setPages(visiblePages)
-  }, [currentUser, gophishPages])
+  }, [currentUser, masterPages])
 
   /* ── Filtered cards ── */
   const filteredPages = useMemo(() => {
@@ -495,6 +523,10 @@ export default function LandingPages() {
     if (page) {
       if (!canUserEditAsset(page, currentUser)) {
         toast.error('Asset General hanya bisa diedit admin. Non-admin hanya bisa edit asset sesuai entity user.')
+        return
+      }
+      if (page.editLocked) {
+        toast.error(masterAssetLockMessage(page, 'Landing page'))
         return
       }
 
@@ -546,6 +578,10 @@ export default function LandingPages() {
       toast.error('Asset ini hanya bisa diedit oleh admin atau user dengan entity yang sama.')
       return
     }
+    if (currentAsset?.editLocked) {
+      toast.error(masterAssetLockMessage(currentAsset, 'Landing page'))
+      return
+    }
     if (!currentAsset && !canCreateAssets) {
       toast.error('User non-admin harus memiliki entity untuk membuat asset.')
       return
@@ -557,21 +593,47 @@ export default function LandingPages() {
     }
 
     const payloadEntity = entityLocked ? defaultEntity : editingEntity
-    const payload = buildGophishLandingPagePayload({
+    const payload = buildMasterLandingPagePayload({
       name,
       html,
       redirectUrl: editingRedirectUrl,
       entity: payloadEntity,
       captureData: editingCaptureData,
       capturePass: editingCapturePass,
+      status: 'Published',
     })
 
     if (editingId) {
-      updateMutation.mutate({ id: editingId, data: payload })
+      updateMutation.mutate({ id: editingId, ...payload })
     } else {
       createMutation.mutate(payload)
     }
   }, [canCreateAssets, createMutation, currentUser, defaultEntity, editingCaptureData, editingCapturePass, editingEntity, editingId, editingRedirectUrl, entityLocked, pages, updateMutation])
+
+  const handleDelete = useCallback((id) => {
+    const page = pages.find((p) => p.id === id)
+    if (!page) return
+    if (!canUserEditAsset(page, currentUser)) {
+      toast.error('Asset ini hanya bisa dihapus oleh admin atau user dengan entity yang sama.')
+      return
+    }
+    if (page.editLocked) {
+      toast.error(masterAssetLockMessage(page, 'Landing page'))
+      return
+    }
+
+    setDeletingPage(page)
+  }, [currentUser, pages])
+
+  const confirmDelete = useCallback(() => {
+    if (!deletingPage) return
+    if (deletingPage.editLocked) {
+      toast.error(masterAssetLockMessage(deletingPage, 'Landing page'))
+      return
+    }
+
+    deleteMutation.mutate(deletingPage.id)
+  }, [deleteMutation, deletingPage])
 
   const handleSync = useCallback(async () => {
     setSyncing(true)
@@ -579,11 +641,11 @@ export default function LandingPages() {
     setSyncing(false)
 
     if (result.error) {
-      toast.error(result.error.message || 'Gagal menyinkronkan landing page dari GoPhish.')
+      toast.error(result.error.message || 'Gagal memuat landing page dari master database.')
       return
     }
 
-    toast.success(`Sinkronisasi selesai - ${result.data?.length ?? 0} landing pages`)
+    toast.success(`Master database refreshed - ${result.data?.length ?? 0} landing pages`)
   }, [refetch])
 
   /* ── Tab button classes ── */
@@ -609,7 +671,7 @@ export default function LandingPages() {
       {/* ── Header ── */}
       <PageHeader
         title="Landing pages"
-        subtitle="Dikelola di GoPhish · terhubung via API"
+        subtitle="Dikelola dari master database"
         actions={
           <>
             {/* Search bar */}
@@ -628,7 +690,7 @@ export default function LandingPages() {
             {/* Sync button */}
             <Button variant="outline" onClick={handleSync} disabled={syncing || isFetching}>
               <i className={clsx('ti ti-refresh text-base', (syncing || isFetching) && 'animate-spin')} />
-              <span>Sync GoPhish</span>
+              <span>Refresh master</span>
             </Button>
             {/* Create button */}
             {canCreateAssets && (
@@ -684,7 +746,7 @@ export default function LandingPages() {
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
               {isLoading && (
                 <div className="bg-white border border-gray-200 rounded-xl p-8 text-center text-sm text-gray-400">
-                  Memuat landing page dari GoPhish...
+                  Memuat landing page dari master database...
                 </div>
               )}
               {!isLoading && filteredPages.map((page) => (
@@ -694,6 +756,7 @@ export default function LandingPages() {
                   canEdit={canUserEditAsset(page, currentUser)}
                   onEdit={handleEdit}
                   onPreview={handlePreview}
+                  onDelete={handleDelete}
                 />
               ))}
               {canCreateAssets && <CreateCard onClick={handleCreate} />}
@@ -753,6 +816,20 @@ export default function LandingPages() {
           </div>
         )}
       </div>
+
+      {deletingPage && (
+        <AlertConfirmation
+          title="Delete landing page?"
+          message={`Delete "${deletingPage.name}" from master database?`}
+          icon="ti-trash"
+          tone="danger"
+          confirmLabel="Delete"
+          pendingLabel="Deleting..."
+          isPending={deleteMutation.isPending}
+          onCancel={() => setDeletingPage(null)}
+          onConfirm={confirmDelete}
+        />
+      )}
     </div>
   )
 }

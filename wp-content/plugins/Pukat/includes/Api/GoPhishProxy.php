@@ -10,6 +10,7 @@ declare(strict_types=1);
 namespace Pukat\Api;
 
 use Pukat\Services\GoPhishService;
+use Pukat\Services\MasterComponentService;
 use WP_Error;
 use WP_REST_Request;
 use WP_REST_Response;
@@ -186,7 +187,8 @@ class GoPhishProxy extends RestController {
 		if ( is_wp_error( $result ) ) {
 			return $this->from_wp_error( $result );
 		}
-		return $this->success( $this->filter_assets_for_current_user( $result ) );
+		$result = $this->filter_assets_for_current_user( $result );
+		return $this->success( $this->decorate_gophish_assets_with_usage( $result, 'email_template' ) );
 	}
 
 	public function create_email_template( WP_REST_Request $request ): WP_REST_Response {
@@ -224,6 +226,11 @@ class GoPhishProxy extends RestController {
 			return $permission_error;
 		}
 
+		$usage_error = ( new MasterComponentService() )->enforce_gophish_email_template_not_used( $id );
+		if ( $usage_error ) {
+			return $this->from_wp_error( $usage_error );
+		}
+
 		$payload['id'] = $id;
 		$result        = $service->update_email_template( $id, $payload );
 		if ( is_wp_error( $result ) ) {
@@ -243,6 +250,11 @@ class GoPhishProxy extends RestController {
 		$permission_error = $this->enforce_existing_asset_editable( $template );
 		if ( $permission_error ) {
 			return $permission_error;
+		}
+
+		$usage_error = ( new MasterComponentService() )->enforce_gophish_email_template_not_used( $id );
+		if ( $usage_error ) {
+			return $this->from_wp_error( $usage_error );
 		}
 
 		$result = $service->delete_email_template( $id );
@@ -269,6 +281,11 @@ class GoPhishProxy extends RestController {
 			return $permission_error;
 		}
 
+		$usage_error = ( new MasterComponentService() )->enforce_gophish_email_template_not_used( $id );
+		if ( $usage_error ) {
+			return $this->from_wp_error( $usage_error );
+		}
+
 		$template['id']     = $id;
 		$template['entity'] = $entity['value'];
 		$result             = $service->update_email_template( $id, $template );
@@ -284,7 +301,8 @@ class GoPhishProxy extends RestController {
 		if ( is_wp_error( $result ) ) {
 			return $this->from_wp_error( $result );
 		}
-		return $this->success( $this->filter_assets_for_current_user( $result ) );
+		$result = $this->filter_assets_for_current_user( $result );
+		return $this->success( $this->decorate_gophish_assets_with_usage( $result, 'landing_page' ) );
 	}
 
 	public function create_landing_page( WP_REST_Request $request ): WP_REST_Response {
@@ -322,6 +340,11 @@ class GoPhishProxy extends RestController {
 			return $permission_error;
 		}
 
+		$usage_error = ( new MasterComponentService() )->enforce_gophish_landing_page_not_used( $id );
+		if ( $usage_error ) {
+			return $this->from_wp_error( $usage_error );
+		}
+
 		$payload['id'] = $id;
 		$result        = $service->update_landing_page( $id, $payload );
 		if ( is_wp_error( $result ) ) {
@@ -341,6 +364,11 @@ class GoPhishProxy extends RestController {
 		$permission_error = $this->enforce_existing_asset_editable( $page );
 		if ( $permission_error ) {
 			return $permission_error;
+		}
+
+		$usage_error = ( new MasterComponentService() )->enforce_gophish_landing_page_not_used( $id );
+		if ( $usage_error ) {
+			return $this->from_wp_error( $usage_error );
 		}
 
 		$result = $service->delete_landing_page( $id );
@@ -367,6 +395,11 @@ class GoPhishProxy extends RestController {
 			return $permission_error;
 		}
 
+		$usage_error = ( new MasterComponentService() )->enforce_gophish_landing_page_not_used( $id );
+		if ( $usage_error ) {
+			return $this->from_wp_error( $usage_error );
+		}
+
 		$page['id']     = $id;
 		$page['entity'] = $entity['value'];
 		$result         = $service->update_landing_page( $id, $page );
@@ -383,6 +416,7 @@ class GoPhishProxy extends RestController {
 			return $this->from_wp_error( $result );
 		}
 		$result = $this->filter_assets_for_current_user( $result );
+		$result = $this->decorate_gophish_assets_with_usage( $result, 'sending_profile' );
 		return $this->success( array_map( [ $this, 'prepare_smtp_profile_response' ], $result ) );
 	}
 
@@ -421,6 +455,11 @@ class GoPhishProxy extends RestController {
 			return $permission_error;
 		}
 
+		$usage_error = ( new MasterComponentService() )->enforce_gophish_sending_profile_not_used( $id );
+		if ( $usage_error ) {
+			return $this->from_wp_error( $usage_error );
+		}
+
 		$payload['id'] = $id;
 		$result        = $service->update_sending_profile( $id, $payload );
 		if ( is_wp_error( $result ) ) {
@@ -440,6 +479,11 @@ class GoPhishProxy extends RestController {
 		$permission_error = $this->enforce_existing_asset_editable( $profile );
 		if ( $permission_error ) {
 			return $permission_error;
+		}
+
+		$usage_error = ( new MasterComponentService() )->enforce_gophish_sending_profile_not_used( $id );
+		if ( $usage_error ) {
+			return $this->from_wp_error( $usage_error );
 		}
 
 		$result = $service->delete_sending_profile( $id );
@@ -464,6 +508,11 @@ class GoPhishProxy extends RestController {
 		$permission_error = $this->enforce_write_entity_value( $entity['value'], $profile );
 		if ( $permission_error ) {
 			return $permission_error;
+		}
+
+		$usage_error = ( new MasterComponentService() )->enforce_gophish_sending_profile_not_used( $id );
+		if ( $usage_error ) {
+			return $this->from_wp_error( $usage_error );
 		}
 
 		$profile['id']     = $id;
@@ -744,6 +793,42 @@ class GoPhishProxy extends RestController {
 		}
 
 		return sanitize_text_field( $entity );
+	}
+
+	/**
+	 * Add active campaign/playbook usage metadata to GoPhish assets.
+	 *
+	 * @param array<int, array<string, mixed>> $assets GoPhish assets.
+	 * @return array<int, array<string, mixed>>
+	 */
+	private function decorate_gophish_assets_with_usage( array $assets, string $asset_type ): array {
+		$service = new MasterComponentService();
+		$label   = match ( $asset_type ) {
+			'email_template'  => __( 'Email template', 'pukat' ),
+			'landing_page'    => __( 'Landing page', 'pukat' ),
+			'sending_profile' => __( 'Sending profile', 'pukat' ),
+			default           => __( 'Asset', 'pukat' ),
+		};
+
+		return array_map(
+			static function ( array $asset ) use ( $service, $asset_type, $label ): array {
+				$usage  = $service->gophish_asset_usage( $asset_type, (int) ( $asset['id'] ?? 0 ) );
+				$locked = (int) ( $usage['active_usage_count'] ?? 0 ) > 0;
+
+				$asset['usage']            = $usage;
+				$asset['edit_locked']      = $locked;
+				$asset['edit_lock_reason'] = $locked
+					? sprintf(
+						/* translators: %s: GoPhish asset label. */
+						__( '%s is used by an active Campaign or Playbook.', 'pukat' ),
+						$label
+					)
+					: '';
+
+				return $asset;
+			},
+			$assets
+		);
 	}
 
 	/**

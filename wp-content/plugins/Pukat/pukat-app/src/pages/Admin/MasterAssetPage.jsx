@@ -14,6 +14,8 @@ import Textarea from '../../components/UI/Textarea.jsx'
 import Label from '../../components/UI/Label.jsx'
 import Checkbox from '../../components/UI/Checkbox.jsx'
 import Drawer from '../../components/UI/Drawer.jsx'
+import TableActionButton from '../../components/UI/TableActionButton.jsx'
+import AlertConfirmation from '../../components/UI/AlertConfirmation.jsx'
 import {
   PlaybookComponentSelect,
   PlaybookField,
@@ -28,7 +30,12 @@ import {
 } from '../../hooks/queries/useMasterAssetQueries.js'
 import { useGophishSmtpProfiles } from '../../hooks/queries/useGophishQueries.js'
 import { usePlaybooks } from '../../hooks/queries/usePlaybookQueries.js'
-import { useCreatePlaybookMutation, useUpdatePlaybookMutation } from '../../hooks/mutations/usePlaybookMutations.js'
+import {
+  useCreatePlaybookMutation,
+  useDeletePlaybookMutation,
+  useDuplicatePlaybookMutation,
+  useUpdatePlaybookMutation,
+} from '../../hooks/mutations/usePlaybookMutations.js'
 import { useUsers } from '../../hooks/queries/useUserQueries.js'
 import { masterAssetApi } from '../../api/index.js'
 import {
@@ -383,6 +390,7 @@ function AssignmentSummary({ item, usersById }) {
 }
 
 function playbookItemFromRow(row, users) {
+  const activeCampaignRunCount = Number(row.usage?.active_campaign_run_count || row.active_campaign_run_count || 0)
   const item = {
     id: String(row.id),
     raw: row,
@@ -393,6 +401,9 @@ function playbookItemFromRow(row, users) {
     entity: row.entity || GENERAL_ENTITY,
     assignedTo: 'all',
     users: [],
+    editLocked: Boolean(row.edit_locked) || activeCampaignRunCount > 0,
+    activeCampaignRunCount,
+    editLockReason: row.edit_lock_reason || 'This playbook is used by an active campaign.',
   }
 
   return applyAssignmentFromEntity(item, users)
@@ -429,6 +440,26 @@ function buildPlaybookPayloadFromRow(row, overrides = {}) {
     status: row.status || 'draft',
     version: Number(row.version || 1) || 1,
     ...overrides,
+  }
+}
+
+function playbookFormFromItem(item) {
+  const row = item?.raw || {}
+
+  return {
+    name: row.name || item?.name || '',
+    status: displayPlaybookStatus(row.status || item?.status),
+    assignedTo: item?.assignedTo || 'all',
+    users: item?.users || [],
+    description: row.description || '',
+    category: row.scenario || item?.metaA || 'Credential',
+    difficulty: difficultyValueFromScore(row.difficulty || 3),
+    targetDepartment: 'All departments',
+    emailTemplate: String(row.default_email_template_version_id || ''),
+    landingPage: String(row.default_landing_page_version_id || ''),
+    sendingProfile: String(row.default_sending_profile_ref_id || ''),
+    domain: String(row.default_dynamic_domain_id || ''),
+    scenario: row.objective || '',
   }
 }
 
@@ -508,12 +539,24 @@ function PlaybookAssignmentEditor({ form, users, onChange, onToggleUser }) {
   )
 }
 
-function CreateAssetPanel({ type, config, users, componentOptions = EMPTY_PLAYBOOK_COMPONENT_OPTIONS, saving = false, onClose, onCreate }) {
-  const [form, setForm] = useState(() => defaultCreateForm(type, config, componentOptions))
+function CreateAssetPanel({
+  type,
+  config,
+  users,
+  componentOptions = EMPTY_PLAYBOOK_COMPONENT_OPTIONS,
+  mode = 'create',
+  initialForm = null,
+  saving = false,
+  onClose,
+  onCreate,
+}) {
+  const [form, setForm] = useState(() => initialForm ?? defaultCreateForm(type, config, componentOptions))
   const [preview, setPreview] = useState(null)
+  const isEdit = mode === 'edit'
 
   useEffect(() => {
     if (type !== 'playbooks') return
+    if (isEdit) return
 
     setForm(current => {
       const next = {
@@ -535,7 +578,7 @@ function CreateAssetPanel({ type, config, users, componentOptions = EMPTY_PLAYBO
 
       return next
     })
-  }, [componentOptions, type])
+  }, [componentOptions, isEdit, type])
 
   function update(field, value) {
     setForm(current => {
@@ -590,11 +633,11 @@ function CreateAssetPanel({ type, config, users, componentOptions = EMPTY_PLAYBO
         <aside className="flex h-full w-full max-w-[460px] flex-col bg-white shadow-2xl animate-slide-in">
           <header className="flex flex-shrink-0 items-center gap-3 border-b border-gray-200 px-6 py-5">
             <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-violet-100 text-violet-600">
-              <i className="ti ti-plus" />
+              <i className={clsx('ti', isEdit ? 'ti-edit' : 'ti-plus')} />
             </div>
             <div className="min-w-0 flex-1">
-              <h2 className="text-base font-bold text-gray-900">Create playbook</h2>
-              <p className="text-xs text-gray-500">Create a master playbook and choose who can use it.</p>
+              <h2 className="text-base font-bold text-gray-900">{isEdit ? 'Edit playbook' : 'Create playbook'}</h2>
+              <p className="text-xs text-gray-500">{isEdit ? 'Update the master playbook and assignment.' : 'Create a master playbook and choose who can use it.'}</p>
             </div>
             <button
               type="button"
@@ -735,7 +778,7 @@ function CreateAssetPanel({ type, config, users, componentOptions = EMPTY_PLAYBO
               className="inline-flex items-center gap-1.5 rounded-lg border border-violet-500 bg-violet-500 px-4 py-2 text-xs font-semibold text-white transition-colors hover:bg-violet-600"
             >
               <i className="ti ti-device-floppy" />
-              {saving ? 'Saving...' : 'Create playbook'}
+              {saving ? 'Saving...' : isEdit ? 'Save changes' : 'Create playbook'}
             </button>
           </footer>
         </aside>
@@ -954,6 +997,8 @@ export default function MasterAssetPage({ type }) {
   const [items, setItems] = useState(() => (type === 'playbooks' ? [] : config.items))
   const [query, setQuery] = useState('')
   const [editing, setEditing] = useState(null)
+  const [editingPlaybook, setEditingPlaybook] = useState(null)
+  const [deletingPlaybook, setDeletingPlaybook] = useState(null)
   const [creating, setCreating] = useState(false)
   const [savingPlaybook, setSavingPlaybook] = useState(false)
 
@@ -978,6 +1023,15 @@ export default function MasterAssetPage({ type }) {
   const updatePlaybookMutation = useUpdatePlaybookMutation({
     onSuccess: () => {
       setEditing(null)
+      setEditingPlaybook(null)
+    },
+  })
+  const duplicatePlaybookMutation = useDuplicatePlaybookMutation()
+  const deletePlaybookMutation = useDeletePlaybookMutation({
+    onSuccess: () => {
+      setEditing(null)
+      setEditingPlaybook(null)
+      setDeletingPlaybook(null)
     },
   })
 
@@ -1029,7 +1083,7 @@ export default function MasterAssetPage({ type }) {
 
   const allAssigned = items.filter(item => item.assignedTo === 'all').length
   const specificAssigned = items.length - allAssigned
-  const playbookCreateSaving = savingPlaybook || createPlaybookMutation.isPending
+  const playbookFormSaving = savingPlaybook || createPlaybookMutation.isPending || updatePlaybookMutation.isPending
 
   async function resolvePlaybookFormForSave(form, entity) {
     const sendingProfileValue = String(form.sendingProfile || '')
@@ -1063,8 +1117,26 @@ export default function MasterAssetPage({ type }) {
     return { ...form, sendingProfile: String(createdRef.id) }
   }
 
+  function playbookLockMessage(item) {
+    const count = Number(item?.activeCampaignRunCount || 0)
+    if (count > 0) {
+      return `Playbook is locked because it is used by ${count} active Campaign Run${count > 1 ? 's' : ''}.`
+    }
+
+    return item?.editLockReason || 'Playbook is locked while it is used by an active Campaign Run.'
+  }
+
+  function notifyPlaybookLocked(item) {
+    toast.error(playbookLockMessage(item))
+  }
+
   function saveAssignment(nextAssignment) {
     if (type === 'playbooks') {
+      if (editing.editLocked) {
+        notifyPlaybookLocked(editing)
+        return
+      }
+
       const result = entityFromAssignment(nextAssignment, users)
       if (result.error) {
         toast.error(result.error)
@@ -1083,6 +1155,63 @@ export default function MasterAssetPage({ type }) {
     )))
     toast.success('Assignment updated.')
     setEditing(null)
+  }
+
+  async function updatePlaybookFromForm(form) {
+    if (editingPlaybook.editLocked) {
+      notifyPlaybookLocked(editingPlaybook)
+      return
+    }
+
+    const result = entityFromAssignment(form, users)
+    if (result.error) {
+      toast.error(result.error)
+      return
+    }
+
+    setSavingPlaybook(true)
+    try {
+      const resolvedForm = await resolvePlaybookFormForSave(form, result.entity)
+      updatePlaybookMutation.mutate({
+        id: editingPlaybook.id,
+        data: buildPlaybookPayloadFromForm(resolvedForm, result.entity),
+      })
+    } catch (error) {
+      toast.error(error.message || 'Failed to prepare playbook master.')
+    } finally {
+      setSavingPlaybook(false)
+    }
+  }
+
+  function clonePlaybook(item) {
+    duplicatePlaybookMutation.mutate({
+      id: item.id,
+      data: {
+        name: `Copy of ${item.name}`,
+        entity: item.raw?.entity || item.entity || GENERAL_ENTITY,
+      },
+    })
+  }
+
+  function deletePlaybook(item) {
+    if (item.editLocked) {
+      notifyPlaybookLocked(item)
+      return
+    }
+
+    setDeletingPlaybook(item)
+  }
+
+  function confirmDeletePlaybook() {
+    if (!deletingPlaybook) return
+
+    if (deletingPlaybook.editLocked) {
+      notifyPlaybookLocked(deletingPlaybook)
+      setDeletingPlaybook(null)
+      return
+    }
+
+    deletePlaybookMutation.mutate(deletingPlaybook.id)
   }
 
   async function createAsset(asset) {
@@ -1183,7 +1312,15 @@ export default function MasterAssetPage({ type }) {
                     </span>
                     <div>
                       <div className="font-semibold text-gray-900">{item.name}</div>
-                      <div className="text-xs text-gray-400">{item.id}</div>
+                      <div className="flex flex-wrap items-center gap-1.5 text-xs text-gray-400">
+                        <span>{item.id}</span>
+                        {type === 'playbooks' && item.editLocked && (
+                          <span className="inline-flex items-center gap-1 rounded-full bg-red-50 px-2 py-0.5 text-[10px] font-semibold text-red-700" title={playbookLockMessage(item)}>
+                            <i className="ti ti-lock text-[10px]" />
+                            Locked
+                          </span>
+                        )}
+                      </div>
                     </div>
                   </div>
                 </td>
@@ -1192,10 +1329,49 @@ export default function MasterAssetPage({ type }) {
                 <td><Badge tone={statusTone(item.status)}>{item.status}</Badge></td>
                 <td><AssignmentSummary item={item} usersById={usersById} /></td>
                 <td className="text-right">
-                  <Button variant="secondary" size="sm" onClick={() => setEditing(item)}>
-                    <i className="ti ti-user-check" />
-                    Assign
-                  </Button>
+                  <div className="inline-flex items-center justify-end gap-1.5">
+                    <Button
+                      variant="secondary"
+                      size="sm"
+                      onClick={() => item.editLocked ? notifyPlaybookLocked(item) : setEditing(item)}
+                      disabled={type === 'playbooks' && item.editLocked}
+                      title={type === 'playbooks' && item.editLocked ? playbookLockMessage(item) : 'Assign'}
+                    >
+                      <i className="ti ti-user-check" />
+                      Assign
+                    </Button>
+                    {type === 'playbooks' && (
+                      <>
+                        <TableActionButton
+                          icon="ti-edit"
+                          label={`Edit ${item.name}`}
+                          title={item.editLocked ? playbookLockMessage(item) : 'Edit'}
+                          tone="blue"
+                          size="md"
+                          disabled={item.editLocked}
+                          onClick={() => item.editLocked ? notifyPlaybookLocked(item) : setEditingPlaybook(item)}
+                        />
+                        <TableActionButton
+                          icon="ti-copy"
+                          label={`Clone ${item.name}`}
+                          title="Clone"
+                          tone="green"
+                          size="md"
+                          disabled={duplicatePlaybookMutation.isPending}
+                          onClick={() => clonePlaybook(item)}
+                        />
+                        <TableActionButton
+                          icon="ti-trash"
+                          label={`Delete ${item.name}`}
+                          title={item.editLocked ? playbookLockMessage(item) : 'Delete'}
+                          tone="red"
+                          size="md"
+                          disabled={item.editLocked || deletePlaybookMutation.isPending}
+                          onClick={() => deletePlaybook(item)}
+                        />
+                      </>
+                    )}
+                  </div>
                 </td>
               </tr>
             ))}
@@ -1218,13 +1394,41 @@ export default function MasterAssetPage({ type }) {
           onSave={saveAssignment}
         />
       )}
-      {creating && (
+      {editingPlaybook && type === 'playbooks' && (
         <CreateAssetPanel
+          key={`edit-playbook-${editingPlaybook.id}`}
           type={type}
           config={config}
           users={users}
           componentOptions={componentOptions}
-          saving={type === 'playbooks' ? playbookCreateSaving : false}
+          mode="edit"
+          initialForm={playbookFormFromItem(editingPlaybook)}
+          saving={playbookFormSaving}
+          onClose={() => setEditingPlaybook(null)}
+          onCreate={updatePlaybookFromForm}
+        />
+      )}
+      {type === 'playbooks' && deletingPlaybook && (
+        <AlertConfirmation
+          title="Delete playbook?"
+          message={`"${deletingPlaybook.name}" will be archived and removed from the active master playbook list.`}
+          icon="ti-trash"
+          tone="danger"
+          confirmLabel="Delete"
+          pendingLabel="Deleting..."
+          isPending={deletePlaybookMutation.isPending}
+          onCancel={() => setDeletingPlaybook(null)}
+          onConfirm={confirmDeletePlaybook}
+        />
+      )}
+      {creating && (
+        <CreateAssetPanel
+          key={`create-${type}`}
+          type={type}
+          config={config}
+          users={users}
+          componentOptions={componentOptions}
+          saving={type === 'playbooks' ? playbookFormSaving : false}
           onClose={() => setCreating(false)}
           onCreate={createAsset}
         />

@@ -5,12 +5,13 @@ import HtmlCodeEditor from '../../components/Editor/HtmlCodeEditor.jsx'
 import ClientPreview from '../../components/Editor/ClientPreview.jsx'
 import PageHeader from '../../components/UI/PageHeader.jsx'
 import Button from '../../components/UI/Button.jsx'
-import { useGophishEmailTemplates } from '../../hooks/queries/useGophishQueries.js'
-import { useCreateEmailTemplateMutation, useUpdateEmailTemplateMutation } from '../../hooks/mutations/useGophishMutations.js'
+import AlertConfirmation from '../../components/UI/AlertConfirmation.jsx'
+import { useMasterEmailTemplates } from '../../hooks/queries/useMasterAssetQueries.js'
+import { useCreateMasterEmailTemplateMutation, useDeleteMasterEmailTemplateMutation, useUpdateMasterEmailTemplateMutation } from '../../hooks/mutations/useMasterAssetMutations.js'
 import useAppStore from '../../store/useAppStore.js'
 import { canManagePukat } from '../../utils/roles.js'
 import { assetEntityForUser, canUserCreateAsset, canUserEditAsset, filterAssetsForUser } from '../../utils/entityAssignmentHelpers.js'
-import { buildGophishEmailTemplatePayload, gophishEmailTemplateToUiTemplate } from '../../utils/gophishAssetHelpers.js'
+import { buildMasterEmailTemplatePayload, masterAssetLockMessage, masterEmailTemplateToUiTemplate } from '../../utils/masterAssetHelpers.js'
 
 /* ─── Default Data ───────────────────────────────────────────────────── */
 
@@ -43,7 +44,7 @@ function ThumbnailMockup({ page }) {
   return (
     <div className="h-32 bg-[#1F1F1F] rounded-lg border border-gray-800 p-3 relative flex flex-col justify-center gap-2 overflow-hidden select-none">
       <span className="absolute top-2 right-2 rounded-full text-[9px] font-semibold px-2 py-0.5 bg-amber-100 text-amber-700">
-        GoPhish
+        Master
       </span>
       <div className="flex items-center gap-2">
         <div className={clsx("w-7 h-7 rounded-full flex items-center justify-center text-xs font-bold", page.thumbnail?.bg || 'bg-violet-500/20 text-violet-500')}>
@@ -62,7 +63,9 @@ function ThumbnailMockup({ page }) {
   )
 }
 
-function EmailTemplateCard({ page, canEdit, onEdit, onPreview }) {
+function EmailTemplateCard({ page, canEdit, onEdit, onPreview, onDelete }) {
+  const lockMessage = masterAssetLockMessage(page, 'Email template')
+
   return (
     <div className="email-page-card bg-white border border-gray-200 rounded-xl p-5 shadow-none flex flex-col justify-between h-80 transition-all hover:border-gray-300">
       <div className="space-y-4">
@@ -70,21 +73,42 @@ function EmailTemplateCard({ page, canEdit, onEdit, onPreview }) {
         <div>
           <h3 className="text-sm font-bold text-gray-900">{page.name}</h3>
           <p className="text-xs text-gray-500 mt-1 line-clamp-2">{page.description}</p>
-          {page.entity && (
-            <span className="mt-2 inline-flex rounded-full bg-gray-100 px-2 py-0.5 text-[9px] font-semibold text-gray-600">
-              {page.entity}
-            </span>
-          )}
+          <div className="mt-2 flex flex-wrap gap-1.5">
+            {page.entity && (
+              <span className="inline-flex rounded-full bg-gray-100 px-2 py-0.5 text-[9px] font-semibold text-gray-600">
+                {page.entity}
+              </span>
+            )}
+            {page.editLocked && (
+              <span className="inline-flex items-center gap-1 rounded-full bg-red-50 px-2 py-0.5 text-[9px] font-semibold text-red-700" title={lockMessage}>
+                <i className="ti ti-lock text-[10px]" />
+                Locked
+              </span>
+            )}
+          </div>
         </div>
       </div>
       <div className="flex gap-2 mt-4 pt-3 border-t border-gray-50">
         {canEdit && (
           <button
             onClick={() => onEdit(page.id)}
-            className="flex-1 bg-white border border-gray-200 text-gray-700 hover:bg-gray-50 py-1.5 text-xs font-semibold rounded-lg flex items-center justify-center gap-1 transition-all"
+            disabled={page.editLocked}
+            title={page.editLocked ? lockMessage : 'Edit'}
+            className="flex-1 bg-white border border-gray-200 text-gray-700 hover:bg-gray-50 py-1.5 text-xs font-semibold rounded-lg flex items-center justify-center gap-1 transition-all disabled:cursor-not-allowed disabled:opacity-50"
           >
             <i className="ti ti-edit text-sm" />
             <span>Edit</span>
+          </button>
+        )}
+        {canEdit && (
+          <button
+            onClick={() => onDelete(page.id)}
+            disabled={page.editLocked}
+            title={page.editLocked ? lockMessage : 'Delete'}
+            className="flex-1 bg-white border border-red-100 text-red-600 hover:bg-red-50 py-1.5 text-xs font-semibold rounded-lg flex items-center justify-center gap-1 transition-all disabled:cursor-not-allowed disabled:opacity-50"
+          >
+            <i className="ti ti-trash text-sm" />
+            <span>Delete</span>
           </button>
         )}
         <button
@@ -275,7 +299,7 @@ function EditorPane({
 /* ─── Main Component ─────────────────────────────────────────────────── */
 
 export default function EmailTemplates() {
-  const { data: gophishTemplates = [], isLoading, isFetching, refetch } = useGophishEmailTemplates()
+  const { data: masterTemplates = [], isLoading, isFetching, refetch } = useMasterEmailTemplates()
   const currentUser = useAppStore(state => state.user)
   const [pages, setPages] = useState(() => EMAIL_TEMPLATES.slice(0, 0))
   const [activeTab, setActiveTab] = useState('list')
@@ -290,6 +314,7 @@ export default function EmailTemplates() {
   const [editingEntity, setEditingEntity] = useState('')
   const [editingSubject, setEditingSubject] = useState('')
   const [editingHtml, setEditingHtml] = useState('')
+  const [deletingTemplate, setDeletingTemplate] = useState(null)
 
   const [syncing, setSyncing] = useState(false)
 
@@ -308,20 +333,23 @@ export default function EmailTemplates() {
     resetEditorState()
   }, [resetEditorState])
 
-  const createMutation = useCreateEmailTemplateMutation({ onSuccess: closeEditor })
-  const updateMutation = useUpdateEmailTemplateMutation({ onSuccess: closeEditor })
-  const saving = createMutation.isPending || updateMutation.isPending
+  const createMutation = useCreateMasterEmailTemplateMutation({ onSuccess: closeEditor })
+  const updateMutation = useUpdateMasterEmailTemplateMutation({ onSuccess: closeEditor })
+  const deleteMutation = useDeleteMasterEmailTemplateMutation({
+    onSuccess: () => setDeletingTemplate(null),
+  })
+  const saving = createMutation.isPending || updateMutation.isPending || deleteMutation.isPending
   const defaultEntity = useMemo(() => assetEntityForUser(currentUser), [currentUser])
   const canCreateAssets = useMemo(() => canUserCreateAsset(currentUser), [currentUser])
   const entityLocked = !canManagePukat(currentUser.role)
 
   useEffect(() => {
     const visibleTemplates = filterAssetsForUser(
-      gophishTemplates.map(gophishEmailTemplateToUiTemplate),
+      masterTemplates.map(masterEmailTemplateToUiTemplate),
       currentUser
     )
     setPages(visibleTemplates)
-  }, [currentUser, gophishTemplates])
+  }, [currentUser, masterTemplates])
 
   /* ── Filtered cards ── */
   const filteredPages = useMemo(() => {
@@ -365,10 +393,14 @@ export default function EmailTemplates() {
         toast.error('Asset General hanya bisa diedit admin. Non-admin hanya bisa edit asset sesuai entity user.')
         return
       }
+      if (page.editLocked) {
+        toast.error(masterAssetLockMessage(page, 'Email template'))
+        return
+      }
 
       setEditingId(page.id)
       setEditingName(page.name)
-      setEditingSender(page.sender || '')
+      setEditingSender(page.sender || 'Admin <admin@company.id>')
       setEditingEntity(page.entity || '')
       setEditingSubject(page.subject || '')
       setEditingHtml(page.html || '')
@@ -382,7 +414,7 @@ export default function EmailTemplates() {
       setPreviewTitle(page.name)
       setEditingId(page.id)
       setEditingName(page.name)
-      setEditingSender(page.sender || '')
+      setEditingSender(page.sender || 'Admin <admin@company.id>')
       setEditingEntity(page.entity || '')
       setEditingSubject(page.subject || '')
       setEditingHtml(page.html || '')
@@ -411,6 +443,10 @@ export default function EmailTemplates() {
       toast.error('Asset ini hanya bisa diedit oleh admin atau user dengan entity yang sama.')
       return
     }
+    if (currentAsset?.editLocked) {
+      toast.error(masterAssetLockMessage(currentAsset, 'Email template'))
+      return
+    }
     if (!currentAsset && !canCreateAssets) {
       toast.error('User non-admin harus memiliki entity untuk membuat asset.')
       return
@@ -422,20 +458,47 @@ export default function EmailTemplates() {
     }
 
     const payloadEntity = entityLocked ? defaultEntity : editingEntity
-    const payload = buildGophishEmailTemplatePayload({
+    const payload = buildMasterEmailTemplatePayload({
       name,
       sender: editingSender,
       entity: payloadEntity,
       subject: editingSubject,
       html,
+      text: '',
+      status: 'Published',
     })
 
     if (editingId) {
-      updateMutation.mutate({ id: editingId, data: payload })
+      updateMutation.mutate({ id: editingId, ...payload })
     } else {
       createMutation.mutate(payload)
     }
   }, [canCreateAssets, createMutation, currentUser, defaultEntity, editingEntity, editingId, editingSender, editingSubject, entityLocked, pages, updateMutation])
+
+  const handleDelete = useCallback((id) => {
+    const page = pages.find((p) => p.id === id)
+    if (!page) return
+    if (!canUserEditAsset(page, currentUser)) {
+      toast.error('Asset ini hanya bisa dihapus oleh admin atau user dengan entity yang sama.')
+      return
+    }
+    if (page.editLocked) {
+      toast.error(masterAssetLockMessage(page, 'Email template'))
+      return
+    }
+
+    setDeletingTemplate(page)
+  }, [currentUser, pages])
+
+  const confirmDelete = useCallback(() => {
+    if (!deletingTemplate) return
+    if (deletingTemplate.editLocked) {
+      toast.error(masterAssetLockMessage(deletingTemplate, 'Email template'))
+      return
+    }
+
+    deleteMutation.mutate(deletingTemplate.id)
+  }, [deleteMutation, deletingTemplate])
 
   const handleSync = useCallback(async () => {
     setSyncing(true)
@@ -443,11 +506,11 @@ export default function EmailTemplates() {
     setSyncing(false)
 
     if (result.error) {
-      toast.error(result.error.message || 'Gagal menyinkronkan email template dari GoPhish.')
+      toast.error(result.error.message || 'Gagal memuat email template dari master database.')
       return
     }
 
-    toast.success(`Sinkronisasi selesai - ${result.data?.length ?? 0} email templates`)
+    toast.success(`Master database refreshed - ${result.data?.length ?? 0} email templates`)
   }, [refetch])
 
   /* ── Tab button classes ── */
@@ -492,7 +555,7 @@ export default function EmailTemplates() {
             {/* Sync button */}
             <Button variant="outline" onClick={handleSync} disabled={syncing || isFetching}>
               <i className={clsx('ti ti-refresh text-base', (syncing || isFetching) && 'animate-spin')} />
-              <span>Sync GoPhish</span>
+              <span>Refresh master</span>
             </Button>
             {/* Create button */}
             {canCreateAssets && (
@@ -547,7 +610,7 @@ export default function EmailTemplates() {
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
               {isLoading && (
                 <div className="bg-white border border-gray-200 rounded-xl p-8 text-center text-sm text-gray-400">
-                  Memuat email template dari GoPhish...
+                  Memuat email template dari master database...
                 </div>
               )}
               {!isLoading && filteredPages.map((page) => (
@@ -557,6 +620,7 @@ export default function EmailTemplates() {
                   canEdit={canUserEditAsset(page, currentUser)}
                   onEdit={handleEdit}
                   onPreview={handlePreview}
+                  onDelete={handleDelete}
                 />
               ))}
               {canCreateAssets && <CreateCard onClick={handleCreate} />}
@@ -618,6 +682,20 @@ export default function EmailTemplates() {
           </div>
         )}
       </div>
+
+      {deletingTemplate && (
+        <AlertConfirmation
+          title="Delete email template?"
+          message={`Delete "${deletingTemplate.name}" from master database?`}
+          icon="ti-trash"
+          tone="danger"
+          confirmLabel="Delete"
+          pendingLabel="Deleting..."
+          isPending={deleteMutation.isPending}
+          onCancel={() => setDeletingTemplate(null)}
+          onConfirm={confirmDelete}
+        />
+      )}
     </div>
   )
 }

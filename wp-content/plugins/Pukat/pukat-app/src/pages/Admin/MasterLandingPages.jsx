@@ -5,15 +5,21 @@ import { FALLBACK_USERS } from '../../data/fallbacks.js'
 import AssignmentBadge from '../../components/UI/AssignmentBadge.jsx'
 import AssignmentPanel from '../../components/UI/AssignmentPanel.jsx'
 import TableActionButton from '../../components/UI/TableActionButton.jsx'
+import AlertConfirmation from '../../components/UI/AlertConfirmation.jsx'
 import PageHeader from '../../components/UI/PageHeader.jsx'
 import Button from '../../components/UI/Button.jsx'
 import Tabs from '../../components/UI/Tabs.jsx'
 import Badge from '../../components/UI/Badge.jsx'
 import { useMasterLandingPages } from '../../hooks/queries/useMasterAssetQueries.js'
 import { useUsers } from '../../hooks/queries/useUserQueries.js'
-import { useAssignMasterLandingPageEntityMutation, useCreateMasterLandingPageMutation, useUpdateMasterLandingPageMutation } from '../../hooks/mutations/useMasterAssetMutations.js'
+import {
+  useAssignMasterLandingPageEntityMutation,
+  useCreateMasterLandingPageMutation,
+  useDeleteMasterLandingPageMutation,
+  useUpdateMasterLandingPageMutation,
+} from '../../hooks/mutations/useMasterAssetMutations.js'
 import { applyAssignmentFromEntity, entityFromAssignment, userForAssignmentPanel } from '../../utils/entityAssignmentHelpers.js'
-import { buildMasterLandingPagePayload, masterLandingPageToUiPage } from '../../utils/masterAssetHelpers.js'
+import { buildMasterLandingPagePayload, masterAssetLockMessage, masterLandingPageToUiPage } from '../../utils/masterAssetHelpers.js'
 
 
 const DEFAULT_HTML = `<!DOCTYPE html>
@@ -46,7 +52,7 @@ function CaptureBadge({ label }) {
   return <Badge tone={isPass ? 'danger' : 'success'} className="text-[9px]">{label} ✓</Badge>
 }
 
-function LandingPagesTable({ pages, usersById, onEdit, onPreview, onAssign }) {
+function LandingPagesTable({ pages, usersById, onEdit, onPreview, onAssign, onDelete }) {
   return (
     <div className="overflow-hidden rounded-xl border border-gray-200 bg-white">
       <div className="overflow-x-auto">
@@ -72,7 +78,15 @@ function LandingPagesTable({ pages, usersById, onEdit, onPreview, onAssign }) {
                     </span>
                     <div className="min-w-0">
                       <div className="font-semibold text-gray-900">{page.name}</div>
-                      <div className="mt-0.5 max-w-xs truncate text-[11px] text-gray-500">{page.description || page.id}</div>
+                      <div className="mt-0.5 flex max-w-xs flex-wrap items-center gap-1.5 text-[11px] text-gray-500">
+                        <span className="truncate">{page.description || page.id}</span>
+                        {page.editLocked && (
+                          <span className="inline-flex items-center gap-1 rounded-full bg-red-50 px-2 py-0.5 text-[10px] font-semibold text-red-700" title={masterAssetLockMessage(page, 'Landing page')}>
+                            <i className="ti ti-lock text-[10px]" />
+                            Locked
+                          </span>
+                        )}
+                      </div>
                     </div>
                   </div>
                 </td>
@@ -101,9 +115,30 @@ function LandingPagesTable({ pages, usersById, onEdit, onPreview, onAssign }) {
                 </td>
                 <td className="w-40 p-4 pr-6 text-right">
                   <div className="inline-flex items-center gap-1.5">
-                    <TableActionButton icon="ti-user-check" label={`Assign ${page.name}`} title="Assign" tone="green" onClick={() => onAssign(page.id)} />
-                    <TableActionButton icon="ti-edit" label={`Edit ${page.name}`} title="Edit" onClick={() => onEdit(page.id)} />
+                    <TableActionButton
+                      icon="ti-user-check"
+                      label={`Assign ${page.name}`}
+                      title={page.editLocked ? masterAssetLockMessage(page, 'Landing page') : 'Assign'}
+                      tone="green"
+                      disabled={page.editLocked}
+                      onClick={() => onAssign(page.id)}
+                    />
+                    <TableActionButton
+                      icon="ti-edit"
+                      label={`Edit ${page.name}`}
+                      title={page.editLocked ? masterAssetLockMessage(page, 'Landing page') : 'Edit'}
+                      disabled={page.editLocked}
+                      onClick={() => onEdit(page.id)}
+                    />
                     <TableActionButton icon="ti-eye" label={`Preview ${page.name}`} title="Preview" tone="blue" onClick={() => onPreview(page.id)} />
+                    <TableActionButton
+                      icon="ti-trash"
+                      label={`Delete ${page.name}`}
+                      title={page.editLocked ? masterAssetLockMessage(page, 'Landing page') : 'Delete'}
+                      tone="red"
+                      disabled={page.editLocked}
+                      onClick={() => onDelete(page.id)}
+                    />
                   </div>
                 </td>
               </tr>
@@ -218,6 +253,7 @@ export default function MasterLandingPages() {
   const [editingCapturePass, setEditingCapturePass] = useState(true)
   const [previewTitle, setPreviewTitle] = useState('Microsoft 365 Login')
   const [assignmentPageId, setAssignmentPageId] = useState(null)
+  const [deletingPageId, setDeletingPageId] = useState(null)
 
   const users = useMemo(() => {
     const source = usersData?.users?.length ? usersData.users : FALLBACK_USERS
@@ -272,10 +308,13 @@ export default function MasterLandingPages() {
 
   const createMutation = useCreateMasterLandingPageMutation({ onSuccess: closeEditor })
   const updateMutation = useUpdateMasterLandingPageMutation({ onSuccess: closeEditor })
+  const deleteMutation = useDeleteMasterLandingPageMutation({
+    onSuccess: () => setDeletingPageId(null),
+  })
   const assignEntityMutation = useAssignMasterLandingPageEntityMutation({
     onSuccess: () => setAssignmentPageId(null),
   })
-  const saving = createMutation.isPending || updateMutation.isPending
+  const saving = createMutation.isPending || updateMutation.isPending || deleteMutation.isPending
 
   useEffect(() => {
     setPages(masterPages
@@ -287,6 +326,9 @@ export default function MasterLandingPages() {
   const assignmentPage = useMemo(() => (
     pages.find(page => page.id === assignmentPageId) ?? null
   ), [assignmentPageId, pages])
+  const deletingPage = useMemo(() => (
+    pages.find(page => page.id === deletingPageId) ?? null
+  ), [deletingPageId, pages])
 
   const handleCreate = useCallback(() => {
     setEditingId(null)
@@ -303,6 +345,11 @@ export default function MasterLandingPages() {
   const handleEdit = useCallback((id) => {
     const page = pages.find(item => item.id === id)
     if (!page) return
+    if (page.editLocked) {
+      toast.error(masterAssetLockMessage(page, 'Landing page'))
+      return
+    }
+
     setEditingId(page.id)
     setEditingName(page.name)
     setEditingStatus(page.status || 'Published')
@@ -330,10 +377,44 @@ export default function MasterLandingPages() {
   }, [pages])
 
   const handleAssign = useCallback((id) => {
+    const page = pages.find(item => item.id === id)
+    if (page?.editLocked) {
+      toast.error(masterAssetLockMessage(page, 'Landing page'))
+      return
+    }
+
     setAssignmentPageId(id)
-  }, [])
+  }, [pages])
+
+  const handleDelete = useCallback((id) => {
+    const page = pages.find(item => item.id === id)
+    if (!page) return
+    if (page.editLocked) {
+      toast.error(masterAssetLockMessage(page, 'Landing page'))
+      return
+    }
+
+    setDeletingPageId(id)
+  }, [pages])
+
+  const confirmDelete = useCallback(() => {
+    if (!deletingPage) return
+    if (deletingPage.editLocked) {
+      toast.error(masterAssetLockMessage(deletingPage, 'Landing page'))
+      setDeletingPageId(null)
+      return
+    }
+
+    deleteMutation.mutate(deletingPage.id)
+  }, [deleteMutation, deletingPage])
 
   function handleSave() {
+    const currentPage = pages.find(page => page.id === editingId)
+    if (currentPage?.editLocked) {
+      toast.error(masterAssetLockMessage(currentPage, 'Landing page'))
+      return
+    }
+
     const name = editingName.trim()
     if (!name || !editingHtml.trim()) {
       toast.error('Name and HTML source are required.')
@@ -359,6 +440,11 @@ export default function MasterLandingPages() {
 
   const saveAssignment = useCallback((assignment) => {
     if (!assignmentPage) return
+    if (assignmentPage.editLocked) {
+      toast.error(masterAssetLockMessage(assignmentPage, 'Landing page'))
+      setAssignmentPageId(null)
+      return
+    }
 
     const result = entityFromAssignment(assignment, users)
     if (result.error) {
@@ -450,6 +536,7 @@ export default function MasterLandingPages() {
               onEdit={handleEdit}
               onPreview={handlePreview}
               onAssign={handleAssign}
+              onDelete={handleDelete}
             />
           </div>
         )}
@@ -557,6 +644,19 @@ export default function MasterLandingPages() {
           users={users}
           onClose={() => setAssignmentPageId(null)}
           onSave={saveAssignment}
+        />
+      )}
+      {deletingPage && (
+        <AlertConfirmation
+          title="Delete landing page?"
+          message={`"${deletingPage.name}" will be deleted from the master landing page library.`}
+          icon="ti-trash"
+          tone="danger"
+          confirmLabel="Delete"
+          pendingLabel="Deleting..."
+          isPending={deleteMutation.isPending}
+          onCancel={() => setDeletingPageId(null)}
+          onConfirm={confirmDelete}
         />
       )}
     </div>

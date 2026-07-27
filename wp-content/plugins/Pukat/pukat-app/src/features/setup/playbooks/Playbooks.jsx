@@ -4,6 +4,7 @@ import toast from 'react-hot-toast'
 import clsx from 'clsx'
 import PageHeader from '../../../components/UI/PageHeader.jsx'
 import Button from '../../../components/UI/Button.jsx'
+import AlertConfirmation from '../../../components/UI/AlertConfirmation.jsx'
 import {
   PlaybookComponentSelect as ComponentSelect,
   PlaybookField as Field,
@@ -22,6 +23,7 @@ import { useCreatePlaybookMutation, useDeletePlaybookMutation, useUpdatePlaybook
 import { masterAssetApi } from '../../../api/index.js'
 import useAppStore from '../../../store/useAppStore.js'
 import { GENERAL_ENTITY, assetEntityForUser, canUserCreateAsset, canUserEditAsset, filterAssetsForUser } from '../../../utils/entityAssignmentHelpers.js'
+import { masterAssetLockMessage } from '../../../utils/masterAssetHelpers.js'
 import {
   EMPTY_PLAYBOOK_COMPONENT_OPTIONS,
   firstOption,
@@ -349,6 +351,8 @@ function playbookMasterToUiPlaybook(row, assets, componentOptions) {
   )
   const emailOption = componentOptions.email.find(option => option.value === String(emailVersionId || ''))
   const landingOption = componentOptions.page.find(option => option.value === String(landingVersionId || ''))
+  const activeCampaignRunCount = Number(row.usage?.active_campaign_run_count || 0)
+  const activeUsageCount = Number(row.usage?.active_usage_count || activeCampaignRunCount || 0)
 
   return {
     id: String(row.id),
@@ -358,6 +362,11 @@ function playbookMasterToUiPlaybook(row, assets, componentOptions) {
     longDesc: description,
     category,
     entity,
+    status: row.status || 'draft',
+    editLocked: Boolean(row.edit_locked) || activeUsageCount > 0 || row.status === 'active',
+    activeCampaignRunCount,
+    activeUsageCount,
+    editLockReason: row.edit_lock_reason || 'This playbook is active or used by an active campaign.',
     diffScore: `${difficulty}/5`,
     diffText: DIFFICULTY_TEXT[difficulty] ?? DIFFICULTY_TEXT[3],
     dept: 'All departments',
@@ -565,6 +574,12 @@ function PlaybookListItem({ playbook, selected, onSelect }) {
         <Tag className={CATEGORY_TAG[playbook.category] ?? 'bg-gray-100 text-gray-700'}>{playbook.category}</Tag>
         <Tag className={DIFFICULTY_TAG[difficulty] ?? 'bg-gray-100 text-gray-700'}>Difficulty {playbook.diffScore}</Tag>
         <Tag className="bg-gray-100 text-gray-700">{playbook.dept}</Tag>
+        {playbook.editLocked && (
+          <Tag className="bg-red-50 text-red-700">
+            <i className="ti ti-lock mr-1 text-[10px]" />
+            Locked
+          </Tag>
+        )}
       </div>
 
       <div className="mt-3 flex items-center gap-2 text-[11px] text-gray-500">
@@ -893,6 +908,12 @@ function DetailPanel({ playbook, canManage, onDuplicate, onEdit, onPreviewCompon
             <Tag key={tag} className="bg-gray-100 text-gray-700">{tag}</Tag>
           ))}
           <Tag className="bg-violet-100 text-violet-800">GoPhish</Tag>
+          {playbook.editLocked && (
+            <Tag className="bg-red-50 text-red-700">
+              <i className="ti ti-lock mr-1 text-[10px]" />
+              Locked
+            </Tag>
+          )}
         </div>
 
         <div className="flex flex-wrap items-center gap-2">
@@ -906,7 +927,13 @@ function DetailPanel({ playbook, canManage, onDuplicate, onEdit, onPreviewCompon
                 <i className="ti ti-copy" />
                 Duplicate
               </button>
-              <button type="button" onClick={onEdit} className="inline-flex items-center gap-1.5 rounded-lg border border-gray-200 bg-white px-4 py-2 text-xs font-semibold text-gray-700 transition-colors hover:bg-gray-50">
+              <button
+                type="button"
+                onClick={onEdit}
+                disabled={playbook.editLocked}
+                title={playbook.editLocked ? masterAssetLockMessage(playbook, 'Playbook') : 'Edit'}
+                className="inline-flex items-center gap-1.5 rounded-lg border border-gray-200 bg-white px-4 py-2 text-xs font-semibold text-gray-700 transition-colors hover:bg-gray-50 disabled:cursor-not-allowed disabled:opacity-50"
+              >
                 <i className="ti ti-edit" />
                 Edit
               </button>
@@ -980,6 +1007,7 @@ export default function Playbooks() {
   const [slideoverDirty, setSlideoverDirty] = useState(false)
   const [resolvingComponents, setResolvingComponents] = useState(false)
   const [previewPanel, setPreviewPanel] = useState(null)
+  const [deletingPlaybook, setDeletingPlaybook] = useState(null)
   const { data: storedPlaybooks = [], isLoading: playbooksLoading, refetch: refetchPlaybooks } = usePlaybooks({
     placeholderData: previous => previous,
   })
@@ -1027,6 +1055,7 @@ export default function Playbooks() {
   })
   const deletePlaybookMutation = useDeletePlaybookMutation({
     onSuccess: () => {
+      setDeletingPlaybook(null)
       setActiveId('')
       closePlaybookForm()
     },
@@ -1053,7 +1082,7 @@ export default function Playbooks() {
   }, [availablePlaybooks, category, query])
 
   const activePlaybook = availablePlaybooks.find(playbook => playbook.id === activeId) ?? availablePlaybooks[0]
-  const canEditActivePlaybook = canUserEditAsset(activePlaybook, currentUser)
+  const canManageActivePlaybook = canUserEditAsset(activePlaybook, currentUser)
 
   async function handleSync() {
     setSyncing(true)
@@ -1107,6 +1136,10 @@ export default function Playbooks() {
     if (!activePlaybook) return
     if (!canUserEditAsset(activePlaybook, currentUser)) {
       toast.error('Playbook General hanya bisa diedit admin. Non-admin hanya bisa edit playbook sesuai entity user.')
+      return
+    }
+    if (activePlaybook.editLocked) {
+      toast.error(masterAssetLockMessage(activePlaybook, 'Playbook'))
       return
     }
 
@@ -1167,6 +1200,10 @@ export default function Playbooks() {
       toast.error('Playbook ini hanya bisa diedit oleh admin atau user dengan entity yang sama.')
       return
     }
+    if (slideoverMode === 'edit' && activePlaybook?.editLocked) {
+      toast.error(masterAssetLockMessage(activePlaybook, 'Playbook'))
+      return
+    }
 
     if (!slideoverForm.name.trim()) {
       toast.error('Playbook name is required.')
@@ -1225,21 +1262,32 @@ export default function Playbooks() {
       toast.error('Playbook ini hanya bisa dihapus oleh admin atau user dengan entity yang sama.')
       return
     }
+    if (activePlaybook.editLocked) {
+      toast.error(masterAssetLockMessage(activePlaybook, 'Playbook'))
+      return
+    }
 
     if (playbooks.length <= 1) {
       toast.error('At least one playbook must remain available.')
       return
     }
 
-    const confirmed = window.confirm(`Delete playbook "${activePlaybook.name}"?`)
-    if (!confirmed) return
+    setDeletingPlaybook(activePlaybook)
+  }
 
-    if (activePlaybook.source === 'api') {
-      deletePlaybookMutation.mutate(activePlaybook.id)
+  function confirmDeletePlaybook() {
+    if (!deletingPlaybook) return
+    if (deletingPlaybook.editLocked) {
+      toast.error(masterAssetLockMessage(deletingPlaybook, 'Playbook'))
       return
     }
 
-    const remaining = playbooks.filter(playbook => playbook.id !== activePlaybook.id)
+    if (deletingPlaybook.source === 'api') {
+      deletePlaybookMutation.mutate(deletingPlaybook.id)
+      return
+    }
+
+    const remaining = playbooks.filter(playbook => playbook.id !== deletingPlaybook.id)
     const nextActive = remaining[0]
 
     setPlaybooks(remaining)
@@ -1247,7 +1295,8 @@ export default function Playbooks() {
       setActiveId(nextActive.id)
     }
     closePlaybookForm()
-    toast.success(`Playbook "${activePlaybook.name}" deleted.`)
+    setDeletingPlaybook(null)
+    toast.success(`Playbook "${deletingPlaybook.name}" deleted.`)
   }
 
   function openComponentPreview(type, value) {
@@ -1363,7 +1412,7 @@ export default function Playbooks() {
 
         <DetailPanel
           playbook={activePlaybook}
-          canManage={canEditActivePlaybook}
+          canManage={canManageActivePlaybook}
           onDuplicate={duplicateSelectedPlaybook}
           onEdit={openEditPlaybook}
           onPreviewComponent={previewDetailComponent}
@@ -1388,6 +1437,20 @@ export default function Playbooks() {
         onClose={() => setPreviewPanel(null)}
         offsetForSlideover={Boolean(slideoverMode)}
       />
+
+      {deletingPlaybook && (
+        <AlertConfirmation
+          title="Delete playbook?"
+          message={`Delete playbook "${deletingPlaybook.name}"?`}
+          icon="ti-trash"
+          tone="danger"
+          confirmLabel="Delete"
+          pendingLabel="Deleting..."
+          isPending={deletePlaybookMutation.isPending}
+          onCancel={() => setDeletingPlaybook(null)}
+          onConfirm={confirmDeletePlaybook}
+        />
+      )}
     </div>
   )
 }

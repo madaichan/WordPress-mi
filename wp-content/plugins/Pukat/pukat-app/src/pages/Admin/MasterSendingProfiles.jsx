@@ -5,13 +5,16 @@ import { FALLBACK_USERS } from '../../data/fallbacks.js'
 import AssignmentBadge from '../../components/UI/AssignmentBadge.jsx'
 import AssignmentPanel from '../../components/UI/AssignmentPanel.jsx'
 import TableActionButton from '../../components/UI/TableActionButton.jsx'
+import AlertConfirmation from '../../components/UI/AlertConfirmation.jsx'
 import PageHeader from '../../components/UI/PageHeader.jsx'
 import Button from '../../components/UI/Button.jsx'
 import Drawer from '../../components/UI/Drawer.jsx'
+import { useMasterSendingProfiles } from '../../hooks/queries/useMasterAssetQueries.js'
 import { useGophishSmtpProfiles } from '../../hooks/queries/useGophishQueries.js'
 import { useUsers } from '../../hooks/queries/useUserQueries.js'
 import { useAssignSmtpProfileEntityMutation, useCreateSmtpProfileMutation, useDeleteSmtpProfileMutation, useUpdateSmtpProfileMutation } from '../../hooks/mutations/useGophishMutations.js'
 import { applyAssignmentFromEntity, entityFromAssignment, userForAssignmentPanel } from '../../utils/entityAssignmentHelpers.js'
+import { masterAssetLockMessage } from '../../utils/masterAssetHelpers.js'
 import {
   EMPTY_SMTP_FORM,
   buildGophishSmtpPayload,
@@ -74,6 +77,8 @@ function SmtpSlideover({
   onRunTest,
   onSubmit,
   onDelete,
+  locked = false,
+  lockReason = '',
 }) {
   if (!mode) return null
 
@@ -103,20 +108,30 @@ function SmtpSlideover({
       footer={
         <>
           {isUpdate && (
-            <Button variant="danger" onClick={onDelete} disabled={saving}>
+            <Button variant="danger" onClick={onDelete} disabled={saving || locked} title={locked ? lockReason : 'Delete profile'}>
               <i className="ti ti-trash" />
               Delete profile
             </Button>
           )}
           <Button variant="outline" className="ml-auto" onClick={onClose}>Cancel</Button>
-          <Button variant="primary" onClick={onSubmit} disabled={saving}>
+          <Button variant="primary" onClick={onSubmit} disabled={saving || (isUpdate && locked)} title={isUpdate && locked ? lockReason : 'Save profile'}>
             <i className={clsx('ti', saving ? 'ti-loader animate-spin' : 'ti-check')} />
             {saving ? 'Saving...' : isUpdate ? 'Save changes' : 'Save profile'}
           </Button>
         </>
       }
     >
-          {isUpdate && (
+          {isUpdate && locked && (
+            <div className="flex gap-2.5 rounded-xl border border-red-100 bg-red-50 p-3 text-xs">
+              <i className="ti ti-lock mt-0.5 flex-shrink-0 text-base text-red-600" />
+              <p className="font-medium text-red-700">
+                <span className="font-bold text-red-950">This sending profile is locked.</span>
+                {' '}{lockReason}
+              </p>
+            </div>
+          )}
+
+          {isUpdate && !locked && (
             <div className="flex gap-2.5 rounded-xl border border-indigo-100 bg-indigo-50 p-3 text-xs">
               <i className="ti ti-shield-check mt-0.5 flex-shrink-0 text-base text-indigo-600" />
               <p className="font-medium text-indigo-700">
@@ -282,6 +297,7 @@ function SmtpSlideover({
 
 export default function MasterSendingProfiles() {
   const { data: gophishProfiles = [], isLoading, isFetching, refetch } = useGophishSmtpProfiles()
+  const { data: masterSendingProfiles = [], refetch: refetchMasterSendingProfiles } = useMasterSendingProfiles()
   const { data: usersData } = useUsers({ per_page: 100 })
   const [profiles, setProfiles] = useState(() => INITIAL_PROFILES.slice(0, 0))
   const [query, setQuery] = useState('')
@@ -293,6 +309,7 @@ export default function MasterSendingProfiles() {
   const [showPassword, setShowPassword] = useState(false)
   const [testing, setTesting] = useState(false)
   const [testResult, setTestResult] = useState(null)
+  const [deletingProfile, setDeletingProfile] = useState(null)
 
   const users = useMemo(() => {
     const source = usersData?.users?.length ? usersData.users : FALLBACK_USERS
@@ -301,9 +318,41 @@ export default function MasterSendingProfiles() {
 
   const usersById = useMemo(() => new Map(users.map(user => [user.id, user])), [users])
 
+  const lockByGophishId = useMemo(() => {
+    const map = new Map()
+
+    masterSendingProfiles.forEach(profile => {
+      const gophishId = Number(profile.gophish_sending_profile_id || 0)
+      if (!gophishId) return
+
+      const count = Number(profile.usage?.active_campaign_run_count || profile.active_campaign_run_count || 0)
+      const locked = Boolean(profile.edit_locked) || count > 0
+      if (!locked) return
+
+      const existing = map.get(gophishId) || {
+        activeCampaignRunCount: 0,
+        editLocked: false,
+        editLockReason: '',
+      }
+
+      map.set(gophishId, {
+        activeCampaignRunCount: existing.activeCampaignRunCount + count,
+        editLocked: true,
+        editLockReason: existing.editLockReason || profile.edit_lock_reason || 'This sending profile is used by an active campaign.',
+      })
+    })
+
+    return map
+  }, [masterSendingProfiles])
+
   const createMutation = useCreateSmtpProfileMutation({ onSuccess: () => closeSlideover() })
   const updateMutation = useUpdateSmtpProfileMutation({ onSuccess: () => closeSlideover() })
-  const deleteMutation = useDeleteSmtpProfileMutation({ onSuccess: () => closeSlideover() })
+  const deleteMutation = useDeleteSmtpProfileMutation({
+    onSuccess: () => {
+      setDeletingProfile(null)
+      closeSlideover()
+    },
+  })
   const assignEntityMutation = useAssignSmtpProfileEntityMutation({
     onSuccess: () => setAssignmentProfileId(null),
   })
@@ -311,10 +360,20 @@ export default function MasterSendingProfiles() {
 
   useEffect(() => {
     setProfiles(gophishProfiles
-      .map(gophishSmtpProfileToUiProfile)
+      .map(profile => {
+        const item = gophishSmtpProfileToUiProfile(profile)
+        const lock = lockByGophishId.get(Number(item.id))
+
+        return {
+          ...item,
+          editLocked: Boolean(lock?.editLocked),
+          activeCampaignRunCount: lock?.activeCampaignRunCount || 0,
+          editLockReason: lock?.editLockReason || '',
+        }
+      })
       .map(profile => applyAssignmentFromEntity(profile, users))
     )
-  }, [gophishProfiles, users])
+  }, [gophishProfiles, lockByGophishId, users])
 
   const assignmentProfile = useMemo(() => (
     profiles.find(profile => profile.id === assignmentProfileId) ?? null
@@ -344,6 +403,11 @@ export default function MasterSendingProfiles() {
   }
 
   function openEdit(profile) {
+    if (profile.editLocked) {
+      toast.error(masterAssetLockMessage(profile, 'Sending profile'))
+      return
+    }
+
     setSourceProfile(profile)
     setForm(profileToSmtpForm(profile, 'update'))
     setSlideoverMode('update')
@@ -362,6 +426,11 @@ export default function MasterSendingProfiles() {
   }
 
   function openAssignment(profile) {
+    if (profile.editLocked) {
+      toast.error(masterAssetLockMessage(profile, 'Sending profile'))
+      return
+    }
+
     setAssignmentProfileId(profile.id)
   }
 
@@ -408,7 +477,7 @@ export default function MasterSendingProfiles() {
   }
 
   async function syncGoPhish() {
-    const result = await refetch()
+    const [result] = await Promise.all([refetch(), refetchMasterSendingProfiles()])
     if (result.error) {
       toast.error(result.error.message || 'Failed to sync SMTP profiles.')
       return
@@ -426,6 +495,11 @@ export default function MasterSendingProfiles() {
   }
 
   function submitProfile() {
+    if (slideoverMode === 'update' && sourceProfile?.editLocked) {
+      toast.error(masterAssetLockMessage(sourceProfile, 'Sending profile'))
+      return
+    }
+
     const name = form.name.trim()
     const host = form.host.trim()
     const port = Number(form.port)
@@ -454,15 +528,32 @@ export default function MasterSendingProfiles() {
 
   function deleteProfile() {
     if (!sourceProfile) return
+    if (sourceProfile.editLocked) {
+      toast.error(masterAssetLockMessage(sourceProfile, 'Sending profile'))
+      return
+    }
 
-    const confirmed = window.confirm(`Are you sure you want to delete SMTP profile "${sourceProfile.name}"?`)
-    if (!confirmed) return
+    setDeletingProfile(sourceProfile)
+  }
 
-    deleteMutation.mutate(sourceProfile.id)
+  function confirmDeleteProfile() {
+    if (!deletingProfile) return
+    if (deletingProfile.editLocked) {
+      toast.error(masterAssetLockMessage(deletingProfile, 'Sending profile'))
+      setDeletingProfile(null)
+      return
+    }
+
+    deleteMutation.mutate(deletingProfile.id)
   }
 
   function saveAssignment(assignment) {
     if (!assignmentProfile) return
+    if (assignmentProfile.editLocked) {
+      toast.error(masterAssetLockMessage(assignmentProfile, 'Sending profile'))
+      setAssignmentProfileId(null)
+      return
+    }
 
     const result = entityFromAssignment(assignment, users)
     if (result.error) {
@@ -548,7 +639,15 @@ export default function MasterSendingProfiles() {
                     </td>
                     <td className="p-4">
                       <div className="font-semibold text-gray-900">{profile.name}</div>
-                      <div className="mt-0.5 font-mono text-[10px] text-gray-400">{profile.host}</div>
+                      <div className="mt-0.5 flex flex-wrap items-center gap-1.5">
+                        <span className="font-mono text-[10px] text-gray-400">{profile.host}</span>
+                        {profile.editLocked && (
+                          <span className="inline-flex items-center gap-1 rounded-full bg-red-50 px-2 py-0.5 text-[10px] font-semibold text-red-700" title={masterAssetLockMessage(profile, 'Sending profile')}>
+                            <i className="ti ti-lock text-[10px]" />
+                            Locked
+                          </span>
+                        )}
+                      </div>
                     </td>
                     <td className="p-4">
                       <span className="font-mono text-gray-600">{profile.host}:{profile.port}</span>
@@ -575,15 +674,34 @@ export default function MasterSendingProfiles() {
                     </td>
                     <td className="w-44 p-4 pr-6 text-right">
                       <div className="inline-flex items-center justify-end gap-1.5">
-                        <TableActionButton icon="ti-user-check" label={`Assign ${profile.name}`} title="Assign" tone="green" onClick={() => openAssignment(profile)} />
-                        <TableActionButton icon="ti-edit" label={`Edit ${profile.name}`} title="Edit" onClick={() => openEdit(profile)} />
+                        <TableActionButton
+                          icon="ti-user-check"
+                          label={`Assign ${profile.name}`}
+                          title={profile.editLocked ? masterAssetLockMessage(profile, 'Sending profile') : 'Assign'}
+                          tone="green"
+                          disabled={profile.editLocked}
+                          onClick={() => openAssignment(profile)}
+                        />
+                        <TableActionButton
+                          icon="ti-edit"
+                          label={`Edit ${profile.name}`}
+                          title={profile.editLocked ? masterAssetLockMessage(profile, 'Sending profile') : 'Edit'}
+                          disabled={profile.editLocked}
+                          onClick={() => openEdit(profile)}
+                        />
                         <TableActionButton icon="ti-copy" label={`Duplicate ${profile.name}`} title="Duplicate" tone="green" onClick={() => openDuplicate(profile)} />
                         <TableActionButton
                           icon="ti-send"
                           label={`Test ${profile.name}`}
-                          title="Test"
+                          title={profile.editLocked ? masterAssetLockMessage(profile, 'Sending profile') : 'Test'}
                           tone="blue"
+                          disabled={profile.editLocked}
                           onClick={() => {
+                            if (profile.editLocked) {
+                              toast.error(masterAssetLockMessage(profile, 'Sending profile'))
+                              return
+                            }
+
                             openEdit(profile)
                             window.setTimeout(runConnectionTest, 50)
                           }}
@@ -637,7 +755,23 @@ export default function MasterSendingProfiles() {
         onRunTest={runConnectionTest}
         onSubmit={submitProfile}
         onDelete={deleteProfile}
+        locked={Boolean(sourceProfile?.editLocked)}
+        lockReason={sourceProfile ? masterAssetLockMessage(sourceProfile, 'Sending profile') : ''}
       />
+
+      {deletingProfile && (
+        <AlertConfirmation
+          title="Delete sending profile?"
+          message={`"${deletingProfile.name}" will be deleted from GoPhish. Master references mapped to this profile must be cleaned up separately.`}
+          icon="ti-trash"
+          tone="danger"
+          confirmLabel="Delete"
+          pendingLabel="Deleting..."
+          isPending={deleteMutation.isPending}
+          onCancel={() => setDeletingProfile(null)}
+          onConfirm={confirmDeleteProfile}
+        />
+      )}
 
       {assignmentProfile && (
         <AssignmentPanel

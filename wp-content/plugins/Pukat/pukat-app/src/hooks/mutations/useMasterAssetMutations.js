@@ -101,6 +101,23 @@ export function useAssignMasterEmailTemplateEntityMutation(options = {}) {
   })
 }
 
+export function useDeleteMasterEmailTemplateMutation(options = {}) {
+  const qc = useQueryClient()
+
+  return useMutation({
+    mutationFn: masterAssetApi.deleteEmailTemplate,
+    onSuccess: (data, variables, context) => {
+      toast.success('Email template deleted.')
+      invalidateMasterAssets(qc, queryKeys.masterAssets.emailTemplates)
+      options.onSuccess?.(data, variables, context)
+    },
+    onError: (err, variables, context) => {
+      toast.error(err.message || 'Failed to delete email template.')
+      options.onError?.(err, variables, context)
+    },
+  })
+}
+
 export function useCreateMasterLandingPageMutation(options = {}) {
   const qc = useQueryClient()
 
@@ -173,6 +190,23 @@ export function useAssignMasterLandingPageEntityMutation(options = {}) {
     },
     onError: (err, variables, context) => {
       toast.error(err.message || 'Failed to save landing page assignment.')
+      options.onError?.(err, variables, context)
+    },
+  })
+}
+
+export function useDeleteMasterLandingPageMutation(options = {}) {
+  const qc = useQueryClient()
+
+  return useMutation({
+    mutationFn: masterAssetApi.deleteLandingPage,
+    onSuccess: (data, variables, context) => {
+      toast.success('Landing page deleted.')
+      invalidateMasterAssets(qc, queryKeys.masterAssets.landingPages)
+      options.onSuccess?.(data, variables, context)
+    },
+    onError: (err, variables, context) => {
+      toast.error(err.message || 'Failed to delete landing page.')
       options.onError?.(err, variables, context)
     },
   })

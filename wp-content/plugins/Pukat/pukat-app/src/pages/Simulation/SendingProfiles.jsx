@@ -15,9 +15,11 @@ import { useGophishSmtpProfiles } from '../../hooks/queries/useGophishQueries.js
 import { useCreateSmtpProfileMutation, useDeleteSmtpProfileMutation, useUpdateSmtpProfileMutation } from '../../hooks/mutations/useGophishMutations.js'
 import PageHeader from '../../components/UI/PageHeader.jsx'
 import Button from '../../components/UI/Button.jsx'
+import AlertConfirmation from '../../components/UI/AlertConfirmation.jsx'
 import useAppStore from '../../store/useAppStore.js'
 import { canManagePukat } from '../../utils/roles.js'
 import { assetEntityForUser, canUserCreateAsset, canUserEditAsset, filterAssetsForUser } from '../../utils/entityAssignmentHelpers.js'
+import { masterAssetLockMessage } from '../../utils/masterAssetHelpers.js'
 
 const INITIAL_PROFILES = []
 
@@ -69,6 +71,8 @@ function SmtpSlideover({
   testResult,
   saving,
   entityLocked,
+  locked,
+  lockReason,
   onClose,
   onChange,
   onHeaderChange,
@@ -122,11 +126,13 @@ function SmtpSlideover({
 
         <div className="flex-grow space-y-4 overflow-y-auto p-5">
           {isUpdate && (
-            <div className="flex gap-2.5 rounded-xl border border-indigo-100 bg-indigo-50 p-3 text-xs">
-              <i className="ti ti-shield-check mt-0.5 flex-shrink-0 text-base text-indigo-600" />
-              <p className="font-medium text-indigo-700">
-                <span className="font-bold text-indigo-950">This sending profile is currently active.</span>
-                {' '}Changes apply to the next campaign.
+            <div className={clsx('flex gap-2.5 rounded-xl border p-3 text-xs', locked ? 'border-red-100 bg-red-50' : 'border-indigo-100 bg-indigo-50')}>
+              <i className={clsx('ti mt-0.5 flex-shrink-0 text-base', locked ? 'ti-lock text-red-600' : 'ti-shield-check text-indigo-600')} />
+              <p className={clsx('font-medium', locked ? 'text-red-700' : 'text-indigo-700')}>
+                <span className={clsx('font-bold', locked ? 'text-red-950' : 'text-indigo-950')}>
+                  {locked ? 'This sending profile is locked.' : 'This sending profile is currently active.'}
+                </span>
+                {' '}{locked ? lockReason : 'Changes apply to the next campaign.'}
               </p>
             </div>
           )}
@@ -325,7 +331,9 @@ function SmtpSlideover({
             <button
               type="button"
               onClick={onDelete}
-              className="inline-flex items-center gap-1 rounded-xl border border-rose-100 bg-rose-50 px-4 py-2 text-xs font-semibold text-rose-700 transition-all hover:bg-rose-100"
+              disabled={locked}
+              title={locked ? lockReason : 'Delete profile'}
+              className="inline-flex items-center gap-1 rounded-xl border border-rose-100 bg-rose-50 px-4 py-2 text-xs font-semibold text-rose-700 transition-all hover:bg-rose-100 disabled:cursor-not-allowed disabled:opacity-50"
             >
               <i className="ti ti-trash" />
               Delete profile
@@ -341,8 +349,9 @@ function SmtpSlideover({
           <button
             type="button"
             onClick={onSubmit}
-            disabled={saving}
-            className="inline-flex items-center gap-1 rounded-xl bg-violet-500 px-4 py-2 text-xs font-semibold text-white transition-all hover:bg-violet-600"
+            disabled={saving || locked}
+            title={locked ? lockReason : 'Save profile'}
+            className="inline-flex items-center gap-1 rounded-xl bg-violet-500 px-4 py-2 text-xs font-semibold text-white transition-all hover:bg-violet-600 disabled:cursor-not-allowed disabled:opacity-50"
           >
             <i className={clsx('ti', saving ? 'ti-loader animate-spin' : 'ti-check')} />
             {saving ? 'Saving...' : isUpdate ? 'Save changes' : 'Save profile'}
@@ -365,11 +374,17 @@ export default function SendingProfiles() {
   const [showPassword, setShowPassword] = useState(false)
   const [testing, setTesting] = useState(false)
   const [testResult, setTestResult] = useState(null)
+  const [deletingProfile, setDeletingProfile] = useState(null)
 
   const createMutation = useCreateSmtpProfileMutation({ onSuccess: () => closeSlideover() })
   const updateMutation = useUpdateSmtpProfileMutation({ onSuccess: () => closeSlideover() })
-  const deleteMutation = useDeleteSmtpProfileMutation({ onSuccess: () => closeSlideover() })
-  const saving = createMutation.isPending || updateMutation.isPending
+  const deleteMutation = useDeleteSmtpProfileMutation({
+    onSuccess: () => {
+      setDeletingProfile(null)
+      closeSlideover()
+    },
+  })
+  const saving = createMutation.isPending || updateMutation.isPending || deleteMutation.isPending
   const defaultEntity = useMemo(() => assetEntityForUser(currentUser), [currentUser])
   const canCreateProfiles = useMemo(() => canUserCreateAsset(currentUser), [currentUser])
   const entityLocked = !canManagePukat(currentUser.role)
@@ -412,6 +427,10 @@ export default function SendingProfiles() {
   function openEdit(profile) {
     if (!canUserEditAsset(profile, currentUser)) {
       toast.error('Profile General hanya bisa diedit admin. Non-admin hanya bisa edit profile sesuai entity user.')
+      return
+    }
+    if (profile.editLocked) {
+      toast.error(masterAssetLockMessage(profile, 'Sending profile'))
       return
     }
 
@@ -502,6 +521,10 @@ export default function SendingProfiles() {
       toast.error('Profile ini hanya bisa diedit oleh admin atau user dengan entity yang sama.')
       return
     }
+    if (slideoverMode === 'update' && sourceProfile?.editLocked) {
+      toast.error(masterAssetLockMessage(sourceProfile, 'Sending profile'))
+      return
+    }
     if (slideoverMode !== 'update' && !canCreateProfiles) {
       toast.error('User non-admin harus memiliki entity untuk membuat SMTP profile.')
       return
@@ -540,11 +563,22 @@ export default function SendingProfiles() {
       toast.error('Profile ini hanya bisa dihapus oleh admin atau user dengan entity yang sama.')
       return
     }
+    if (sourceProfile.editLocked) {
+      toast.error(masterAssetLockMessage(sourceProfile, 'Sending profile'))
+      return
+    }
 
-    const confirmed = window.confirm(`Are you sure you want to delete SMTP profile "${sourceProfile.name}"?`)
-    if (!confirmed) return
+    setDeletingProfile(sourceProfile)
+  }
 
-    deleteMutation.mutate(sourceProfile.id)
+  function confirmDeleteProfile() {
+    if (!deletingProfile) return
+    if (deletingProfile.editLocked) {
+      toast.error(masterAssetLockMessage(deletingProfile, 'Sending profile'))
+      return
+    }
+
+    deleteMutation.mutate(deletingProfile.id)
   }
 
   return (
@@ -610,6 +644,7 @@ export default function SendingProfiles() {
               {!isLoading && filteredProfiles.map(profile => {
                 const status = getSmtpStatusClasses(profile.status)
                 const canEditProfile = canUserEditAsset(profile, currentUser)
+                const lockReason = masterAssetLockMessage(profile, 'Sending profile')
 
                 return (
                   <tr key={profile.id} className="group transition-colors hover:bg-gray-50/50">
@@ -618,7 +653,15 @@ export default function SendingProfiles() {
                     </td>
                     <td className="p-4">
                       <div className="font-semibold text-gray-900">{profile.name}</div>
-                      <div className="mt-0.5 font-mono text-[10px] text-gray-400">{profile.host}</div>
+                      <div className="mt-0.5 flex flex-wrap items-center gap-1.5">
+                        <span className="font-mono text-[10px] text-gray-400">{profile.host}</span>
+                        {profile.editLocked && (
+                          <span className="inline-flex items-center gap-1 rounded-full bg-red-50 px-2 py-0.5 text-[10px] font-semibold text-red-700" title={lockReason}>
+                            <i className="ti ti-lock text-[10px]" />
+                            Locked
+                          </span>
+                        )}
+                      </div>
                     </td>
                     <td className="p-4">
                       <span className="font-mono text-gray-600">{profile.host}:{profile.port}</span>
@@ -646,8 +689,9 @@ export default function SendingProfiles() {
                           <button
                             type="button"
                             onClick={() => openEdit(profile)}
-                            className="flex h-7 w-7 items-center justify-center rounded-lg border border-gray-200 bg-white text-gray-500 transition-all hover:border-violet-500 hover:text-violet-500"
-                            title="Edit"
+                            disabled={profile.editLocked}
+                            className="flex h-7 w-7 items-center justify-center rounded-lg border border-gray-200 bg-white text-gray-500 transition-all hover:border-violet-500 hover:text-violet-500 disabled:cursor-not-allowed disabled:opacity-50"
+                            title={profile.editLocked ? lockReason : 'Edit'}
                             aria-label={`Edit ${profile.name}`}
                           >
                             <i className="ti ti-edit text-xs" />
@@ -664,11 +708,16 @@ export default function SendingProfiles() {
                           <button
                             type="button"
                             onClick={() => {
+                              if (profile.editLocked) {
+                                toast.error(lockReason)
+                                return
+                              }
                               openEdit(profile)
                               window.setTimeout(runConnectionTest, 50)
                             }}
-                            className="flex h-7 w-7 items-center justify-center rounded-lg border border-gray-200 bg-white text-gray-500 transition-all hover:border-blue-600 hover:text-blue-600"
-                            title="Test"
+                            disabled={profile.editLocked}
+                            className="flex h-7 w-7 items-center justify-center rounded-lg border border-gray-200 bg-white text-gray-500 transition-all hover:border-blue-600 hover:text-blue-600 disabled:cursor-not-allowed disabled:opacity-50"
+                            title={profile.editLocked ? lockReason : 'Test'}
                             aria-label={`Test ${profile.name}`}
                           >
                             <i className="ti ti-send text-xs" />
@@ -715,6 +764,8 @@ export default function SendingProfiles() {
         testResult={testResult}
         saving={saving}
         entityLocked={entityLocked}
+        locked={Boolean(sourceProfile?.editLocked)}
+        lockReason={sourceProfile ? masterAssetLockMessage(sourceProfile, 'Sending profile') : ''}
         onClose={closeSlideover}
         onChange={updateForm}
         onHeaderChange={updateHeader}
@@ -725,6 +776,20 @@ export default function SendingProfiles() {
         onSubmit={submitProfile}
         onDelete={deleteProfile}
       />
+
+      {deletingProfile && (
+        <AlertConfirmation
+          title="Delete sending profile?"
+          message={`Delete "${deletingProfile.name}" from GoPhish?`}
+          icon="ti-trash"
+          tone="danger"
+          confirmLabel="Delete"
+          pendingLabel="Deleting..."
+          isPending={deleteMutation.isPending}
+          onCancel={() => setDeletingProfile(null)}
+          onConfirm={confirmDeleteProfile}
+        />
+      )}
     </div>
   )
 }

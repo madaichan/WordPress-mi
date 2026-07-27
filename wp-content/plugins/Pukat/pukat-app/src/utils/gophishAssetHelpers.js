@@ -42,6 +42,10 @@ export function emailTemplateThumbnail(category) {
 
 export function gophishEmailTemplateToUiTemplate(template) {
   const category = inferEmailTemplateCategory(template)
+  const activeCampaignRunCount = Number(template.usage?.active_campaign_run_count || 0)
+  const activePlaybookCount = Number(template.usage?.active_playbook_count || 0)
+  const activeLegacyCampaignCount = Number(template.usage?.active_legacy_campaign_count || 0)
+  const activeUsageCount = Number(template.usage?.active_usage_count || activeCampaignRunCount + activePlaybookCount + activeLegacyCampaignCount || 0)
 
   return {
     id: template.id,
@@ -57,7 +61,14 @@ export function gophishEmailTemplateToUiTemplate(template) {
     entity: template.entity || '',
     assignedTo: 'all',
     users: [],
+    editLocked: Boolean(template.edit_locked) || activeUsageCount > 0,
+    activeCampaignRunCount,
+    activePlaybookCount,
+    activeLegacyCampaignCount,
+    activeUsageCount,
+    editLockReason: template.edit_lock_reason || 'This email template is used by an active campaign or playbook.',
     thumbnail: emailTemplateThumbnail(category),
+    raw: template,
   }
 }
 
@@ -121,6 +132,10 @@ export function gophishLandingPageToUiPage(page) {
   const capturePass = Boolean(page.capture_passwords)
   const redirectUrl = page.redirect_url || ''
   const category = landingCategoryForCapture({ captureData, capturePass, redirectUrl })
+  const activeCampaignRunCount = Number(page.usage?.active_campaign_run_count || 0)
+  const activePlaybookCount = Number(page.usage?.active_playbook_count || 0)
+  const activeLegacyCampaignCount = Number(page.usage?.active_legacy_campaign_count || 0)
+  const activeUsageCount = Number(page.usage?.active_usage_count || activeCampaignRunCount + activePlaybookCount + activeLegacyCampaignCount || 0)
 
   return {
     id: page.id,
@@ -133,7 +148,14 @@ export function gophishLandingPageToUiPage(page) {
     badges: landingBadges({ captureData, capturePass }),
     assignedTo: 'all',
     users: [],
+    editLocked: Boolean(page.edit_locked) || activeUsageCount > 0,
+    activeCampaignRunCount,
+    activePlaybookCount,
+    activeLegacyCampaignCount,
+    activeUsageCount,
+    editLockReason: page.edit_lock_reason || 'This landing page is used by an active campaign or playbook.',
     thumbnail: landingPageThumbnail(category),
+    raw: page,
   }
 }
 

@@ -38,7 +38,27 @@ class MasterComponentService {
 		'archived',
 	];
 
+	private const ACTIVE_CAMPAIGN_RUN_STATUSES = [
+		'ready_for_sync',
+		'syncing',
+		'sync_failed',
+		'synced',
+		'scheduled',
+		'running',
+	];
+
+	private const ACTIVE_LEGACY_CAMPAIGN_STATUSES = [
+		'active',
+		'scheduled',
+		'running',
+	];
+
 	private MasterComponentRepository $repository;
+
+	/**
+	 * @var array<int, array<string, mixed>>|null
+	 */
+	private ?array $active_campaign_run_rows = null;
 
 	public function __construct( ?MasterComponentRepository $repository = null ) {
 		$this->repository = $repository ?? new MasterComponentRepository();
@@ -123,6 +143,11 @@ class MasterComponentService {
 			return $this->not_found_error( __( 'Email template master not found.', 'pukat' ) );
 		}
 
+		$usage_error = $this->enforce_not_used_by_active_campaign_run( 'email_template', $id, __( 'Email template master', 'pukat' ) );
+		if ( $usage_error ) {
+			return $usage_error;
+		}
+
 		$data             = $this->sanitize_email_template_master_data( $params, $existing );
 		$permission_error = $this->enforce_write_entity( $data, 'entity', $existing );
 		if ( $permission_error ) {
@@ -146,6 +171,11 @@ class MasterComponentService {
 		$permission_error = $this->enforce_existing_row_editable( $existing, 'entity' );
 		if ( $permission_error ) {
 			return $permission_error;
+		}
+
+		$usage_error = $this->enforce_not_used_by_active_campaign_run( 'email_template', $id, __( 'Email template master', 'pukat' ) );
+		if ( $usage_error ) {
+			return $usage_error;
 		}
 
 		$this->repository->delete_where( self::EMAIL_VERSION_TABLE, [ self::EMAIL_VERSION_FK => $id ] );
@@ -187,6 +217,11 @@ class MasterComponentService {
 		$permission_error = $this->enforce_existing_row_editable( $master, 'entity' );
 		if ( $permission_error ) {
 			return $permission_error;
+		}
+
+		$usage_error = $this->enforce_not_used_by_active_campaign_run( 'email_template', $master_id, __( 'Email template master', 'pukat' ) );
+		if ( $usage_error ) {
+			return $usage_error;
 		}
 
 		$data = $this->sanitize_email_template_version_data( $params );
@@ -242,6 +277,11 @@ class MasterComponentService {
 			return $permission_error;
 		}
 
+		$usage_error = $this->enforce_not_used_by_active_campaign_run( 'email_template', (int) $existing[ self::EMAIL_VERSION_FK ], __( 'Email template master', 'pukat' ) );
+		if ( $usage_error ) {
+			return $usage_error;
+		}
+
 		$data = $this->sanitize_email_template_version_data( $params, $existing );
 		if ( is_wp_error( $data ) ) {
 			return $data;
@@ -259,6 +299,16 @@ class MasterComponentService {
 	 * @return array<string, mixed>|WP_Error
 	 */
 	public function approve_email_template_version( int $id, int $user_id ): array|WP_Error {
+		$version = $this->repository->find( self::EMAIL_VERSION_TABLE, $id );
+		if ( ! $version ) {
+			return $this->not_found_error( __( 'Email template version not found.', 'pukat' ) );
+		}
+
+		$usage_error = $this->enforce_not_used_by_active_campaign_run( 'email_template', (int) $version[ self::EMAIL_VERSION_FK ], __( 'Email template master', 'pukat' ) );
+		if ( $usage_error ) {
+			return $usage_error;
+		}
+
 		return $this->approve_version(
 			self::EMAIL_VERSION_TABLE,
 			self::EMAIL_MASTER_TABLE,
@@ -351,6 +401,11 @@ class MasterComponentService {
 			return $this->not_found_error( __( 'Landing page master not found.', 'pukat' ) );
 		}
 
+		$usage_error = $this->enforce_not_used_by_active_campaign_run( 'landing_page', $id, __( 'Landing page master', 'pukat' ) );
+		if ( $usage_error ) {
+			return $usage_error;
+		}
+
 		$data             = $this->sanitize_landing_page_master_data( $params, $existing );
 		$permission_error = $this->enforce_write_entity( $data, 'entity', $existing );
 		if ( $permission_error ) {
@@ -374,6 +429,11 @@ class MasterComponentService {
 		$permission_error = $this->enforce_existing_row_editable( $existing, 'entity' );
 		if ( $permission_error ) {
 			return $permission_error;
+		}
+
+		$usage_error = $this->enforce_not_used_by_active_campaign_run( 'landing_page', $id, __( 'Landing page master', 'pukat' ) );
+		if ( $usage_error ) {
+			return $usage_error;
 		}
 
 		$this->repository->delete_where( self::LANDING_VERSION_TABLE, [ self::LANDING_VERSION_FK => $id ] );
@@ -415,6 +475,11 @@ class MasterComponentService {
 		$permission_error = $this->enforce_existing_row_editable( $master, 'entity' );
 		if ( $permission_error ) {
 			return $permission_error;
+		}
+
+		$usage_error = $this->enforce_not_used_by_active_campaign_run( 'landing_page', $master_id, __( 'Landing page master', 'pukat' ) );
+		if ( $usage_error ) {
+			return $usage_error;
 		}
 
 		$data = $this->sanitize_landing_page_version_data( $params );
@@ -470,6 +535,11 @@ class MasterComponentService {
 			return $permission_error;
 		}
 
+		$usage_error = $this->enforce_not_used_by_active_campaign_run( 'landing_page', (int) $existing[ self::LANDING_VERSION_FK ], __( 'Landing page master', 'pukat' ) );
+		if ( $usage_error ) {
+			return $usage_error;
+		}
+
 		$data = $this->sanitize_landing_page_version_data( $params, $existing );
 		if ( is_wp_error( $data ) ) {
 			return $data;
@@ -487,6 +557,16 @@ class MasterComponentService {
 	 * @return array<string, mixed>|WP_Error
 	 */
 	public function approve_landing_page_version( int $id, int $user_id ): array|WP_Error {
+		$version = $this->repository->find( self::LANDING_VERSION_TABLE, $id );
+		if ( ! $version ) {
+			return $this->not_found_error( __( 'Landing page version not found.', 'pukat' ) );
+		}
+
+		$usage_error = $this->enforce_not_used_by_active_campaign_run( 'landing_page', (int) $version[ self::LANDING_VERSION_FK ], __( 'Landing page master', 'pukat' ) );
+		if ( $usage_error ) {
+			return $usage_error;
+		}
+
 		return $this->approve_version(
 			self::LANDING_VERSION_TABLE,
 			self::LANDING_MASTER_TABLE,
@@ -564,6 +644,11 @@ class MasterComponentService {
 			return $this->not_found_error( __( 'Sending profile reference not found.', 'pukat' ) );
 		}
 
+		$usage_error = $this->enforce_not_used_by_active_campaign_run( 'sending_profile', $id, __( 'Sending profile reference', 'pukat' ) );
+		if ( $usage_error ) {
+			return $usage_error;
+		}
+
 		$data = $this->sanitize_sending_profile_data( $params, $existing );
 		if ( is_wp_error( $data ) ) {
 			return $data;
@@ -593,11 +678,82 @@ class MasterComponentService {
 			return $permission_error;
 		}
 
+		$usage_error = $this->enforce_not_used_by_active_campaign_run( 'sending_profile', $id, __( 'Sending profile reference', 'pukat' ) );
+		if ( $usage_error ) {
+			return $usage_error;
+		}
+
 		$this->repository->delete( self::SENDING_TABLE, $id );
 
 		AuditLogService::log( 'master.sending_profile.deleted', [ 'sending_profile_ref_id' => $id ], null, 'sending_profile_ref', $id );
 
 		return true;
+	}
+
+	public function enforce_gophish_sending_profile_not_used( int $gophish_id ): ?WP_Error {
+		$usage = $this->gophish_asset_usage( 'sending_profile', $gophish_id );
+		if ( $usage['active_usage_count'] <= 0 ) {
+			return null;
+		}
+
+		return new WP_Error(
+			'master_component_locked_by_campaign_run',
+			__( 'Sending profile cannot be edited or deleted while it is used by an active Campaign or Playbook.', 'pukat' ),
+			[
+				'status' => 409,
+				'usage'  => $usage,
+			]
+		);
+	}
+
+	public function enforce_gophish_email_template_not_used( int $gophish_id ): ?WP_Error {
+		$usage = $this->gophish_asset_usage( 'email_template', $gophish_id );
+		if ( $usage['active_usage_count'] <= 0 ) {
+			return null;
+		}
+
+		return new WP_Error(
+			'master_component_locked_by_campaign_run',
+			__( 'Email template cannot be edited or deleted while it is used by an active Campaign or Playbook.', 'pukat' ),
+			[
+				'status' => 409,
+				'usage'  => $usage,
+			]
+		);
+	}
+
+	public function enforce_gophish_landing_page_not_used( int $gophish_id ): ?WP_Error {
+		$usage = $this->gophish_asset_usage( 'landing_page', $gophish_id );
+		if ( $usage['active_usage_count'] <= 0 ) {
+			return null;
+		}
+
+		return new WP_Error(
+			'master_component_locked_by_campaign_run',
+			__( 'Landing page cannot be edited or deleted while it is used by an active Campaign or Playbook.', 'pukat' ),
+			[
+				'status' => 409,
+				'usage'  => $usage,
+			]
+		);
+	}
+
+	/**
+	 * Return usage metadata for GoPhish assets shown on non-master pages.
+	 *
+	 * @return array<string, mixed>
+	 */
+	public function gophish_asset_usage( string $asset_type, int $gophish_id ): array {
+		if ( $gophish_id <= 0 ) {
+			return $this->empty_active_usage();
+		}
+
+		return match ( $asset_type ) {
+			'email_template'  => $this->gophish_asset_usage_from_columns( 'gophish_template_id', 'gophish_template_id', $gophish_id ),
+			'landing_page'    => $this->gophish_asset_usage_from_columns( 'gophish_page_id', 'gophish_page_id', $gophish_id ),
+			'sending_profile' => $this->gophish_sending_profile_usage( $gophish_id ),
+			default           => $this->empty_active_usage(),
+		};
 	}
 
 	/**
@@ -782,7 +938,7 @@ class MasterComponentService {
 		);
 		$row['latest_version'] = $row['versions'][0] ?? null;
 
-		return $row;
+		return $this->with_component_usage( $row, 'email_template', (int) $row['id'], __( 'Email template master', 'pukat' ) );
 	}
 
 	/**
@@ -804,7 +960,7 @@ class MasterComponentService {
 		);
 		$row['latest_version'] = $row['versions'][0] ?? null;
 
-		return $row;
+		return $this->with_component_usage( $row, 'landing_page', (int) $row['id'], __( 'Landing page master', 'pukat' ) );
 	}
 
 	/**
@@ -827,13 +983,15 @@ class MasterComponentService {
 	 * @return array<string, mixed>
 	 */
 	private function prepare_sending_profile( array $row ): array {
-		return $this->decode_json_fields(
+		$row = $this->decode_json_fields(
 			$row,
 			[
 				'allowed_domains_json' => 'allowed_domains',
 				'rate_limit_json'      => 'rate_limit',
 			]
 		);
+
+		return $this->with_component_usage( $row, 'sending_profile', (int) $row['id'], __( 'Sending profile reference', 'pukat' ) );
 	}
 
 	/**
@@ -846,6 +1004,227 @@ class MasterComponentService {
 			[
 				'allowed_playbooks_json'        => 'allowed_playbooks',
 				'allowed_sending_profiles_json' => 'allowed_sending_profiles',
+			]
+		);
+	}
+
+	/**
+	 * Add Campaign Run usage metadata used by the frontend to lock edits.
+	 *
+	 * @param array<string, mixed> $row DB row.
+	 * @return array<string, mixed>
+	 */
+	private function with_component_usage( array $row, string $component, int $component_id, string $label ): array {
+		$usage  = $this->active_component_usage( $component, $component_id );
+		$locked = $usage['active_usage_count'] > 0;
+
+		$row['usage']            = $usage;
+		$row['edit_locked']      = $locked;
+		$row['edit_lock_reason'] = $locked
+			? sprintf(
+				/* translators: %s: master component label. */
+				__( '%s is used by an active Campaign or Playbook.', 'pukat' ),
+				$label
+			)
+			: '';
+
+		return $row;
+	}
+
+	/**
+	 * @return array<string, mixed>
+	 */
+	private function active_component_usage( string $component, int $component_id ): array {
+		$campaign_usage       = $this->active_campaign_run_usage( $component, $component_id );
+		$active_playbook_count = $this->active_playbook_usage_count( $component, $component_id );
+
+		return $this->usage_summary(
+			$campaign_usage['active_campaign_run_count'],
+			$active_playbook_count,
+			0
+		);
+	}
+
+	/**
+	 * @return array{active_campaign_run_count: int}
+	 */
+	private function active_campaign_run_usage( string $component, int $component_id ): array {
+		$count = 0;
+
+		foreach ( $this->active_campaign_run_rows() as $run ) {
+			if ( $this->campaign_run_snapshot_uses_component( $run, $component, $component_id ) ) {
+				$count++;
+			}
+		}
+
+		return [
+			'active_campaign_run_count' => $count,
+		];
+	}
+
+	private function active_playbook_usage_count( string $component, int $component_id ): int {
+		if ( $component_id <= 0 ) {
+			return 0;
+		}
+
+		return match ( $component ) {
+			'email_template'  => $this->active_playbook_usage_count_for_master_versions( self::EMAIL_VERSION_TABLE, self::EMAIL_VERSION_FK, $component_id, 'default_email_template_version_id' ),
+			'landing_page'    => $this->active_playbook_usage_count_for_master_versions( self::LANDING_VERSION_TABLE, self::LANDING_VERSION_FK, $component_id, 'default_landing_page_version_id' ),
+			'sending_profile' => $this->repository->count_active_playbook_masters_for_component( 'default_sending_profile_ref_id', $component_id ),
+			default           => 0,
+		};
+	}
+
+	private function active_playbook_usage_count_for_master_versions( string $version_table, string $foreign_key, int $master_id, string $playbook_column ): int {
+		$count = 0;
+		foreach ( $this->repository->versions( $version_table, $foreign_key, $master_id ) as $version ) {
+			$count += $this->repository->count_active_playbook_masters_for_component( $playbook_column, (int) ( $version['id'] ?? 0 ) );
+		}
+
+		return $count;
+	}
+
+	/**
+	 * @return array<string, mixed>
+	 */
+	private function active_campaign_run_usage_for_gophish_sending_profile( int $gophish_id ): array {
+		if ( $gophish_id <= 0 ) {
+			return $this->usage_summary( 0, 0, 0 );
+		}
+
+		$matching_ref_ids = [];
+		foreach ( $this->repository->all( self::SENDING_TABLE ) as $profile ) {
+			if ( (int) ( $profile['gophish_sending_profile_id'] ?? 0 ) === $gophish_id ) {
+				$matching_ref_ids[] = (int) ( $profile['id'] ?? 0 );
+			}
+		}
+
+		$count = 0;
+		foreach ( $this->active_campaign_run_rows() as $run ) {
+			$direct_match = (int) ( $run['gophish_sending_profile_id'] ?? 0 ) === $gophish_id;
+			$snapshot     = json_decode( (string) ( $run['snapshot_json'] ?? '' ), true );
+			$ref_id       = is_array( $snapshot ) ? (int) ( $snapshot['sending_profile']['ref_id'] ?? 0 ) : 0;
+
+			if ( $direct_match || in_array( $ref_id, $matching_ref_ids, true ) ) {
+				$count++;
+			}
+		}
+
+		return $this->usage_summary(
+			$count,
+			$this->repository->count_active_playbook_masters_for_gophish_sending_profile( $gophish_id ),
+			$this->repository->count_legacy_campaigns_for_gophish_asset( 'gophish_smtp_id', $gophish_id, self::ACTIVE_LEGACY_CAMPAIGN_STATUSES )
+		);
+	}
+
+	/**
+	 * @return array<string, mixed>
+	 */
+	private function active_campaign_run_usage_for_gophish_asset( string $column, int $gophish_id ): array {
+		if ( $gophish_id <= 0 ) {
+			return $this->usage_summary( 0, 0, 0 );
+		}
+
+		$count = 0;
+		foreach ( $this->active_campaign_run_rows() as $run ) {
+			if ( (int) ( $run[ $column ] ?? 0 ) === $gophish_id ) {
+				$count++;
+			}
+		}
+
+		return $this->usage_summary( $count, 0, 0 );
+	}
+
+	/**
+	 * @return array<string, mixed>
+	 */
+	private function gophish_asset_usage_from_columns( string $run_column, string $legacy_playbook_column, int $gophish_id ): array {
+		$campaign_usage = $this->active_campaign_run_usage_for_gophish_asset( $run_column, $gophish_id );
+
+		return $this->usage_summary(
+			(int) $campaign_usage['active_campaign_run_count'],
+			0,
+			$this->repository->count_legacy_campaigns_for_gophish_asset( $legacy_playbook_column, $gophish_id, self::ACTIVE_LEGACY_CAMPAIGN_STATUSES )
+		);
+	}
+
+	/**
+	 * @return array<string, mixed>
+	 */
+	private function gophish_sending_profile_usage( int $gophish_id ): array {
+		return $this->active_campaign_run_usage_for_gophish_sending_profile( $gophish_id );
+	}
+
+	/**
+	 * @return array<string, mixed>
+	 */
+	private function empty_active_usage(): array {
+		return $this->usage_summary( 0, 0, 0 );
+	}
+
+	/**
+	 * @return array<string, mixed>
+	 */
+	private function usage_summary( int $campaign_run_count, int $playbook_count, int $legacy_campaign_count ): array {
+		return [
+			'active_campaign_run_count'      => $campaign_run_count,
+			'active_playbook_count'          => $playbook_count,
+			'active_legacy_campaign_count'   => $legacy_campaign_count,
+			'active_usage_count'             => $campaign_run_count + $playbook_count + $legacy_campaign_count,
+			'active_statuses'                => self::ACTIVE_CAMPAIGN_RUN_STATUSES,
+			'active_playbook_statuses'       => [ 'active' ],
+			'active_legacy_campaign_statuses' => self::ACTIVE_LEGACY_CAMPAIGN_STATUSES,
+		];
+	}
+
+	/**
+	 * @return array<int, array<string, mixed>>
+	 */
+	private function active_campaign_run_rows(): array {
+		if ( null === $this->active_campaign_run_rows ) {
+			$this->active_campaign_run_rows = $this->repository->campaign_runs_by_status( self::ACTIVE_CAMPAIGN_RUN_STATUSES );
+		}
+
+		return $this->active_campaign_run_rows;
+	}
+
+	/**
+	 * @param array<string, mixed> $run Campaign Run row.
+	 */
+	private function campaign_run_snapshot_uses_component( array $run, string $component, int $component_id ): bool {
+		if ( $component_id <= 0 || empty( $run['snapshot_json'] ) ) {
+			return false;
+		}
+
+		$snapshot = json_decode( (string) $run['snapshot_json'], true );
+		if ( ! is_array( $snapshot ) ) {
+			return false;
+		}
+
+		return match ( $component ) {
+			'email_template'  => (int) ( $snapshot['email_template']['master_id'] ?? 0 ) === $component_id,
+			'landing_page'    => (int) ( $snapshot['landing_page']['master_id'] ?? 0 ) === $component_id,
+			'sending_profile' => (int) ( $snapshot['sending_profile']['ref_id'] ?? 0 ) === $component_id,
+			default           => false,
+		};
+	}
+
+	private function enforce_not_used_by_active_campaign_run( string $component, int $component_id, string $label ): ?WP_Error {
+		$usage = $this->active_component_usage( $component, $component_id );
+		if ( $usage['active_usage_count'] <= 0 ) {
+			return null;
+		}
+
+		return new WP_Error(
+			'master_component_locked_by_campaign_run',
+			sprintf(
+				/* translators: %s: master component label. */
+				__( '%s cannot be edited or deleted while it is used by an active Campaign or Playbook.', 'pukat' ),
+				$label
+			),
+			[
+				'status' => 409,
+				'usage'  => $usage,
 			]
 		);
 	}

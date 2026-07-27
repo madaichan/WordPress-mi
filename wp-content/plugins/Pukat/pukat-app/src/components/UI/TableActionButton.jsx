@@ -23,13 +23,15 @@ export default function TableActionButton({
   framed = true,
   to,
   onClick,
+  disabled = false,
   className,
 }) {
   const classes = clsx(
     'inline-flex items-center justify-center rounded-lg text-gray-500 transition-all focus:outline-none focus:ring-2 focus:ring-violet-400/40',
     sizeClass[size],
     framed ? 'border border-gray-200 bg-white' : 'border border-transparent bg-transparent',
-    toneClass[tone],
+    disabled && 'cursor-not-allowed opacity-50',
+    !disabled && toneClass[tone],
     className
   )
 
@@ -44,7 +46,7 @@ export default function TableActionButton({
   }
 
   return (
-    <button type="button" onClick={onClick} className={classes} title={title} aria-label={label}>
+    <button type="button" onClick={onClick} disabled={disabled} className={classes} title={title} aria-label={label}>
       {content}
     </button>
   )
