@@ -4,10 +4,28 @@ export function timezoneForRegion(region) {
   return 'Asia/Jakarta'
 }
 
+export function scheduleAtForDate(date) {
+  if (!date) return null
+  if (/^\d{4}-\d{2}-\d{2}$/.test(date)) return `${date} 09:00:00`
+  return String(date).replace('T', ' ').slice(0, 19)
+}
+
+export function playbookMasterIdForForm(form, playbooks) {
+  const selected = playbooks.find(playbook => String(playbook.id) === String(form.playbook))
+  const id = Number(selected?.id ?? form.playbook)
+
+  return Number.isFinite(id) && id > 0 ? id : null
+}
+
 export function buildCampaignLaunchPayload(form, playbooks) {
+  const selected = playbooks.find(playbook => String(playbook.id) === String(form.playbook))
+
   return {
-    name: form.name,
-    difficulty: playbooks.find(playbook => playbook.id === form.playbook)?.diff ?? 3,
+    playbook_master_id: playbookMasterIdForForm(form, playbooks),
+    name: form.name.trim(),
+    difficulty: selected?.diff ?? 3,
     timezone: timezoneForRegion(form.timezone),
+    schedule_at: scheduleAtForDate(form.dateStart),
+    target_group_name: form.targetGroupName?.trim() || null,
   }
 }

@@ -1,0 +1,1 @@
+import{o as e,p as t,g as a,u as r,q as p}from"./main-C7VmLPo0.js";const y={list:()=>a("/playbook-masters"),get:s=>a(`/playbook-masters/${s}`),create:s=>e("/playbook-masters",s),update:(s,o)=>t(`/playbook-masters/${s}`,o),delete:s=>e(`/playbook-masters/${s}/archive`)};function u(s={}){return r({queryKey:p.playbooks.list,queryFn:y.list,...s})}export{y as p,u};

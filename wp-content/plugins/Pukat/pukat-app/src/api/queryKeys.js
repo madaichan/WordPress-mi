@@ -6,6 +6,11 @@ export const queryKeys = {
     list: (params = {}) => ['campaigns', 'list', params],
   },
 
+  campaignRuns: {
+    all: ['campaign-runs'],
+    list: ['campaign-runs', 'list'],
+  },
+
   gophish: {
     all: ['gophish'],
     status: ['gophish', 'status'],

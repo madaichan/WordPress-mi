@@ -20,6 +20,23 @@ export function useCreateCampaignMutation(options = {}) {
   })
 }
 
+export function useCreateCampaignRunMutation(options = {}) {
+  const qc = useQueryClient()
+
+  return useMutation({
+    mutationFn: campaignApi.createRun,
+    onSuccess: (data, variables, context) => {
+      toast.success('Campaign run saved successfully.')
+      qc.invalidateQueries({ queryKey: queryKeys.campaignRuns.all })
+      options.onSuccess?.(data, variables, context)
+    },
+    onError: (err, variables, context) => {
+      toast.error(err.message || 'Failed to create campaign run.')
+      options.onError?.(err, variables, context)
+    },
+  })
+}
+
 export function useLaunchCampaignMutation(options = {}) {
   const qc = useQueryClient()
 

@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import toast from 'react-hot-toast'
 import clsx from 'clsx'
 import { FALLBACK_USERS } from '../../data/fallbacks.js'
@@ -14,10 +14,78 @@ import Textarea from '../../components/UI/Textarea.jsx'
 import Label from '../../components/UI/Label.jsx'
 import Checkbox from '../../components/UI/Checkbox.jsx'
 import Drawer from '../../components/UI/Drawer.jsx'
+import {
+  PlaybookComponentSelect,
+  PlaybookField,
+  PlaybookPreviewModal,
+  playbookFieldClass,
+} from '../../components/playbooks/PlaybookFormControls.jsx'
+import {
+  useMasterDynamicDomains,
+  useMasterEmailTemplates,
+  useMasterLandingPages,
+  useMasterSendingProfiles,
+} from '../../hooks/queries/useMasterAssetQueries.js'
+import { useGophishSmtpProfiles } from '../../hooks/queries/useGophishQueries.js'
+import { usePlaybooks } from '../../hooks/queries/usePlaybookQueries.js'
+import { useCreatePlaybookMutation, useUpdatePlaybookMutation } from '../../hooks/mutations/usePlaybookMutations.js'
 import { useUsers } from '../../hooks/queries/useUserQueries.js'
+import { masterAssetApi } from '../../api/index.js'
+import {
+  EMPTY_PLAYBOOK_COMPONENT_OPTIONS,
+  firstOption,
+  optionLabel,
+  playbookComponentOptions,
+} from '../../utils/playbookComponentOptions.js'
+import { GENERAL_ENTITY, applyAssignmentFromEntity, entityFromAssignment } from '../../utils/entityAssignmentHelpers.js'
 import { normalizePukatRole } from '../../utils/roles.js'
 
 const ATTACK_TYPE_OPTIONS = ['BEC', 'Credential', 'Malware', 'Vishing']
+
+const DIFFICULTY_OPTIONS = [
+  { value: 'Very Low', score: 1, label: 'Very Low (1/5)' },
+  { value: 'Low', score: 2, label: 'Low (2/5)' },
+  { value: 'Medium', score: 3, label: 'Medium (3/5)' },
+  { value: 'High', score: 4, label: 'High (4/5)' },
+  { value: 'Very High', score: 5, label: 'Very High (5/5)' },
+]
+
+const PLAYBOOK_COMPONENT_FIELDS = [
+  {
+    field: 'emailTemplate',
+    optionKey: 'email',
+    previewType: 'email',
+    icon: 'ti-mail',
+    bg: '#DBEAFE',
+    color: '#1D4ED8',
+    label: 'Email template',
+  },
+  {
+    field: 'landingPage',
+    optionKey: 'page',
+    previewType: 'landing',
+    icon: 'ti-world',
+    bg: '#D1FAE5',
+    color: '#065F46',
+    label: 'Landing page',
+  },
+  {
+    field: 'sendingProfile',
+    optionKey: 'smtp',
+    icon: 'ti-send',
+    bg: '#FEF3C7',
+    color: '#92400E',
+    label: 'Sending profile',
+  },
+  {
+    field: 'domain',
+    optionKey: 'domain',
+    icon: 'ti-network',
+    bg: '#F3E8FF',
+    color: '#7C3AED',
+    label: 'Dynamic domain',
+  },
+]
 
 
 const ASSET_CONFIG = {
@@ -28,12 +96,8 @@ const ASSET_CONFIG = {
     icon: 'ti-book',
     accent: 'violet',
     columns: ['Category', 'Difficulty'],
-    statusOptions: ['Published', 'Draft'],
-    items: [
-      { id: 'pb-bec-invoice', name: 'BEC Invoice Approval', metaA: 'BEC', metaB: 'High', status: 'Published', assignedTo: 'all', users: [] },
-      { id: 'pb-m365-reset', name: 'Microsoft 365 Password Reset', metaA: 'Credential', metaB: 'Medium', status: 'Published', assignedTo: 'specific', users: [2] },
-      { id: 'pb-hr-policy', name: 'HR Policy Attachment', metaA: 'Malware', metaB: 'Low', status: 'Draft', assignedTo: 'specific', users: [1, 2] },
-    ],
+    statusOptions: ['Draft', 'Published'],
+    items: [],
   },
   'sending-profiles': {
     title: 'Master sending profiles',
@@ -92,6 +156,7 @@ function normalizeUser(user) {
     name: user.display_name || user.name || user.email || `User ${user.id}`,
     email: user.email || '',
     role: normalizePukatRole(user.pukat_role ?? user.role),
+    entity: user.entity || user.pukat_entity || '',
   }
 }
 
@@ -99,6 +164,23 @@ function statusTone(status) {
   if (status === 'Published' || status === 'Valid') return 'success'
   if (status === 'Draft' || status === 'Not tested') return 'warning'
   return 'gray'
+}
+
+function displayPlaybookStatus(status) {
+  const normalized = String(status || '').toLowerCase()
+  if (normalized === 'active' || normalized === 'approved') return 'Published'
+  if (normalized === 'review') return 'Review'
+  if (normalized === 'deprecated') return 'Deprecated'
+  if (normalized === 'archived') return 'Archived'
+  return 'Draft'
+}
+
+function playbookStatusFromDisplay(status) {
+  return status === 'Published' ? 'active' : 'draft'
+}
+
+function playbookDifficultyLabel(value) {
+  return difficultyLabelFromValue(difficultyValueFromScore(value)).replace(/ \(\d\/5\)$/, '')
 }
 
 function slugify(value) {
@@ -125,7 +207,7 @@ function defaultPort(encryption) {
   return '587'
 }
 
-function defaultCreateForm(type, config) {
+function defaultCreateForm(type, config, componentOptions = EMPTY_PLAYBOOK_COMPONENT_OPTIONS) {
   const base = {
     name: '',
     status: config.statusOptions[0],
@@ -140,10 +222,10 @@ function defaultCreateForm(type, config) {
       category: 'Credential',
       difficulty: 'Medium',
       targetDepartment: 'All departments',
-      emailTemplate: 'Action Required: Sync your corporate inbox',
-      landingPage: 'Microsoft 365 Login Clone',
-      sendingProfile: 'standard-relay-02',
-      domain: 'mail.outlook-365-login.net',
+      emailTemplate: firstOption(componentOptions, 'email'),
+      landingPage: firstOption(componentOptions, 'page'),
+      sendingProfile: firstOption(componentOptions, 'smtp'),
+      domain: firstOption(componentOptions, 'domain'),
       scenario: '',
     }
   }
@@ -300,8 +382,160 @@ function AssignmentSummary({ item, usersById }) {
   )
 }
 
-function CreateAssetPanel({ type, config, users, onClose, onCreate }) {
-  const [form, setForm] = useState(() => defaultCreateForm(type, config))
+function playbookItemFromRow(row, users) {
+  const item = {
+    id: String(row.id),
+    raw: row,
+    name: row.name || `Playbook ${row.id}`,
+    metaA: row.scenario || 'Credential',
+    metaB: playbookDifficultyLabel(row.difficulty || 3),
+    status: displayPlaybookStatus(row.status),
+    entity: row.entity || GENERAL_ENTITY,
+    assignedTo: 'all',
+    users: [],
+  }
+
+  return applyAssignmentFromEntity(item, users)
+}
+
+function buildPlaybookPayloadFromForm(form, entity) {
+  return {
+    name: form.name.trim(),
+    description: form.description.trim(),
+    objective: form.scenario.trim(),
+    scenario: form.category,
+    difficulty: difficultyScoreFromValue(form.difficulty),
+    default_email_template_version_id: Number(form.emailTemplate) || null,
+    default_landing_page_version_id: Number(form.landingPage) || null,
+    default_sending_profile_ref_id: Number(form.sendingProfile) || null,
+    default_dynamic_domain_id: Number(form.domain) || null,
+    entity: entity || GENERAL_ENTITY,
+    status: playbookStatusFromDisplay(form.status),
+  }
+}
+
+function buildPlaybookPayloadFromRow(row, overrides = {}) {
+  return {
+    name: row.name || '',
+    description: row.description || '',
+    objective: row.objective || '',
+    scenario: row.scenario || '',
+    difficulty: Number(row.difficulty || 1) || 1,
+    default_email_template_version_id: Number(row.default_email_template_version_id || 0) || null,
+    default_landing_page_version_id: Number(row.default_landing_page_version_id || 0) || null,
+    default_sending_profile_ref_id: Number(row.default_sending_profile_ref_id || 0) || null,
+    default_dynamic_domain_id: Number(row.default_dynamic_domain_id || 0) || null,
+    entity: row.entity || GENERAL_ENTITY,
+    status: row.status || 'draft',
+    version: Number(row.version || 1) || 1,
+    ...overrides,
+  }
+}
+
+function difficultyScoreFromValue(value) {
+  return DIFFICULTY_OPTIONS.find(option => option.value === value)?.score ?? 3
+}
+
+function difficultyValueFromScore(score) {
+  return DIFFICULTY_OPTIONS.find(option => option.score === Number(score))?.value ?? 'Medium'
+}
+
+function difficultyLabelFromValue(value) {
+  return DIFFICULTY_OPTIONS.find(option => option.value === value)?.label ?? 'Medium (3/5)'
+}
+
+function PlaybookAssignmentEditor({ form, users, onChange, onToggleUser }) {
+  return (
+    <section className="space-y-3">
+      <div className="text-[11px] font-bold uppercase tracking-wider text-gray-500">Assignment</div>
+      <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
+        <button
+          type="button"
+          onClick={() => onChange('assignedTo', 'all')}
+          className={clsx('rounded-lg border p-3 text-left transition-all', form.assignedTo === 'all' ? 'border-violet-300 bg-violet-50' : 'border-gray-200 hover:bg-gray-50')}
+        >
+          <span className="block text-sm font-semibold text-gray-900">All users</span>
+          <span className="mt-0.5 block text-xs text-gray-500">Available to everyone.</span>
+        </button>
+        <button
+          type="button"
+          onClick={() => onChange('assignedTo', 'specific')}
+          className={clsx('rounded-lg border p-3 text-left transition-all', form.assignedTo === 'specific' ? 'border-violet-300 bg-violet-50' : 'border-gray-200 hover:bg-gray-50')}
+        >
+          <span className="block text-sm font-semibold text-gray-900">Specific users</span>
+          <span className="mt-0.5 block text-xs text-gray-500">Limit visibility.</span>
+        </button>
+      </div>
+
+      {form.assignedTo === 'specific' && (
+        <div className="space-y-2">
+          {users.map(user => (
+            <div
+              key={user.id}
+              role="button"
+              tabIndex={0}
+              onClick={() => onToggleUser(user.id)}
+              onKeyDown={event => {
+                if (event.key === 'Enter' || event.key === ' ') {
+                  event.preventDefault()
+                  onToggleUser(user.id)
+                }
+              }}
+              className="flex cursor-pointer items-center gap-3 rounded-lg border border-gray-100 p-3 hover:bg-gray-50"
+            >
+              <Checkbox
+                checked={form.users.includes(user.id)}
+                onClick={event => event.stopPropagation()}
+                onChange={() => onToggleUser(user.id)}
+              />
+              <span className="flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-full bg-violet-100 text-xs font-bold text-violet-700">
+                {user.name.charAt(0).toUpperCase()}
+              </span>
+              <span className="min-w-0">
+                <span className="block truncate text-sm font-semibold text-gray-900">{user.name}</span>
+                <span className="block truncate text-xs text-gray-500">{user.email}</span>
+              </span>
+            </div>
+          ))}
+          {users.length === 0 && (
+            <div className="rounded-lg border border-dashed border-gray-200 p-4 text-center text-xs font-medium text-gray-400">
+              No users available.
+            </div>
+          )}
+        </div>
+      )}
+    </section>
+  )
+}
+
+function CreateAssetPanel({ type, config, users, componentOptions = EMPTY_PLAYBOOK_COMPONENT_OPTIONS, saving = false, onClose, onCreate }) {
+  const [form, setForm] = useState(() => defaultCreateForm(type, config, componentOptions))
+  const [preview, setPreview] = useState(null)
+
+  useEffect(() => {
+    if (type !== 'playbooks') return
+
+    setForm(current => {
+      const next = {
+        ...current,
+        emailTemplate: current.emailTemplate || firstOption(componentOptions, 'email'),
+        landingPage: current.landingPage || firstOption(componentOptions, 'page'),
+        sendingProfile: current.sendingProfile || firstOption(componentOptions, 'smtp'),
+        domain: current.domain || firstOption(componentOptions, 'domain'),
+      }
+
+      if (
+        next.emailTemplate === current.emailTemplate
+        && next.landingPage === current.landingPage
+        && next.sendingProfile === current.sendingProfile
+        && next.domain === current.domain
+      ) {
+        return current
+      }
+
+      return next
+    })
+  }, [componentOptions, type])
 
   function update(field, value) {
     setForm(current => {
@@ -329,63 +563,192 @@ function CreateAssetPanel({ type, config, users, onClose, onCreate }) {
       return
     }
 
-    onCreate(buildAssetFromForm(type, form))
+    onCreate(type === 'playbooks' ? form : buildAssetFromForm(type, form))
+  }
+
+  function renderPlaybookDrawer() {
+    const difficultyScore = difficultyScoreFromValue(form.difficulty)
+
+    function previewComponent(component, option) {
+      if (option?.preview) {
+        setPreview(option.preview)
+        return
+      }
+
+      const value = option?.label || optionLabel(componentOptions[component.optionKey] || [], form[component.field], form[component.field])
+      if (!value) return
+      setPreview({ type: component.previewType, value })
+    }
+
+    return (
+      <div
+        className="fixed inset-0 z-50 flex justify-end bg-navy/40 backdrop-blur-sm"
+        onMouseDown={event => {
+          if (event.target === event.currentTarget) onClose()
+        }}
+      >
+        <aside className="flex h-full w-full max-w-[460px] flex-col bg-white shadow-2xl animate-slide-in">
+          <header className="flex flex-shrink-0 items-center gap-3 border-b border-gray-200 px-6 py-5">
+            <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-violet-100 text-violet-600">
+              <i className="ti ti-plus" />
+            </div>
+            <div className="min-w-0 flex-1">
+              <h2 className="text-base font-bold text-gray-900">Create playbook</h2>
+              <p className="text-xs text-gray-500">Create a master playbook and choose who can use it.</p>
+            </div>
+            <button
+              type="button"
+              onClick={onClose}
+              className="flex h-8 w-8 items-center justify-center rounded-lg text-gray-400 transition-colors hover:bg-gray-100 hover:text-gray-700"
+              aria-label="Close playbook form"
+            >
+              <i className="ti ti-x text-lg" />
+            </button>
+          </header>
+
+          <div className="flex-1 space-y-5 overflow-y-auto p-6">
+            <section className="space-y-3">
+              <div className="text-[11px] font-bold uppercase tracking-wider text-gray-500">Basic information</div>
+              <PlaybookField label="Playbook name" required>
+                <input
+                  value={form.name}
+                  onChange={event => update('name', event.target.value)}
+                  placeholder="Example: BEC - finance approval"
+                  className={playbookFieldClass()}
+                />
+              </PlaybookField>
+              <PlaybookField label="Description" required>
+                <textarea
+                  value={form.description}
+                  onChange={event => update('description', event.target.value)}
+                  placeholder="Brief playbook summary"
+                  rows={3}
+                  className={clsx(playbookFieldClass(), 'resize-none')}
+                />
+              </PlaybookField>
+              <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+                <PlaybookField label="Attack type">
+                  <select value={form.category} onChange={event => update('category', event.target.value)} className={playbookFieldClass()}>
+                    {ATTACK_TYPE_OPTIONS.map(option => (
+                      <option key={option}>{option}</option>
+                    ))}
+                  </select>
+                </PlaybookField>
+                <PlaybookField label="Status">
+                  <select value={form.status} onChange={event => update('status', event.target.value)} className={playbookFieldClass()}>
+                    {config.statusOptions.map(status => (
+                      <option key={status} value={status}>{status}</option>
+                    ))}
+                  </select>
+                </PlaybookField>
+              </div>
+              <PlaybookField label="Target department">
+                <input
+                  value={form.targetDepartment}
+                  onChange={event => update('targetDepartment', event.target.value)}
+                  placeholder="All departments"
+                  className={playbookFieldClass()}
+                />
+              </PlaybookField>
+              <PlaybookField label="Difficulty">
+                <input
+                  type="range"
+                  min="1"
+                  max="5"
+                  value={difficultyScore}
+                  onChange={event => update('difficulty', difficultyValueFromScore(event.target.value))}
+                  className="w-full accent-violet-500"
+                />
+                <div className="flex items-center justify-between">
+                  <div className="flex gap-1">
+                    {[1, 2, 3, 4, 5].map(score => (
+                      <span
+                        key={score}
+                        className={clsx('h-1.5 w-8 rounded-full', score <= difficultyScore ? 'bg-red-500' : 'bg-gray-200')}
+                      />
+                    ))}
+                  </div>
+                  <span className="text-[11px] font-semibold text-red-700">
+                    {difficultyLabelFromValue(form.difficulty)}
+                  </span>
+                </div>
+              </PlaybookField>
+            </section>
+
+            <div className="h-px bg-gray-100" />
+
+            <section className="space-y-3">
+              <div className="text-[11px] font-bold uppercase tracking-wider text-gray-500">Technical components</div>
+              {PLAYBOOK_COMPONENT_FIELDS.map(component => (
+                <PlaybookComponentSelect
+                  key={component.field}
+                  icon={component.icon}
+                  bg={component.bg}
+                  color={component.color}
+                  label={component.label}
+                  value={form[component.field]}
+                  options={componentOptions[component.optionKey] || []}
+                  emptyLabel={component.optionKey === 'domain' ? 'No dynamic domain (optional)' : ''}
+                  onChange={value => update(component.field, value)}
+                  onPreview={component.previewType ? option => previewComponent(component, option) : undefined}
+                />
+              ))}
+            </section>
+
+            <div className="h-px bg-gray-100" />
+
+            <section className="space-y-3">
+              <div className="text-[11px] font-bold uppercase tracking-wider text-gray-500">Scenario</div>
+              <PlaybookField label="Narrative shown to the target" required hint="This text appears in the playbook details after saving.">
+                <textarea
+                  value={form.scenario}
+                  onChange={event => update('scenario', event.target.value)}
+                  rows={5}
+                  placeholder="The target receives an email..."
+                  className={clsx(playbookFieldClass(), 'resize-none')}
+                />
+              </PlaybookField>
+            </section>
+
+            <div className="h-px bg-gray-100" />
+
+            <PlaybookAssignmentEditor
+              form={form}
+              users={users}
+              onChange={update}
+              onToggleUser={toggleUser}
+            />
+          </div>
+
+          <footer className="flex flex-shrink-0 items-center gap-3 border-t border-gray-200 bg-gray-50 px-6 py-5">
+            <button
+              type="button"
+              onClick={onClose}
+              className="ml-auto rounded-lg border border-gray-200 bg-white px-4 py-2 text-xs font-semibold text-gray-700 transition-colors hover:bg-gray-50"
+            >
+              Cancel
+            </button>
+            <button
+              type="button"
+              onClick={submit}
+              disabled={saving}
+              className="inline-flex items-center gap-1.5 rounded-lg border border-violet-500 bg-violet-500 px-4 py-2 text-xs font-semibold text-white transition-colors hover:bg-violet-600"
+            >
+              <i className="ti ti-device-floppy" />
+              {saving ? 'Saving...' : 'Create playbook'}
+            </button>
+          </footer>
+        </aside>
+        <PlaybookPreviewModal
+          preview={preview}
+          onClose={() => setPreview(null)}
+          offsetForSlideover
+        />
+      </div>
+    )
   }
 
   function renderTemplateFields() {
-    if (type === 'playbooks') {
-      return (
-        <section className="space-y-3">
-          <div className="text-xs font-semibold uppercase tracking-wider text-gray-500">Playbook scenario</div>
-          <div>
-            <Label>Description</Label>
-            <Textarea value={form.description} onChange={event => update('description', event.target.value)} className="min-h-[80px] resize-none" placeholder="Brief summary shown in the playbook library" />
-          </div>
-          <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
-            <div>
-              <Label>Attack type</Label>
-              <Select value={form.category} onChange={event => update('category', event.target.value)}>
-                {ATTACK_TYPE_OPTIONS.map(option => <option key={option}>{option}</option>)}
-              </Select>
-            </div>
-            <div>
-              <Label>Difficulty</Label>
-              <Select value={form.difficulty} onChange={event => update('difficulty', event.target.value)}>
-                {['Very Low', 'Low', 'Medium', 'High', 'Very High'].map(option => <option key={option}>{option}</option>)}
-              </Select>
-            </div>
-            <div>
-              <Label>Target department</Label>
-              <Input value={form.targetDepartment} onChange={event => update('targetDepartment', event.target.value)} />
-            </div>
-          </div>
-          <div className="text-xs font-semibold uppercase tracking-wider text-gray-500">Technical components</div>
-          <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-            <div>
-              <Label>Email template</Label>
-              <Input value={form.emailTemplate} onChange={event => update('emailTemplate', event.target.value)} />
-            </div>
-            <div>
-              <Label>Landing page</Label>
-              <Input value={form.landingPage} onChange={event => update('landingPage', event.target.value)} />
-            </div>
-            <div>
-              <Label>Sending profile</Label>
-              <Input value={form.sendingProfile} onChange={event => update('sendingProfile', event.target.value)} />
-            </div>
-            <div>
-              <Label>Dynamic domain</Label>
-              <Input value={form.domain} onChange={event => update('domain', event.target.value)} />
-            </div>
-          </div>
-          <div>
-            <Label>Narrative shown to the target</Label>
-            <Textarea value={form.scenario} onChange={event => update('scenario', event.target.value)} className="min-h-[110px] resize-none" placeholder="Describe the scenario used in this playbook" />
-          </div>
-        </section>
-      )
-    }
-
     if (type === 'sending-profiles') {
       return (
         <section className="space-y-3">
@@ -501,6 +864,10 @@ function CreateAssetPanel({ type, config, users, onClose, onCreate }) {
     )
   }
 
+  if (type === 'playbooks') {
+    return renderPlaybookDrawer()
+  }
+
   return (
     <Drawer
       onClose={onClose}
@@ -515,9 +882,9 @@ function CreateAssetPanel({ type, config, users, onClose, onCreate }) {
       footer={
         <>
           <Button variant="secondary" className="ml-auto" onClick={onClose}>Cancel</Button>
-          <Button variant="primary" onClick={submit}>
+          <Button variant="primary" onClick={submit} disabled={saving}>
             <i className="ti ti-plus" />
-            Create asset
+            {saving ? 'Saving...' : 'Create asset'}
           </Button>
         </>
       }
@@ -584,12 +951,35 @@ function CreateAssetPanel({ type, config, users, onClose, onCreate }) {
 
 export default function MasterAssetPage({ type }) {
   const config = ASSET_CONFIG[type] ?? ASSET_CONFIG.playbooks
-  const [items, setItems] = useState(config.items)
+  const [items, setItems] = useState(() => (type === 'playbooks' ? [] : config.items))
   const [query, setQuery] = useState('')
   const [editing, setEditing] = useState(null)
   const [creating, setCreating] = useState(false)
+  const [savingPlaybook, setSavingPlaybook] = useState(false)
 
   const { data: usersData } = useUsers({ per_page: 100 })
+  const componentQueryOptions = { enabled: type === 'playbooks' }
+  const { data: emailTemplates = [] } = useMasterEmailTemplates(componentQueryOptions)
+  const { data: landingPages = [] } = useMasterLandingPages(componentQueryOptions)
+  const { data: sendingProfiles = [], refetch: refetchSendingProfiles } = useMasterSendingProfiles(componentQueryOptions)
+  const { data: dynamicDomains = [] } = useMasterDynamicDomains(componentQueryOptions)
+  const { data: gophishSmtpProfiles = [] } = useGophishSmtpProfiles(componentQueryOptions)
+  const { data: playbookRows = [], isLoading: playbooksLoading } = usePlaybooks({
+    enabled: type === 'playbooks',
+    placeholderData: previous => previous,
+  })
+
+  const createPlaybookMutation = useCreatePlaybookMutation({
+    onSuccess: () => {
+      setQuery('')
+      setCreating(false)
+    },
+  })
+  const updatePlaybookMutation = useUpdatePlaybookMutation({
+    onSuccess: () => {
+      setEditing(null)
+    },
+  })
 
   const users = useMemo(() => {
     const source = usersData?.users?.length ? usersData.users : FALLBACK_USERS
@@ -597,6 +987,33 @@ export default function MasterAssetPage({ type }) {
   }, [usersData])
 
   const usersById = useMemo(() => new Map(users.map(user => [user.id, user])), [users])
+
+  const componentOptions = useMemo(() => (
+    playbookComponentOptions({
+      emailTemplates,
+      landingPages,
+      sendingProfiles,
+      dynamicDomains,
+      gophishSmtpProfiles,
+    })
+  ), [dynamicDomains, emailTemplates, gophishSmtpProfiles, landingPages, sendingProfiles])
+
+  const playbookItems = useMemo(() => (
+    Array.isArray(playbookRows)
+      ? playbookRows
+        .filter(row => row?.status !== 'archived')
+        .map(row => playbookItemFromRow(row, users))
+      : []
+  ), [playbookRows, users])
+
+  useEffect(() => {
+    if (type === 'playbooks') {
+      setItems(playbookItems)
+      return
+    }
+
+    setItems(config.items)
+  }, [config.items, playbookItems, type])
 
   const filteredItems = useMemo(() => {
     const term = query.trim().toLowerCase()
@@ -612,8 +1029,55 @@ export default function MasterAssetPage({ type }) {
 
   const allAssigned = items.filter(item => item.assignedTo === 'all').length
   const specificAssigned = items.length - allAssigned
+  const playbookCreateSaving = savingPlaybook || createPlaybookMutation.isPending
+
+  async function resolvePlaybookFormForSave(form, entity) {
+    const sendingProfileValue = String(form.sendingProfile || '')
+    if (!sendingProfileValue.startsWith('gophish:')) return form
+
+    const gophishId = Number(sendingProfileValue.replace('gophish:', ''))
+    if (!gophishId) return { ...form, sendingProfile: '' }
+
+    const existingRef = sendingProfiles.find(profile => (
+      Number(profile.gophish_sending_profile_id || 0) === gophishId
+    ))
+
+    if (existingRef?.id) {
+      return { ...form, sendingProfile: String(existingRef.id) }
+    }
+
+    const gophishProfile = gophishSmtpProfiles.find(profile => Number(profile.id) === gophishId)
+    const createdRef = await masterAssetApi.createSendingProfile({
+      name: gophishProfile?.name || `GoPhish SMTP ${gophishId}`,
+      gophish_sending_profile_id: gophishId,
+      from_email: gophishProfile?.from_address || gophishProfile?.from || '',
+      from_name: gophishProfile?.name || '',
+      entity: entity || GENERAL_ENTITY,
+      environment: 'production',
+      status: 'active',
+      allowed_domains: [],
+    })
+
+    await refetchSendingProfiles()
+
+    return { ...form, sendingProfile: String(createdRef.id) }
+  }
 
   function saveAssignment(nextAssignment) {
+    if (type === 'playbooks') {
+      const result = entityFromAssignment(nextAssignment, users)
+      if (result.error) {
+        toast.error(result.error)
+        return
+      }
+
+      updatePlaybookMutation.mutate({
+        id: editing.id,
+        data: buildPlaybookPayloadFromRow(editing.raw, { entity: result.entity }),
+      })
+      return
+    }
+
     setItems(current => current.map(item => (
       item.id === editing.id ? { ...item, ...nextAssignment } : item
     )))
@@ -621,7 +1085,26 @@ export default function MasterAssetPage({ type }) {
     setEditing(null)
   }
 
-  function createAsset(asset) {
+  async function createAsset(asset) {
+    if (type === 'playbooks') {
+      const result = entityFromAssignment(asset, users)
+      if (result.error) {
+        toast.error(result.error)
+        return
+      }
+
+      setSavingPlaybook(true)
+      try {
+        const resolvedForm = await resolvePlaybookFormForSave(asset, result.entity)
+        createPlaybookMutation.mutate(buildPlaybookPayloadFromForm(resolvedForm, result.entity))
+      } catch (error) {
+        toast.error(error.message || 'Failed to prepare playbook master.')
+      } finally {
+        setSavingPlaybook(false)
+      }
+      return
+    }
+
     setItems(current => [asset, ...current])
     setQuery('')
     toast.success(`Asset "${asset.name}" created.`)
@@ -718,7 +1201,9 @@ export default function MasterAssetPage({ type }) {
             ))}
             {filteredItems.length === 0 && (
               <tr>
-                <td colSpan={6} className="py-10 text-center text-sm text-gray-400">No assets found.</td>
+                <td colSpan={6} className="py-10 text-center text-sm text-gray-400">
+                  {type === 'playbooks' && playbooksLoading ? 'Loading playbook masters...' : 'No assets found.'}
+                </td>
               </tr>
             )}
           </tbody>
@@ -738,6 +1223,8 @@ export default function MasterAssetPage({ type }) {
           type={type}
           config={config}
           users={users}
+          componentOptions={componentOptions}
+          saving={type === 'playbooks' ? playbookCreateSaving : false}
           onClose={() => setCreating(false)}
           onCreate={createAsset}
         />

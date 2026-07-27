@@ -262,3 +262,71 @@ export function useValidateMasterSendingProfileMutation(options = {}) {
     },
   })
 }
+
+export function useCreateMasterDynamicDomainMutation(options = {}) {
+  const qc = useQueryClient()
+
+  return useMutation({
+    mutationFn: masterAssetApi.createDynamicDomain,
+    onSuccess: (data, variables, context) => {
+      toast.success('Dynamic domain saved.')
+      invalidateMasterAssets(qc, queryKeys.masterAssets.dynamicDomains)
+      options.onSuccess?.(data, variables, context)
+    },
+    onError: (err, variables, context) => {
+      toast.error(err.message || 'Failed to save dynamic domain.')
+      options.onError?.(err, variables, context)
+    },
+  })
+}
+
+export function useUpdateMasterDynamicDomainMutation(options = {}) {
+  const qc = useQueryClient()
+
+  return useMutation({
+    mutationFn: ({ id, data }) => masterAssetApi.updateDynamicDomain(id, data),
+    onSuccess: (data, variables, context) => {
+      toast.success('Dynamic domain updated.')
+      invalidateMasterAssets(qc, queryKeys.masterAssets.dynamicDomains)
+      options.onSuccess?.(data, variables, context)
+    },
+    onError: (err, variables, context) => {
+      toast.error(err.message || 'Failed to update dynamic domain.')
+      options.onError?.(err, variables, context)
+    },
+  })
+}
+
+export function useDeleteMasterDynamicDomainMutation(options = {}) {
+  const qc = useQueryClient()
+
+  return useMutation({
+    mutationFn: masterAssetApi.deleteDynamicDomain,
+    onSuccess: (data, variables, context) => {
+      toast.success('Dynamic domain deleted.')
+      invalidateMasterAssets(qc, queryKeys.masterAssets.dynamicDomains)
+      options.onSuccess?.(data, variables, context)
+    },
+    onError: (err, variables, context) => {
+      toast.error(err.message || 'Failed to delete dynamic domain.')
+      options.onError?.(err, variables, context)
+    },
+  })
+}
+
+export function useHealthCheckMasterDynamicDomainMutation(options = {}) {
+  const qc = useQueryClient()
+
+  return useMutation({
+    mutationFn: masterAssetApi.healthCheckDynamicDomain,
+    onSuccess: (data, variables, context) => {
+      toast.success('Dynamic domain health check updated.')
+      invalidateMasterAssets(qc, queryKeys.masterAssets.dynamicDomains)
+      options.onSuccess?.(data, variables, context)
+    },
+    onError: (err, variables, context) => {
+      toast.error(err.message || 'Failed to check dynamic domain health.')
+      options.onError?.(err, variables, context)
+    },
+  })
+}

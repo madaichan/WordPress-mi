@@ -1,5 +1,10 @@
 import { describe, expect, it } from 'vitest'
-import { buildCampaignLaunchPayload, timezoneForRegion } from './campaignLaunch.js'
+import {
+  buildCampaignLaunchPayload,
+  playbookMasterIdForForm,
+  scheduleAtForDate,
+  timezoneForRegion,
+} from './campaignLaunch.js'
 
 describe('campaignLaunch', () => {
   it('maps Indonesian time regions to IANA timezones', () => {
@@ -9,21 +14,36 @@ describe('campaignLaunch', () => {
     expect(timezoneForRegion('UTC')).toBe('Asia/Jakarta')
   })
 
+  it('normalizes schedule dates for Campaign Run API', () => {
+    expect(scheduleAtForDate('2026-08-10')).toBe('2026-08-10 09:00:00')
+    expect(scheduleAtForDate('2026-08-10T13:15:30.000Z')).toBe('2026-08-10 13:15:30')
+    expect(scheduleAtForDate('')).toBeNull()
+  })
+
+  it('resolves selected Playbook Master ID as a number', () => {
+    expect(playbookMasterIdForForm({ playbook: '24' }, [{ id: '24' }])).toBe(24)
+    expect(playbookMasterIdForForm({ playbook: 'missing' }, [])).toBeNull()
+  })
+
   it('builds launch payload from wizard form and selected playbook', () => {
     const payload = buildCampaignLaunchPayload(
-      { name: 'Finance wave', playbook: 'p2', timezone: 'WITA' },
-      [{ id: 'p1', diff: 2 }, { id: 'p2', diff: 5 }]
+      { name: ' Finance wave ', playbook: '24', timezone: 'WITA', dateStart: '2026-08-10' },
+      [{ id: '11', diff: 2 }, { id: '24', diff: 5 }]
     )
 
     expect(payload).toEqual({
+      playbook_master_id: 24,
       name: 'Finance wave',
       difficulty: 5,
       timezone: 'Asia/Makassar',
+      schedule_at: '2026-08-10 09:00:00',
+      target_group_name: null,
     })
   })
 
   it('uses default difficulty when playbook is missing', () => {
     expect(buildCampaignLaunchPayload({ name: 'Custom', playbook: 'missing', timezone: 'WIB' }, [])).toMatchObject({
+      playbook_master_id: null,
       difficulty: 3,
     })
   })

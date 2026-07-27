@@ -1,15 +1,26 @@
 import clsx from 'clsx'
 import { Link } from 'react-router-dom'
-import { PLAYBOOKS, TEMPLATES, DEMO_TARGET_TOTAL } from './wizardData.js'
+import { TEMPLATES, DEMO_TARGET_TOTAL } from './wizardData.js'
 
-export default function Step3({ form, csvData, onBack, onLaunch, onDraft, isLaunching }) {
-  const selectedPlaybook = PLAYBOOKS.find(p => p.id === form.playbook)
+export default function Step3({ form, csvData, playbooks = [], onBack, onLaunch, onDraft, isLaunching }) {
+  const selectedPlaybook = playbooks.find(p => String(p.id) === String(form.playbook))
+  const selectedPlaybookReady = String(selectedPlaybook?.status || '').toLowerCase() === 'active'
+  const playbookChecklistText = selectedPlaybook
+    ? selectedPlaybookReady
+      ? `Selected playbook — ${selectedPlaybook.name} (${selectedPlaybook.type}, difficulty ${selectedPlaybook.diff})`
+      : `Selected playbook — ${selectedPlaybook.name} (${selectedPlaybook.statusLabel || 'not active'}; activate before launch)`
+    : 'Select Playbook Master'
   const selectedTemplate = TEMPLATES.find(t => t.id === form.template)
   const targetCount = csvData.length || DEMO_TARGET_TOTAL
 
   const checklist = [
     { ok: true, text: `${targetCount.toLocaleString('en-US')} targets imported successfully` },
-    { ok: !!form.template, text: form.template ? `Selected email template — ${selectedTemplate?.name} (${selectedTemplate?.type}, difficulty ${selectedTemplate?.diff})` : 'Select phishing template' },
+    {
+      ok: form.mode === 'playbook' ? Boolean(selectedPlaybook) && selectedPlaybookReady : Boolean(form.template),
+      text: form.mode === 'playbook'
+        ? playbookChecklistText
+        : form.template ? `Selected email template — ${selectedTemplate?.name} (${selectedTemplate?.type}, difficulty ${selectedTemplate?.diff})` : 'Select phishing template',
+    },
     { ok: true, text: 'SMTP sending profile validated' },
     { ok: true, text: 'Landing page configured in GoPhish' },
     { ok: !!(form.dateStart && form.dateEnd), text: form.dateStart && form.dateEnd ? `Schedule set — ${form.dateStart} to ${form.dateEnd} (${form.timezone})` : 'Set sending schedule' },

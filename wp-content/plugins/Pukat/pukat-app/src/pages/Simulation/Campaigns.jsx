@@ -1,9 +1,10 @@
-import { useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import toast from 'react-hot-toast'
 import { useSearchFilter } from '../../hooks/useSearchFilter.js'
 import { useCampaignList } from '../../hooks/queries/useCampaignQueries.js'
-import { useCreateCampaignMutation, useDeleteCampaignMutation } from '../../hooks/mutations/useCampaignMutations.js'
+import { usePlaybooks } from '../../hooks/queries/usePlaybookQueries.js'
+import { useCreateCampaignMutation, useCreateCampaignRunMutation, useDeleteCampaignMutation } from '../../hooks/mutations/useCampaignMutations.js'
 import { buildCampaignLaunchPayload } from '../../utils/campaignLaunch.js'
 import WizardStepper from '../../features/campaigns/WizardStepper.jsx'
 import DeleteModal from '../../features/campaigns/DeleteModal.jsx'
@@ -12,7 +13,6 @@ import WorkspaceTabs from '../../features/campaigns/WorkspaceTabs.jsx'
 import Step1 from '../../features/campaigns/Wizard/Step1.jsx'
 import Step2 from '../../features/campaigns/Wizard/Step2.jsx'
 import Step3 from '../../features/campaigns/Wizard/Step3.jsx'
-import { PLAYBOOKS } from '../../features/campaigns/Wizard/wizardData.js'
 import OverviewView from '../../features/campaigns/Overview/OverviewView.jsx'
 import CalendarView from '../../features/campaigns/Views/CalendarView.jsx'
 import MonitoringView from '../../features/campaigns/Views/MonitoringView.jsx'
@@ -34,11 +34,62 @@ const INITIAL_FORM = {
   template: 't1',
   templateFilter: 'All',
   mode: 'playbook',
-  playbook: 'p1',
+  playbook: '',
   dateStart: '2025-06-28',
   dateEnd: '2025-07-05',
   timezone: 'WIB',
   sendingHours: 'work',
+}
+
+const PLAYBOOK_TYPE_COLORS = {
+  BEC: 'text-red-700',
+  Credential: 'text-amber-700',
+  Malware: 'text-emerald-700',
+  Vishing: 'text-purple-700',
+}
+
+function difficultyNumber(value) {
+  const number = Number(value)
+  if (!Number.isFinite(number)) return 3
+  return Math.min(Math.max(number, 1), 5)
+}
+
+function playbookTypeFromRow(row) {
+  const text = `${row.scenario || ''} ${row.name || ''} ${row.description || ''}`.toLowerCase()
+
+  if (/(bec|invoice|vendor|ceo|payment|billing)/.test(text)) return 'BEC'
+  if (/(malware|attachment|file|policy|hr)/.test(text)) return 'Malware'
+  if (/(vishing|voice|phone|call)/.test(text)) return 'Vishing'
+
+  return 'Credential'
+}
+
+function statusMeta(status) {
+  const normalized = String(status || 'draft').toLowerCase()
+
+  if (normalized === 'active') return { label: 'Active', className: 'bg-emerald-100 text-emerald-700' }
+  if (normalized === 'approved') return { label: 'Approved', className: 'bg-blue-100 text-blue-700' }
+  if (normalized === 'archived') return { label: 'Archived', className: 'bg-gray-100 text-gray-600' }
+
+  return { label: 'Draft', className: 'bg-amber-100 text-amber-700' }
+}
+
+function playbookMasterToWizardCard(row) {
+  const type = playbookTypeFromRow(row)
+  const status = statusMeta(row.status)
+
+  return {
+    id: String(row.id),
+    name: row.name || `Playbook ${row.id}`,
+    desc: row.description || row.objective || 'Reusable Playbook Master from database.',
+    type,
+    typeColor: PLAYBOOK_TYPE_COLORS[type] ?? PLAYBOOK_TYPE_COLORS.Credential,
+    diff: difficultyNumber(row.difficulty),
+    status: row.status || 'draft',
+    statusLabel: status.label,
+    statusClass: status.className,
+    raw: row,
+  }
 }
 
 // ── Main component ────────────────────────────────────────────────────────────
@@ -64,7 +115,26 @@ export default function Campaigns() {
     placeholderData: prev => prev,
   })
 
+  const { data: playbookRows = [], isLoading: playbooksLoading } = usePlaybooks({
+    placeholderData: previous => previous,
+  })
+
+  const wizardPlaybooks = useMemo(() => (
+    Array.isArray(playbookRows)
+      ? playbookRows
+          .filter(row => String(row?.status || '').toLowerCase() !== 'archived')
+          .map(playbookMasterToWizardCard)
+      : []
+  ), [playbookRows])
+
   const createCampaignMutation = useCreateCampaignMutation({
+    onSuccess: () => {
+      resetWizard()
+      navigate('/monitoring')
+    },
+  })
+
+  const createCampaignRunMutation = useCreateCampaignRunMutation({
     onSuccess: () => {
       resetWizard()
       navigate('/monitoring')
@@ -86,6 +156,17 @@ export default function Campaigns() {
   const activeCount = rawItems.filter(c => c.status === 'active').length
   const completedCount = rawItems.filter(c => c.status === 'completed').length
 
+  useEffect(() => {
+    if (!wizardPlaybooks.length) return
+
+    setForm(current => {
+      if (current.mode !== 'playbook') return current
+      if (wizardPlaybooks.some(playbook => String(playbook.id) === String(current.playbook))) return current
+
+      return { ...current, playbook: wizardPlaybooks[0].id }
+    })
+  }, [wizardPlaybooks])
+
   const resetWizard = () => {
     setWizardStep(1)
     setForm(INITIAL_FORM)
@@ -94,7 +175,24 @@ export default function Campaigns() {
 
   const handleLaunch = () => {
     if (!form.name.trim()) { toast.error('Campaign name is required.'); return }
-    createCampaignMutation.mutate(buildCampaignLaunchPayload(form, PLAYBOOKS))
+    if (form.mode === 'playbook') {
+      const selectedPlaybook = wizardPlaybooks.find(playbook => String(playbook.id) === String(form.playbook))
+
+      if (!selectedPlaybook) {
+        toast.error('Select a Playbook Master first.')
+        return
+      }
+
+      if (String(selectedPlaybook.status || '').toLowerCase() !== 'active') {
+        toast.error('Playbook Master must be Active before creating a Campaign Run.')
+        return
+      }
+
+      createCampaignRunMutation.mutate(buildCampaignLaunchPayload(form, wizardPlaybooks))
+      return
+    }
+
+    createCampaignMutation.mutate(buildCampaignLaunchPayload(form, []))
   }
 
   // ── New campaign wizard view ──
@@ -119,6 +217,8 @@ export default function Campaigns() {
         {wizardStep === 2 && (
           <Step2
             form={form} setForm={setForm}
+            playbooks={wizardPlaybooks}
+            playbooksLoading={playbooksLoading}
             onBack={() => setWizardStep(1)}
             onNext={() => setWizardStep(3)}
           />
@@ -126,10 +226,11 @@ export default function Campaigns() {
         {wizardStep === 3 && (
           <Step3
             form={form} csvData={csvData}
+            playbooks={wizardPlaybooks}
             onBack={() => setWizardStep(2)}
             onLaunch={handleLaunch}
             onDraft={() => { toast.success('Saved as draft.'); resetWizard(); navigate('/dashboard') }}
-            isLaunching={createCampaignMutation.isPending}
+            isLaunching={createCampaignMutation.isPending || createCampaignRunMutation.isPending}
           />
         )}
       </div>
