@@ -95,6 +95,14 @@ if (!container) {
   const loader = document.getElementById('pukat-loading')
   if (loader) loader.remove()
 
+  // PHP renders the intended route into data-initial-route (e.g. a WP Admin
+  // submenu click), but HashRouter only ever looks at window.location.hash.
+  // Apply it before mounting so deep links from WP Admin/the frontend page
+  // actually land on the right route instead of always falling back to index.
+  if (!window.location.hash && container.dataset.initialRoute) {
+    window.location.hash = container.dataset.initialRoute
+  }
+
   ReactDOM.createRoot(container).render(
     <ErrorBoundary>
       <QueryClientProvider client={queryClient}>
