@@ -19,6 +19,7 @@ use Pukat\Api\PlaybookMasterController;
 use Pukat\Api\QuizController;
 use Pukat\Api\ReportController;
 use Pukat\Api\SettingsController;
+use Pukat\Api\TableController;
 use Pukat\Api\UserController;
 use Pukat\Frontend\FrontendRouter;
 use Pukat\Services\AssetManifestService;
@@ -184,6 +185,7 @@ final class Plugin {
 		( new ReportController() )->register_routes();
 		( new QuizController() )->register_routes();
 		( new UserController() )->register_routes();
+		( new TableController() )->register_routes();
 	}
 
 	/**
