@@ -3,6 +3,7 @@ import clsx from 'clsx'
 import toast from 'react-hot-toast'
 import HtmlCodeEditor from '../../components/Editor/HtmlCodeEditor.jsx'
 import ClientPreview from '../../components/Editor/ClientPreview.jsx'
+import { AssetCard, AssetCreateCard, AssetEditorLayout } from '../../features/assets/components/index.js'
 import PageHeader from '../../components/UI/PageHeader.jsx'
 import Button from '../../components/UI/Button.jsx'
 import AlertConfirmation from '../../components/UI/AlertConfirmation.jsx'
@@ -66,72 +67,44 @@ function ThumbnailMockup({ page }) {
 function EmailTemplateCard({ page, canEdit, onEdit, onPreview, onDelete }) {
   const lockMessage = masterAssetLockMessage(page, 'Email template')
 
-  return (
-    <div className="email-page-card bg-white border border-gray-200 rounded-xl p-5 shadow-none flex flex-col justify-between h-80 transition-all hover:border-gray-300">
-      <div className="space-y-4">
-        <ThumbnailMockup page={page} />
-        <div>
-          <h3 className="text-sm font-bold text-gray-900">{page.name}</h3>
-          <p className="text-xs text-gray-500 mt-1 line-clamp-2">{page.description}</p>
-          <div className="mt-2 flex flex-wrap gap-1.5">
-            {page.entity && (
-              <span className="inline-flex rounded-full bg-gray-100 px-2 py-0.5 text-[9px] font-semibold text-gray-600">
-                {page.entity}
-              </span>
-            )}
-            {page.editLocked && (
-              <span className="inline-flex items-center gap-1 rounded-full bg-red-50 px-2 py-0.5 text-[9px] font-semibold text-red-700" title={lockMessage}>
-                <i className="ti ti-lock text-[10px]" />
-                Locked
-              </span>
-            )}
-          </div>
-        </div>
-      </div>
-      <div className="flex gap-2 mt-4 pt-3 border-t border-gray-50">
-        {canEdit && (
-          <button
-            onClick={() => onEdit(page.id)}
-            disabled={page.editLocked}
-            title={page.editLocked ? lockMessage : 'Edit'}
-            className="flex-1 bg-white border border-gray-200 text-gray-700 hover:bg-gray-50 py-1.5 text-xs font-semibold rounded-lg flex items-center justify-center gap-1 transition-all disabled:cursor-not-allowed disabled:opacity-50"
-          >
-            <i className="ti ti-edit text-sm" />
-            <span>Edit</span>
-          </button>
-        )}
-        {canEdit && (
-          <button
-            onClick={() => onDelete(page.id)}
-            disabled={page.editLocked}
-            title={page.editLocked ? lockMessage : 'Delete'}
-            className="flex-1 bg-white border border-red-100 text-red-600 hover:bg-red-50 py-1.5 text-xs font-semibold rounded-lg flex items-center justify-center gap-1 transition-all disabled:cursor-not-allowed disabled:opacity-50"
-          >
-            <i className="ti ti-trash text-sm" />
-            <span>Delete</span>
-          </button>
-        )}
-        <button
-          onClick={() => onPreview(page.id)}
-          className="flex-1 bg-white border border-gray-200 text-gray-700 hover:bg-gray-50 py-1.5 text-xs font-semibold rounded-lg flex items-center justify-center gap-1 transition-all"
-        >
-          <i className="ti ti-eye text-sm" />
-          <span>Preview</span>
-        </button>
-      </div>
-    </div>
-  )
-}
+  const actions = [
+    canEdit && {
+      key: 'edit',
+      label: 'Edit',
+      icon: 'ti-edit',
+      disabled: page.editLocked,
+      title: page.editLocked ? lockMessage : 'Edit',
+      onClick: () => onEdit(page.id),
+    },
+    canEdit && {
+      key: 'delete',
+      label: 'Delete',
+      icon: 'ti-trash',
+      tone: 'red',
+      disabled: page.editLocked,
+      title: page.editLocked ? lockMessage : 'Delete',
+      onClick: () => onDelete(page.id),
+    },
+    {
+      key: 'preview',
+      label: 'Preview',
+      icon: 'ti-eye',
+      onClick: () => onPreview(page.id),
+    },
+  ].filter(Boolean)
 
-function CreateCard({ onClick }) {
   return (
-    <div
-      onClick={onClick}
-      className="border border-dashed border-gray-200 hover:border-gray-300 rounded-xl p-5 flex flex-col items-center justify-center gap-2 cursor-pointer h-80 transition-all select-none text-gray-400 hover:text-gray-600 bg-white"
-    >
-      <i className="ti ti-plus text-3xl" />
-      <span className="text-sm font-semibold">Buat template baru</span>
-    </div>
+    <AssetCard
+      asset={page}
+      type="email_template"
+      title={page.name}
+      description={page.description}
+      entity={page.entity}
+      locked={page.editLocked}
+      lockReason={lockMessage}
+      thumbnail={<ThumbnailMockup page={page} />}
+      actions={actions}
+    />
   )
 }
 
@@ -271,26 +244,9 @@ function EditorPane({
           </div>
         </div>
 
-        {/* Right Code editor panel */}
-        <div className="lg:col-span-3 bg-white border border-gray-200 rounded-xl overflow-hidden flex flex-col shadow-sm">
-          <div className="bg-gray-50 border-b border-gray-200 px-4 py-2 flex items-center justify-between text-xs">
-            <div className="flex items-center gap-2">
-              <span className="w-2.5 h-2.5 rounded-full bg-red-400" />
-              <span className="w-2.5 h-2.5 rounded-full bg-yellow-400" />
-              <span className="w-2.5 h-2.5 rounded-full bg-green-400" />
-              <span className="text-gray-500 font-mono ml-2">email_source.html</span>
-            </div>
-            <div className="flex items-center gap-3">
-              <span className="text-gray-500 select-none">
-                {htmlCode.split('\n').length} baris
-              </span>
-              <span className="text-gray-400 select-none">HTML Source</span>
-            </div>
-          </div>
-
-          {/* Functional Code Editor */}
+        <AssetEditorLayout fileName="email_source.html" lineCount={htmlCode.split('\n').length} lineCountLabel="baris" elevated>
           <HtmlCodeEditor value={htmlCode} onChange={setHtmlCode} />
-        </div>
+        </AssetEditorLayout>
       </div>
     </div>
   )
@@ -623,7 +579,7 @@ export default function EmailTemplates() {
                   onDelete={handleDelete}
                 />
               ))}
-              {canCreateAssets && <CreateCard onClick={handleCreate} />}
+              {canCreateAssets && <AssetCreateCard label="Buat template baru" onClick={handleCreate} />}
             </div>
           </div>
         )}

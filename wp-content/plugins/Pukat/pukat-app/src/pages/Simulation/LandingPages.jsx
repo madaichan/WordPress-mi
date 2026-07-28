@@ -2,6 +2,7 @@ import { useState, useMemo, useCallback, useEffect } from 'react'
 import clsx from 'clsx'
 import toast from 'react-hot-toast'
 import HtmlCodeEditor from '../../components/Editor/HtmlCodeEditor.jsx'
+import { AssetCard, AssetCreateCard, AssetEditorLayout, BrowserPreview } from '../../features/assets/components/index.js'
 import PageHeader from '../../components/UI/PageHeader.jsx'
 import Button from '../../components/UI/Button.jsx'
 import AlertConfirmation from '../../components/UI/AlertConfirmation.jsx'
@@ -63,182 +64,46 @@ function ThumbnailMockup({ page }) {
 function LandingPageCard({ page, canEdit, onEdit, onPreview, onDelete }) {
   const lockMessage = masterAssetLockMessage(page, 'Landing page')
 
-  return (
-    <div
-      className="landing-page-card bg-white border border-gray-200 rounded-xl p-5 shadow-none flex flex-col justify-between h-80 transition-all hover:border-gray-300"
-      data-category={page.category}
-      data-title={page.name}
-    >
-      <div className="space-y-4">
-        <ThumbnailMockup page={page} />
-        <div>
-          {page.chips ? (
-            <>
-              <div className="flex items-center justify-between">
-                <h3 className="text-sm font-bold text-gray-900">{page.name}</h3>
-              </div>
-              {page.meta && (
-                <p className="text-[10px] text-gray-400 mt-0.5">{page.meta}</p>
-              )}
-              <div className="flex flex-wrap gap-1.5 mt-2">
-                {page.chips.map((chip) => (
-                  <span
-                    key={chip.label}
-                    className={clsx('rounded-full text-[9px] font-semibold px-2.5 py-0.5', chip.cls)}
-                  >
-                    {chip.label}
-                  </span>
-                ))}
-              </div>
-            </>
-          ) : (
-            <>
-              <h3 className="text-sm font-bold text-gray-900">{page.name}</h3>
-              {page.description && (
-                <p className="text-xs text-gray-500 mt-1">{page.description}</p>
-              )}
-              <div className="mt-2 flex flex-wrap gap-1.5">
-                {page.entity && (
-                  <span className="inline-flex rounded-full bg-gray-100 px-2 py-0.5 text-[9px] font-semibold text-gray-600">
-                    {page.entity}
-                  </span>
-                )}
-                {page.editLocked && (
-                  <span className="inline-flex items-center gap-1 rounded-full bg-red-50 px-2 py-0.5 text-[9px] font-semibold text-red-700" title={lockMessage}>
-                    <i className="ti ti-lock text-[10px]" />
-                    Locked
-                  </span>
-                )}
-              </div>
-            </>
-          )}
-        </div>
-      </div>
-      <div className="flex gap-2 mt-4 pt-3 border-t border-gray-50">
-        {canEdit && (
-          <button
-            onClick={() => onEdit(page.id)}
-            disabled={page.editLocked}
-            title={page.editLocked ? lockMessage : 'Edit'}
-            className="flex-1 bg-white border border-gray-200 text-gray-700 hover:bg-gray-50 py-1.5 text-xs font-semibold rounded-lg flex items-center justify-center gap-1 transition-all disabled:cursor-not-allowed disabled:opacity-50"
-          >
-            <i className="ti ti-edit text-sm" />
-            <span>Edit</span>
-          </button>
-        )}
-        {canEdit && (
-          <button
-            onClick={() => onDelete(page.id)}
-            disabled={page.editLocked}
-            title={page.editLocked ? lockMessage : 'Delete'}
-            className="flex-1 bg-white border border-red-100 text-red-600 hover:bg-red-50 py-1.5 text-xs font-semibold rounded-lg flex items-center justify-center gap-1 transition-all disabled:cursor-not-allowed disabled:opacity-50"
-          >
-            <i className="ti ti-trash text-sm" />
-            <span>Delete</span>
-          </button>
-        )}
-        <button
-          onClick={() => onPreview(page.id)}
-          className="flex-1 bg-white border border-gray-200 text-gray-700 hover:bg-gray-50 py-1.5 text-xs font-semibold rounded-lg flex items-center justify-center gap-1 transition-all"
-        >
-          <i className="ti ti-eye text-sm" />
-          <span>Preview</span>
-        </button>
-      </div>
-    </div>
-  )
-}
-
-function CreateCard({ onClick }) {
-  return (
-    <div
-      onClick={onClick}
-      className="border border-dashed border-gray-200 hover:border-gray-300 rounded-xl p-5 flex flex-col items-center justify-center gap-2 cursor-pointer h-80 transition-all select-none text-gray-400 hover:text-gray-600 bg-white"
-    >
-      <i className="ti ti-plus text-3xl" />
-      <span className="text-sm font-semibold">Buat landing page baru</span>
-    </div>
-  )
-}
-
-/* ─── Browser Sandbox Preview ────────────────────────────────────────── */
-
-function BrowserPreview({ html, redirectUrl }) {
-  const [viewport, setViewport] = useState('desktop') // 'desktop', 'tablet', 'mobile'
-
-  const widthClass = {
-    desktop: 'w-full max-w-5xl',
-    tablet: 'w-[768px]',
-    mobile: 'w-[375px]'
-  }[viewport]
+  const actions = [
+    canEdit && {
+      key: 'edit',
+      label: 'Edit',
+      icon: 'ti-edit',
+      disabled: page.editLocked,
+      title: page.editLocked ? lockMessage : 'Edit',
+      onClick: () => onEdit(page.id),
+    },
+    canEdit && {
+      key: 'delete',
+      label: 'Delete',
+      icon: 'ti-trash',
+      tone: 'red',
+      disabled: page.editLocked,
+      title: page.editLocked ? lockMessage : 'Delete',
+      onClick: () => onDelete(page.id),
+    },
+    {
+      key: 'preview',
+      label: 'Preview',
+      icon: 'ti-eye',
+      onClick: () => onPreview(page.id),
+    },
+  ].filter(Boolean)
 
   return (
-    <div className="w-full flex flex-col items-center space-y-4 animate-fade-in">
-      {/* Viewport Control Bar */}
-      <div className="flex items-center justify-between w-full max-w-5xl bg-white border border-gray-200 rounded-xl px-4 py-2 text-xs">
-        <div className="flex items-center gap-2">
-          <span className="font-semibold text-gray-500 mr-2">Viewport:</span>
-          <button
-            onClick={() => setViewport('desktop')}
-            className={clsx(
-              'px-2.5 py-1 rounded-md font-semibold transition-all flex items-center gap-1.5',
-              viewport === 'desktop' ? 'bg-violet-50 text-violet-600' : 'text-gray-600 hover:bg-gray-50'
-            )}
-          >
-            <i className="ti ti-device-desktop text-sm" /> Desktop
-          </button>
-          <button
-            onClick={() => setViewport('tablet')}
-            className={clsx(
-              'px-2.5 py-1 rounded-md font-semibold transition-all flex items-center gap-1.5',
-              viewport === 'tablet' ? 'bg-violet-50 text-violet-600' : 'text-gray-600 hover:bg-gray-50'
-            )}
-          >
-            <i className="ti ti-device-tablet text-sm" /> Tablet (768px)
-          </button>
-          <button
-            onClick={() => setViewport('mobile')}
-            className={clsx(
-              'px-2.5 py-1 rounded-md font-semibold transition-all flex items-center gap-1.5',
-              viewport === 'mobile' ? 'bg-violet-50 text-violet-600' : 'text-gray-600 hover:bg-gray-50'
-            )}
-          >
-            <i className="ti ti-device-mobile text-sm" /> Mobile (375px)
-          </button>
-        </div>
-        <div className="text-gray-400 select-none text-[10px] flex items-center gap-1">
-          <span className="inline-block w-1.5 h-1.5 rounded-full bg-emerald-500" /> Live Sandbox
-        </div>
-      </div>
-
-      {/* Browser Shell */}
-      <div className={clsx("bg-white border border-gray-200 rounded-xl overflow-hidden shadow-sm flex flex-col transition-all duration-300", widthClass)}>
-        {/* Browser Header */}
-        <div className="bg-gray-50 border-b border-gray-200 px-4 py-3 flex items-center gap-3">
-          {/* Dot buttons */}
-          <div className="flex items-center gap-1.5 flex-shrink-0">
-            <span className="w-3 h-3 rounded-full bg-red-400" />
-            <span className="w-3 h-3 rounded-full bg-yellow-400" />
-            <span className="w-3 h-3 rounded-full bg-green-400" />
-          </div>
-          {/* Address bar */}
-          <div className="bg-white border border-gray-200 rounded-lg px-3 py-1.5 flex items-center gap-2 flex-1 text-xs text-gray-500 select-none font-mono">
-            <i className="ti ti-lock text-emerald-600" />
-            <span className="truncate">{redirectUrl || 'https://portal.office.com'}</span>
-          </div>
-        </div>
-
-        {/* Content iframe */}
-        <div className="bg-gray-50 p-4 min-h-[500px] flex items-center justify-center w-full">
-          <iframe
-            srcDoc={html || '<h3>No HTML content</h3>'}
-            title="Landing Page Preview"
-            className="w-full min-h-[480px] bg-white border border-gray-200/80 rounded-lg shadow-sm"
-            sandbox="allow-scripts"
-          />
-        </div>
-      </div>
-    </div>
+    <AssetCard
+      asset={page}
+      type="landing_page"
+      title={page.name}
+      description={page.description}
+      meta={page.meta}
+      chips={page.chips}
+      entity={page.entity}
+      locked={page.editLocked}
+      lockReason={lockMessage}
+      thumbnail={<ThumbnailMockup page={page} />}
+      actions={actions}
+    />
   )
 }
 
@@ -401,26 +266,9 @@ function EditorPane({
           </div>
         </div>
 
-        {/* Right Code editor panel (3 cols) */}
-        <div className="lg:col-span-3 bg-white border border-gray-200 rounded-xl overflow-hidden flex flex-col">
-          <div className="bg-gray-50 border-b border-gray-200 px-4 py-2 flex items-center justify-between text-xs">
-            <div className="flex items-center gap-2">
-              <span className="w-2.5 h-2.5 rounded-full bg-red-400" />
-              <span className="w-2.5 h-2.5 rounded-full bg-yellow-400" />
-              <span className="w-2.5 h-2.5 rounded-full bg-green-400" />
-              <span className="text-gray-500 font-mono ml-2">template.html</span>
-            </div>
-            <div className="flex items-center gap-3">
-              <span className="text-gray-500 select-none">
-                {htmlCode.split('\n').length} baris
-              </span>
-              <span className="text-gray-400 select-none">HTML Source</span>
-            </div>
-          </div>
-
-          {/* Functional Code Editor */}
+        <AssetEditorLayout fileName="template.html" lineCount={htmlCode.split('\n').length} lineCountLabel="baris">
           <HtmlCodeEditor value={htmlCode} onChange={setHtmlCode} height={420} />
-        </div>
+        </AssetEditorLayout>
       </div>
     </div>
   )
@@ -759,7 +607,7 @@ export default function LandingPages() {
                   onDelete={handleDelete}
                 />
               ))}
-              {canCreateAssets && <CreateCard onClick={handleCreate} />}
+              {canCreateAssets && <AssetCreateCard label="Buat landing page baru" onClick={handleCreate} />}
             </div>
           </div>
         )}
