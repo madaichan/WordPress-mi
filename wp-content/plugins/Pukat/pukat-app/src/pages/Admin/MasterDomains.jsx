@@ -2,34 +2,28 @@ import { useMemo, useState } from 'react'
 import clsx from 'clsx'
 import toast from 'react-hot-toast'
 import { useMasterDynamicDomains } from '../../hooks/queries/useMasterAssetQueries.js'
+import { useTableRows, useTableSchema } from '../../hooks/queries/useTableQueries.js'
 import {
   useCreateMasterDynamicDomainMutation,
   useDeleteMasterDynamicDomainMutation,
   useHealthCheckMasterDynamicDomainMutation,
   useUpdateMasterDynamicDomainMutation,
 } from '../../hooks/mutations/useMasterAssetMutations.js'
-import TableActionButton from '../../components/UI/TableActionButton.jsx'
+import { DataTable } from '../../components/DataTable/index.js'
 import PageHeader from '../../components/UI/PageHeader.jsx'
 import Button from '../../components/UI/Button.jsx'
 import Drawer from '../../components/UI/Drawer.jsx'
-import Modal from '../../components/UI/Modal.jsx'
 import Label from '../../components/UI/Label.jsx'
 import Input from '../../components/UI/Input.jsx'
 import Select from '../../components/UI/Select.jsx'
+
+const TABLE_KEY = 'dynamic_domains'
+const DEFAULT_TABLE_STATE = { search: '', sort: 'domain', order: 'asc', page: 1, perPage: 25, filters: {} }
 
 const DOMAIN_TYPES = [
   { value: 'sending', label: 'Sending' },
   { value: 'landing', label: 'Landing page' },
   { value: 'both', label: 'Both' },
-]
-
-const STATUS_FILTERS = [
-  { value: 'all', label: 'All statuses' },
-  { value: 'available', label: 'Available' },
-  { value: 'pending', label: 'Pending DNS' },
-  { value: 'draft', label: 'Draft' },
-  { value: 'dns_issue', label: 'DNS issue' },
-  { value: 'ssl_warning', label: 'SSL warning' },
 ]
 
 const DOMAIN_STATUS_OPTIONS = [
@@ -48,7 +42,6 @@ const AUTHORIZATION_STATUS_OPTIONS = [
 const EMPTY_FORM = {
   name: '',
   type: 'both',
-  dynamicPattern: '',
   baseLandingUrl: '',
   trackingUrl: '',
   environment: 'production',
@@ -57,107 +50,21 @@ const EMPTY_FORM = {
   authorizationStatus: 'pending',
 }
 
-function addHours(hours) {
-  return new Date(Date.now() + hours * 60 * 60 * 1000).toISOString()
+function urlForDomain(domain, path = '') {
+  return domain ? `https://${domain}${path}` : ''
 }
 
-function addDays(days) {
-  return new Date(Date.now() + days * 24 * 60 * 60 * 1000).toISOString()
-}
-
-function formatDate(value) {
-  if (!value) return '-'
-  return new Date(value).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })
-}
-
-function formatTime(value) {
-  if (!value) return 'Not synced'
-  return new Date(value).toLocaleString('en-US', { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' })
-}
-
-function daysUntil(value) {
-  return Math.ceil((new Date(value).getTime() - Date.now()) / (24 * 60 * 60 * 1000))
-}
-
-function typeLabel(type) {
-  return DOMAIN_TYPES.find(option => option.value === type)?.label ?? type
-}
-
-function allDnsPass(dns) {
-  return ['spf', 'dkim', 'mx'].every(key => dns[key] === 'pass')
-}
-
-function hasDnsIssue(domain) {
-  return !allDnsPass(domain.dns)
-}
-
-function hasSslWarning(domain) {
-  return daysUntil(domain.sslValidUntil) <= 30
-}
-
-function dnsChecksFromStatus(status) {
-  if (status === 'healthy') return { spf: 'pass', dkim: 'pass', mx: 'pass' }
-  if (status === 'unhealthy') return { spf: 'fail', dkim: 'fail', mx: 'not_found' }
-  return { spf: 'not_found', dkim: 'not_found', mx: 'not_found' }
-}
-
-function sslValidUntilFromStatus(status) {
-  if (status === 'healthy') return addDays(90)
-  if (status === 'unhealthy') return addDays(-1)
-  return addDays(30)
-}
-
-function domainTypeFromRow(row) {
-  if (row.base_landing_url && row.tracking_url) return 'both'
-  if (row.base_landing_url) return 'landing'
-  return 'sending'
-}
-
-function availabilityFromRow(row) {
-  const status = String(row.status || 'draft').toLowerCase()
-  const authorization = String(row.authorization_status || 'pending').toLowerCase()
-
-  if (status === 'active' && authorization === 'authorized') return 'available'
-  if (status === 'draft') return 'draft'
-  return 'pending'
-}
-
-function dynamicPatternForDomain(domain) {
-  return domain ? `update-{random}.${domain}` : ''
-}
-
-function displayNotesForRow(row) {
-  return `${row.owner_entity || 'General'} · ${row.environment || 'production'} · ${row.authorization_status || 'pending'}`
-}
-
-function domainFromRow(row) {
-  const domainName = row.domain || ''
-
+function formFromRow(row) {
   return {
-    id: String(row.id),
-    name: domainName,
-    type: domainTypeFromRow(row),
-    notes: displayNotesForRow(row),
-    dynamicPattern: dynamicPatternForDomain(domainName),
-    dns: dnsChecksFromStatus(row.dns_status),
-    sslValidUntil: sslValidUntilFromStatus(row.tls_status),
-    availability: availabilityFromRow(row),
-    dependencies: [],
-    syncedAt: row.status === 'active' && row.authorization_status === 'authorized' ? row.updated_at || row.created_at : '',
-    lastCheckedAt: row.updated_at || row.created_at,
-    nextRefreshAt: addHours(24),
-    status: row.status || 'draft',
-    authorizationStatus: row.authorization_status || 'pending',
+    name: row.domain || '',
+    type: row.type || 'both',
     baseLandingUrl: row.base_landing_url || '',
     trackingUrl: row.tracking_url || '',
     environment: row.environment || 'production',
     ownerEntity: row.owner_entity || 'General',
-    raw: row,
+    status: row.status || 'draft',
+    authorizationStatus: row.authorization_status || 'pending',
   }
-}
-
-function urlForDomain(domain, path = '') {
-  return domain ? `https://${domain}${path}` : ''
 }
 
 function payloadFromForm(form) {
@@ -178,74 +85,6 @@ function payloadFromForm(form) {
     authorization_status: form.authorizationStatus,
     status: form.status,
   }
-}
-
-function dnsBadgeClass(status) {
-  if (status === 'pass') return 'bg-emerald-100 text-emerald-700'
-  if (status === 'fail') return 'bg-red-100 text-red-700'
-  return 'bg-amber-100 text-amber-700'
-}
-
-function availabilityClass(status) {
-  if (status === 'available') return 'bg-emerald-100 text-emerald-700'
-  if (status === 'in_use') return 'bg-blue-100 text-blue-700'
-  if (status === 'draft') return 'bg-gray-100 text-gray-700'
-  return 'bg-amber-100 text-amber-700'
-}
-
-function availabilityLabel(status) {
-  if (status === 'in_use') return 'In use'
-  if (status === 'pending') return 'Pending DNS'
-  return status.charAt(0).toUpperCase() + status.slice(1)
-}
-
-function DnsBadge({ label, status }) {
-  return (
-    <span className={clsx('inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[10px] font-semibold', dnsBadgeClass(status))}>
-      <span className="uppercase">{label}</span>
-      <span>{status.replace('_', ' ')}</span>
-    </span>
-  )
-}
-
-function SslBadge({ validUntil }) {
-  const days = daysUntil(validUntil)
-
-  if (days < 0) {
-    return (
-      <span className="inline-flex rounded-full bg-red-100 px-2 py-0.5 text-[10px] font-semibold text-red-700">
-        Expired {Math.abs(days)}d ago
-      </span>
-    )
-  }
-
-  if (days <= 30) {
-    return (
-      <span className="inline-flex rounded-full bg-amber-100 px-2 py-0.5 text-[10px] font-semibold text-amber-700">
-        Expires in {days}d
-      </span>
-    )
-  }
-
-  return (
-    <span className="inline-flex rounded-full bg-emerald-100 px-2 py-0.5 text-[10px] font-semibold text-emerald-700">
-      Valid until {formatDate(validUntil)}
-    </span>
-  )
-}
-
-function TypePill({ type }) {
-  const className = {
-    sending: 'bg-blue-100 text-blue-700',
-    landing: 'bg-emerald-100 text-emerald-700',
-    both: 'bg-violet-100 text-violet-500',
-  }[type]
-
-  return (
-    <span className={clsx('inline-flex rounded-full px-2 py-0.5 text-[10px] font-semibold', className)}>
-      {typeLabel(type)}
-    </span>
-  )
 }
 
 function SummaryCard({ icon, value, label, tone = 'violet' }) {
@@ -338,18 +177,6 @@ function DomainSlideover({ mode, form, sourceDomain, isSaving, onChange, onClose
             placeholder={`https://${form.name || 'example-portal.net'}/track`}
           />
         </div>
-        <div>
-          <Label>Pattern</Label>
-          <Input
-            value={form.dynamicPattern}
-            onChange={event => onChange('dynamicPattern', event.target.value)}
-            className="font-mono text-xs"
-            placeholder={`update-{random}.${form.name || 'example-portal.net'}`}
-          />
-          <span className="mt-1 block text-[10px] leading-relaxed text-gray-400">
-            Use <code className="rounded bg-gray-100 px-1 py-0.5">{'{random}'}</code> to generate a unique subdomain for each campaign.
-          </span>
-        </div>
       </section>
 
       <section className="space-y-3">
@@ -388,89 +215,50 @@ function DomainSlideover({ mode, form, sourceDomain, isSaving, onChange, onClose
         <section className="space-y-2 rounded-xl border border-gray-100 bg-gray-50 p-3">
           <div className="text-xs font-semibold uppercase tracking-wider text-gray-500">Current validation</div>
           <div className="flex flex-wrap gap-1.5">
-            <DnsBadge label="SPF" status={sourceDomain.dns.spf} />
-            <DnsBadge label="DKIM" status={sourceDomain.dns.dkim} />
-            <DnsBadge label="MX" status={sourceDomain.dns.mx} />
+            <span className="inline-flex rounded-full bg-gray-100 px-2 py-0.5 text-[10px] font-semibold text-gray-700">
+              DNS: {sourceDomain.dns_status || 'unknown'}
+            </span>
+            <span className="inline-flex rounded-full bg-gray-100 px-2 py-0.5 text-[10px] font-semibold text-gray-700">
+              TLS: {sourceDomain.tls_status || 'unknown'}
+            </span>
           </div>
-          <SslBadge validUntil={sourceDomain.sslValidUntil} />
         </section>
       )}
     </Drawer>
   )
 }
 
-function BlockedDeleteModal({ domain, onClose }) {
-  if (!domain) return null
-
-  return (
-    <Modal
-      onClose={onClose}
-      className="max-w-md"
-      icon={
-        <div className="flex h-9 w-9 flex-shrink-0 items-center justify-center rounded-lg bg-red-100 text-red-700">
-          <i className="ti ti-alert-triangle text-base" />
-        </div>
-      }
-      title="Domain cannot be deleted"
-      subtitle={`${domain.name} is used by active dependencies.`}
-      footer={<Button variant="primary" className="ml-auto" onClick={onClose}>Got it</Button>}
-    >
-      <div className="text-xs font-semibold uppercase tracking-wider text-gray-500">Dependencies</div>
-      <div className="mt-2 space-y-2">
-        {domain.dependencies.map(item => (
-          <div key={item} className="rounded-lg border border-gray-100 bg-gray-50 px-3 py-2 text-xs font-semibold text-gray-700">
-            {item}
-          </div>
-        ))}
-      </div>
-    </Modal>
-  )
-}
-
 export default function MasterDomains() {
-  const [query, setQuery] = useState('')
-  const [typeFilter, setTypeFilter] = useState('all')
-  const [statusFilter, setStatusFilter] = useState('all')
+  const [tableState, setTableState] = useState(DEFAULT_TABLE_STATE)
   const [slideoverMode, setSlideoverMode] = useState(null)
   const [sourceDomain, setSourceDomain] = useState(null)
   const [form, setForm] = useState(EMPTY_FORM)
-  const [blockedDelete, setBlockedDelete] = useState(null)
 
-  const { data: domainRows = [], isLoading, refetch: refetchDomains } = useMasterDynamicDomains({
-    placeholderData: previous => previous,
+  const { data: allDomains = [] } = useMasterDynamicDomains({ placeholderData: previous => previous })
+  const { data: schema } = useTableSchema(TABLE_KEY)
+  const { data: rowsData, isLoading, isFetching, refetch: refetchRows } = useTableRows(TABLE_KEY, {
+    search: tableState.search,
+    sort: tableState.sort,
+    order: tableState.order,
+    page: tableState.page,
+    per_page: tableState.perPage,
+    filters: tableState.filters,
   })
+
   const createMutation = useCreateMasterDynamicDomainMutation({ onSuccess: closeSlideover })
   const updateMutation = useUpdateMasterDynamicDomainMutation({ onSuccess: closeSlideover })
   const deleteMutation = useDeleteMasterDynamicDomainMutation()
   const healthCheckMutation = useHealthCheckMasterDynamicDomainMutation()
-
-  const domains = useMemo(() => (
-    Array.isArray(domainRows) ? domainRows.map(domainFromRow) : []
-  ), [domainRows])
-
   const isSaving = createMutation.isPending || updateMutation.isPending
 
+  const tableRows = rowsData?.rows || []
+
   const summary = useMemo(() => ({
-    total: domains.length,
-    dnsReady: domains.filter(domain => allDnsPass(domain.dns)).length,
-    sslWarnings: domains.filter(hasSslWarning).length,
-    inUse: domains.filter(domain => domain.availability === 'available').length,
-  }), [domains])
-
-  const filteredDomains = useMemo(() => {
-    const term = query.trim().toLowerCase()
-
-    return domains.filter(domain => {
-      const matchesType = typeFilter === 'all' || domain.type === typeFilter || (typeFilter === 'sending' && domain.type === 'both') || (typeFilter === 'landing' && domain.type === 'both')
-      const matchesSearch = !term || domain.name.toLowerCase().includes(term) || domain.notes.toLowerCase().includes(term)
-      const matchesStatus = statusFilter === 'all'
-        || domain.availability === statusFilter
-        || (statusFilter === 'dns_issue' && hasDnsIssue(domain))
-        || (statusFilter === 'ssl_warning' && hasSslWarning(domain))
-
-      return matchesType && matchesSearch && matchesStatus
-    })
-  }, [domains, query, statusFilter, typeFilter])
+    total: allDomains.length,
+    dnsHealthy: allDomains.filter(domain => domain.dns_status === 'healthy').length,
+    tlsHealthy: allDomains.filter(domain => domain.tls_status === 'healthy').length,
+    available: allDomains.filter(domain => domain.status === 'active' && domain.authorization_status === 'authorized').length,
+  }), [allDomains])
 
   function updateForm(field, value) {
     setForm(current => ({ ...current, [field]: value }))
@@ -482,33 +270,20 @@ export default function MasterDomains() {
     setSlideoverMode('create')
   }
 
-  function openEdit(domain) {
-    setSourceDomain(domain)
-    setForm({
-      name: domain.name,
-      type: domain.type,
-      dynamicPattern: domain.dynamicPattern,
-      baseLandingUrl: domain.baseLandingUrl,
-      trackingUrl: domain.trackingUrl,
-      environment: domain.environment,
-      ownerEntity: domain.ownerEntity,
-      status: domain.status,
-      authorizationStatus: domain.authorizationStatus,
-    })
+  function openEdit(row) {
+    setSourceDomain(row)
+    setForm(formFromRow(row))
     setSlideoverMode('edit')
   }
 
-  function openDuplicate(domain) {
-    const draftName = `draft-${domain.name}`
-    setSourceDomain(domain)
+  function openDuplicate(row) {
+    const draftName = `draft-${row.domain}`
+    setSourceDomain(row)
     setForm({
+      ...formFromRow(row),
       name: draftName,
-      type: domain.type,
-      dynamicPattern: domain.dynamicPattern ? domain.dynamicPattern.replace(domain.name, draftName) : '',
-      baseLandingUrl: domain.baseLandingUrl ? domain.baseLandingUrl.replace(domain.name, draftName) : '',
-      trackingUrl: domain.trackingUrl ? domain.trackingUrl.replace(domain.name, draftName) : '',
-      environment: domain.environment,
-      ownerEntity: domain.ownerEntity,
+      baseLandingUrl: row.base_landing_url ? row.base_landing_url.replace(row.domain, draftName) : '',
+      trackingUrl: row.tracking_url ? row.tracking_url.replace(row.domain, draftName) : '',
       status: 'draft',
       authorizationStatus: 'pending',
     })
@@ -529,12 +304,6 @@ export default function MasterDomains() {
       return
     }
 
-    const duplicate = domains.some(domain => domain.name.toLowerCase() === name && domain.id !== sourceDomain?.id)
-    if (duplicate) {
-      toast.error(`Domain "${name}" already exists.`)
-      return
-    }
-
     const isUpdate = slideoverMode === 'edit'
     const payload = payloadFromForm(form)
 
@@ -545,13 +314,13 @@ export default function MasterDomains() {
     }
   }
 
-  function validateDomain(domain) {
-    healthCheckMutation.mutate(domain.id)
+  function validateDomain(row) {
+    healthCheckMutation.mutate(row.id)
   }
 
-  function authorizeDomain(domain) {
+  function authorizeDomain(row) {
     updateMutation.mutate({
-      id: domain.id,
+      id: row.id,
       data: {
         status: 'active',
         authorization_status: 'authorized',
@@ -559,28 +328,19 @@ export default function MasterDomains() {
     })
   }
 
-  function generateSubdomain(domain) {
-    if (!domain.dynamicPattern || !domain.dynamicPattern.includes('{random}')) {
-      toast.error('Add a dynamic pattern with {random} first.')
-      return
-    }
-
-    const random = Math.random().toString(36).slice(2, 8)
-    const subdomain = domain.dynamicPattern.replace('{random}', random)
-    toast.success(`Generated campaign domain: ${subdomain}`)
-  }
-
-  function deleteDomain(domain) {
-    if (domain.dependencies.length) {
-      setBlockedDelete(domain)
-      toast.error('Domain is used by active dependencies.')
-      return
-    }
-
-    const confirmed = window.confirm(`Delete domain "${domain.name}"?`)
+  function deleteDomain(row) {
+    const confirmed = window.confirm(`Delete domain "${row.domain}"?`)
     if (!confirmed) return
 
-    deleteMutation.mutate(domain.id)
+    deleteMutation.mutate(row.id)
+  }
+
+  function handleRowAction({ actionKey, row }) {
+    if (actionKey === 'edit') openEdit(row)
+    else if (actionKey === 'duplicate') openDuplicate(row)
+    else if (actionKey === 'validate') validateDomain(row)
+    else if (actionKey === 'authorize') authorizeDomain(row)
+    else if (actionKey === 'delete') deleteDomain(row)
   }
 
   return (
@@ -590,7 +350,7 @@ export default function MasterDomains() {
         subtitle="Manage lookalike domains for sending and landing page hosting."
         actions={
           <>
-            <Button variant="outline" onClick={() => refetchDomains()}>
+            <Button variant="outline" onClick={() => refetchRows()}>
               Refresh list
             </Button>
             <Button variant="primary" onClick={openCreate}>
@@ -603,134 +363,22 @@ export default function MasterDomains() {
 
       <div className="grid grid-cols-1 gap-4 md:grid-cols-4">
         <SummaryCard icon="ti-world" value={summary.total} label="Master domains" tone="violet" />
-        <SummaryCard icon="ti-shield-check" value={summary.dnsReady} label="DNS ready" tone="emerald" />
-        <SummaryCard icon="ti-lock-exclamation" value={summary.sslWarnings} label="SSL warnings" tone="amber" />
-        <SummaryCard icon="ti-link" value={summary.inUse} label="Available" tone="blue" />
+        <SummaryCard icon="ti-shield-check" value={summary.dnsHealthy} label="DNS healthy" tone="emerald" />
+        <SummaryCard icon="ti-lock-exclamation" value={summary.tlsHealthy} label="TLS healthy" tone="amber" />
+        <SummaryCard icon="ti-link" value={summary.available} label="Available" tone="blue" />
       </div>
 
-      <div className="overflow-hidden rounded-2xl border border-gray-200 bg-white shadow-sm">
-        <div className="flex flex-col gap-4 border-b border-gray-100 bg-gray-50/40 p-5 lg:flex-row lg:items-center lg:justify-between">
-          <div>
-            <h3 className="text-sm font-bold text-gray-900">Lookalike Domains</h3>
-            <p className="mt-0.5 text-xs text-gray-500">DNS, SSL, authorization, and availability are read from Dynamic Domain Master.</p>
-          </div>
-          <div className="flex flex-col gap-2 sm:flex-row">
-            <div className="relative">
-              <i className="ti ti-search absolute left-3 top-1/2 -translate-y-1/2 text-sm text-gray-400" />
-              <input
-                type="search"
-                value={query}
-                onChange={event => setQuery(event.target.value)}
-                placeholder="Search domains..."
-                className="w-full rounded-xl border border-gray-200 bg-white px-3 py-2 pl-9 text-xs text-gray-700 outline-none focus:border-[#6C63FF] focus:ring-2 focus:ring-[#6C63FF]/10 sm:w-64"
-              />
-            </div>
-            <select value={typeFilter} onChange={event => setTypeFilter(event.target.value)} className="rounded-xl border border-gray-200 bg-white px-3 py-2 text-xs font-semibold text-gray-700 outline-none focus:border-[#6C63FF]">
-              <option value="all">All types</option>
-              {DOMAIN_TYPES.map(option => (
-                <option key={option.value} value={option.value}>{option.label}</option>
-              ))}
-            </select>
-            <select value={statusFilter} onChange={event => setStatusFilter(event.target.value)} className="rounded-xl border border-gray-200 bg-white px-3 py-2 text-xs font-semibold text-gray-700 outline-none focus:border-[#6C63FF]">
-              {STATUS_FILTERS.map(option => (
-                <option key={option.value} value={option.value}>{option.label}</option>
-              ))}
-            </select>
-          </div>
-        </div>
-
-        <div className="overflow-x-auto">
-          <table className="w-full border-collapse text-left text-xs">
-            <thead>
-              <tr className="border-b border-gray-100 bg-gray-50 text-[10px] font-semibold uppercase tracking-wider text-gray-500">
-                <th className="p-4">Domain</th>
-                <th className="p-4">Type</th>
-                <th className="p-4">DNS checks</th>
-                <th className="p-4">SSL/TLS</th>
-                <th className="p-4">Availability</th>
-                <th className="p-4">Dynamic pattern</th>
-                <th className="p-4">Authorization</th>
-                <th className="p-4">Next refresh</th>
-                <th className="w-44 p-4 pr-6 text-right">Actions</th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-gray-100">
-              {filteredDomains.map(domain => (
-                <tr key={domain.id} className="transition-colors hover:bg-gray-50/60">
-                  <td className="p-4">
-                    <div className="flex items-center gap-3">
-                      <span className="flex h-9 w-9 flex-shrink-0 items-center justify-center rounded-lg bg-violet-100 text-violet-500">
-                        <i className="ti ti-world text-sm" />
-                      </span>
-                      <div className="min-w-0">
-                        <div className="font-semibold text-gray-900">{domain.name}</div>
-                        <div className="mt-0.5 max-w-xs truncate text-[11px] text-gray-500">{domain.notes || domain.id}</div>
-                      </div>
-                    </div>
-                  </td>
-                  <td className="p-4"><TypePill type={domain.type} /></td>
-                  <td className="p-4">
-                    <div className="flex min-w-[210px] flex-wrap gap-1.5">
-                      <DnsBadge label="SPF" status={domain.dns.spf} />
-                      <DnsBadge label="DKIM" status={domain.dns.dkim} />
-                      <DnsBadge label="MX" status={domain.dns.mx} />
-                    </div>
-                  </td>
-                  <td className="p-4">
-                    <div className="space-y-1">
-                      <SslBadge validUntil={domain.sslValidUntil} />
-                      <div className="text-[10px] text-gray-400">{formatDate(domain.sslValidUntil)}</div>
-                    </div>
-                  </td>
-                  <td className="p-4">
-                    <span className={clsx('inline-flex rounded-full px-2 py-0.5 text-[10px] font-semibold', availabilityClass(domain.availability))}>
-                      {availabilityLabel(domain.availability)}
-                    </span>
-                  </td>
-                  <td className="p-4">
-                    <span className="block max-w-[220px] truncate font-mono text-[11px] text-gray-500">{domain.dynamicPattern || '-'}</span>
-                  </td>
-                  <td className="p-4">
-                    <span className={clsx('inline-flex rounded-full px-2 py-0.5 text-[10px] font-semibold', domain.authorizationStatus === 'authorized' ? 'bg-emerald-100 text-emerald-700' : 'bg-gray-100 text-gray-600')}>
-                      {domain.authorizationStatus.replace('_', ' ')}
-                    </span>
-                    <div className="mt-0.5 text-[10px] text-gray-400">Status: {domain.status}</div>
-                  </td>
-                  <td className="p-4 text-[11px] text-gray-500">
-                    <div>{formatTime(domain.nextRefreshAt)}</div>
-                    <div className="text-[10px] text-gray-400">Last: {formatTime(domain.lastCheckedAt)}</div>
-                  </td>
-                  <td className="w-44 p-4 pr-6 text-right">
-                    <div className="inline-flex items-center justify-end gap-1.5">
-                      <TableActionButton icon="ti-edit" label={`Edit ${domain.name}`} title="Edit" onClick={() => openEdit(domain)} />
-                      <TableActionButton icon="ti-copy" label={`Duplicate ${domain.name} as draft`} title="Duplicate as draft" tone="green" onClick={() => openDuplicate(domain)} />
-                      <TableActionButton icon="ti-shield-check" label={`Validate DNS for ${domain.name}`} title="Validate DNS" tone="blue" onClick={() => validateDomain(domain)} />
-                      <TableActionButton icon="ti-sparkles" label={`Generate dynamic subdomain for ${domain.name}`} title="Generate dynamic subdomain" tone="amber" onClick={() => generateSubdomain(domain)} />
-                      <TableActionButton icon="ti-circle-check" label={`Mark ${domain.name} active and authorized`} title="Authorize" onClick={() => authorizeDomain(domain)} />
-                      <TableActionButton icon="ti-trash" label={`Delete ${domain.name}`} title="Delete" tone="red" onClick={() => deleteDomain(domain)} />
-                    </div>
-                  </td>
-                </tr>
-              ))}
-              {isLoading && filteredDomains.length === 0 && (
-                <tr>
-                  <td colSpan={9} className="p-8 text-center text-sm text-gray-400">Loading domains...</td>
-                </tr>
-              )}
-              {!isLoading && filteredDomains.length === 0 && (
-                <tr>
-                  <td colSpan={9} className="p-8 text-center text-sm text-gray-400">No domains found.</td>
-                </tr>
-              )}
-            </tbody>
-          </table>
-        </div>
-
-        <div className="flex items-center justify-between border-t border-gray-100 bg-gray-50/40 p-4">
-          <span className="text-xs font-medium text-gray-500">{filteredDomains.length} domains</span>
-          <span className="text-xs font-medium text-gray-400">Automatic refresh interval: 24 hours</span>
-        </div>
-      </div>
+      <DataTable
+        tableKey={TABLE_KEY}
+        schema={schema}
+        rows={tableRows}
+        meta={rowsData?.meta}
+        state={tableState}
+        loading={isLoading}
+        refetching={isFetching}
+        onStateChange={setTableState}
+        onRowAction={handleRowAction}
+      />
 
       <DomainSlideover
         mode={slideoverMode}
@@ -741,8 +389,6 @@ export default function MasterDomains() {
         onClose={closeSlideover}
         onSubmit={submitDomain}
       />
-
-      <BlockedDeleteModal domain={blockedDelete} onClose={() => setBlockedDelete(null)} />
     </div>
   )
 }

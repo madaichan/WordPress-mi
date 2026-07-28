@@ -8,16 +8,17 @@ import RiskUsersCard from './RiskUsersCard.jsx'
 
 export default function OverviewView({
   campaigns,
-  items,
   totalTargets,
   activeCount,
-  search,
-  setSearch,
-  statusFilter,
-  setFilter,
-  isLoading,
+  schema,
+  rows,
+  meta,
+  tableState,
+  onTableStateChange,
+  loading,
+  refetching,
   onNew,
-  onDelete,
+  onRowAction,
 }) {
   const activeCampaign = campaigns.find(campaign => campaign.status === 'active') || campaigns[0]
 
@@ -43,14 +44,15 @@ export default function OverviewView({
       </div>
 
       <CampaignTable
-        items={items}
-        search={search}
-        setSearch={setSearch}
-        statusFilter={statusFilter}
-        setFilter={setFilter}
-        isLoading={isLoading}
+        schema={schema}
+        rows={rows}
+        meta={meta}
+        tableState={tableState}
+        onTableStateChange={onTableStateChange}
+        loading={loading}
+        refetching={refetching}
         onNew={onNew}
-        onDelete={onDelete}
+        onRowAction={onRowAction}
       />
     </div>
   )

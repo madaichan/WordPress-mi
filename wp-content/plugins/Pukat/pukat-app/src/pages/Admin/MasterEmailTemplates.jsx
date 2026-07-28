@@ -4,15 +4,16 @@ import clsx from 'clsx'
 import { FALLBACK_USERS } from '../../data/fallbacks.js'
 import HtmlCodeEditor from '../../components/Editor/HtmlCodeEditor.jsx'
 import ClientPreview from '../../components/Editor/ClientPreview.jsx'
+import { AssetEditorLayout } from '../../features/assets/components/index.js'
+import { DataTable } from '../../components/DataTable/index.js'
 import AssignmentBadge from '../../components/UI/AssignmentBadge.jsx'
 import AssignmentPanel from '../../components/UI/AssignmentPanel.jsx'
-import TableActionButton from '../../components/UI/TableActionButton.jsx'
 import AlertConfirmation from '../../components/UI/AlertConfirmation.jsx'
 import PageHeader from '../../components/UI/PageHeader.jsx'
 import Button from '../../components/UI/Button.jsx'
 import Tabs from '../../components/UI/Tabs.jsx'
-import Badge from '../../components/UI/Badge.jsx'
 import { useMasterEmailTemplates } from '../../hooks/queries/useMasterAssetQueries.js'
+import { useTableRows, useTableSchema } from '../../hooks/queries/useTableQueries.js'
 import { useUsers } from '../../hooks/queries/useUserQueries.js'
 import {
   useAssignMasterEmailTemplateEntityMutation,
@@ -46,116 +47,8 @@ const DEFAULT_HTML = `<!DOCTYPE html>
 </html>`
 
 const INITIAL_TEMPLATES = []
-
-function StatusBadge({ status }) {
-  const published = status === 'Published'
-  return <Badge tone={published ? 'success' : 'warning'} className="text-[10px]">{status}</Badge>
-}
-
-function EmailTemplatesTable({ templates, usersById, onEdit, onPreview, onAssign, onDelete }) {
-  return (
-    <div className="overflow-hidden rounded-xl border border-gray-200 bg-white">
-      <div className="overflow-x-auto">
-        <table className="w-full border-collapse text-left text-xs">
-          <thead>
-            <tr className="border-b border-gray-100 bg-gray-50 text-[10px] font-semibold uppercase tracking-wider text-gray-500">
-              <th className="p-4">Email template</th>
-              <th className="p-4">Category</th>
-              <th className="p-4">Sender</th>
-              <th className="p-4">Subject</th>
-              <th className="p-4">Status</th>
-              <th className="p-4">Assignment</th>
-              <th className="p-4">Entity</th>
-              <th className="w-40 p-4 pr-6 text-right">Actions</th>
-            </tr>
-          </thead>
-          <tbody className="divide-y divide-gray-100">
-            {templates.map(template => (
-              <tr key={template.id} className="transition-colors hover:bg-gray-50/70">
-                <td className="p-4">
-                  <div className="flex items-center gap-3">
-                    <span className={clsx('flex h-9 w-9 flex-shrink-0 items-center justify-center rounded-lg text-sm', template.thumbnail?.bg || 'bg-violet-100 text-violet-700')}>
-                      <i className={clsx('ti', template.thumbnail?.icon || 'ti-mail')} />
-                    </span>
-                    <div className="min-w-0">
-                      <div className="font-semibold text-gray-900">{template.name}</div>
-                      <div className="mt-0.5 flex max-w-xs flex-wrap items-center gap-1.5 text-[11px] text-gray-500">
-                        <span className="truncate">{template.description || template.id}</span>
-                        {template.editLocked && (
-                          <span className="inline-flex items-center gap-1 rounded-full bg-red-50 px-2 py-0.5 text-[10px] font-semibold text-red-700" title={masterAssetLockMessage(template, 'Email template')}>
-                            <i className="ti ti-lock text-[10px]" />
-                            Locked
-                          </span>
-                        )}
-                      </div>
-                    </div>
-                  </div>
-                </td>
-                <td className="p-4">
-                  <Badge tone="gray" className="text-[10px] capitalize">
-                    {template.category.replace('-', ' ')}
-                  </Badge>
-                </td>
-                <td className="p-4">
-                  <span className="block max-w-[180px] truncate text-[11px] font-medium text-gray-700">{template.sender || '-'}</span>
-                </td>
-                <td className="p-4">
-                  <span className="block max-w-[220px] truncate text-[11px] text-gray-500">{template.subject}</span>
-                </td>
-                <td className="p-4">
-                  <StatusBadge status={template.status} />
-                </td>
-                <td className="p-4">
-                  <AssignmentBadge item={template} usersById={usersById} />
-                </td>
-                <td className="p-4">
-                  <Badge tone={template.entity ? 'gray' : 'warning'} className="text-[10px]">
-                    {template.entity || 'No entity'}
-                  </Badge>
-                </td>
-                <td className="w-40 p-4 pr-6 text-right">
-                  <div className="inline-flex items-center gap-1.5">
-                    <TableActionButton
-                      icon="ti-user-check"
-                      label={`Assign ${template.name}`}
-                      title={template.editLocked ? masterAssetLockMessage(template, 'Email template') : 'Assign'}
-                      tone="green"
-                      disabled={template.editLocked}
-                      onClick={() => onAssign(template.id)}
-                    />
-                    <TableActionButton
-                      icon="ti-edit"
-                      label={`Edit ${template.name}`}
-                      title={template.editLocked ? masterAssetLockMessage(template, 'Email template') : 'Edit'}
-                      disabled={template.editLocked}
-                      onClick={() => onEdit(template.id)}
-                    />
-                    <TableActionButton icon="ti-eye" label={`Preview ${template.name}`} title="Preview" tone="blue" onClick={() => onPreview(template.id)} />
-                    <TableActionButton
-                      icon="ti-trash"
-                      label={`Delete ${template.name}`}
-                      title={template.editLocked ? masterAssetLockMessage(template, 'Email template') : 'Delete'}
-                      tone="red"
-                      disabled={template.editLocked}
-                      onClick={() => onDelete(template.id)}
-                    />
-                  </div>
-                </td>
-              </tr>
-            ))}
-            {templates.length === 0 && (
-              <tr>
-                <td colSpan={8} className="p-8 text-center text-sm text-gray-400">
-                  No email templates found.
-                </td>
-              </tr>
-            )}
-          </tbody>
-        </table>
-      </div>
-    </div>
-  )
-}
+const TABLE_KEY = 'email_templates'
+const DEFAULT_TABLE_STATE = { search: '', sort: 'name', order: 'asc', page: 1, perPage: 25, filters: {} }
 
 function PreviewFallback() {
   return (
@@ -256,21 +149,9 @@ function EditorPane({
           </div>
         </div>
 
-        <div className="flex flex-col overflow-hidden rounded-xl border border-gray-200 bg-white shadow-sm lg:col-span-3">
-          <div className="flex items-center justify-between border-b border-gray-200 bg-gray-50 px-4 py-2 text-xs">
-            <div className="flex items-center gap-2">
-              <span className="h-2.5 w-2.5 rounded-full bg-red-400" />
-              <span className="h-2.5 w-2.5 rounded-full bg-yellow-400" />
-              <span className="h-2.5 w-2.5 rounded-full bg-green-400" />
-              <span className="ml-2 font-mono text-gray-500">email_source.html</span>
-            </div>
-            <div className="flex items-center gap-3 text-gray-500">
-              <span>{htmlCode.split('\n').length} lines</span>
-              <span className="text-gray-400">HTML Source</span>
-            </div>
-          </div>
+        <AssetEditorLayout fileName="email_source.html" lineCount={htmlCode.split('\n').length} elevated>
           <HtmlCodeEditor value={htmlCode} onChange={setHtmlCode} />
-        </div>
+        </AssetEditorLayout>
       </div>
     </div>
   )
@@ -286,9 +167,8 @@ export default function MasterEmailTemplates() {
   const { data: masterTemplates = [], isFetching, refetch } = useMasterEmailTemplates()
   const { data: usersData } = useUsers({ per_page: 100 })
   const [templates, setTemplates] = useState(() => INITIAL_TEMPLATES.slice(0, 0))
+  const [tableState, setTableState] = useState(DEFAULT_TABLE_STATE)
   const [activeTab, setActiveTab] = useState('list')
-  const [activeFilter, setActiveFilter] = useState('all')
-  const [searchQuery, setSearchQuery] = useState('')
   const [previewTitle, setPreviewTitle] = useState('Microsoft Office 365 Alert')
   const [editingId, setEditingId] = useState(null)
   const [editingName, setEditingName] = useState('')
@@ -302,6 +182,16 @@ export default function MasterEmailTemplates() {
   const [deletingTemplateId, setDeletingTemplateId] = useState(null)
   const [syncing, setSyncing] = useState(false)
 
+  const { data: schema } = useTableSchema(TABLE_KEY)
+  const { data: rowsData, isLoading, isFetching: isFetchingRows, refetch: refetchRows } = useTableRows(TABLE_KEY, {
+    search: tableState.search,
+    sort: tableState.sort,
+    order: tableState.order,
+    page: tableState.page,
+    per_page: tableState.perPage,
+    filters: tableState.filters,
+  })
+
   const users = useMemo(() => {
     const source = usersData?.users?.length ? usersData.users : FALLBACK_USERS
     return source.map(userForAssignmentPanel)
@@ -309,32 +199,29 @@ export default function MasterEmailTemplates() {
 
   const usersById = useMemo(() => new Map(users.map(user => [user.id, user])), [users])
 
-  const filteredTemplates = useMemo(() => {
-    let list = templates
-    if (activeFilter !== 'all') {
-      list = list.filter(template => template.category === activeFilter)
-    }
-
-    const query = searchQuery.trim().toLowerCase()
-    if (!query) return list
-
-    return list.filter(template => (
-      template.name.toLowerCase().includes(query)
-      || template.description.toLowerCase().includes(query)
-      || template.sender.toLowerCase().includes(query)
-      || template.entity.toLowerCase().includes(query)
-      || template.subject.toLowerCase().includes(query)
-    ))
-  }, [activeFilter, searchQuery, templates])
-
-  const categories = useMemo(() => ([
-    { key: 'all', label: 'All', count: templates.length },
-    { key: 'alert', label: 'Security alert', count: templates.filter(template => template.category === 'alert').length },
-    { key: 'info', label: 'Internal info', count: templates.filter(template => template.category === 'info').length },
-    { key: 'urgent', label: 'Urgent notification', count: templates.filter(template => template.category === 'urgent').length },
-  ]), [templates])
   const entityCount = new Set(templates.map(template => template.entity).filter(Boolean)).size
   const noEntityCount = templates.filter(template => !template.entity).length
+
+  const tableRows = useMemo(
+    () => (rowsData?.rows || []).map(row => applyAssignmentFromEntity(row, users)),
+    [rowsData, users]
+  )
+
+  const columns = useMemo(() => {
+    const merged = []
+    ;(schema?.columns || []).forEach(column => {
+      merged.push(column)
+      if (column.key === 'category') {
+        merged.push({
+          key: 'assignment',
+          label: 'Assignment',
+          renderer: 'custom',
+          render: row => <AssignmentBadge item={row} usersById={usersById} />,
+        })
+      }
+    })
+    return merged
+  }, [schema, usersById])
 
   const clearEditingState = useCallback(() => {
     setEditingId(null)
@@ -353,7 +240,6 @@ export default function MasterEmailTemplates() {
   }, [clearEditingState])
 
   const closeEditor = useCallback(() => {
-    setSearchQuery('')
     switchTab('list')
   }, [switchTab])
 
@@ -487,7 +373,7 @@ export default function MasterEmailTemplates() {
 
   const handleSync = useCallback(async () => {
     setSyncing(true)
-    const result = await refetch()
+    const [result] = await Promise.all([refetch(), refetchRows()])
     setSyncing(false)
 
     if (result.error) {
@@ -496,7 +382,7 @@ export default function MasterEmailTemplates() {
     }
 
     toast.success(`Refresh complete - ${result.data?.length ?? 0} email template masters`)
-  }, [refetch])
+  }, [refetch, refetchRows])
 
   const saveAssignment = useCallback((assignment) => {
     if (!assignmentTemplate) return
@@ -518,13 +404,12 @@ export default function MasterEmailTemplates() {
     })
   }, [assignEntityMutation, assignmentTemplate, users])
 
-  const pillClass = (key) =>
-    clsx(
-      'rounded-full px-4 py-1.5 text-xs font-semibold transition-all select-none',
-      activeFilter === key
-        ? 'bg-gray-950 text-white'
-        : 'border border-gray-200 bg-white text-gray-600 hover:bg-gray-50'
-    )
+  function handleRowAction({ actionKey, row }) {
+    if (actionKey === 'assign') handleAssign(row.id)
+    else if (actionKey === 'edit') handleEdit(row.id)
+    else if (actionKey === 'preview') handlePreview(row.id)
+    else if (actionKey === 'delete') handleDelete(row.id)
+  }
 
   return (
     <div className="mt-4 space-y-6 lg:flex lg:h-[calc(100vh-110px)] lg:min-h-[720px] lg:flex-col lg:overflow-hidden animate-fade-in">
@@ -533,18 +418,6 @@ export default function MasterEmailTemplates() {
         subtitle="Manage WordPress-owned email template masters by entity."
         actions={
           <>
-            <div className="relative w-64">
-              <span className="pointer-events-none absolute inset-y-0 left-0 flex items-center pl-3 text-gray-400">
-                <i className="ti ti-search text-base" />
-              </span>
-              <input
-                type="text"
-                value={searchQuery}
-                onChange={event => setSearchQuery(event.target.value)}
-                placeholder="Search templates..."
-                className="w-full rounded-xl border border-gray-200 bg-white py-2 pl-9 pr-4 text-sm text-gray-950 outline-none placeholder:text-gray-400 focus:border-violet-500"
-              />
-            </div>
             <Button variant="outline" onClick={handleSync} disabled={syncing || isFetching}>
               <i className={clsx('ti ti-refresh text-base', (syncing || isFetching) && 'animate-spin')} />
               <span>Refresh</span>
@@ -582,20 +455,16 @@ export default function MasterEmailTemplates() {
       <div className="space-y-6 overflow-y-auto pb-4">
         {activeTab === 'list' && (
           <div className="space-y-6 animate-fade-in">
-            <div className="flex flex-wrap items-center gap-2">
-              {categories.map(category => (
-                <button key={category.key} onClick={() => setActiveFilter(category.key)} className={pillClass(category.key)}>
-                  {category.label} ({category.count})
-                </button>
-              ))}
-            </div>
-            <EmailTemplatesTable
-              templates={filteredTemplates}
-              usersById={usersById}
-              onEdit={handleEdit}
-              onPreview={handlePreview}
-              onAssign={handleAssign}
-              onDelete={handleDelete}
+            <DataTable
+              tableKey={TABLE_KEY}
+              schema={schema ? { ...schema, columns } : schema}
+              rows={tableRows}
+              meta={rowsData?.meta}
+              state={tableState}
+              loading={isLoading}
+              refetching={isFetchingRows}
+              onStateChange={setTableState}
+              onRowAction={handleRowAction}
             />
           </div>
         )}

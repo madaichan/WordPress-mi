@@ -1,28 +1,40 @@
 import React, { useState } from 'react'
-import { useAuditLogs, useUsers } from '../../hooks/queries/useUserQueries.js'
+import { useUsers } from '../../hooks/queries/useUserQueries.js'
+import { useTableRows, useTableSchema } from '../../hooks/queries/useTableQueries.js'
 import { useUpdateUserRoleMutation } from '../../hooks/mutations/useUserMutations.js'
 import { ROLE_LABELS, ROLE_VALUES, getPukatRoleBadge, normalizePukatRole } from '../../utils/roles.js'
+import { DataTable } from '../../components/DataTable/index.js'
 import PageHeader from '../../components/UI/PageHeader.jsx'
 import Tabs from '../../components/UI/Tabs.jsx'
 import Input from '../../components/UI/Input.jsx'
 import Card from '../../components/UI/Card.jsx'
 import Table from '../../components/UI/Table.jsx'
 import Badge from '../../components/UI/Badge.jsx'
-import EmptyState from '../../components/UI/EmptyState.jsx'
 
 const TABS = [
   { key: 'users', label: 'User Roles' },
   { key: 'audit', label: 'Audit Log' },
 ]
 
+const AUDIT_TABLE_KEY = 'audit_logs'
+const DEFAULT_AUDIT_TABLE_STATE = { search: '', sort: 'created_at', order: 'desc', page: 1, perPage: 50, filters: {} }
+
 export default function Users() {
   const [search, setSearch] = useState('')
   const [activeTab, setActiveTab] = useState('users')
+  const [auditTableState, setAuditTableState] = useState(DEFAULT_AUDIT_TABLE_STATE)
 
   const { data: usersData, isLoading } = useUsers({ search, per_page: 50 })
-  const { data: logs = [] } = useAuditLogs({ limit: 50 }, {
-    enabled: activeTab === 'audit',
-  })
+
+  const { data: auditSchema } = useTableSchema(AUDIT_TABLE_KEY, { enabled: activeTab === 'audit' })
+  const { data: auditRowsData, isLoading: isLoadingAuditRows, isFetching: isFetchingAuditRows } = useTableRows(AUDIT_TABLE_KEY, {
+    search: auditTableState.search,
+    sort: auditTableState.sort,
+    order: auditTableState.order,
+    page: auditTableState.page,
+    per_page: auditTableState.perPage,
+    filters: auditTableState.filters,
+  }, { enabled: activeTab === 'audit' })
 
   const roleMutation = useUpdateUserRoleMutation()
 
@@ -65,25 +77,16 @@ export default function Users() {
       )}
 
       {activeTab === 'audit' && (
-        <Card className="p-0">
-          <Table>
-            <thead><tr><th>Time</th><th>User</th><th>Action</th><th>Object</th><th>IP</th></tr></thead>
-            <tbody>
-              {logs.map((l, i) => (
-                <tr key={i}>
-                  <td className="text-xs text-gray-500">{new Date(l.created_at).toLocaleString()}</td>
-                  <td className="text-xs">{l.user_email}</td>
-                  <td><code className="text-xs bg-gray-100 px-1.5 py-0.5 rounded">{l.action}</code></td>
-                  <td className="text-xs text-gray-500">{l.object_type}{l.object_id ? ` #${l.object_id}` : ''}</td>
-                  <td className="text-xs text-gray-400">{l.ip_address}</td>
-                </tr>
-              ))}
-              {logs.length === 0 && (
-                <tr><td colSpan={5}><EmptyState title="No audit logs yet." /></td></tr>
-              )}
-            </tbody>
-          </Table>
-        </Card>
+        <DataTable
+          tableKey={AUDIT_TABLE_KEY}
+          schema={auditSchema}
+          rows={auditRowsData?.rows || []}
+          meta={auditRowsData?.meta}
+          state={auditTableState}
+          loading={isLoadingAuditRows}
+          refetching={isFetchingAuditRows}
+          onStateChange={setAuditTableState}
+        />
       )}
     </div>
   )

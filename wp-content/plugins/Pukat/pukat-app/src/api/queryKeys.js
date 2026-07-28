@@ -28,6 +28,12 @@ export const queryKeys = {
     dynamicDomains: ['master-assets', 'dynamic-domains'],
   },
 
+  tables: {
+    all: ['tables'],
+    schema: (tableKey) => ['tables', tableKey, 'schema'],
+    rows: (tableKey, params = {}) => ['tables', tableKey, 'rows', params],
+  },
+
   playbooks: {
     all: ['playbooks'],
     list: ['playbooks', 'list'],

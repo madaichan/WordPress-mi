@@ -2,15 +2,17 @@ import { useCallback, useEffect, useMemo, useState } from 'react'
 import toast from 'react-hot-toast'
 import clsx from 'clsx'
 import { FALLBACK_USERS } from '../../data/fallbacks.js'
+import { AssetEditorLayout, BrowserPreview } from '../../features/assets/components/index.js'
+import { DataTable } from '../../components/DataTable/index.js'
 import AssignmentBadge from '../../components/UI/AssignmentBadge.jsx'
 import AssignmentPanel from '../../components/UI/AssignmentPanel.jsx'
-import TableActionButton from '../../components/UI/TableActionButton.jsx'
 import AlertConfirmation from '../../components/UI/AlertConfirmation.jsx'
 import PageHeader from '../../components/UI/PageHeader.jsx'
 import Button from '../../components/UI/Button.jsx'
 import Tabs from '../../components/UI/Tabs.jsx'
 import Badge from '../../components/UI/Badge.jsx'
 import { useMasterLandingPages } from '../../hooks/queries/useMasterAssetQueries.js'
+import { useTableRows, useTableSchema } from '../../hooks/queries/useTableQueries.js'
 import { useUsers } from '../../hooks/queries/useUserQueries.js'
 import {
   useAssignMasterLandingPageEntityMutation,
@@ -46,168 +48,12 @@ const DEFAULT_HTML = `<!DOCTYPE html>
 </html>`
 
 const INITIAL_PAGES = []
+const TABLE_KEY = 'landing_pages'
+const DEFAULT_TABLE_STATE = { search: '', sort: 'name', order: 'asc', page: 1, perPage: 25, filters: {} }
 
 function CaptureBadge({ label }) {
   const isPass = label === 'Pass'
   return <Badge tone={isPass ? 'danger' : 'success'} className="text-[9px]">{label} ✓</Badge>
-}
-
-function LandingPagesTable({ pages, usersById, onEdit, onPreview, onAssign, onDelete }) {
-  return (
-    <div className="overflow-hidden rounded-xl border border-gray-200 bg-white">
-      <div className="overflow-x-auto">
-        <table className="w-full border-collapse text-left text-xs">
-          <thead>
-            <tr className="border-b border-gray-100 bg-gray-50 text-[10px] font-semibold uppercase tracking-wider text-gray-500">
-              <th className="p-4">Landing page</th>
-              <th className="p-4">Type</th>
-              <th className="p-4">Capture</th>
-              <th className="p-4">Assignment</th>
-              <th className="p-4">Entity</th>
-              <th className="p-4">Redirect URL</th>
-              <th className="w-40 p-4 pr-6 text-right">Actions</th>
-            </tr>
-          </thead>
-          <tbody className="divide-y divide-gray-100">
-            {pages.map(page => (
-              <tr key={page.id} className="transition-colors hover:bg-gray-50/70">
-                <td className="p-4">
-                  <div className="flex items-center gap-3">
-                    <span className="flex h-9 w-9 flex-shrink-0 items-center justify-center rounded-lg bg-violet-100 text-violet-500">
-                      <i className="ti ti-browser text-sm" />
-                    </span>
-                    <div className="min-w-0">
-                      <div className="font-semibold text-gray-900">{page.name}</div>
-                      <div className="mt-0.5 flex max-w-xs flex-wrap items-center gap-1.5 text-[11px] text-gray-500">
-                        <span className="truncate">{page.description || page.id}</span>
-                        {page.editLocked && (
-                          <span className="inline-flex items-center gap-1 rounded-full bg-red-50 px-2 py-0.5 text-[10px] font-semibold text-red-700" title={masterAssetLockMessage(page, 'Landing page')}>
-                            <i className="ti ti-lock text-[10px]" />
-                            Locked
-                          </span>
-                        )}
-                      </div>
-                    </div>
-                  </div>
-                </td>
-                <td className="p-4">
-                  <Badge tone="gray" className="text-[10px] capitalize">
-                    {page.category}
-                  </Badge>
-                </td>
-                <td className="p-4">
-                  <div className="flex flex-wrap gap-1.5">
-                    {page.badges.map(badge => <CaptureBadge key={badge} label={badge} />)}
-                  </div>
-                </td>
-                <td className="p-4">
-                  <AssignmentBadge item={page} usersById={usersById} />
-                </td>
-                <td className="p-4">
-                  <Badge tone={page.entity ? 'gray' : 'warning'} className="text-[10px]">
-                    {page.entity || 'No entity'}
-                  </Badge>
-                </td>
-                <td className="p-4">
-                  <span className="block max-w-[220px] truncate font-mono text-[11px] text-gray-500">
-                    {page.redirectUrl || '-'}
-                  </span>
-                </td>
-                <td className="w-40 p-4 pr-6 text-right">
-                  <div className="inline-flex items-center gap-1.5">
-                    <TableActionButton
-                      icon="ti-user-check"
-                      label={`Assign ${page.name}`}
-                      title={page.editLocked ? masterAssetLockMessage(page, 'Landing page') : 'Assign'}
-                      tone="green"
-                      disabled={page.editLocked}
-                      onClick={() => onAssign(page.id)}
-                    />
-                    <TableActionButton
-                      icon="ti-edit"
-                      label={`Edit ${page.name}`}
-                      title={page.editLocked ? masterAssetLockMessage(page, 'Landing page') : 'Edit'}
-                      disabled={page.editLocked}
-                      onClick={() => onEdit(page.id)}
-                    />
-                    <TableActionButton icon="ti-eye" label={`Preview ${page.name}`} title="Preview" tone="blue" onClick={() => onPreview(page.id)} />
-                    <TableActionButton
-                      icon="ti-trash"
-                      label={`Delete ${page.name}`}
-                      title={page.editLocked ? masterAssetLockMessage(page, 'Landing page') : 'Delete'}
-                      tone="red"
-                      disabled={page.editLocked}
-                      onClick={() => onDelete(page.id)}
-                    />
-                  </div>
-                </td>
-              </tr>
-            ))}
-            {pages.length === 0 && (
-              <tr>
-                <td colSpan={7} className="p-8 text-center text-sm text-gray-400">
-                  No landing pages found.
-                </td>
-              </tr>
-            )}
-          </tbody>
-        </table>
-      </div>
-    </div>
-  )
-}
-
-function BrowserPreview({ html, redirectUrl }) {
-  const [viewport, setViewport] = useState('desktop')
-  const widthClass = {
-    desktop: 'w-full max-w-5xl',
-    tablet: 'w-[768px]',
-    mobile: 'w-[375px]',
-  }[viewport]
-
-  return (
-    <div className="flex w-full flex-col items-center space-y-4 animate-fade-in">
-      <div className="flex w-full max-w-5xl items-center justify-between rounded-xl border border-gray-200 bg-white px-4 py-2 text-xs">
-        <div className="flex items-center gap-2">
-          <span className="mr-2 font-semibold text-gray-500">Viewport:</span>
-          {[
-            ['desktop', 'ti-device-desktop', 'Desktop'],
-            ['tablet', 'ti-device-tablet', 'Tablet (768px)'],
-            ['mobile', 'ti-device-mobile', 'Mobile (375px)'],
-          ].map(([key, icon, label]) => (
-            <button
-              key={key}
-              type="button"
-              onClick={() => setViewport(key)}
-              className={clsx('flex items-center gap-1.5 rounded-md px-2.5 py-1 font-semibold transition-all', viewport === key ? 'bg-violet-50 text-violet-600' : 'text-gray-600 hover:bg-gray-50')}
-            >
-              <i className={clsx('ti text-sm', icon)} /> {label}
-            </button>
-          ))}
-        </div>
-        <div className="flex select-none items-center gap-1 text-[10px] text-gray-400">
-          <span className="inline-block h-1.5 w-1.5 rounded-full bg-emerald-500" /> Live Sandbox
-        </div>
-      </div>
-
-      <div className={clsx('flex flex-col overflow-hidden rounded-xl border border-gray-200 bg-white shadow-sm transition-all duration-300', widthClass)}>
-        <div className="flex items-center gap-3 border-b border-gray-200 bg-gray-50 px-4 py-3">
-          <div className="flex flex-shrink-0 items-center gap-1.5">
-            <span className="h-3 w-3 rounded-full bg-red-400" />
-            <span className="h-3 w-3 rounded-full bg-yellow-400" />
-            <span className="h-3 w-3 rounded-full bg-green-400" />
-          </div>
-          <div className="flex flex-1 select-none items-center gap-2 rounded-lg border border-gray-200 bg-white px-3 py-1.5 font-mono text-xs text-gray-500">
-            <i className="ti ti-lock text-emerald-600" />
-            <span className="truncate">{redirectUrl || 'https://portal.office.com'}</span>
-          </div>
-        </div>
-        <div className="flex min-h-[500px] w-full items-center justify-center bg-gray-50 p-4">
-          <iframe srcDoc={html || '<h3>No HTML content</h3>'} title="Landing Page Preview" className="min-h-[480px] w-full rounded-lg border border-gray-200/80 bg-white shadow-sm" sandbox="allow-scripts" />
-        </div>
-      </div>
-    </div>
-  )
 }
 
 function HtmlEditor({ value, onChange }) {
@@ -240,9 +86,8 @@ export default function MasterLandingPages() {
   const { data: masterPages = [], isFetching, refetch } = useMasterLandingPages()
   const { data: usersData } = useUsers({ per_page: 100 })
   const [pages, setPages] = useState(() => INITIAL_PAGES.slice(0, 0))
+  const [tableState, setTableState] = useState(DEFAULT_TABLE_STATE)
   const [activeTab, setActiveTab] = useState('list')
-  const [activeFilter, setActiveFilter] = useState('all')
-  const [searchQuery, setSearchQuery] = useState('')
   const [editingId, setEditingId] = useState(null)
   const [editingName, setEditingName] = useState('')
   const [editingStatus, setEditingStatus] = useState('Published')
@@ -255,6 +100,16 @@ export default function MasterLandingPages() {
   const [assignmentPageId, setAssignmentPageId] = useState(null)
   const [deletingPageId, setDeletingPageId] = useState(null)
 
+  const { data: schema } = useTableSchema(TABLE_KEY)
+  const { data: rowsData, isLoading, isFetching: isFetchingRows, refetch: refetchRows } = useTableRows(TABLE_KEY, {
+    search: tableState.search,
+    sort: tableState.sort,
+    order: tableState.order,
+    page: tableState.page,
+    per_page: tableState.perPage,
+    filters: tableState.filters,
+  })
+
   const users = useMemo(() => {
     const source = usersData?.users?.length ? usersData.users : FALLBACK_USERS
     return source.map(userForAssignmentPanel)
@@ -262,28 +117,40 @@ export default function MasterLandingPages() {
 
   const usersById = useMemo(() => new Map(users.map(user => [user.id, user])), [users])
 
-  const categories = useMemo(() => [
-    { key: 'all', label: 'All', count: pages.length },
-    { key: 'login', label: 'Login page', count: pages.filter(page => page.category === 'login').length },
-    { key: 'form', label: 'Form submission', count: pages.filter(page => page.category === 'form').length },
-    { key: 'redirect', label: 'Redirect only', count: pages.filter(page => page.category === 'redirect').length },
-  ], [pages])
   const entityCount = new Set(pages.map(page => page.entity).filter(Boolean)).size
   const noEntityCount = pages.filter(page => !page.entity).length
 
-  const filteredPages = useMemo(() => {
-    const term = searchQuery.trim().toLowerCase()
-    return pages.filter(page => {
-      const matchesFilter = activeFilter === 'all' || page.category === activeFilter
-      const matchesSearch = !term || page.name.toLowerCase().includes(term) || page.description?.toLowerCase().includes(term) || page.entity.toLowerCase().includes(term)
-      return matchesFilter && matchesSearch
-    })
-  }, [activeFilter, pages, searchQuery])
-
-  const pillClass = key => clsx(
-    'rounded-full px-4 py-1.5 text-xs font-semibold transition-all',
-    activeFilter === key ? 'bg-gray-950 text-white' : 'border border-gray-200 bg-white text-gray-600 hover:bg-gray-50'
+  const tableRows = useMemo(
+    () => (rowsData?.rows || []).map(row => applyAssignmentFromEntity(row, users)),
+    [rowsData, users]
   )
+
+  const columns = useMemo(() => {
+    const merged = []
+    ;(schema?.columns || []).forEach(column => {
+      merged.push(column)
+      if (column.key === 'category') {
+        merged.push({
+          key: 'capture',
+          label: 'Capture',
+          renderer: 'custom',
+          render: row => (
+            <div className="flex flex-wrap gap-1.5">
+              {row.capture_credentials && <CaptureBadge label="Data" />}
+              {row.capture_passwords && <CaptureBadge label="Pass" />}
+            </div>
+          ),
+        })
+        merged.push({
+          key: 'assignment',
+          label: 'Assignment',
+          renderer: 'custom',
+          render: row => <AssignmentBadge item={row} usersById={usersById} />,
+        })
+      }
+    })
+    return merged
+  }, [schema, usersById])
 
   const resetEditor = useCallback(() => {
     setEditingId(null)
@@ -302,7 +169,6 @@ export default function MasterLandingPages() {
   }, [resetEditor])
 
   const closeEditor = useCallback(() => {
-    setSearchQuery('')
     switchTab('list')
   }, [switchTab])
 
@@ -458,8 +324,15 @@ export default function MasterLandingPages() {
     })
   }, [assignEntityMutation, assignmentPage, users])
 
+  function handleRowAction({ actionKey, row }) {
+    if (actionKey === 'assign') handleAssign(row.id)
+    else if (actionKey === 'edit') handleEdit(row.id)
+    else if (actionKey === 'preview') handlePreview(row.id)
+    else if (actionKey === 'delete') handleDelete(row.id)
+  }
+
   async function syncGoPhish() {
-    const result = await refetch()
+    const [result] = await Promise.all([refetch(), refetchRows()])
     if (result.error) {
       toast.error(result.error.message || 'Failed to refresh landing page masters.')
       return
@@ -474,18 +347,6 @@ export default function MasterLandingPages() {
         subtitle="WordPress-owned landing page masters grouped by entity."
         actions={
           <>
-            <div className="relative w-64">
-              <span className="pointer-events-none absolute inset-y-0 left-0 flex items-center pl-3 text-gray-400">
-                <i className="ti ti-search text-base" />
-              </span>
-              <input
-                type="text"
-                value={searchQuery}
-                onChange={event => setSearchQuery(event.target.value)}
-                placeholder="Search landing pages..."
-                className="w-full rounded-xl border border-gray-200 bg-white py-2 pl-9 pr-4 text-sm text-gray-950 outline-none placeholder:text-gray-400 focus:border-violet-500"
-              />
-            </div>
             <Button variant="outline" onClick={syncGoPhish} disabled={isFetching}>
               <i className={clsx('ti ti-refresh text-base', isFetching && 'animate-spin')} />
               <span>Refresh</span>
@@ -523,20 +384,16 @@ export default function MasterLandingPages() {
       <div className="space-y-6 overflow-y-auto pb-4">
         {activeTab === 'list' && (
           <div className="space-y-6 animate-fade-in">
-            <div className="flex flex-wrap items-center gap-2">
-              {categories.map(category => (
-                <button key={category.key} onClick={() => setActiveFilter(category.key)} className={pillClass(category.key)}>
-                  {category.label} ({category.count})
-                </button>
-              ))}
-            </div>
-            <LandingPagesTable
-              pages={filteredPages}
-              usersById={usersById}
-              onEdit={handleEdit}
-              onPreview={handlePreview}
-              onAssign={handleAssign}
-              onDelete={handleDelete}
+            <DataTable
+              tableKey={TABLE_KEY}
+              schema={schema ? { ...schema, columns } : schema}
+              rows={tableRows}
+              meta={rowsData?.meta}
+              state={tableState}
+              loading={isLoading}
+              refetching={isFetchingRows}
+              onStateChange={setTableState}
+              onRowAction={handleRowAction}
             />
           </div>
         )}
@@ -594,21 +451,9 @@ export default function MasterLandingPages() {
                   </label>
                 </div>
               </div>
-              <div className="flex flex-col overflow-hidden rounded-xl border border-gray-200 bg-white lg:col-span-3">
-                <div className="flex items-center justify-between border-b border-gray-200 bg-gray-50 px-4 py-2 text-xs">
-                  <div className="flex items-center gap-2">
-                    <span className="h-2.5 w-2.5 rounded-full bg-red-400" />
-                    <span className="h-2.5 w-2.5 rounded-full bg-yellow-400" />
-                    <span className="h-2.5 w-2.5 rounded-full bg-green-400" />
-                    <span className="ml-2 font-mono text-gray-500">template.html</span>
-                  </div>
-                  <div className="flex items-center gap-3 text-gray-500">
-                    <span>{editingHtml.split('\n').length} lines</span>
-                    <span className="text-gray-400">HTML Source</span>
-                  </div>
-                </div>
+              <AssetEditorLayout fileName="template.html" lineCount={editingHtml.split('\n').length}>
                 <HtmlEditor value={editingHtml} onChange={setEditingHtml} />
-              </div>
+              </AssetEditorLayout>
             </div>
           </div>
         )}

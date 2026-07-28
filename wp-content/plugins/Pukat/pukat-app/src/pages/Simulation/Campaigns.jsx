@@ -1,8 +1,8 @@
 import { useEffect, useMemo, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import toast from 'react-hot-toast'
-import { useSearchFilter } from '../../hooks/useSearchFilter.js'
 import { useCampaignList } from '../../hooks/queries/useCampaignQueries.js'
+import { useTableRows, useTableSchema } from '../../hooks/queries/useTableQueries.js'
 import { usePlaybooks } from '../../hooks/queries/usePlaybookQueries.js'
 import { useCreateCampaignMutation, useCreateCampaignRunMutation, useDeleteCampaignMutation } from '../../hooks/mutations/useCampaignMutations.js'
 import { buildCampaignLaunchPayload } from '../../utils/campaignLaunch.js'
@@ -92,6 +92,9 @@ function playbookMasterToWizardCard(row) {
   }
 }
 
+const TABLE_KEY = 'campaigns'
+const DEFAULT_TABLE_STATE = { search: '', sort: 'created_at', order: 'desc', page: 1, perPage: 10, filters: {} }
+
 // ── Main component ────────────────────────────────────────────────────────────
 
 export default function Campaigns() {
@@ -103,6 +106,7 @@ export default function Campaigns() {
 
   // List state
   const page = 1
+  const [tableState, setTableState] = useState(DEFAULT_TABLE_STATE)
   const [deleteTarget, setDelete] = useState(null)
 
   // Wizard state
@@ -111,8 +115,18 @@ export default function Campaigns() {
   const [csvData, setCsvData] = useState([])
 
   // Queries
-  const { data, isLoading } = useCampaignList({ page, per_page: 10 }, {
+  const { data } = useCampaignList({ page, per_page: 10 }, {
     placeholderData: prev => prev,
+  })
+
+  const { data: schema } = useTableSchema(TABLE_KEY)
+  const { data: rowsData, isLoading: isLoadingRows, isFetching: isFetchingRows, refetch: refetchRows } = useTableRows(TABLE_KEY, {
+    search: tableState.search,
+    sort: tableState.sort,
+    order: tableState.order,
+    page: tableState.page,
+    per_page: tableState.perPage,
+    filters: tableState.filters,
   })
 
   const { data: playbookRows = [], isLoading: playbooksLoading } = usePlaybooks({
@@ -142,16 +156,23 @@ export default function Campaigns() {
   })
 
   const deleteMutation = useDeleteCampaignMutation({
-    onSuccess: () => setDelete(null),
+    onSuccess: () => {
+      setDelete(null)
+      // useDeleteCampaignMutation only invalidates the legacy campaigns.list cache,
+      // not this table's own query key namespace — refetch it explicitly.
+      refetchRows()
+    },
   })
 
   const rawItems = data?.items ?? STATIC_CAMPAIGNS
   const total = data?.total ?? STATIC_CAMPAIGNS.length
 
-  const { search, setSearch, statusFilter, setFilter, filteredItems: items } = useSearchFilter(rawItems, {
-    searchKeys: ['name'],
-    statusKey: 'status',
-  })
+  const tableRows = rowsData?.rows || []
+
+  function handleRowAction({ actionKey, row }) {
+    if (actionKey === 'view_report') navigate(`/reports/${row.id}`)
+    else if (actionKey === 'delete') setDelete(row)
+  }
 
   const activeCount = rawItems.filter(c => c.status === 'active').length
   const completedCount = rawItems.filter(c => c.status === 'completed').length
@@ -255,16 +276,17 @@ export default function Campaigns() {
       {view === 'overview' && (
         <OverviewView
           campaigns={rawItems}
-          items={items}
           totalTargets={totalTargets}
           activeCount={activeCount}
-          search={search}
-          setSearch={setSearch}
-          statusFilter={statusFilter}
-          setFilter={setFilter}
-          isLoading={isLoading}
+          schema={schema}
+          rows={tableRows}
+          meta={rowsData?.meta}
+          tableState={tableState}
+          onTableStateChange={setTableState}
+          loading={isLoadingRows}
+          refetching={isFetchingRows}
           onNew={openNewCampaign}
-          onDelete={setDelete}
+          onRowAction={handleRowAction}
         />
       )}
 
