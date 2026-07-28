@@ -21,6 +21,8 @@ export default defineConfig({
     },
   },
 
+  base: './',
+
   build: {
     // Output directly to WordPress plugin assets/dist/
     outDir: resolve(__dirname, '../assets/dist'),
