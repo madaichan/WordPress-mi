@@ -4,7 +4,10 @@ Status: Draft
 Date: 2026-07-27
 Owner: Pukat Product and Engineering
 Related area: React frontend, asset management pages, admin master pages, simulation workspace
-Related PRD: `docs/PRD_ASSET_ACCESS_AND_VERSIONING.md`
+Related PRD:
+- `docs/PRD_ASSET_ACCESS_AND_VERSIONING.md`
+- `docs/PRD_REUSABLE_DATA_TABLE_COMPONENT.md`
+- `docs/PRD_SERVER_DRIVEN_TABLE_API_AND_PERFORMANCE.md`
 
 ## 1. Ringkasan
 
