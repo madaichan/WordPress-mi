@@ -10,6 +10,7 @@ import AssignmentBadge from '../../components/UI/AssignmentBadge.jsx'
 import AssignmentPanel from '../../components/UI/AssignmentPanel.jsx'
 import AlertConfirmation from '../../components/UI/AlertConfirmation.jsx'
 import PageHeader from '../../components/UI/PageHeader.jsx'
+import PageShell from '../../components/Layout/PageShell.jsx'
 import Button from '../../components/UI/Button.jsx'
 import Tabs from '../../components/UI/Tabs.jsx'
 import { useMasterEmailTemplates } from '../../hooks/queries/useMasterAssetQueries.js'
@@ -412,7 +413,7 @@ export default function MasterEmailTemplates() {
   }
 
   return (
-    <div className="mt-4 space-y-6 lg:flex lg:h-[calc(100vh-110px)] lg:min-h-[720px] lg:flex-col lg:overflow-hidden animate-fade-in">
+    <PageShell>
       <PageHeader
         title="Master email templates"
         subtitle="Manage WordPress-owned email template masters by entity."
@@ -541,6 +542,6 @@ export default function MasterEmailTemplates() {
           onConfirm={confirmDelete}
         />
       )}
-    </div>
+    </PageShell>
   )
 }

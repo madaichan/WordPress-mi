@@ -3,6 +3,7 @@ import { Link } from 'react-router-dom'
 import clsx from 'clsx'
 import toast from 'react-hot-toast'
 import PageHeader from '../../components/UI/PageHeader.jsx'
+import PageShell from '../../components/Layout/PageShell.jsx'
 import Button from '../../components/UI/Button.jsx'
 
 const TABS = [
@@ -334,7 +335,7 @@ export default function Reports() {
   const [activeTab, setActiveTab] = useState('report')
 
   return (
-    <div className="space-y-6 lg:flex lg:h-[calc(100vh-110px)] lg:min-h-[720px] lg:flex-col lg:overflow-hidden mt-4 animate-fade-in">
+    <PageShell>
       <PageHeader
         title="Q2 Phishing Wave — Finance"
         subtitle="Completed 5 Jul 2025 · Duration 7 days · 1,240 targets"
@@ -373,6 +374,6 @@ export default function Reports() {
       {activeTab === 'quiz' && <QuizPane />}
       {activeTab === 'coaching' && <CoachingPane />}
       {activeTab === 'planning' && <PlanningPane />}
-    </div>
+    </PageShell>
   )
 }

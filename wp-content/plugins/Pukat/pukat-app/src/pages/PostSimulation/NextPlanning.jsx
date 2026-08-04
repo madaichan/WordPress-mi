@@ -1,5 +1,6 @@
 import { Link } from 'react-router-dom'
 import PageHeader from '../../components/UI/PageHeader.jsx'
+import PageShell from '../../components/Layout/PageShell.jsx'
 
 const SCENARIOS = [
   {
@@ -21,7 +22,7 @@ const SCENARIOS = [
 
 export default function NextPlanning() {
   return (
-    <div className="space-y-6 lg:flex lg:h-[calc(100vh-110px)] lg:min-h-[720px] lg:flex-col lg:overflow-hidden mt-4">
+    <PageShell animated={false}>
       <PageHeader title="Next planning" subtitle="Recommendations for the next security simulation plan" />
 
       <div className="bg-white border border-gray-200 rounded-xl p-5 space-y-4">
@@ -58,6 +59,6 @@ export default function NextPlanning() {
         <i className="ti ti-shield-check text-base text-emerald-600 flex-shrink-0" />
         <span>Q3 targets: click rate down to &lt;12% with harder scenarios.</span>
       </div>
-    </div>
+    </PageShell>
   )
 }

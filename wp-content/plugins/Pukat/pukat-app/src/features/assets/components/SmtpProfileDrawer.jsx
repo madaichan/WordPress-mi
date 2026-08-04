@@ -258,17 +258,18 @@ export default function SmtpProfileDrawer({
 
       {testResult && (
         <div className="overflow-hidden rounded-xl border border-gray-200">
-          <div className="flex items-center gap-2 border-b border-gray-100 bg-gray-50 px-3 py-2 text-[11px]">
-            <i className="ti ti-circle-check text-sm text-green-500" />
-            <span className="font-bold text-green-800">Test successful</span>
+          <div className={clsx('flex items-center gap-2 border-b border-gray-100 px-3 py-2 text-[11px]', testResult.ok ? 'bg-gray-50' : 'bg-red-50')}>
+            <i className={clsx('ti text-sm', testResult.ok ? 'ti-circle-check text-green-500' : 'ti-circle-x text-red-500')} />
+            <span className={clsx('font-bold', testResult.ok ? 'text-green-800' : 'text-red-800')}>
+              {testResult.ok ? 'Test successful' : 'Test failed'}
+            </span>
             <span className="ml-auto text-[10px] font-medium text-gray-400">Just now</span>
           </div>
           <div className="bg-white p-3 font-mono text-[10px] leading-relaxed text-gray-600">
-            <span className="font-bold text-blue-500">[INFO]</span> Connecting to {form.host || 'localhost'}:{form.port || '25'}...<br />
-            <span className="font-bold text-green-600">[OK]</span> TLS handshake successful<br />
-            <span className="font-bold text-green-600">[OK]</span> Authentication accepted<br />
-            <span className="font-bold text-green-600">[OK]</span> Test email delivered to {form.testTarget || 'admin@corp.internal'}<br />
-            <span className="font-bold text-green-600">[OK]</span> SMTP connection closed cleanly
+            <span className={clsx('font-bold', testResult.ok ? 'text-green-600' : 'text-red-600')}>
+              {testResult.ok ? '[OK]' : '[ERROR]'}
+            </span>{' '}
+            {testResult.message || (testResult.ok ? `Test email sent to ${form.testTarget}` : 'Failed to send test email.')}
           </div>
         </div>
       )}

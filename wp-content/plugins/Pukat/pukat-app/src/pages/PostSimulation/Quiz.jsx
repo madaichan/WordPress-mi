@@ -1,5 +1,6 @@
 import { useState } from 'react'
 import PageHeader from '../../components/UI/PageHeader.jsx'
+import PageShell from '../../components/Layout/PageShell.jsx'
 
 export default function Quiz() {
   const [result, setResult] = useState(null)
@@ -11,7 +12,7 @@ export default function Quiz() {
   }
 
   return (
-    <div className="space-y-6 lg:flex lg:h-[calc(100vh-110px)] lg:min-h-[720px] lg:flex-col lg:overflow-hidden mt-4">
+    <PageShell animated={false}>
       <PageHeader title="Quiz" subtitle="Cybersecurity evaluation mini quiz" />
 
       <div className="bg-white border border-gray-200 rounded-xl p-6 max-w-xl">
@@ -40,6 +41,6 @@ export default function Quiz() {
           )}
         </div>
       </div>
-    </div>
+    </PageShell>
   )
 }

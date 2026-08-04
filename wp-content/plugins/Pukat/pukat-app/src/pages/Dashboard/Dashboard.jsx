@@ -3,6 +3,7 @@ import clsx from 'clsx'
 import { statusLabel, dotColor } from '../../utils/campaignHelpers.js'
 import StatCard from '../../components/UI/StatCard.jsx'
 import PageHeader from '../../components/UI/PageHeader.jsx'
+import PageShell from '../../components/Layout/PageShell.jsx'
 import Button from '../../components/UI/Button.jsx'
 import { useCampaignList } from '../../hooks/queries/useCampaignQueries.js'
 import { useRiskScores } from '../../hooks/queries/useReportQueries.js'
@@ -64,7 +65,7 @@ export default function Dashboard() {
     : STATIC_CAMPAIGNS
 
   return (
-    <div className="space-y-6 lg:flex lg:h-[calc(100vh-110px)] lg:min-h-[720px] lg:flex-col lg:overflow-hidden mt-4">
+    <PageShell animated={false}>
 
       {/* ── 1. Page header ── */}
       <PageHeader
@@ -300,6 +301,6 @@ export default function Dashboard() {
         </div>
       </div>
 
-    </div>
+    </PageShell>
   )
 }

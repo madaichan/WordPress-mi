@@ -1,6 +1,7 @@
 import { useNavigate } from 'react-router-dom'
 import clsx from 'clsx'
 import PageHeader from '../../components/UI/PageHeader.jsx'
+import PageShell from '../../components/Layout/PageShell.jsx'
 import Button from '../../components/UI/Button.jsx'
 
 const DAYS = [
@@ -16,7 +17,7 @@ export default function Calendar() {
   const navigate = useNavigate()
 
   return (
-    <div className="space-y-6 lg:flex lg:h-[calc(100vh-110px)] lg:min-h-[720px] lg:flex-col lg:overflow-hidden mt-4">
+    <PageShell animated={false}>
       <PageHeader
         title="Simulation calendar"
         subtitle="Phishing simulation delivery schedule — June 2025"
@@ -56,6 +57,6 @@ export default function Calendar() {
           })}
         </div>
       </div>
-    </div>
+    </PageShell>
   )
 }

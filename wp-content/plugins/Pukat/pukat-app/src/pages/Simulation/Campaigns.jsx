@@ -19,6 +19,7 @@ import MonitoringView from '../../features/campaigns/Views/MonitoringView.jsx'
 import AssetsView from '../../features/campaigns/Reports/AssetsView.jsx'
 import ReportView from '../../features/campaigns/Reports/ReportView.jsx'
 import PageHeader from '../../components/UI/PageHeader.jsx'
+import PageShell from '../../components/Layout/PageShell.jsx'
 
 // ── Static data ──────────────────────────────────────────────────────────────
 
@@ -219,7 +220,7 @@ export default function Campaigns() {
   // ── New campaign wizard view ──
   if (view === 'new') {
     return (
-      <div className="space-y-6 lg:flex lg:h-[calc(100vh-110px)] lg:min-h-[720px] lg:flex-col lg:overflow-hidden mt-4 animate-fade-in">
+      <PageShell>
         {/* Header */}
         <PageHeader title="New campaign" subtitle="Simulation / New campaign" />
 
@@ -254,7 +255,7 @@ export default function Campaigns() {
             isLaunching={createCampaignMutation.isPending || createCampaignRunMutation.isPending}
           />
         )}
-      </div>
+      </PageShell>
     )
   }
 
@@ -263,7 +264,7 @@ export default function Campaigns() {
 
   // ── Campaign workspace view ──
   return (
-    <div className="space-y-6">
+    <PageShell>
       <WorkspaceHeader
         total={total}
         activeCount={activeCount}
@@ -321,6 +322,6 @@ export default function Campaigns() {
           isPending={deleteMutation.isPending}
         />
       )}
-    </div>
+    </PageShell>
   )
 }

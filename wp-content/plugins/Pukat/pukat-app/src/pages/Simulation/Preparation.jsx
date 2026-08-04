@@ -7,6 +7,7 @@ import { useCsvUpload } from '../../hooks/useCsvUpload.js'
 import { useCampaignItems } from '../../hooks/queries/useCampaignQueries.js'
 import { useLaunchCampaignMutation } from '../../hooks/mutations/useCampaignMutations.js'
 import { useGophishEmailTemplates, useGophishLandingPages, useGophishSmtpProfiles } from '../../hooks/queries/useGophishQueries.js'
+import PageShell from '../../components/Layout/PageShell.jsx'
 import Card from '../../components/UI/Card.jsx'
 import Label from '../../components/UI/Label.jsx'
 import Select from '../../components/UI/Select.jsx'
@@ -81,7 +82,7 @@ export default function Preparation() {
   }
 
   return (
-    <div className="space-y-6 animate-fade-in max-w-4xl">
+    <PageShell className="max-w-4xl">
       {/* Step indicator */}
       <div className="flex items-center gap-0">
         {['Import Targets', 'Select Templates', 'Review & Save'].map((s, i) => (
@@ -357,6 +358,6 @@ export default function Preparation() {
           </div>
         </Card>
       )}
-    </div>
+    </PageShell>
   )
 }

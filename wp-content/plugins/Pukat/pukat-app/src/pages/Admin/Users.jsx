@@ -5,6 +5,7 @@ import { useUpdateUserRoleMutation } from '../../hooks/mutations/useUserMutation
 import { ROLE_LABELS, ROLE_VALUES, getPukatRoleBadge, normalizePukatRole } from '../../utils/roles.js'
 import { DataTable } from '../../components/DataTable/index.js'
 import PageHeader from '../../components/UI/PageHeader.jsx'
+import PageShell from '../../components/Layout/PageShell.jsx'
 import Tabs from '../../components/UI/Tabs.jsx'
 import Input from '../../components/UI/Input.jsx'
 import Card from '../../components/UI/Card.jsx'
@@ -41,7 +42,7 @@ export default function Users() {
   const users = usersData?.users || []
 
   return (
-    <div className="space-y-4 animate-fade-in mt-4">
+    <PageShell spacing="space-y-4">
       <PageHeader title="User Access" subtitle="Manage roles and permissions" />
 
       <Tabs items={TABS} active={activeTab} onChange={setActiveTab} className="mb-4" />
@@ -88,6 +89,6 @@ export default function Users() {
           onStateChange={setAuditTableState}
         />
       )}
-    </div>
+    </PageShell>
   )
 }

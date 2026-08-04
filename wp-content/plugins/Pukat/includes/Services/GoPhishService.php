@@ -355,6 +355,29 @@ class GoPhishService {
 		return $this->delete( "/api/smtp/{$id}" );
 	}
 
+	/**
+	 * Send a real test email through GoPhish using the given SMTP settings.
+	 *
+	 * Unlike test_connection() (which only checks the GoPhish API itself is
+	 * reachable), this calls GoPhish's own /api/util/send_test_email endpoint,
+	 * which performs a genuine SMTP delivery attempt (auth + MAIL FROM/RCPT
+	 * TO/DATA) and reports the real outcome.
+	 *
+	 * @param array  $smtp   Sending profile payload (host, from_address, username, password, ...).
+	 * @param string $target Recipient email address for the test message.
+	 * @return array|WP_Error
+	 */
+	public function send_test_email( array $smtp, string $target ): array|WP_Error {
+		return $this->post( '/api/util/send_test_email', [
+			'first_name' => 'Test',
+			'last_name'  => 'Recipient',
+			'email'      => $target,
+			'position'   => '',
+			'url'        => '',
+			'smtp'       => $smtp,
+		] );
+	}
+
 	// ===========================================================================
 	// Cron: Sync active campaigns
 	// ===========================================================================

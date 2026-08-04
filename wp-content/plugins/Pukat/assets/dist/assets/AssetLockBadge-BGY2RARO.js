@@ -1,0 +1,1 @@
+import{j as e}from"./main-BZBPeFdG.js";function n({locked:t,reason:s}){return t?e.jsxs("span",{className:"inline-flex items-center gap-1 rounded-full bg-red-50 px-2 py-0.5 text-[10px] font-semibold text-red-700",title:s,children:[e.jsx("i",{className:"ti ti-lock text-[10px]"}),"Locked"]}):null}export{n as A};

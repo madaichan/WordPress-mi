@@ -11,6 +11,7 @@ import {
 } from '../../hooks/mutations/useMasterAssetMutations.js'
 import { DataTable } from '../../components/DataTable/index.js'
 import PageHeader from '../../components/UI/PageHeader.jsx'
+import PageShell from '../../components/Layout/PageShell.jsx'
 import Button from '../../components/UI/Button.jsx'
 import Drawer from '../../components/UI/Drawer.jsx'
 import Label from '../../components/UI/Label.jsx'
@@ -344,7 +345,7 @@ export default function MasterDomains() {
   }
 
   return (
-    <div className="space-y-6 lg:flex lg:h-[calc(100vh-110px)] lg:min-h-[720px] lg:flex-col lg:overflow-hidden mt-4 animate-fade-in">
+    <PageShell>
       <PageHeader
         title="Domain Management"
         subtitle="Manage lookalike domains for sending and landing page hosting."
@@ -389,6 +390,6 @@ export default function MasterDomains() {
         onClose={closeSlideover}
         onSubmit={submitDomain}
       />
-    </div>
+    </PageShell>
   )
 }

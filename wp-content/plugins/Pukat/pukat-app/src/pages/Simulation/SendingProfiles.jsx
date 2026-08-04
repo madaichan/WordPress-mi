@@ -12,8 +12,9 @@ import {
   profileToSmtpForm,
 } from '../../utils/smtpProfileHelpers.js'
 import { useGophishSmtpProfiles } from '../../hooks/queries/useGophishQueries.js'
-import { useCreateSmtpProfileMutation, useDeleteSmtpProfileMutation, useUpdateSmtpProfileMutation } from '../../hooks/mutations/useGophishMutations.js'
+import { useCreateSmtpProfileMutation, useDeleteSmtpProfileMutation, useSendTestSmtpEmailMutation, useUpdateSmtpProfileMutation } from '../../hooks/mutations/useGophishMutations.js'
 import PageHeader from '../../components/UI/PageHeader.jsx'
+import PageShell from '../../components/Layout/PageShell.jsx'
 import Button from '../../components/UI/Button.jsx'
 import AlertConfirmation from '../../components/UI/AlertConfirmation.jsx'
 import useAppStore from '../../store/useAppStore.js'
@@ -45,6 +46,7 @@ export default function SendingProfiles() {
       closeSlideover()
     },
   })
+  const sendTestEmailMutation = useSendTestSmtpEmailMutation()
   const saving = createMutation.isPending || updateMutation.isPending || deleteMutation.isPending
   const defaultEntity = useMemo(() => assetEntityForUser(currentUser), [currentUser])
   const canCreateProfiles = useMemo(() => canUserCreateAsset(currentUser), [currentUser])
@@ -168,13 +170,30 @@ export default function SendingProfiles() {
     toast.success('SMTP profiles synced with GoPhish.')
   }
 
-  function runConnectionTest() {
+  function runConnectionTest(overrideForm = form, overrideSourceId = sourceProfile?.id) {
+    const target = overrideForm.testTarget.trim()
+    if (!target) {
+      toast.error('Enter a recipient email to send the test to.')
+      return
+    }
+
+    const smtp = buildGophishSmtpPayload({ form: overrideForm })
+    const id = overrideSourceId ? Number(overrideSourceId) : undefined
+
     setTesting(true)
-    window.setTimeout(() => {
-      setTesting(false)
-      setTestResult({ ok: true })
-      toast.success('SMTP connection tested successfully.')
-    }, 1200)
+    setTestResult(null)
+    sendTestEmailMutation.mutate({ ...smtp, id, target }, {
+      onSuccess: data => {
+        setTesting(false)
+        setTestResult({ ok: true, message: data?.message || `Test email sent to ${target}.` })
+        toast.success('Test email sent successfully.')
+      },
+      onError: err => {
+        setTesting(false)
+        setTestResult({ ok: false, message: err.message })
+        toast.error(err.message || 'Failed to send test email.')
+      },
+    })
   }
 
   function submitProfile() {
@@ -243,7 +262,7 @@ export default function SendingProfiles() {
   }
 
   return (
-    <div className="space-y-6 lg:flex lg:h-[calc(100vh-110px)] lg:min-h-[720px] lg:flex-col lg:overflow-hidden mt-4">
+    <PageShell animated={false}>
       <PageHeader
         title="Sending profiles"
         subtitle="SMTP configuration for phishing simulation delivery through GoPhish"
@@ -369,7 +388,7 @@ export default function SendingProfiles() {
                                 return
                               }
                               openEdit(profile)
-                              window.setTimeout(runConnectionTest, 50)
+                              window.setTimeout(() => runConnectionTest(profileToSmtpForm(profile, 'update'), profile.id), 50)
                             }}
                             disabled={profile.editLocked}
                             className="flex h-7 w-7 items-center justify-center rounded-lg border border-gray-200 bg-white text-gray-500 transition-all hover:border-blue-600 hover:text-blue-600 disabled:cursor-not-allowed disabled:opacity-50"
@@ -446,6 +465,6 @@ export default function SendingProfiles() {
           onConfirm={confirmDeleteProfile}
         />
       )}
-    </div>
+    </PageShell>
   )
 }

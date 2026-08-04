@@ -17,6 +17,7 @@ export const gophishApi = {
   updateSmtpProfile: (id, data) => put(`/gophish/smtp/${id}`, data),
   assignSmtpProfileEntity: (id, entity) => put(`/gophish/smtp/${id}/entity`, { entity }),
   deleteSmtpProfile: (id) => del(`/gophish/smtp/${id}`),
+  sendTestSmtpEmail: (data) => post('/gophish/smtp/test-email', data),
   groups:         () => get('/gophish/groups'),
 }
 

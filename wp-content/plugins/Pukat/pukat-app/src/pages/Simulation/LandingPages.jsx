@@ -4,6 +4,7 @@ import toast from 'react-hot-toast'
 import HtmlCodeEditor from '../../components/Editor/HtmlCodeEditor.jsx'
 import { AssetCard, AssetCreateCard, AssetEditorLayout, BrowserPreview } from '../../features/assets/components/index.js'
 import PageHeader from '../../components/UI/PageHeader.jsx'
+import PageShell from '../../components/Layout/PageShell.jsx'
 import Button from '../../components/UI/Button.jsx'
 import AlertConfirmation from '../../components/UI/AlertConfirmation.jsx'
 import { useMasterLandingPages } from '../../hooks/queries/useMasterAssetQueries.js'
@@ -515,7 +516,7 @@ export default function LandingPages() {
     )
 
   return (
-    <div className="space-y-6 lg:flex lg:h-[calc(100vh-110px)] lg:min-h-[720px] lg:flex-col lg:overflow-hidden mt-4 animate-fade-in">
+    <PageShell>
       {/* ── Header ── */}
       <PageHeader
         title="Landing pages"
@@ -678,6 +679,6 @@ export default function LandingPages() {
           onConfirm={confirmDelete}
         />
       )}
-    </div>
+    </PageShell>
   )
 }

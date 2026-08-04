@@ -8,6 +8,7 @@ import AssignmentBadge from '../../components/UI/AssignmentBadge.jsx'
 import AssignmentPanel from '../../components/UI/AssignmentPanel.jsx'
 import AlertConfirmation from '../../components/UI/AlertConfirmation.jsx'
 import PageHeader from '../../components/UI/PageHeader.jsx'
+import PageShell from '../../components/Layout/PageShell.jsx'
 import Button from '../../components/UI/Button.jsx'
 import Tabs from '../../components/UI/Tabs.jsx'
 import Badge from '../../components/UI/Badge.jsx'
@@ -341,7 +342,7 @@ export default function MasterLandingPages() {
   }
 
   return (
-    <div className="space-y-6 animate-fade-in lg:flex lg:h-[calc(100vh-110px)] lg:min-h-[720px] lg:flex-col lg:overflow-hidden mt-4">
+    <PageShell>
       <PageHeader
         title="Master landing pages"
         subtitle="WordPress-owned landing page masters grouped by entity."
@@ -504,6 +505,6 @@ export default function MasterLandingPages() {
           onConfirm={confirmDelete}
         />
       )}
-    </div>
+    </PageShell>
   )
 }

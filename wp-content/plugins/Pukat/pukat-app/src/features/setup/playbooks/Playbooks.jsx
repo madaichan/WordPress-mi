@@ -3,6 +3,7 @@ import { Link } from 'react-router-dom'
 import toast from 'react-hot-toast'
 import clsx from 'clsx'
 import PageHeader from '../../../components/UI/PageHeader.jsx'
+import PageShell from '../../../components/Layout/PageShell.jsx'
 import Button from '../../../components/UI/Button.jsx'
 import AlertConfirmation from '../../../components/UI/AlertConfirmation.jsx'
 import {
@@ -1317,7 +1318,7 @@ export default function Playbooks() {
   }
 
   return (
-    <div className="space-y-6 lg:flex lg:h-[calc(100vh-110px)] lg:min-h-[720px] lg:flex-col lg:overflow-hidden mt-4 animate-fade-in">
+    <PageShell>
       <PageHeader
         title="Playbooks"
         subtitle="Manage phishing simulation playbooks"
@@ -1451,6 +1452,6 @@ export default function Playbooks() {
           onConfirm={confirmDeletePlaybook}
         />
       )}
-    </div>
+    </PageShell>
   )
 }

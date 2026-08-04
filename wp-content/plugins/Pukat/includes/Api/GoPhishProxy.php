@@ -131,6 +131,12 @@ class GoPhishProxy extends RestController {
 			],
 		] );
 
+		register_rest_route( $this->namespace, '/gophish/smtp/test-email', [
+			'methods'             => 'POST',
+			'callback'            => [ $this, 'send_test_email' ],
+			'permission_callback' => [ $this, 'permission_manage' ],
+		] );
+
 		register_rest_route( $this->namespace, '/gophish/smtp/(?P<id>\d+)/entity', [
 			'methods'             => 'PUT',
 			'callback'            => [ $this, 'update_sending_profile_entity' ],
@@ -523,6 +529,46 @@ class GoPhishProxy extends RestController {
 		}
 
 		return $this->success( $this->prepare_smtp_profile_response( $result ) );
+	}
+
+	public function send_test_email( WP_REST_Request $request ): WP_REST_Response {
+		$payload = $this->build_smtp_profile_payload( $request );
+		if ( isset( $payload['error'] ) ) {
+			return $this->error( 'validation_error', $payload['error'], 422 );
+		}
+
+		$target = sanitize_email( (string) $request->get_param( 'target' ) );
+		if ( empty( $target ) || ! is_email( $target ) ) {
+			return $this->error( 'validation_error', __( 'A valid recipient email is required.', 'pukat' ), 422 );
+		}
+
+		$service = new GoPhishService();
+		$id      = (int) $request->get_param( 'id' );
+
+		if ( $id ) {
+			$existing = $service->get_sending_profile( $id );
+			if ( is_wp_error( $existing ) ) {
+				return $this->from_wp_error( $existing );
+			}
+
+			$permission_error = $this->enforce_existing_asset_editable( $existing );
+			if ( $permission_error ) {
+				return $permission_error;
+			}
+
+			// Passwords are stripped from every GoPhish response before it reaches
+			// the browser, so an unedited form legitimately submits an empty string.
+			if ( empty( $payload['password'] ) ) {
+				$payload['password'] = $existing['password'] ?? '';
+			}
+		}
+
+		$result = $service->send_test_email( $payload, $target );
+		if ( is_wp_error( $result ) ) {
+			return $this->from_wp_error( $result );
+		}
+
+		return $this->success( $result );
 	}
 
 	public function get_groups( WP_REST_Request $request ): WP_REST_Response {

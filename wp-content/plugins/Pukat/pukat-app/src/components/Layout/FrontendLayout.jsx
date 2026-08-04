@@ -41,7 +41,7 @@ export default function FrontendLayout({ children }) {
       {/* Main content — offset by sidebar width, same shape as admin's Layout.jsx */}
       <div className="ml-[220px] flex flex-1 flex-col" style={{ minHeight: '100vh' }}>
         <Topbar activeLabel={activeLabel} className="sticky top-0" />
-        <main className="flex-1 p-6 overflow-y-auto animate-fade-in">
+        <main className="flex-1 overflow-x-hidden p-6 animate-fade-in">
           {children}
         </main>
       </div>

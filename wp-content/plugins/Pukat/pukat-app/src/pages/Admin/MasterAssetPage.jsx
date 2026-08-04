@@ -4,6 +4,7 @@ import clsx from 'clsx'
 import { FALLBACK_USERS } from '../../data/fallbacks.js'
 import AssignmentPanel from '../../components/UI/AssignmentPanel.jsx'
 import PageHeader from '../../components/UI/PageHeader.jsx'
+import PageShell from '../../components/Layout/PageShell.jsx'
 import Button from '../../components/UI/Button.jsx'
 import Card from '../../components/UI/Card.jsx'
 import Table from '../../components/UI/Table.jsx'
@@ -1241,7 +1242,7 @@ export default function MasterAssetPage({ type }) {
   }
 
   return (
-    <div className="space-y-5 animate-fade-in mt-4">
+    <PageShell spacing="space-y-5">
       <PageHeader
         title={config.title}
         subtitle={config.subtitle}
@@ -1433,6 +1434,6 @@ export default function MasterAssetPage({ type }) {
           onCreate={createAsset}
         />
       )}
-    </div>
+    </PageShell>
   )
 }

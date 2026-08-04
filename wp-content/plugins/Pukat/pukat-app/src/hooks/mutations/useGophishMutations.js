@@ -190,6 +190,14 @@ export function useAssignSmtpProfileEntityMutation(options = {}) {
   })
 }
 
+export function useSendTestSmtpEmailMutation(options = {}) {
+  return useMutation({
+    mutationFn: gophishApi.sendTestSmtpEmail,
+    onSuccess: options.onSuccess,
+    onError: options.onError,
+  })
+}
+
 export function useDeleteSmtpProfileMutation(options = {}) {
   const qc = useQueryClient()
 

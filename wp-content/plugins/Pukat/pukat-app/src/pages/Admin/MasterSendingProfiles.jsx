@@ -8,11 +8,12 @@ import AssignmentBadge from '../../components/UI/AssignmentBadge.jsx'
 import AssignmentPanel from '../../components/UI/AssignmentPanel.jsx'
 import AlertConfirmation from '../../components/UI/AlertConfirmation.jsx'
 import PageHeader from '../../components/UI/PageHeader.jsx'
+import PageShell from '../../components/Layout/PageShell.jsx'
 import Button from '../../components/UI/Button.jsx'
 import { useTableRows, useTableSchema } from '../../hooks/queries/useTableQueries.js'
 import { useGophishSmtpProfiles } from '../../hooks/queries/useGophishQueries.js'
 import { useUsers } from '../../hooks/queries/useUserQueries.js'
-import { useAssignSmtpProfileEntityMutation, useCreateSmtpProfileMutation, useDeleteSmtpProfileMutation, useUpdateSmtpProfileMutation } from '../../hooks/mutations/useGophishMutations.js'
+import { useAssignSmtpProfileEntityMutation, useCreateSmtpProfileMutation, useDeleteSmtpProfileMutation, useSendTestSmtpEmailMutation, useUpdateSmtpProfileMutation } from '../../hooks/mutations/useGophishMutations.js'
 import { applyAssignmentFromEntity, entityFromAssignment, userForAssignmentPanel } from '../../utils/entityAssignmentHelpers.js'
 import { masterAssetLockMessage } from '../../utils/masterAssetHelpers.js'
 import {
@@ -103,6 +104,7 @@ export default function MasterSendingProfiles() {
   const assignEntityMutation = useAssignSmtpProfileEntityMutation({
     onSuccess: () => setAssignmentProfile(null),
   })
+  const sendTestEmailMutation = useSendTestSmtpEmailMutation()
   const saving = createMutation.isPending || updateMutation.isPending || deleteMutation.isPending
 
   function closeSlideover() {
@@ -219,13 +221,30 @@ export default function MasterSendingProfiles() {
     toast.success('SMTP profiles synced with GoPhish.')
   }
 
-  function runConnectionTest() {
+  function runConnectionTest(overrideForm = form, overrideSourceId = sourceProfile?.id) {
+    const target = overrideForm.testTarget.trim()
+    if (!target) {
+      toast.error('Enter a recipient email to send the test to.')
+      return
+    }
+
+    const smtp = buildGophishSmtpPayload({ form: overrideForm })
+    const id = overrideSourceId ? Number(overrideSourceId) : undefined
+
     setTesting(true)
-    window.setTimeout(() => {
-      setTesting(false)
-      setTestResult({ ok: true })
-      toast.success('SMTP connection tested successfully.')
-    }, 1200)
+    setTestResult(null)
+    sendTestEmailMutation.mutate({ ...smtp, id, target }, {
+      onSuccess: data => {
+        setTesting(false)
+        setTestResult({ ok: true, message: data?.message || `Test email sent to ${target}.` })
+        toast.success('Test email sent successfully.')
+      },
+      onError: err => {
+        setTesting(false)
+        setTestResult({ ok: false, message: err.message })
+        toast.error(err.message || 'Failed to send test email.')
+      },
+    })
   }
 
   function submitProfile() {
@@ -330,12 +349,12 @@ export default function MasterSendingProfiles() {
       }
 
       openEdit(row)
-      window.setTimeout(runConnectionTest, 50)
+      window.setTimeout(() => runConnectionTest(profileToSmtpForm(profile, 'update'), profile.id), 50)
     }
   }
 
   return (
-    <div className="space-y-6 lg:flex lg:h-[calc(100vh-110px)] lg:min-h-[720px] lg:flex-col lg:overflow-hidden mt-4 animate-fade-in">
+    <PageShell>
       <PageHeader
         title="Master sending profiles"
         subtitle="SMTP configuration grouped by GoPhish entity for delivery"
@@ -423,6 +442,6 @@ export default function MasterSendingProfiles() {
           onSave={saveAssignment}
         />
       )}
-    </div>
+    </PageShell>
   )
 }

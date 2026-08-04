@@ -5,6 +5,7 @@ import HtmlCodeEditor from '../../components/Editor/HtmlCodeEditor.jsx'
 import ClientPreview from '../../components/Editor/ClientPreview.jsx'
 import { AssetCard, AssetCreateCard, AssetEditorLayout } from '../../features/assets/components/index.js'
 import PageHeader from '../../components/UI/PageHeader.jsx'
+import PageShell from '../../components/Layout/PageShell.jsx'
 import Button from '../../components/UI/Button.jsx'
 import AlertConfirmation from '../../components/UI/AlertConfirmation.jsx'
 import { useMasterEmailTemplates } from '../../hooks/queries/useMasterAssetQueries.js'
@@ -488,7 +489,7 @@ export default function EmailTemplates() {
     )
 
   return (
-    <div className="space-y-6 lg:flex lg:h-[calc(100vh-110px)] lg:min-h-[720px] lg:flex-col lg:overflow-hidden mt-4 animate-fade-in">
+    <PageShell>
       {/* ── Header ── */}
       <PageHeader
         title="Email templates"
@@ -652,6 +653,6 @@ export default function EmailTemplates() {
           onConfirm={confirmDelete}
         />
       )}
-    </div>
+    </PageShell>
   )
 }

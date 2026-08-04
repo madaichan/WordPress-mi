@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react'
 import clsx from 'clsx'
 import { useSettingsQuery } from '../../hooks/queries/useSettingsQueries.js'
 import { useSaveSettingsMutation, useTestGophishConnectionMutation } from '../../hooks/mutations/useSettingsMutations.js'
+import PageShell from '../../components/Layout/PageShell.jsx'
 import Card from '../../components/UI/Card.jsx'
 import Label from '../../components/UI/Label.jsx'
 import Input from '../../components/UI/Input.jsx'
@@ -76,16 +77,16 @@ export default function Settings() {
 
   if (isLoading) {
     return (
-      <div className="space-y-4">
+      <PageShell spacing="space-y-4" animated={false}>
         {[...Array(3)].map((_, i) => (
           <Card key={i} className="h-32 animate-pulse bg-gray-100" />
         ))}
-      </div>
+      </PageShell>
     )
   }
 
   return (
-    <form onSubmit={handleSave} className="space-y-6 max-w-2xl animate-fade-in">
+    <PageShell as="form" onSubmit={handleSave} className="max-w-2xl">
 
       {/* Organization */}
       <Card>
@@ -224,6 +225,6 @@ export default function Settings() {
           )}
         </Button>
       </div>
-    </form>
+    </PageShell>
   )
 }

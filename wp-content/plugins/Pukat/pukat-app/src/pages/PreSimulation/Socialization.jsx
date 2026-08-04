@@ -1,4 +1,5 @@
 import PageHeader from '../../components/UI/PageHeader.jsx'
+import PageShell from '../../components/Layout/PageShell.jsx'
 import Card from '../../components/UI/Card.jsx'
 import Label from '../../components/UI/Label.jsx'
 import Input from '../../components/UI/Input.jsx'
@@ -7,7 +8,7 @@ import Button from '../../components/UI/Button.jsx'
 
 export default function Socialization() {
   return (
-    <div className="space-y-6 lg:flex lg:h-[calc(100vh-110px)] lg:min-h-[720px] lg:flex-col lg:overflow-hidden mt-4">
+    <PageShell animated={false}>
       <PageHeader title="Pre-Simulation Socialization" subtitle="Notify users before the simulation begins" />
       <Card>
         <div className="flex items-center gap-4 mb-4">
@@ -35,6 +36,6 @@ export default function Socialization() {
           </div>
         </div>
       </Card>
-    </div>
+    </PageShell>
   )
 }
