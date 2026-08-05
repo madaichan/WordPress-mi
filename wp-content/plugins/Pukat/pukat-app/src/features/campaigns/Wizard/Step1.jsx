@@ -1,18 +1,6 @@
 import clsx from 'clsx'
-import toast from 'react-hot-toast'
 import { useCsvUpload } from '../../../hooks/useCsvUpload.js'
-import { TEMPLATES, TEMPLATE_FILTERS, DEMO_TARGET_TOTAL, DEMO_TARGETS } from './wizardData.js'
-
-function openGophishTemplates() {
-  const gophishUrl = window.PukatData?.gophishUrl
-
-  if (!gophishUrl) {
-    toast('Configure GoPhish URL in Settings first.')
-    return
-  }
-
-  window.open(`${gophishUrl.replace(/\/$/, '')}/templates`, '_blank', 'noopener,noreferrer')
-}
+import { DEMO_TARGET_TOTAL, DEMO_TARGETS } from './wizardData.js'
 
 function downloadTemplateCsv() {
   const csv = 'name,email,department,position\nJane Doe,jane.doe@example.com,Finance,Analyst\n'
@@ -36,10 +24,6 @@ export default function Step1({ form, setForm, csvData, setCsvData, onCancel, on
       `${validCount} targets loaded successfully.${errorCount ? ` (${errorCount} skipped)` : ''}`,
     parseErrorMessage: (err) => `Failed to read CSV: ${err.message}`,
   })
-
-  const filteredTemplates = form.templateFilter === 'All'
-    ? TEMPLATES
-    : TEMPLATES.filter(t => t.type.toLowerCase().includes(form.templateFilter.toLowerCase()))
 
   return (
     <div className="space-y-6">
@@ -70,73 +54,7 @@ export default function Step1({ form, setForm, csvData, setCsvData, onCancel, on
         </div>
       </div>
 
-      {/* Card 2 — Select phishing template */}
-      <div className="bg-white border border-gray-200 rounded-xl p-5">
-        <div className="flex items-center justify-between mb-4">
-          <h3 className="text-sm font-semibold text-gray-900">Select phishing template</h3>
-          <span className="rounded-full text-[10px] font-semibold px-2 py-0.5 bg-amber-100 text-amber-700">gophish</span>
-        </div>
-
-        {/* Filter pills */}
-        <div className="flex gap-2 mb-4 flex-wrap">
-          {TEMPLATE_FILTERS.map(f => (
-            <button
-              key={f}
-              type="button"
-              onClick={() => setForm(fr => ({ ...fr, templateFilter: f }))}
-              className={clsx(
-                'px-3 py-1 rounded-full text-xs font-semibold transition-all',
-                form.templateFilter === f ? 'bg-violet-500 text-white' : 'bg-gray-100 text-gray-600 hover:bg-gray-200',
-              )}
-            >
-              {f}
-            </button>
-          ))}
-        </div>
-
-        {/* Template cards */}
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-4">
-          {filteredTemplates.map(t => (
-            <button
-              key={t.id}
-              type="button"
-              onClick={() => setForm(f => ({ ...f, template: t.id }))}
-              aria-pressed={form.template === t.id}
-              className={clsx(
-                'rounded-xl p-4 flex flex-col justify-between h-36 cursor-pointer select-none text-left transition-all',
-                form.template === t.id
-                  ? 'border-2 border-violet-500 bg-violet-50/20'
-                  : 'border border-gray-200 hover:border-gray-300',
-              )}
-            >
-              <div className="flex gap-3">
-                <div className="w-10 h-10 rounded-lg bg-gray-50 flex items-center justify-center text-gray-400 flex-shrink-0">
-                  <i className={clsx('ti text-lg', t.icon)} />
-                </div>
-                <div>
-                  <h4 className="text-xs font-semibold text-gray-900">{t.name}</h4>
-                  <span className="text-[10px] text-gray-500">{t.type}</span>
-                </div>
-              </div>
-              <div className="flex items-center gap-1.5 mt-2">
-                <span className={clsx('w-1.5 h-1.5 rounded-full', t.dot)} />
-                <span className="text-[10px] font-medium text-gray-500">{t.diffText}</span>
-              </div>
-            </button>
-          ))}
-        </div>
-
-        <button
-          type="button"
-          onClick={openGophishTemplates}
-          className="inline-flex items-center gap-1 text-xs font-semibold text-violet-500 hover:text-violet-600"
-        >
-          <i className="ti ti-external-link" />
-          <span>Create a new template in GoPhish</span>
-        </button>
-      </div>
-
-      {/* Card 3 — Import targets */}
+      {/* Card 2 — Import targets */}
       <div className="bg-white border border-gray-200 rounded-xl p-5 space-y-4">
         <h3 className="text-sm font-semibold text-gray-900">Import targets</h3>
 

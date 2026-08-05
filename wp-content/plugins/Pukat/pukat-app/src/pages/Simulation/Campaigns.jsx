@@ -4,8 +4,8 @@ import toast from 'react-hot-toast'
 import { useCampaignList } from '../../hooks/queries/useCampaignQueries.js'
 import { useTableRows, useTableSchema } from '../../hooks/queries/useTableQueries.js'
 import { usePlaybooks } from '../../hooks/queries/usePlaybookQueries.js'
-import { useCreateCampaignMutation, useCreateCampaignRunMutation, useDeleteCampaignMutation } from '../../hooks/mutations/useCampaignMutations.js'
-import { buildCampaignLaunchPayload } from '../../utils/campaignLaunch.js'
+import { useCreateCampaignMutation, useCreateCampaignRunMutation, useImportCampaignRunTargetsMutation, useLaunchCampaignRunMutation, useDeleteCampaignMutation } from '../../hooks/mutations/useCampaignMutations.js'
+import { buildCampaignLaunchPayload, buildTargetImportPayload } from '../../utils/campaignLaunch.js'
 import WizardStepper from '../../features/campaigns/WizardStepper.jsx'
 import DeleteModal from '../../features/campaigns/DeleteModal.jsx'
 import WorkspaceHeader from '../../features/campaigns/WorkspaceHeader.jsx'
@@ -32,14 +32,15 @@ const STATIC_CAMPAIGNS = [
 const INITIAL_FORM = {
   name: 'Q2 Phishing Wave — Finance',
   desc: '',
-  template: 't1',
-  templateFilter: 'All',
   mode: 'playbook',
   playbook: '',
   dateStart: '2025-06-28',
   dateEnd: '2025-07-05',
   timezone: 'WIB',
-  sendingHours: 'work',
+  followUp: {
+    quizEnabled: true,
+    forceResetPasswordReminderEnabled: false,
+  },
 }
 
 const PLAYBOOK_TYPE_COLORS = {
@@ -89,6 +90,7 @@ function playbookMasterToWizardCard(row) {
     status: row.status || 'draft',
     statusLabel: status.label,
     statusClass: status.className,
+    readiness: row.readiness || { ready: false, errors: [] },
     raw: row,
   }
 }
@@ -114,6 +116,7 @@ export default function Campaigns() {
   const [wizardStep, setWizardStep] = useState(1)
   const [form, setForm] = useState(INITIAL_FORM)
   const [csvData, setCsvData] = useState([])
+  const [launchStage, setLaunchStage] = useState(null)
 
   // Queries
   const { data } = useCampaignList({ page, per_page: 10 }, {
@@ -149,12 +152,9 @@ export default function Campaigns() {
     },
   })
 
-  const createCampaignRunMutation = useCreateCampaignRunMutation({
-    onSuccess: () => {
-      resetWizard()
-      navigate('/monitoring')
-    },
-  })
+  const createCampaignRunMutation = useCreateCampaignRunMutation()
+  const importTargetsMutation = useImportCampaignRunTargetsMutation()
+  const launchCampaignRunMutation = useLaunchCampaignRunMutation()
 
   const deleteMutation = useDeleteCampaignMutation({
     onSuccess: () => {
@@ -195,26 +195,48 @@ export default function Campaigns() {
     setCsvData([])
   }
 
-  const handleLaunch = () => {
+  const handleLaunch = async () => {
     if (!form.name.trim()) { toast.error('Campaign name is required.'); return }
-    if (form.mode === 'playbook') {
-      const selectedPlaybook = wizardPlaybooks.find(playbook => String(playbook.id) === String(form.playbook))
 
-      if (!selectedPlaybook) {
-        toast.error('Select a Playbook Master first.')
-        return
-      }
-
-      if (String(selectedPlaybook.status || '').toLowerCase() !== 'active') {
-        toast.error('Playbook Master must be Active before creating a Campaign Run.')
-        return
-      }
-
-      createCampaignRunMutation.mutate(buildCampaignLaunchPayload(form, wizardPlaybooks))
+    if (form.mode !== 'playbook') {
+      createCampaignMutation.mutate(buildCampaignLaunchPayload(form, []))
       return
     }
 
-    createCampaignMutation.mutate(buildCampaignLaunchPayload(form, []))
+    const selectedPlaybook = wizardPlaybooks.find(playbook => String(playbook.id) === String(form.playbook))
+
+    if (!selectedPlaybook) {
+      toast.error('Select a Playbook Master first.')
+      return
+    }
+
+    if (String(selectedPlaybook.status || '').toLowerCase() !== 'active') {
+      toast.error('Playbook Master must be Active before creating a Campaign Run.')
+      return
+    }
+
+    if (csvData.length === 0) {
+      toast.error('Import targets before launching.')
+      return
+    }
+
+    try {
+      setLaunchStage('creating')
+      const run = await createCampaignRunMutation.mutateAsync(buildCampaignLaunchPayload(form, wizardPlaybooks))
+
+      setLaunchStage('importing-targets')
+      await importTargetsMutation.mutateAsync({ campaignRunId: run.id, targets: buildTargetImportPayload(csvData) })
+
+      setLaunchStage('launching')
+      await launchCampaignRunMutation.mutateAsync(run.id)
+
+      resetWizard()
+      navigate('/monitoring')
+    } catch {
+      // Backend error is already surfaced via toast by the mutations' own onError handlers.
+    } finally {
+      setLaunchStage(null)
+    }
   }
 
   // ── New campaign wizard view ──
@@ -247,12 +269,13 @@ export default function Campaigns() {
         )}
         {wizardStep === 3 && (
           <Step3
-            form={form} csvData={csvData}
+            form={form} setForm={setForm} csvData={csvData}
             playbooks={wizardPlaybooks}
             onBack={() => setWizardStep(2)}
             onLaunch={handleLaunch}
             onDraft={() => { toast.success('Saved as draft.'); resetWizard(); navigate('/dashboard') }}
-            isLaunching={createCampaignMutation.isPending || createCampaignRunMutation.isPending}
+            isLaunching={createCampaignMutation.isPending || createCampaignRunMutation.isPending || importTargetsMutation.isPending || launchCampaignRunMutation.isPending}
+            launchStage={launchStage}
           />
         )}
       </PageShell>

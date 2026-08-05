@@ -14,6 +14,7 @@ export const campaignApi = {
   lockRunSnapshot: id  => post(`/campaign-runs/${id}/lock-snapshot`),
   syncRun:         id  => post(`/campaign-runs/${id}/sync`),
   launchRun:       id  => post(`/campaign-runs/${id}/launch`),
+  importRunTargets: (campaignRunId, targets) => post('/targets/import', { campaign_run_id: campaignRunId, targets }),
 }
 
 export default campaignApi

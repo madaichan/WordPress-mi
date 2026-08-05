@@ -1,8 +1,19 @@
 import clsx from 'clsx'
 import { Link } from 'react-router-dom'
-import { TEMPLATES, DEMO_TARGET_TOTAL } from './wizardData.js'
+import Switch from '../../../components/UI/Switch.jsx'
+import { DEMO_TARGET_TOTAL } from './wizardData.js'
 
-export default function Step3({ form, csvData, playbooks = [], onBack, onLaunch, onDraft, isLaunching }) {
+const LAUNCH_STAGE_LABELS = {
+  creating: 'Creating run…',
+  'importing-targets': 'Importing targets…',
+  launching: 'Launching…',
+}
+
+export default function Step3({ form, setForm, csvData, playbooks = [], onBack, onLaunch, onDraft, isLaunching, launchStage }) {
+  const quizEnabled = form.followUp?.quizEnabled ?? true
+  const reminderEnabled = form.followUp?.forceResetPasswordReminderEnabled ?? false
+
+  const setFollowUp = (patch) => setForm(f => ({ ...f, followUp: { ...f.followUp, ...patch } }))
   const selectedPlaybook = playbooks.find(p => String(p.id) === String(form.playbook))
   const selectedPlaybookReady = String(selectedPlaybook?.status || '').toLowerCase() === 'active'
   const playbookChecklistText = selectedPlaybook
@@ -10,21 +21,25 @@ export default function Step3({ form, csvData, playbooks = [], onBack, onLaunch,
       ? `Selected playbook — ${selectedPlaybook.name} (${selectedPlaybook.type}, difficulty ${selectedPlaybook.diff})`
       : `Selected playbook — ${selectedPlaybook.name} (${selectedPlaybook.statusLabel || 'not active'}; activate before launch)`
     : 'Select Playbook Master'
-  const selectedTemplate = TEMPLATES.find(t => t.id === form.template)
   const targetCount = csvData.length || DEMO_TARGET_TOTAL
 
+  const readiness = selectedPlaybook?.readiness
+  const componentsReadyText = selectedPlaybook
+    ? readiness?.ready
+      ? 'Email template, landing page, and sending profile are ready for launch'
+      : (readiness?.errors || []).join('; ') || 'Playbook components are not ready for launch'
+    : 'Select a Playbook Master to check component readiness'
+
   const checklist = [
-    { ok: true, text: `${targetCount.toLocaleString('en-US')} targets imported successfully` },
     {
-      ok: form.mode === 'playbook' ? Boolean(selectedPlaybook) && selectedPlaybookReady : Boolean(form.template),
-      text: form.mode === 'playbook'
-        ? playbookChecklistText
-        : form.template ? `Selected email template — ${selectedTemplate?.name} (${selectedTemplate?.type}, difficulty ${selectedTemplate?.diff})` : 'Select phishing template',
+      ok: csvData.length > 0,
+      text: csvData.length > 0
+        ? `${csvData.length.toLocaleString('en-US')} targets imported successfully`
+        : 'Import targets before launching',
     },
-    { ok: true, text: 'SMTP sending profile validated' },
-    { ok: true, text: 'Landing page configured in GoPhish' },
+    { ok: Boolean(selectedPlaybook) && selectedPlaybookReady, text: playbookChecklistText },
+    { ok: Boolean(readiness?.ready), text: componentsReadyText },
     { ok: !!(form.dateStart && form.dateEnd), text: form.dateStart && form.dateEnd ? `Schedule set — ${form.dateStart} to ${form.dateEnd} (${form.timezone})` : 'Set sending schedule' },
-    { ok: true, text: 'No active blackout period' },
   ]
 
   const formatDate = (d) => {
@@ -66,7 +81,7 @@ export default function Step3({ form, csvData, playbooks = [], onBack, onLaunch,
               { label: 'Playbook', value: selectedPlaybook?.name || '—' },
               { label: 'Total targets', value: `${targetCount.toLocaleString('en-US')} user` },
               { label: 'Duration', value: form.dateStart && form.dateEnd ? `${formatDate(form.dateStart)} – ${formatDate(form.dateEnd)}` : '—' },
-              { label: 'Difficulty', value: selectedPlaybook?.diff ? `${selectedPlaybook.diff}/5 (NIST)` : selectedTemplate?.diff ? `${selectedTemplate.diff}/5 (NIST)` : '—', red: true },
+              { label: 'Difficulty', value: selectedPlaybook?.diff ? `${selectedPlaybook.diff}/5 (NIST)` : '—', red: true },
             ].map(({ label, value, red }) => (
               <div key={label} className="flex items-baseline justify-between">
                 <span className="text-xs text-gray-500 w-28 flex-shrink-0">{label}</span>
@@ -81,17 +96,38 @@ export default function Step3({ form, csvData, playbooks = [], onBack, onLaunch,
           <h3 className="text-sm font-semibold text-gray-900 mb-4">After the campaign starts</h3>
           <div className="space-y-3">
             {[
-              'Monitoring real-time enabled automatically',
-              'Quiz sent to users who click',
-              'Report generated automatically when complete',
-              'Coaching sent to high-risk users',
-            ].map(item => (
-              <div key={item} className="flex items-center gap-2 text-xs text-gray-700">
-                <i className="ti ti-circle-check text-emerald-600 text-base flex-shrink-0" />
-                {item}
+              { text: 'Monitoring real-time enabled automatically', ok: true },
+              { text: quizEnabled ? 'Quiz sent to users who click' : 'Quiz disabled for this campaign', ok: quizEnabled },
+              { text: 'Report generated automatically when complete', ok: true },
+              { text: 'Coaching sent to high-risk users', ok: true },
+            ].map(({ text, ok }) => (
+              <div key={text} className="flex items-center gap-2 text-xs text-gray-700">
+                <i className={clsx('ti text-base flex-shrink-0', ok ? 'ti-circle-check text-emerald-600' : 'ti-circle-x text-gray-400')} />
+                {text}
               </div>
             ))}
           </div>
+        </div>
+      </div>
+
+      {/* Card 3 — Set the Follow-Up */}
+      <div className="bg-white border border-gray-200 rounded-xl p-5 space-y-4">
+        <h3 className="text-sm font-semibold text-gray-900">Set the Follow-Up</h3>
+
+        <div className="flex items-center justify-between gap-4">
+          <div>
+            <p className="text-xs font-semibold text-gray-900">Quiz</p>
+            <p className="text-[11px] text-gray-500 mt-0.5">Send a short quiz to targets who click, and factor the result into their risk score.</p>
+          </div>
+          <Switch checked={quizEnabled} onChange={value => setFollowUp({ quizEnabled: value })} />
+        </div>
+
+        <div className="flex items-center justify-between gap-4 pt-4 border-t border-gray-100">
+          <div>
+            <p className="text-xs font-semibold text-gray-900">Force Reset Password</p>
+            <p className="text-[11px] text-gray-500 mt-0.5">Send a password-reset reminder email to high-risk targets after launch. This only sends a reminder — it does not reset anyone&apos;s password.</p>
+          </div>
+          <Switch checked={reminderEnabled} onChange={value => setFollowUp({ forceResetPasswordReminderEnabled: value })} />
         </div>
       </div>
 
@@ -107,7 +143,7 @@ export default function Step3({ form, csvData, playbooks = [], onBack, onLaunch,
           <button onClick={onLaunch} disabled={isLaunching}
             className="bg-violet-500 text-white hover:bg-violet-600 disabled:opacity-50 px-5 py-2 text-sm font-semibold rounded-xl flex items-center gap-1.5 transition-all">
             <i className="ti ti-player-play-filled text-sm" />
-            {isLaunching ? 'Launching...' : 'Launch campaign'}
+            {isLaunching ? (LAUNCH_STAGE_LABELS[launchStage] || 'Launching...') : 'Launch campaign'}
           </button>
         </div>
       </div>

@@ -10,6 +10,7 @@ declare(strict_types=1);
 namespace Pukat\Api;
 
 use Pukat\Services\CampaignRunService;
+use Pukat\Services\FollowUpReminderService;
 use WP_REST_Request;
 use WP_REST_Response;
 
@@ -19,9 +20,11 @@ use WP_REST_Response;
 class CampaignRunController extends RestController {
 
 	private CampaignRunService $campaign_runs;
+	private FollowUpReminderService $follow_up_reminders;
 
-	public function __construct( ?CampaignRunService $campaign_runs = null ) {
-		$this->campaign_runs = $campaign_runs ?? new CampaignRunService();
+	public function __construct( ?CampaignRunService $campaign_runs = null, ?FollowUpReminderService $follow_up_reminders = null ) {
+		$this->campaign_runs       = $campaign_runs ?? new CampaignRunService();
+		$this->follow_up_reminders = $follow_up_reminders ?? new FollowUpReminderService();
 	}
 
 	public function register_routes(): void {
@@ -87,6 +90,12 @@ class CampaignRunController extends RestController {
 			'callback'            => [ $this, 'get_report' ],
 			'permission_callback' => [ $this, 'permission_read' ],
 		] );
+
+		register_rest_route( $this->namespace, '/campaign-runs/(?P<id>\d+)/send-follow-up-reminder', [
+			'methods'             => 'POST',
+			'callback'            => [ $this, 'send_follow_up_reminder' ],
+			'permission_callback' => [ $this, 'permission_manage' ],
+		] );
 	}
 
 	public function list_campaign_runs( WP_REST_Request $request ): WP_REST_Response {
@@ -147,6 +156,12 @@ class CampaignRunController extends RestController {
 
 	public function get_report( WP_REST_Request $request ): WP_REST_Response {
 		$result = $this->campaign_runs->report( (int) $request->get_param( 'id' ) );
+
+		return $this->result_response( $result );
+	}
+
+	public function send_follow_up_reminder( WP_REST_Request $request ): WP_REST_Response {
+		$result = $this->follow_up_reminders->send_for_campaign_run( (int) $request->get_param( 'id' ) );
 
 		return $this->result_response( $result );
 	}

@@ -319,22 +319,27 @@ class CampaignController extends RestController {
 	}
 
 	/**
-	 * Import targets (from CSV upload) into a campaign and sync to GoPhish as a group.
+	 * Import targets (from CSV upload) for either a legacy campaign or a Campaign Run.
 	 *
-	 * Expects: { campaign_id: int, targets: [{ first_name, last_name, email, position, department }] }
+	 * Expects: { campaign_id|campaign_run_id: int, targets: [{ first_name, last_name, email, position, department }] }
 	 */
 	public function import_targets( WP_REST_Request $request ): WP_REST_Response {
 		global $wpdb;
 
-		$campaign_id = (int) $request->get_param( 'campaign_id' );
-		$targets     = $request->get_param( 'targets' );
+		$campaign_id     = (int) $request->get_param( 'campaign_id' );
+		$campaign_run_id = (int) $request->get_param( 'campaign_run_id' );
+		$targets         = $request->get_param( 'targets' );
 
-		if ( ! $campaign_id ) {
-			return $this->error( 'validation_error', __( 'campaign_id is required.', 'pukat' ), 422 );
+		if ( ! $campaign_id && ! $campaign_run_id ) {
+			return $this->error( 'validation_error', __( 'campaign_id or campaign_run_id is required.', 'pukat' ), 422 );
 		}
 
 		if ( empty( $targets ) || ! is_array( $targets ) ) {
 			return $this->error( 'validation_error', __( 'targets must be a non-empty array.', 'pukat' ), 422 );
+		}
+
+		if ( $campaign_run_id ) {
+			return $this->import_targets_for_campaign_run( $campaign_run_id, $targets );
 		}
 
 		$campaign = $wpdb->get_row(
@@ -416,6 +421,65 @@ class CampaignController extends RestController {
 			'imported'         => $inserted,
 			'gophish_group_id' => $gophish_group_id,
 		], 201 );
+	}
+
+	/**
+	 * Import targets for a Campaign Run. Unlike the legacy campaign path above, this does
+	 * NOT push a GoPhish group directly — CampaignRunService::sync() creates/reuses the
+	 * GoPhish group from these stored rows when the run is synced, so we don't end up with
+	 * two independent, possibly-conflicting group-creation paths for the same run.
+	 *
+	 * @param array<int, array<string, mixed>> $targets Raw target rows from the request.
+	 */
+	private function import_targets_for_campaign_run( int $campaign_run_id, array $targets ): WP_REST_Response {
+		global $wpdb;
+
+		$run = $wpdb->get_row(
+			$wpdb->prepare( "SELECT id FROM {$wpdb->prefix}pukat_campaign_runs WHERE id = %d", $campaign_run_id ),
+			ARRAY_A
+		);
+
+		if ( ! $run ) {
+			return $this->error( 'not_found', __( 'Campaign Run not found.', 'pukat' ), 404 );
+		}
+
+		// Delete existing targets for this Campaign Run before re-importing.
+		$wpdb->delete( $wpdb->prefix . 'pukat_targets', [ 'campaign_run_id' => $campaign_run_id ] );
+
+		$inserted = 0;
+		foreach ( $targets as $t ) {
+			if ( empty( $t['email'] ) || ! is_email( $t['email'] ) ) {
+				continue;
+			}
+
+			$wpdb->insert(
+				$wpdb->prefix . 'pukat_targets',
+				[
+					'campaign_id'     => 0,
+					'campaign_run_id' => $campaign_run_id,
+					'email'           => sanitize_email( $t['email'] ),
+					'first_name'      => sanitize_text_field( (string) ( $t['first_name'] ?? '' ) ),
+					'last_name'       => sanitize_text_field( (string) ( $t['last_name']  ?? '' ) ),
+					'position'        => sanitize_text_field( (string) ( $t['position']   ?? '' ) ),
+					'department'      => sanitize_text_field( (string) ( $t['department'] ?? '' ) ),
+				]
+			);
+			++$inserted;
+		}
+
+		if ( 0 === $inserted ) {
+			return $this->error( 'validation_error', __( 'No valid target email addresses were found.', 'pukat' ), 422 );
+		}
+
+		AuditLogService::log(
+			'targets.imported',
+			[ 'campaign_run_id' => $campaign_run_id, 'count' => $inserted ],
+			null,
+			'campaign_run',
+			$campaign_run_id
+		);
+
+		return $this->success( [ 'imported' => $inserted ], 201 );
 	}
 
 	/**

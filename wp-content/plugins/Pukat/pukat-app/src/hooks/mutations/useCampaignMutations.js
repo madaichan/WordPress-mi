@@ -37,6 +37,35 @@ export function useCreateCampaignRunMutation(options = {}) {
   })
 }
 
+export function useLaunchCampaignRunMutation(options = {}) {
+  const qc = useQueryClient()
+
+  return useMutation({
+    mutationFn: id => campaignApi.launchRun(id),
+    onSuccess: (data, variables, context) => {
+      toast.success('Campaign run launched in GoPhish.')
+      qc.invalidateQueries({ queryKey: queryKeys.campaignRuns.all })
+      qc.invalidateQueries({ queryKey: queryKeys.gophish.all })
+      options.onSuccess?.(data, variables, context)
+    },
+    onError: (err, variables, context) => {
+      toast.error(err.message || 'Failed to launch campaign run.')
+      options.onError?.(err, variables, context)
+    },
+  })
+}
+
+export function useImportCampaignRunTargetsMutation(options = {}) {
+  return useMutation({
+    mutationFn: ({ campaignRunId, targets }) => campaignApi.importRunTargets(campaignRunId, targets),
+    onSuccess: options.onSuccess,
+    onError: (err, variables, context) => {
+      toast.error(err.message || 'Failed to import targets.')
+      options.onError?.(err, variables, context)
+    },
+  })
+}
+
 export function useLaunchCampaignMutation(options = {}) {
   const qc = useQueryClient()
 

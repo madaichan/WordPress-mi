@@ -88,6 +88,7 @@ class CampaignRunService {
 			'timezone'           => $this->sanitize_timezone( (string) ( $params['timezone'] ?? 'UTC' ) ),
 			'status'             => 'draft_run',
 			'metrics_json'       => $this->json_value( $params, 'metrics', 'metrics_json' ),
+			'follow_up_json'     => $this->sanitize_follow_up( (array) ( $params['follow_up'] ?? [] ) ),
 			'created_by'         => $user_id,
 		];
 
@@ -98,6 +99,13 @@ class CampaignRunService {
 		$id = $this->repository->create( $data );
 		if ( false === $id ) {
 			return $this->db_error( __( 'Failed to create Campaign Run.', 'pukat' ) );
+		}
+
+		// A group name is required before a snapshot can be locked. If the caller didn't
+		// provide one, default to a per-run name — the same default resolve_or_create_group()
+		// already falls back to internally, kept here so the pre-lock validation passes too.
+		if ( '' === trim( $data['target_group_name'] ) ) {
+			$this->repository->update( $id, [ 'target_group_name' => "Pukat Run #{$id} Targets" ] );
 		}
 
 		AuditLogService::log(
@@ -827,6 +835,7 @@ class CampaignRunService {
 				'html'        => (string) ( $email['html_body'] ?? '' ),
 				'text'        => (string) ( $email['text_body'] ?? '' ),
 				'attachments' => [],
+				'entity'      => $this->snapshot_entity( $snapshot ),
 			]
 		);
 		if ( is_wp_error( $result ) ) {
@@ -883,6 +892,7 @@ class CampaignRunService {
 				'capture_credentials' => (bool) ( $capture_settings['capture_credentials'] ?? false ),
 				'capture_passwords'   => false,
 				'redirect_url'        => esc_url_raw( (string) ( $page['redirect_settings']['redirect_url'] ?? '' ) ),
+				'entity'              => $this->snapshot_entity( $snapshot ),
 			]
 		);
 		if ( is_wp_error( $result ) ) {
@@ -958,7 +968,7 @@ class CampaignRunService {
 			return $this->mark_sync_failed( $id, $run, 'target_group', __( 'Target group was not found in GoPhish, and no target snapshot is available to create it.', 'pukat' ) );
 		}
 
-		$result = $gp->create_group( [ 'name' => $name, 'targets' => $targets ] );
+		$result = $gp->create_group( [ 'name' => $name, 'targets' => $targets, 'entity' => $this->snapshot_entity( $snapshot ) ] );
 		if ( is_wp_error( $result ) ) {
 			return $this->mark_sync_failed_from_error( $id, $run, 'target_group', $result );
 		}
@@ -1008,6 +1018,7 @@ class CampaignRunService {
 		$result = $gp->create_campaign(
 			[
 				'name'         => $name,
+				'entity'       => $this->snapshot_entity( $snapshot ),
 				'template'     => [ 'name' => $email['name'] ],
 				'url'          => $url,
 				'page'         => [ 'name' => $page['name'] ],
@@ -1124,6 +1135,18 @@ class CampaignRunService {
 	}
 
 	/**
+	 * Entity to tag every GoPhish resource created for this run with, sourced from the
+	 * locked snapshot's playbook (the same entity Pukat's own asset pages already use).
+	 *
+	 * @param array<string, mixed> $snapshot Locked snapshot.
+	 */
+	private function snapshot_entity( array $snapshot ): string {
+		$playbook = is_array( $snapshot['playbook'] ?? null ) ? $snapshot['playbook'] : [];
+
+		return sanitize_text_field( (string) ( $playbook['entity'] ?? self::GENERAL_ENTITY ) );
+	}
+
+	/**
 	 * @param array<string, mixed> $target Snapshot target block.
 	 * @return array<int, array<string, string>>
 	 */
@@ -1196,6 +1219,7 @@ class CampaignRunService {
 				'snapshot_json'   => 'snapshot',
 				'sync_state_json' => 'sync_state',
 				'metrics_json'    => 'metrics',
+				'follow_up_json'  => 'follow_up',
 			]
 		);
 
@@ -1321,6 +1345,7 @@ class CampaignRunService {
 			'target' => [
 				'target_segment_id' => (int) ( $run['target_segment_id'] ?? 0 ) ?: null,
 				'target_group_name' => (string) ( $run['target_group_name'] ?? '' ),
+				'targets'           => $this->repository->find_targets( (int) ( $run['id'] ?? 0 ) ),
 			],
 			'schedule' => [
 				'schedule_at' => $run['schedule_at'] ?? null,
@@ -1424,6 +1449,18 @@ class CampaignRunService {
 		}
 
 		return wp_json_encode( $value );
+	}
+
+	/**
+	 * Whitelist-sanitize the wizard's Follow-Up preferences (quiz, reminder toggles).
+	 *
+	 * @param array<string, mixed> $input Raw `follow_up` param from the request.
+	 */
+	private function sanitize_follow_up( array $input ): string {
+		return (string) wp_json_encode( [
+			'quiz_enabled'                         => array_key_exists( 'quiz_enabled', $input ) ? (bool) $input['quiz_enabled'] : true,
+			'force_reset_password_reminder_enabled' => (bool) ( $input['force_reset_password_reminder_enabled'] ?? false ),
+		] );
 	}
 
 	/**

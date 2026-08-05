@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import {
   buildCampaignLaunchPayload,
+  buildTargetImportPayload,
   playbookMasterIdForForm,
   scheduleAtForDate,
   timezoneForRegion,
@@ -38,6 +39,10 @@ describe('campaignLaunch', () => {
       timezone: 'Asia/Makassar',
       schedule_at: '2026-08-10 09:00:00',
       target_group_name: null,
+      follow_up: {
+        quiz_enabled: true,
+        force_reset_password_reminder_enabled: false,
+      },
     })
   })
 
@@ -46,5 +51,28 @@ describe('campaignLaunch', () => {
       playbook_master_id: null,
       difficulty: 3,
     })
+  })
+
+  it('defaults follow-up preferences when unset, and passes through explicit choices', () => {
+    expect(buildCampaignLaunchPayload({ name: 'Defaults', timezone: 'WIB' }, [])).toMatchObject({
+      follow_up: { quiz_enabled: true, force_reset_password_reminder_enabled: false },
+    })
+
+    expect(buildCampaignLaunchPayload(
+      { name: 'Custom follow-up', timezone: 'WIB', followUp: { quizEnabled: false, forceResetPasswordReminderEnabled: true } },
+      []
+    )).toMatchObject({
+      follow_up: { quiz_enabled: false, force_reset_password_reminder_enabled: true },
+    })
+  })
+
+  it('maps parsed CSV rows into the targets/import payload shape, tolerating alternate name casings', () => {
+    expect(buildTargetImportPayload([
+      { email: 'jane@example.com', first_name: 'Jane', last_name: 'Doe', department: 'Finance', position: 'Analyst' },
+      { email: 'bob@example.com', firstname: 'Bob', lastname: 'Lee' },
+    ])).toEqual([
+      { email: 'jane@example.com', first_name: 'Jane', last_name: 'Doe', department: 'Finance', position: 'Analyst' },
+      { email: 'bob@example.com', first_name: 'Bob', last_name: 'Lee', department: '', position: '' },
+    ])
   })
 })

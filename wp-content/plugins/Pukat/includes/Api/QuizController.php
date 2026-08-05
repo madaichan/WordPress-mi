@@ -100,12 +100,13 @@ class QuizController extends RestController {
 	public function submit_quiz( WP_REST_Request $request ): WP_REST_Response {
 		global $wpdb;
 
-		$campaign_id = (int) $request->get_param( 'campaign_id' );
-		$email       = sanitize_email( (string) $request->get_param( 'email' ) );
-		$answers     = (array) $request->get_param( 'answers' );
+		$campaign_id     = (int) $request->get_param( 'campaign_id' );
+		$campaign_run_id = (int) $request->get_param( 'campaign_run_id' );
+		$email           = sanitize_email( (string) $request->get_param( 'email' ) );
+		$answers         = (array) $request->get_param( 'answers' );
 
-		if ( ! $campaign_id || ! is_email( $email ) || empty( $answers ) ) {
-			return $this->error( 'validation_error', __( 'Campaign ID, valid email, and answers are required.', 'pukat' ), 422 );
+		if ( ( ! $campaign_id && ! $campaign_run_id ) || ! is_email( $email ) || empty( $answers ) ) {
+			return $this->error( 'validation_error', __( 'Campaign ID or Campaign Run ID, valid email, and answers are required.', 'pukat' ), 422 );
 		}
 
 		// Score the quiz.
@@ -137,17 +138,18 @@ class QuizController extends RestController {
 		$user        = get_user_by( 'email', $email );
 
 		$wpdb->insert( $wpdb->prefix . 'pukat_quiz_results', [
-			'campaign_id'  => $campaign_id,
-			'user_id'      => $user ? $user->ID : 0,
-			'target_email' => $email,
-			'score'        => $score,
-			'passed'       => $passed ? 1 : 0,
-			'answers'      => wp_json_encode( $answers ),
-			'completed_at' => current_time( 'mysql' ),
+			'campaign_id'     => $campaign_id ?: 0,
+			'campaign_run_id' => $campaign_run_id ?: null,
+			'user_id'         => $user ? $user->ID : 0,
+			'target_email'    => $email,
+			'score'           => $score,
+			'passed'          => $passed ? 1 : 0,
+			'answers'         => wp_json_encode( $answers ),
+			'completed_at'    => current_time( 'mysql' ),
 		] );
 
 		if ( ! $passed ) {
-			do_action( 'pukat_quiz_failed', $email, $campaign_id, $score );
+			do_action( 'pukat_quiz_failed', $email, $campaign_id, $score, $campaign_run_id );
 		}
 
 		return $this->success( [

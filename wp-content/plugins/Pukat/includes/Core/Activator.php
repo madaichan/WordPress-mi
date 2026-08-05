@@ -34,7 +34,7 @@ class Activator {
 
 		// Store the version so we can handle future migrations.
 		update_option( 'pukat_version', PUKAT_VERSION );
-		update_option( 'pukat_db_version', '1.3.0' );
+		update_option( 'pukat_db_version', '1.5.0' );
 	}
 
 	/**
@@ -436,6 +436,10 @@ class Activator {
 		self::ensure_playbook_entity_column();
 		self::ensure_campaign_run_risk_score_column();
 		self::ensure_playbook_master_legacy_column();
+		self::ensure_quiz_results_campaign_run_column();
+		self::ensure_campaign_runs_follow_up_column();
+		self::ensure_socialization_logs_campaign_run_column();
+		self::ensure_targets_campaign_run_column();
 	}
 
 	/**
@@ -461,6 +465,22 @@ class Activator {
 			self::create_tables();
 			self::ensure_playbook_master_legacy_column();
 			update_option( 'pukat_db_version', '1.3.0' );
+			$db_version = '1.3.0';
+		}
+
+		if ( version_compare( $db_version, '1.4.0', '<' ) ) {
+			self::create_tables();
+			self::ensure_quiz_results_campaign_run_column();
+			self::ensure_campaign_runs_follow_up_column();
+			self::ensure_socialization_logs_campaign_run_column();
+			update_option( 'pukat_db_version', '1.4.0' );
+			$db_version = '1.4.0';
+		}
+
+		if ( version_compare( $db_version, '1.5.0', '<' ) ) {
+			self::create_tables();
+			self::ensure_targets_campaign_run_column();
+			update_option( 'pukat_db_version', '1.5.0' );
 		}
 	}
 
@@ -527,6 +547,98 @@ class Activator {
 
 		if ( ! $index ) {
 			$wpdb->query( "ALTER TABLE {$table} ADD INDEX legacy_playbook_id (legacy_playbook_id)" );
+		}
+	}
+
+	/**
+	 * Ensure quiz results can be linked to Campaign Run records in the new flow.
+	 */
+	private static function ensure_quiz_results_campaign_run_column(): void {
+		global $wpdb;
+
+		$table = $wpdb->prefix . 'pukat_quiz_results';
+
+		$column = $wpdb->get_var(
+			$wpdb->prepare( "SHOW COLUMNS FROM {$table} LIKE %s", 'campaign_run_id' )
+		);
+
+		if ( ! $column ) {
+			$wpdb->query( "ALTER TABLE {$table} ADD campaign_run_id BIGINT UNSIGNED DEFAULT NULL AFTER campaign_id" );
+		}
+
+		$index = $wpdb->get_var(
+			$wpdb->prepare( "SHOW INDEX FROM {$table} WHERE Key_name = %s", 'campaign_run_id' )
+		);
+
+		if ( ! $index ) {
+			$wpdb->query( "ALTER TABLE {$table} ADD INDEX campaign_run_id (campaign_run_id)" );
+		}
+	}
+
+	/**
+	 * Ensure Campaign Runs can store the wizard's Follow-Up preferences (quiz, reminder).
+	 */
+	private static function ensure_campaign_runs_follow_up_column(): void {
+		global $wpdb;
+
+		$table = $wpdb->prefix . 'pukat_campaign_runs';
+
+		$column = $wpdb->get_var(
+			$wpdb->prepare( "SHOW COLUMNS FROM {$table} LIKE %s", 'follow_up_json' )
+		);
+
+		if ( ! $column ) {
+			$wpdb->query( "ALTER TABLE {$table} ADD follow_up_json LONGTEXT DEFAULT NULL AFTER metrics_json" );
+		}
+	}
+
+	/**
+	 * Ensure socialization logs can be linked to Campaign Run records in the new flow.
+	 */
+	private static function ensure_socialization_logs_campaign_run_column(): void {
+		global $wpdb;
+
+		$table = $wpdb->prefix . 'pukat_socialization_logs';
+
+		$column = $wpdb->get_var(
+			$wpdb->prepare( "SHOW COLUMNS FROM {$table} LIKE %s", 'campaign_run_id' )
+		);
+
+		if ( ! $column ) {
+			$wpdb->query( "ALTER TABLE {$table} ADD campaign_run_id BIGINT UNSIGNED DEFAULT NULL AFTER campaign_id" );
+		}
+
+		$index = $wpdb->get_var(
+			$wpdb->prepare( "SHOW INDEX FROM {$table} WHERE Key_name = %s", 'campaign_run_id' )
+		);
+
+		if ( ! $index ) {
+			$wpdb->query( "ALTER TABLE {$table} ADD INDEX campaign_run_id (campaign_run_id)" );
+		}
+	}
+
+	/**
+	 * Ensure imported targets can be linked to a Campaign Run in the new flow.
+	 */
+	private static function ensure_targets_campaign_run_column(): void {
+		global $wpdb;
+
+		$table = $wpdb->prefix . 'pukat_targets';
+
+		$column = $wpdb->get_var(
+			$wpdb->prepare( "SHOW COLUMNS FROM {$table} LIKE %s", 'campaign_run_id' )
+		);
+
+		if ( ! $column ) {
+			$wpdb->query( "ALTER TABLE {$table} ADD campaign_run_id BIGINT UNSIGNED DEFAULT NULL AFTER campaign_id" );
+		}
+
+		$index = $wpdb->get_var(
+			$wpdb->prepare( "SHOW INDEX FROM {$table} WHERE Key_name = %s", 'campaign_run_id' )
+		);
+
+		if ( ! $index ) {
+			$wpdb->query( "ALTER TABLE {$table} ADD INDEX campaign_run_id (campaign_run_id)" );
 		}
 	}
 

@@ -29,16 +29,14 @@ export default function Step2({ form, setForm, playbooks = [], playbooksLoading 
           </button>
           <button
             type="button"
-            onClick={() => setForm(f => ({ ...f, mode: 'custom' }))}
-            aria-pressed={form.mode === 'custom'}
-            className={clsx(
-              'rounded-xl p-4 cursor-pointer select-none text-left transition-all',
-              form.mode === 'custom' ? 'border-2 border-violet-500 bg-violet-50/20' : 'border border-gray-200 hover:border-gray-300',
-            )}
+            disabled
+            aria-disabled="true"
+            title="Custom campaign is coming soon — not available yet."
+            className="rounded-xl p-4 text-left transition-all border border-gray-200 opacity-60 cursor-not-allowed"
           >
             <div className="flex items-center justify-between mb-2">
               <h4 className="text-sm font-semibold text-gray-900">Custom campaign</h4>
-              <span className="rounded-full text-[9px] font-semibold px-2 py-0.5 bg-blue-100 text-blue-700">Flexible</span>
+              <span className="rounded-full text-[9px] font-semibold px-2 py-0.5 bg-gray-100 text-gray-500">Coming soon</span>
             </div>
             <p className="text-xs text-gray-500 leading-relaxed">Configure the email template, landing page, and SMTP relay manually.</p>
           </button>
@@ -117,23 +115,6 @@ export default function Step2({ form, setForm, playbooks = [], playbooksLoading 
               <option value="WITA">WITA (Asia/Makassar)</option>
               <option value="WIT">WIT (Asia/Jayapura)</option>
             </select>
-          </div>
-        </div>
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          <div className="space-y-1">
-            <label className="block text-xs font-semibold text-gray-600">Sending hours</label>
-            <select value={form.sendingHours} onChange={e => setForm(f => ({ ...f, sendingHours: e.target.value }))}
-              className="w-full bg-white border border-gray-200 rounded-xl px-4 py-2 text-sm focus:outline-none focus:border-violet-500">
-              <option value="work">08:00 – 17:00 (Business hours)</option>
-              <option value="24h">Full 24 hours</option>
-            </select>
-          </div>
-          <div className="space-y-1">
-            <label className="block text-xs font-semibold text-gray-600">Blackout period</label>
-            <div className="w-full bg-gray-50 border border-gray-200 rounded-xl px-4 py-2 text-sm text-emerald-600 font-semibold flex items-center gap-1.5">
-              <i className="ti ti-shield-check" />
-              <span>No active blackout</span>
-            </div>
           </div>
         </div>
       </div>

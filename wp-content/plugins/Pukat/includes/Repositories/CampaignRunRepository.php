@@ -117,6 +117,28 @@ class CampaignRunRepository {
 	}
 
 	/**
+	 * Find imported targets for a Campaign Run.
+	 *
+	 * @return array<int, array<string, string>>
+	 */
+	public function find_targets( int $campaign_run_id ): array {
+		global $wpdb;
+
+		$rows = $wpdb->get_results(
+			$wpdb->prepare(
+				"SELECT first_name, last_name, email, position
+				 FROM {$this->table( 'targets' )}
+				 WHERE campaign_run_id = %d
+				 ORDER BY id ASC",
+				$campaign_run_id
+			),
+			ARRAY_A
+		);
+
+		return $rows ?: [];
+	}
+
+	/**
 	 * Find a generic row by table suffix and ID.
 	 *
 	 * @return array<string, mixed>|null

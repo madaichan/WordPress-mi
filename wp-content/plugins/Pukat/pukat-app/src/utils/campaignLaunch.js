@@ -17,6 +17,16 @@ export function playbookMasterIdForForm(form, playbooks) {
   return Number.isFinite(id) && id > 0 ? id : null
 }
 
+export function buildTargetImportPayload(csvData) {
+  return csvData.map(row => ({
+    email: row.email,
+    first_name: row.first_name || row.firstname || '',
+    last_name: row.last_name || row.lastname || '',
+    department: row.department || '',
+    position: row.position || '',
+  }))
+}
+
 export function buildCampaignLaunchPayload(form, playbooks) {
   const selected = playbooks.find(playbook => String(playbook.id) === String(form.playbook))
 
@@ -27,5 +37,9 @@ export function buildCampaignLaunchPayload(form, playbooks) {
     timezone: timezoneForRegion(form.timezone),
     schedule_at: scheduleAtForDate(form.dateStart),
     target_group_name: form.targetGroupName?.trim() || null,
+    follow_up: {
+      quiz_enabled: form.followUp?.quizEnabled ?? true,
+      force_reset_password_reminder_enabled: form.followUp?.forceResetPasswordReminderEnabled ?? false,
+    },
   }
 }
