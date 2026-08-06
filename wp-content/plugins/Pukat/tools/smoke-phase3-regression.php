@@ -908,6 +908,207 @@ assert_permission_boundary_only(
 );
 
 // ---------------------------------------------------------------------------
+// MasterComponentController (Phase 3, controller 11/11 — closes Phase 3).
+// Pure WP DB, no external service dependency, so every case here is fully
+// deterministic (unlike GoPhishProxy) — confirmed by reading each service
+// method: create_* validates params before any DB lookup (empty body -> 422
+// regardless of id), update_*/delete_*/version/validate/health-check all
+// check existence first (nonexistent id -> 404 regardless of body).
+//
+// Email templates and landing pages keep their master_email_templates.*/
+// master_landing_pages.* keys (unchanged from the original Phase 1 design —
+// these ARE the WordPress-owned versioned catalog those keys were always
+// meant for). Sending profiles use the NEW sending_profile_references.* key
+// discovered while migrating this controller — see MasterComponentController's
+// class-level doc comment for why master_sending_profiles.* would have been
+// wrong here. The 2 approve routes are snapshotted unchanged (still
+// permission_manage()); Phase 4 migrates them together with PlaybookMaster's.
+// ---------------------------------------------------------------------------
+assert_permission_matrix(
+	'GET /master/email-templates',
+	'GET', '/pukat/v1/master/email-templates', [],
+	[ 'admin' => 200, 'operator' => 200, 'viewer' => 200, 'anon' => 401 ],
+	$admin_id, $operator_id, $viewer_id, $failures
+);
+assert_permission_matrix(
+	'POST /master/email-templates (empty body)',
+	'POST', '/pukat/v1/master/email-templates', [],
+	[ 'admin' => 422, 'operator' => 422, 'viewer' => 403, 'anon' => 401 ],
+	$admin_id, $operator_id, $viewer_id, $failures
+);
+assert_permission_matrix(
+	'GET /master/email-templates/999999',
+	'GET', '/pukat/v1/master/email-templates/999999', [],
+	[ 'admin' => 404, 'operator' => 404, 'viewer' => 404, 'anon' => 401 ],
+	$admin_id, $operator_id, $viewer_id, $failures
+);
+assert_permission_matrix(
+	'PUT /master/email-templates/999999 (empty body — 404 before body is read)',
+	'PUT', '/pukat/v1/master/email-templates/999999', [],
+	[ 'admin' => 404, 'operator' => 404, 'viewer' => 403, 'anon' => 401 ],
+	$admin_id, $operator_id, $viewer_id, $failures
+);
+assert_permission_matrix(
+	'DELETE /master/email-templates/999999',
+	'DELETE', '/pukat/v1/master/email-templates/999999', [],
+	[ 'admin' => 404, 'operator' => 404, 'viewer' => 403, 'anon' => 401 ],
+	$admin_id, $operator_id, $viewer_id, $failures
+);
+assert_permission_matrix(
+	'GET /master/email-templates/999999/versions',
+	'GET', '/pukat/v1/master/email-templates/999999/versions', [],
+	[ 'admin' => 404, 'operator' => 404, 'viewer' => 404, 'anon' => 401 ],
+	$admin_id, $operator_id, $viewer_id, $failures
+);
+assert_permission_matrix(
+	'POST /master/email-templates/999999/versions (empty body — 404 before body is read)',
+	'POST', '/pukat/v1/master/email-templates/999999/versions', [],
+	[ 'admin' => 404, 'operator' => 404, 'viewer' => 403, 'anon' => 401 ],
+	$admin_id, $operator_id, $viewer_id, $failures
+);
+assert_permission_matrix(
+	'PUT /master/email-template-versions/999999 (empty body — 404 before body is read)',
+	'PUT', '/pukat/v1/master/email-template-versions/999999', [],
+	[ 'admin' => 404, 'operator' => 404, 'viewer' => 403, 'anon' => 401 ],
+	$admin_id, $operator_id, $viewer_id, $failures
+);
+assert_permission_matrix(
+	'POST /master/email-template-versions/999999/approve (unchanged this step — still permission_manage())',
+	'POST', '/pukat/v1/master/email-template-versions/999999/approve', [],
+	[ 'admin' => 404, 'operator' => 404, 'viewer' => 403, 'anon' => 401 ],
+	$admin_id, $operator_id, $viewer_id, $failures
+);
+
+assert_permission_matrix(
+	'GET /master/landing-pages',
+	'GET', '/pukat/v1/master/landing-pages', [],
+	[ 'admin' => 200, 'operator' => 200, 'viewer' => 200, 'anon' => 401 ],
+	$admin_id, $operator_id, $viewer_id, $failures
+);
+assert_permission_matrix(
+	'POST /master/landing-pages (empty body)',
+	'POST', '/pukat/v1/master/landing-pages', [],
+	[ 'admin' => 422, 'operator' => 422, 'viewer' => 403, 'anon' => 401 ],
+	$admin_id, $operator_id, $viewer_id, $failures
+);
+assert_permission_matrix(
+	'GET /master/landing-pages/999999',
+	'GET', '/pukat/v1/master/landing-pages/999999', [],
+	[ 'admin' => 404, 'operator' => 404, 'viewer' => 404, 'anon' => 401 ],
+	$admin_id, $operator_id, $viewer_id, $failures
+);
+assert_permission_matrix(
+	'PUT /master/landing-pages/999999 (empty body — 404 before body is read)',
+	'PUT', '/pukat/v1/master/landing-pages/999999', [],
+	[ 'admin' => 404, 'operator' => 404, 'viewer' => 403, 'anon' => 401 ],
+	$admin_id, $operator_id, $viewer_id, $failures
+);
+assert_permission_matrix(
+	'DELETE /master/landing-pages/999999',
+	'DELETE', '/pukat/v1/master/landing-pages/999999', [],
+	[ 'admin' => 404, 'operator' => 404, 'viewer' => 403, 'anon' => 401 ],
+	$admin_id, $operator_id, $viewer_id, $failures
+);
+assert_permission_matrix(
+	'GET /master/landing-pages/999999/versions',
+	'GET', '/pukat/v1/master/landing-pages/999999/versions', [],
+	[ 'admin' => 404, 'operator' => 404, 'viewer' => 404, 'anon' => 401 ],
+	$admin_id, $operator_id, $viewer_id, $failures
+);
+assert_permission_matrix(
+	'POST /master/landing-pages/999999/versions (empty body — 404 before body is read)',
+	'POST', '/pukat/v1/master/landing-pages/999999/versions', [],
+	[ 'admin' => 404, 'operator' => 404, 'viewer' => 403, 'anon' => 401 ],
+	$admin_id, $operator_id, $viewer_id, $failures
+);
+assert_permission_matrix(
+	'PUT /master/landing-page-versions/999999 (empty body — 404 before body is read)',
+	'PUT', '/pukat/v1/master/landing-page-versions/999999', [],
+	[ 'admin' => 404, 'operator' => 404, 'viewer' => 403, 'anon' => 401 ],
+	$admin_id, $operator_id, $viewer_id, $failures
+);
+assert_permission_matrix(
+	'POST /master/landing-page-versions/999999/approve (unchanged this step — still permission_manage())',
+	'POST', '/pukat/v1/master/landing-page-versions/999999/approve', [],
+	[ 'admin' => 404, 'operator' => 404, 'viewer' => 403, 'anon' => 401 ],
+	$admin_id, $operator_id, $viewer_id, $failures
+);
+
+assert_permission_matrix(
+	'GET /master/sending-profiles',
+	'GET', '/pukat/v1/master/sending-profiles', [],
+	[ 'admin' => 200, 'operator' => 200, 'viewer' => 200, 'anon' => 401 ],
+	$admin_id, $operator_id, $viewer_id, $failures
+);
+assert_permission_matrix(
+	'POST /master/sending-profiles (empty body)',
+	'POST', '/pukat/v1/master/sending-profiles', [],
+	[ 'admin' => 422, 'operator' => 422, 'viewer' => 403, 'anon' => 401 ],
+	$admin_id, $operator_id, $viewer_id, $failures
+);
+assert_permission_matrix(
+	'GET /master/sending-profiles/999999',
+	'GET', '/pukat/v1/master/sending-profiles/999999', [],
+	[ 'admin' => 404, 'operator' => 404, 'viewer' => 404, 'anon' => 401 ],
+	$admin_id, $operator_id, $viewer_id, $failures
+);
+assert_permission_matrix(
+	'PUT /master/sending-profiles/999999 (empty body — 404 before body is read)',
+	'PUT', '/pukat/v1/master/sending-profiles/999999', [],
+	[ 'admin' => 404, 'operator' => 404, 'viewer' => 403, 'anon' => 401 ],
+	$admin_id, $operator_id, $viewer_id, $failures
+);
+assert_permission_matrix(
+	'DELETE /master/sending-profiles/999999',
+	'DELETE', '/pukat/v1/master/sending-profiles/999999', [],
+	[ 'admin' => 404, 'operator' => 404, 'viewer' => 403, 'anon' => 401 ],
+	$admin_id, $operator_id, $viewer_id, $failures
+);
+assert_permission_matrix(
+	'POST /master/sending-profiles/999999/validate-gophish',
+	'POST', '/pukat/v1/master/sending-profiles/999999/validate-gophish', [],
+	[ 'admin' => 404, 'operator' => 404, 'viewer' => 403, 'anon' => 401 ],
+	$admin_id, $operator_id, $viewer_id, $failures
+);
+
+assert_permission_matrix(
+	'GET /master/dynamic-domains',
+	'GET', '/pukat/v1/master/dynamic-domains', [],
+	[ 'admin' => 200, 'operator' => 200, 'viewer' => 200, 'anon' => 401 ],
+	$admin_id, $operator_id, $viewer_id, $failures
+);
+assert_permission_matrix(
+	'POST /master/dynamic-domains (empty body)',
+	'POST', '/pukat/v1/master/dynamic-domains', [],
+	[ 'admin' => 422, 'operator' => 422, 'viewer' => 403, 'anon' => 401 ],
+	$admin_id, $operator_id, $viewer_id, $failures
+);
+assert_permission_matrix(
+	'GET /master/dynamic-domains/999999',
+	'GET', '/pukat/v1/master/dynamic-domains/999999', [],
+	[ 'admin' => 404, 'operator' => 404, 'viewer' => 404, 'anon' => 401 ],
+	$admin_id, $operator_id, $viewer_id, $failures
+);
+assert_permission_matrix(
+	'PUT /master/dynamic-domains/999999 (empty body — 404 before body is read)',
+	'PUT', '/pukat/v1/master/dynamic-domains/999999', [],
+	[ 'admin' => 404, 'operator' => 404, 'viewer' => 403, 'anon' => 401 ],
+	$admin_id, $operator_id, $viewer_id, $failures
+);
+assert_permission_matrix(
+	'DELETE /master/dynamic-domains/999999',
+	'DELETE', '/pukat/v1/master/dynamic-domains/999999', [],
+	[ 'admin' => 404, 'operator' => 404, 'viewer' => 403, 'anon' => 401 ],
+	$admin_id, $operator_id, $viewer_id, $failures
+);
+assert_permission_matrix(
+	'POST /master/dynamic-domains/999999/health-check',
+	'POST', '/pukat/v1/master/dynamic-domains/999999/health-check', [],
+	[ 'admin' => 404, 'operator' => 404, 'viewer' => 403, 'anon' => 401 ],
+	$admin_id, $operator_id, $viewer_id, $failures
+);
+
+// ---------------------------------------------------------------------------
 // Cleanup
 // ---------------------------------------------------------------------------
 wp_delete_user( $viewer_id );

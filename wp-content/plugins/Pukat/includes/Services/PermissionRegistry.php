@@ -86,6 +86,17 @@ class PermissionRegistry {
 				'assign_entity' => 'operator',
 			],
 		],
+		'sending_profile_references' => [
+			'label'     => 'Sending Profile References',
+			'group'     => 'Master Library',
+			'view_gate' => 'shared',
+			'actions'   => [
+				'create'   => 'operator',
+				'edit'     => 'operator',
+				'delete'   => 'operator',
+				'validate' => 'operator',
+			],
+		],
 		'domains'                  => [
 			'label'     => 'Domains',
 			'group'     => 'Master Of Simulation',

@@ -10,6 +10,8 @@ declare(strict_types=1);
 namespace Pukat\Api;
 
 use Pukat\Services\MasterComponentService;
+use Pukat\Services\PermissionRegistry;
+use WP_Error;
 use WP_REST_Request;
 use WP_REST_Response;
 
@@ -24,6 +26,109 @@ class MasterComponentController extends RestController {
 		$this->components = $components ?? new MasterComponentService();
 	}
 
+	/**
+	 * Phase 3 of docs/IMPLEMENTATION_PLAN_RBAC.md: granular capability checks
+	 * replacing permission_read()/permission_manage() across all 4
+	 * sub-resources. *.view/create/edit/delete all keep the exact
+	 * shared/operator population permission_read()/permission_manage() had —
+	 * pure swaps, no behavior change. Version-create routes reuse .create
+	 * (a new version is new content); version-update reuses .edit. The 2
+	 * "approve" routes are NOT migrated here — still permission_manage(),
+	 * exactly as before; Phase 4 migrates them with the new self-approval
+	 * guard as their own reviewable unit.
+	 *
+	 * sending-profiles here got a NEW registry menu, sending_profile_references
+	 * — discovered while migrating this controller that MasterComponentService
+	 * manages the WordPress-owned reference table (wp_pukat_sending_profile_refs,
+	 * no credentials), a genuinely different resource from GoPhishProxy's live
+	 * GoPhish SMTP CRUD (already mapped to the admin-gated master_sending_profiles.*
+	 * in Phase 3.10). Reusing that key here would have silently locked
+	 * operators out of a reference table they can use today (e.g. while
+	 * building a Playbook Master) — sending_profile_references.* is
+	 * shared/operator-gated instead, matching today's actual behavior exactly.
+	 */
+	public function permission_view_email_template_master(): bool|WP_Error {
+		return $this->require_capability( 'master_email_templates.view' );
+	}
+
+	public function permission_create_email_template_master(): bool|WP_Error {
+		return $this->require_capability( 'master_email_templates.create' );
+	}
+
+	public function permission_edit_email_template_master(): bool|WP_Error {
+		return $this->require_capability( 'master_email_templates.edit' );
+	}
+
+	public function permission_delete_email_template_master(): bool|WP_Error {
+		return $this->require_capability( 'master_email_templates.delete' );
+	}
+
+	public function permission_view_landing_page_master(): bool|WP_Error {
+		return $this->require_capability( 'master_landing_pages.view' );
+	}
+
+	public function permission_create_landing_page_master(): bool|WP_Error {
+		return $this->require_capability( 'master_landing_pages.create' );
+	}
+
+	public function permission_edit_landing_page_master(): bool|WP_Error {
+		return $this->require_capability( 'master_landing_pages.edit' );
+	}
+
+	public function permission_delete_landing_page_master(): bool|WP_Error {
+		return $this->require_capability( 'master_landing_pages.delete' );
+	}
+
+	public function permission_view_sending_profile_reference(): bool|WP_Error {
+		return $this->require_capability( 'sending_profile_references.view' );
+	}
+
+	public function permission_create_sending_profile_reference(): bool|WP_Error {
+		return $this->require_capability( 'sending_profile_references.create' );
+	}
+
+	public function permission_edit_sending_profile_reference(): bool|WP_Error {
+		return $this->require_capability( 'sending_profile_references.edit' );
+	}
+
+	public function permission_delete_sending_profile_reference(): bool|WP_Error {
+		return $this->require_capability( 'sending_profile_references.delete' );
+	}
+
+	public function permission_validate_sending_profile_reference(): bool|WP_Error {
+		return $this->require_capability( 'sending_profile_references.validate' );
+	}
+
+	public function permission_view_dynamic_domain(): bool|WP_Error {
+		return $this->require_capability( 'domains.view' );
+	}
+
+	public function permission_create_dynamic_domain(): bool|WP_Error {
+		return $this->require_capability( 'domains.create' );
+	}
+
+	public function permission_edit_dynamic_domain(): bool|WP_Error {
+		return $this->require_capability( 'domains.edit' );
+	}
+
+	public function permission_delete_dynamic_domain(): bool|WP_Error {
+		return $this->require_capability( 'domains.delete' );
+	}
+
+	public function permission_validate_dynamic_domain(): bool|WP_Error {
+		return $this->require_capability( 'domains.validate' );
+	}
+
+	private function require_capability( string $permission_key ): bool|WP_Error {
+		if ( ! is_user_logged_in() ) {
+			return new WP_Error( 'rest_forbidden', __( 'Authentication required.', 'pukat' ), [ 'status' => 401 ] );
+		}
+		if ( ! current_user_can( PermissionRegistry::capability_for( $permission_key ) ) ) {
+			return new WP_Error( 'rest_forbidden', __( 'Insufficient permissions.', 'pukat' ), [ 'status' => 403 ] );
+		}
+		return true;
+	}
+
 	public function register_routes(): void {
 		$this->register_email_template_routes();
 		$this->register_landing_page_routes();
@@ -36,12 +141,12 @@ class MasterComponentController extends RestController {
 			[
 				'methods'             => 'GET',
 				'callback'            => [ $this, 'list_email_templates' ],
-				'permission_callback' => [ $this, 'permission_read' ],
+				'permission_callback' => [ $this, 'permission_view_email_template_master' ],
 			],
 			[
 				'methods'             => 'POST',
 				'callback'            => [ $this, 'create_email_template' ],
-				'permission_callback' => [ $this, 'permission_manage' ],
+				'permission_callback' => [ $this, 'permission_create_email_template_master' ],
 			],
 		] );
 
@@ -49,17 +154,17 @@ class MasterComponentController extends RestController {
 			[
 				'methods'             => 'GET',
 				'callback'            => [ $this, 'get_email_template' ],
-				'permission_callback' => [ $this, 'permission_read' ],
+				'permission_callback' => [ $this, 'permission_view_email_template_master' ],
 			],
 			[
 				'methods'             => 'PUT',
 				'callback'            => [ $this, 'update_email_template' ],
-				'permission_callback' => [ $this, 'permission_manage' ],
+				'permission_callback' => [ $this, 'permission_edit_email_template_master' ],
 			],
 			[
 				'methods'             => 'DELETE',
 				'callback'            => [ $this, 'delete_email_template' ],
-				'permission_callback' => [ $this, 'permission_manage' ],
+				'permission_callback' => [ $this, 'permission_delete_email_template_master' ],
 			],
 		] );
 
@@ -67,12 +172,12 @@ class MasterComponentController extends RestController {
 			[
 				'methods'             => 'GET',
 				'callback'            => [ $this, 'list_email_template_versions' ],
-				'permission_callback' => [ $this, 'permission_read' ],
+				'permission_callback' => [ $this, 'permission_view_email_template_master' ],
 			],
 			[
 				'methods'             => 'POST',
 				'callback'            => [ $this, 'create_email_template_version' ],
-				'permission_callback' => [ $this, 'permission_manage' ],
+				'permission_callback' => [ $this, 'permission_create_email_template_master' ], // a new version is new content
 			],
 		] );
 
@@ -80,14 +185,14 @@ class MasterComponentController extends RestController {
 			[
 				'methods'             => 'PUT',
 				'callback'            => [ $this, 'update_email_template_version' ],
-				'permission_callback' => [ $this, 'permission_manage' ],
+				'permission_callback' => [ $this, 'permission_edit_email_template_master' ],
 			],
 		] );
 
 		register_rest_route( $this->namespace, '/master/email-template-versions/(?P<id>\d+)/approve', [
 			'methods'             => 'POST',
 			'callback'            => [ $this, 'approve_email_template_version' ],
-			'permission_callback' => [ $this, 'permission_manage' ],
+			'permission_callback' => [ $this, 'permission_manage' ], // Phase 4 migrates this + adds the self-approval guard
 		] );
 	}
 
@@ -96,12 +201,12 @@ class MasterComponentController extends RestController {
 			[
 				'methods'             => 'GET',
 				'callback'            => [ $this, 'list_landing_pages' ],
-				'permission_callback' => [ $this, 'permission_read' ],
+				'permission_callback' => [ $this, 'permission_view_landing_page_master' ],
 			],
 			[
 				'methods'             => 'POST',
 				'callback'            => [ $this, 'create_landing_page' ],
-				'permission_callback' => [ $this, 'permission_manage' ],
+				'permission_callback' => [ $this, 'permission_create_landing_page_master' ],
 			],
 		] );
 
@@ -109,17 +214,17 @@ class MasterComponentController extends RestController {
 			[
 				'methods'             => 'GET',
 				'callback'            => [ $this, 'get_landing_page' ],
-				'permission_callback' => [ $this, 'permission_read' ],
+				'permission_callback' => [ $this, 'permission_view_landing_page_master' ],
 			],
 			[
 				'methods'             => 'PUT',
 				'callback'            => [ $this, 'update_landing_page' ],
-				'permission_callback' => [ $this, 'permission_manage' ],
+				'permission_callback' => [ $this, 'permission_edit_landing_page_master' ],
 			],
 			[
 				'methods'             => 'DELETE',
 				'callback'            => [ $this, 'delete_landing_page' ],
-				'permission_callback' => [ $this, 'permission_manage' ],
+				'permission_callback' => [ $this, 'permission_delete_landing_page_master' ],
 			],
 		] );
 
@@ -127,12 +232,12 @@ class MasterComponentController extends RestController {
 			[
 				'methods'             => 'GET',
 				'callback'            => [ $this, 'list_landing_page_versions' ],
-				'permission_callback' => [ $this, 'permission_read' ],
+				'permission_callback' => [ $this, 'permission_view_landing_page_master' ],
 			],
 			[
 				'methods'             => 'POST',
 				'callback'            => [ $this, 'create_landing_page_version' ],
-				'permission_callback' => [ $this, 'permission_manage' ],
+				'permission_callback' => [ $this, 'permission_create_landing_page_master' ], // a new version is new content
 			],
 		] );
 
@@ -140,14 +245,14 @@ class MasterComponentController extends RestController {
 			[
 				'methods'             => 'PUT',
 				'callback'            => [ $this, 'update_landing_page_version' ],
-				'permission_callback' => [ $this, 'permission_manage' ],
+				'permission_callback' => [ $this, 'permission_edit_landing_page_master' ],
 			],
 		] );
 
 		register_rest_route( $this->namespace, '/master/landing-page-versions/(?P<id>\d+)/approve', [
 			'methods'             => 'POST',
 			'callback'            => [ $this, 'approve_landing_page_version' ],
-			'permission_callback' => [ $this, 'permission_manage' ],
+			'permission_callback' => [ $this, 'permission_manage' ], // Phase 4 migrates this + adds the self-approval guard
 		] );
 	}
 
@@ -156,12 +261,12 @@ class MasterComponentController extends RestController {
 			[
 				'methods'             => 'GET',
 				'callback'            => [ $this, 'list_sending_profiles' ],
-				'permission_callback' => [ $this, 'permission_read' ],
+				'permission_callback' => [ $this, 'permission_view_sending_profile_reference' ],
 			],
 			[
 				'methods'             => 'POST',
 				'callback'            => [ $this, 'create_sending_profile' ],
-				'permission_callback' => [ $this, 'permission_manage' ],
+				'permission_callback' => [ $this, 'permission_create_sending_profile_reference' ],
 			],
 		] );
 
@@ -169,24 +274,24 @@ class MasterComponentController extends RestController {
 			[
 				'methods'             => 'GET',
 				'callback'            => [ $this, 'get_sending_profile' ],
-				'permission_callback' => [ $this, 'permission_read' ],
+				'permission_callback' => [ $this, 'permission_view_sending_profile_reference' ],
 			],
 			[
 				'methods'             => 'PUT',
 				'callback'            => [ $this, 'update_sending_profile' ],
-				'permission_callback' => [ $this, 'permission_manage' ],
+				'permission_callback' => [ $this, 'permission_edit_sending_profile_reference' ],
 			],
 			[
 				'methods'             => 'DELETE',
 				'callback'            => [ $this, 'delete_sending_profile' ],
-				'permission_callback' => [ $this, 'permission_manage' ],
+				'permission_callback' => [ $this, 'permission_delete_sending_profile_reference' ],
 			],
 		] );
 
 		register_rest_route( $this->namespace, '/master/sending-profiles/(?P<id>\d+)/validate-gophish', [
 			'methods'             => 'POST',
 			'callback'            => [ $this, 'validate_sending_profile_gophish_mapping' ],
-			'permission_callback' => [ $this, 'permission_manage' ],
+			'permission_callback' => [ $this, 'permission_validate_sending_profile_reference' ],
 		] );
 	}
 
@@ -195,12 +300,12 @@ class MasterComponentController extends RestController {
 			[
 				'methods'             => 'GET',
 				'callback'            => [ $this, 'list_dynamic_domains' ],
-				'permission_callback' => [ $this, 'permission_read' ],
+				'permission_callback' => [ $this, 'permission_view_dynamic_domain' ],
 			],
 			[
 				'methods'             => 'POST',
 				'callback'            => [ $this, 'create_dynamic_domain' ],
-				'permission_callback' => [ $this, 'permission_manage' ],
+				'permission_callback' => [ $this, 'permission_create_dynamic_domain' ],
 			],
 		] );
 
@@ -208,24 +313,24 @@ class MasterComponentController extends RestController {
 			[
 				'methods'             => 'GET',
 				'callback'            => [ $this, 'get_dynamic_domain' ],
-				'permission_callback' => [ $this, 'permission_read' ],
+				'permission_callback' => [ $this, 'permission_view_dynamic_domain' ],
 			],
 			[
 				'methods'             => 'PUT',
 				'callback'            => [ $this, 'update_dynamic_domain' ],
-				'permission_callback' => [ $this, 'permission_manage' ],
+				'permission_callback' => [ $this, 'permission_edit_dynamic_domain' ],
 			],
 			[
 				'methods'             => 'DELETE',
 				'callback'            => [ $this, 'delete_dynamic_domain' ],
-				'permission_callback' => [ $this, 'permission_manage' ],
+				'permission_callback' => [ $this, 'permission_delete_dynamic_domain' ],
 			],
 		] );
 
 		register_rest_route( $this->namespace, '/master/dynamic-domains/(?P<id>\d+)/health-check', [
 			'methods'             => 'POST',
 			'callback'            => [ $this, 'health_check_dynamic_domain' ],
-			'permission_callback' => [ $this, 'permission_manage' ],
+			'permission_callback' => [ $this, 'permission_validate_dynamic_domain' ],
 		] );
 	}
 

@@ -95,6 +95,7 @@ Draf awal, dipetakan dari menu yang benar-benar ada hari ini di `AdminMenu.php` 
 | Master Sending Profiles | `master_sending_profiles.view` | `.create`, `.edit`, `.delete`, `.test`, `.assign_entity` | `GoPhishProxy` (baru saja diubah ke `permission_admin`, lihat §2) |
 | Master Email Templates | `master_email_templates.view` | `.create`, `.edit`, `.delete`, `.approve`, `.assign_entity` | `MasterComponentController` |
 | Master Landing Pages | `master_landing_pages.view` | `.create`, `.edit`, `.delete`, `.approve`, `.assign_entity` | `MasterComponentController` |
+| Sending Profile References | `sending_profile_references.view` | `.create`, `.edit`, `.delete`, `.validate` | `MasterComponentController` (`/master/sending-profiles/*`) — added during Phase 3.11 implementation, not in the original draft; see note below |
 | Domains | `domains.view` | `.create`, `.edit`, `.delete`, `.validate`, `.authorize` | `DynamicDomainTableRepository`/domain controller |
 | User Access | `users.view` | `.assign_role`, `.manage_roles` | `UserController` (`permission_admin`, gate `pukat_manage_users`) |
 | Settings | `settings.view` | `.edit` (GoPhish config, dll) | `SettingsController` (`permission_admin`) |
@@ -106,6 +107,8 @@ Draf awal, dipetakan dari menu yang benar-benar ada hari ini di `AdminMenu.php` 
 | Audit Log | `audit_logs.view` | — | `UserController::get_audit_logs` |
 
 Catatan: baris "Sending/Email/Landing (non-master)" sengaja tetap dua lapis — RBAC menentukan apakah role ini boleh menyentuh fitur itu SAMA SEKALI, entity-scoping (tidak berubah) menentukan baris data mana yang boleh disentuh begitu masuk.
+
+Catatan tambahan (ditemukan saat implementasi Phase 3.11, `MasterComponentController`): draft awal tabel ini keliru mengasumsikan "Master Sending Profiles" hanya satu resource (`GoPhishProxy`'s live GoPhish SMTP CRUD). Ternyata `MasterComponentController` punya `/master/sending-profiles/*` sendiri yang mengelola tabel referensi WordPress (`wp_pukat_sending_profile_refs`, tanpa credential) — resource yang benar-benar berbeda, masih dipakai operator hari ini lewat alur pembuatan Playbook Master. Kalau baris ini dipetakan ke `master_sending_profiles.*` (admin-only sejak keputusan 2026-08-06), operator akan kehilangan akses nyata secara tidak sengaja. Ditambahkan key baru `sending_profile_references.*` (shared/operator-gated, sama persis dengan behavior `permission_read`/`permission_manage` sebelumnya) — bukan reuse `master_sending_profiles.*`. Registry tumbuh dari 59 ke 64 key; tidak ada key existing yang berubah gate-nya.
 
 ## 8. Default Seeded Roles
 

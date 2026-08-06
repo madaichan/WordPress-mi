@@ -25,6 +25,7 @@ if ( ! file_exists( $wp_load ) ) {
 require $wp_load;
 
 use Pukat\Core\Activator;
+use Pukat\Services\PermissionRegistry;
 
 if ( ! class_exists( \Pukat\Api\RoleController::class ) ) {
 	fwrite( STDERR, "Pukat is not loaded. Make sure the plugin is active.\n" );
@@ -76,8 +77,9 @@ check( 'GET /permissions/registry as operator is 403', 403 === $res['status'], $
 
 $res = call( 'GET', '/pukat/v1/me/permissions', [], $operator_id );
 check( 'GET /me/permissions as operator is 200 (any logged-in user)', 200 === $res['status'], $failures );
-$operator_permission_count = count( $res['data']['data']['permissions'] ?? [] );
-check( 'operator has 48 permissions via /me/permissions (13 shared + 35 operator)', 48 === $operator_permission_count, $failures );
+$operator_permission_count  = count( $res['data']['data']['permissions'] ?? [] );
+$expected_operator_count    = count( PermissionRegistry::keys_by_gate( 'shared' ) ) + count( PermissionRegistry::keys_by_gate( 'operator' ) );
+check( "operator has {$expected_operator_count} permissions via /me/permissions (shared + operator gates)", $expected_operator_count === $operator_permission_count, $failures );
 
 echo "\n=== List roles (admin) ===\n";
 $res = call( 'GET', '/pukat/v1/roles', [], $admin_id );
@@ -162,10 +164,13 @@ $lockout = call( 'PUT', '/pukat/v1/roles/pukat_admin', [ 'permissions' => [ 'das
 check( 'PUT /roles/pukat_admin revoking users.manage_roles is 400', 400 === $lockout['status'], $failures );
 check( 'error code is lockout_prevented', 'lockout_prevented' === ( $lockout['data']['code'] ?? null ), $failures );
 
-// Sanity: pukat_admin must still have all its Phase-1 permissions after the rejected update above.
-$final_roles = call( 'GET', '/pukat/v1/roles', [], $admin_id );
-$admin_row   = current( array_filter( $final_roles['data']['data'] ?? [], static fn( array $r ): bool => 'pukat_admin' === $r['role_slug'] ) );
-check( 'pukat_admin still has 59 permissions after the rejected lockout attempt', 59 === count( $admin_row['permissions'] ?? [] ), $failures );
+// Sanity: pukat_admin must still have every registry permission after the rejected update above.
+// Computed from the registry itself, not a hardcoded count, so this doesn't go stale as the
+// registry grows (e.g. Phase 3.11 added the sending_profile_references menu).
+$final_roles      = call( 'GET', '/pukat/v1/roles', [], $admin_id );
+$admin_row        = current( array_filter( $final_roles['data']['data'] ?? [], static fn( array $r ): bool => 'pukat_admin' === $r['role_slug'] ) );
+$registry_total   = count( PermissionRegistry::all() );
+check( "pukat_admin still has all {$registry_total} registry permissions after the rejected lockout attempt", $registry_total === count( $admin_row['permissions'] ?? [] ), $failures );
 
 // Confirm the test user ended up back where it started.
 $target_user_after = get_userdata( $target_id );
