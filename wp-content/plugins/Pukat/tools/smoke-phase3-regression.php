@@ -180,6 +180,43 @@ assert_permission_matrix(
 );
 
 // ---------------------------------------------------------------------------
+// UserController (Phase 3, controller 3/11) — users.view, users.assign_role,
+// audit_logs.view (NOT users.view — see UserController::permission_view_audit_logs()
+// doc comment) replacing the blanket permission_admin() on all 3 routes.
+// All 3 keys are `admin`-gated in Phase 1, so this is a pure swap, same
+// scope as before for every existing role.
+// ---------------------------------------------------------------------------
+assert_permission_matrix(
+	'GET /users',
+	'GET',
+	'/pukat/v1/users',
+	[],
+	[ 'admin' => 200, 'operator' => 403, 'viewer' => 403, 'anon' => 401 ],
+	$admin_id, $operator_id, $viewer_id, $failures
+);
+
+assert_permission_matrix(
+	'GET /audit-logs',
+	'GET',
+	'/pukat/v1/audit-logs',
+	[],
+	[ 'admin' => 200, 'operator' => 403, 'viewer' => 403, 'anon' => 401 ],
+	$admin_id, $operator_id, $viewer_id, $failures
+);
+
+// A nonexistent target user id (999999) so a permitted admin call fails at
+// the handler's own not_found check (404) rather than actually mutating a
+// real user's role — still proves admin cleared the permission boundary.
+assert_permission_matrix(
+	'PUT /users/999999/role (nonexistent target — proves permission boundary without mutating a real user)',
+	'PUT',
+	'/pukat/v1/users/999999/role',
+	[ 'pukat_role' => 'pukat_viewer' ],
+	[ 'admin' => 404, 'operator' => 403, 'viewer' => 403, 'anon' => 401 ],
+	$admin_id, $operator_id, $viewer_id, $failures
+);
+
+// ---------------------------------------------------------------------------
 // Cleanup
 // ---------------------------------------------------------------------------
 wp_delete_user( $viewer_id );

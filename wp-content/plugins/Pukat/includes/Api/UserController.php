@@ -10,6 +10,8 @@ declare(strict_types=1);
 namespace Pukat\Api;
 
 use Pukat\Services\AuditLogService;
+use Pukat\Services\PermissionRegistry;
+use WP_Error;
 use WP_REST_Request;
 use WP_REST_Response;
 
@@ -45,20 +47,56 @@ class UserController extends RestController {
 		register_rest_route( $this->namespace, '/users', [
 			'methods'             => 'GET',
 			'callback'            => [ $this, 'get_users' ],
-			'permission_callback' => [ $this, 'permission_admin' ],
+			'permission_callback' => [ $this, 'permission_view_users' ],
 		] );
 
 		register_rest_route( $this->namespace, '/users/(?P<id>\d+)/role', [
 			'methods'             => 'PUT',
 			'callback'            => [ $this, 'update_role' ],
-			'permission_callback' => [ $this, 'permission_admin' ],
+			'permission_callback' => [ $this, 'permission_assign_role' ],
 		] );
 
 		register_rest_route( $this->namespace, '/audit-logs', [
 			'methods'             => 'GET',
 			'callback'            => [ $this, 'get_audit_logs' ],
-			'permission_callback' => [ $this, 'permission_admin' ],
+			'permission_callback' => [ $this, 'permission_view_audit_logs' ],
 		] );
+	}
+
+	/**
+	 * Phase 3 of docs/IMPLEMENTATION_PLAN_RBAC.md: granular capability checks
+	 * replacing the blanket permission_admin() on all 3 routes here. All 3
+	 * registry keys (users.view, users.assign_role, audit_logs.view) are
+	 * `admin`-gated in Phase 1, matching who passed permission_admin() before.
+	 *
+	 * /audit-logs deliberately checks audit_logs.view, not users.view, even
+	 * though the implementation plan's prose sketch (written before the
+	 * Permission Registry existed) named users.view for both routes — the
+	 * actual registry gives audit log data its own key (also used by
+	 * TableController's /tables/audit_logs/* route in Phase 3.2), and using
+	 * a different key for the same data on this sibling route would
+	 * reintroduce the exact inconsistency Phase 3.2 just closed.
+	 */
+	public function permission_view_users(): bool|WP_Error {
+		return $this->require_capability( 'users.view' );
+	}
+
+	public function permission_assign_role(): bool|WP_Error {
+		return $this->require_capability( 'users.assign_role' );
+	}
+
+	public function permission_view_audit_logs(): bool|WP_Error {
+		return $this->require_capability( 'audit_logs.view' );
+	}
+
+	private function require_capability( string $permission_key ): bool|WP_Error {
+		if ( ! is_user_logged_in() ) {
+			return new WP_Error( 'rest_forbidden', __( 'Authentication required.', 'pukat' ), [ 'status' => 401 ] );
+		}
+		if ( ! current_user_can( PermissionRegistry::capability_for( $permission_key ) ) ) {
+			return new WP_Error( 'rest_forbidden', __( 'Admin access required.', 'pukat' ), [ 'status' => 403 ] );
+		}
+		return true;
 	}
 
 	public function get_users( WP_REST_Request $request ): WP_REST_Response {
