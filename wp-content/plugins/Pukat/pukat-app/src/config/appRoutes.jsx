@@ -2,6 +2,7 @@ import { lazy } from 'react'
 
 const Dashboard = lazy(() => import('../pages/Dashboard/Dashboard.jsx'))
 const Users = lazy(() => import('../pages/Admin/Users.jsx'))
+const Roles = lazy(() => import('../pages/Admin/Roles.jsx'))
 const Settings = lazy(() => import('../pages/Admin/Settings.jsx'))
 const MasterAssetPage = lazy(() => import('../pages/Admin/MasterAssetPage.jsx'))
 const MasterSendingProfiles = lazy(() => import('../pages/Admin/MasterSendingProfiles.jsx'))
@@ -39,6 +40,7 @@ export const adminRoutes = [
   { path: '/master/landing-pages', element: <MasterLandingPages />, permission: 'master_landing_pages.view' },
   { path: '/master/domains', element: <MasterDomains />, permission: 'domains.view' },
   { path: '/admin/users', element: <Users />, permission: 'users.view' },
+  { path: '/admin/roles', element: <Roles />, permission: 'users.manage_roles' },
   { path: '/admin/settings', element: <Settings />, permission: 'settings.view' },
   { path: '*', element: <Dashboard /> },
 ]
@@ -113,6 +115,7 @@ export const adminNavGroups = [
     group: 'Admin',
     items: [
       { to: '/admin/users', icon: 'ti-users', label: 'User Access' },
+      { to: '/admin/roles', icon: 'ti-shield-lock', label: 'Roles' },
       { to: '/admin/settings', icon: 'ti-settings', label: 'Settings' },
     ],
   },
@@ -191,5 +194,6 @@ export const routeMeta = [
   { path: '/master/landing-pages', title: 'Master landing pages', subtitle: 'Assigned simulation landing pages', breadcrumb: 'Master landing pages' },
   { path: '/master/domains', title: 'Domain Management', subtitle: 'Lookalike domains for sending and landing pages', breadcrumb: 'Domain Management' },
   { path: '/admin/users', title: 'User Access', subtitle: 'Role-based access control', breadcrumb: 'User Access' },
+  { path: '/admin/roles', title: 'Roles', subtitle: 'Create and manage RBAC roles', breadcrumb: 'Roles' },
   { path: '/admin/settings', title: 'Settings', subtitle: 'Global configuration and GoPhish connection', breadcrumb: 'Settings' },
 ]

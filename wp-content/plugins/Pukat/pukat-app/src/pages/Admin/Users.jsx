@@ -2,7 +2,7 @@ import React, { useState } from 'react'
 import { useUsers } from '../../hooks/queries/useUserQueries.js'
 import { useTableRows, useTableSchema } from '../../hooks/queries/useTableQueries.js'
 import { useUpdateUserRoleMutation } from '../../hooks/mutations/useUserMutations.js'
-import { ROLE_LABELS, ROLE_VALUES, getPukatRoleBadge, normalizePukatRole } from '../../utils/roles.js'
+import { useRoles } from '../../hooks/queries/useRoleQueries.js'
 import { DataTable } from '../../components/DataTable/index.js'
 import PageHeader from '../../components/UI/PageHeader.jsx'
 import PageShell from '../../components/Layout/PageShell.jsx'
@@ -38,6 +38,8 @@ export default function Users() {
   }, { enabled: activeTab === 'audit' })
 
   const roleMutation = useUpdateUserRoleMutation()
+  const { data: roles = [] } = useRoles()
+  const roleBySlug = new Map(roles.map(r => [r.role_slug, r]))
 
   const users = usersData?.users || []
 
@@ -56,16 +58,20 @@ export default function Users() {
               <tbody>
                 {isLoading ? [...Array(5)].map((_,i) => <tr key={i}>{[...Array(4)].map((_,j) => <td key={j}><div className="h-4 bg-gray-100 rounded animate-pulse" /></td>)}</tr>) :
                 users.map(u => {
-                  const role = normalizePukatRole(u.pukat_role)
+                  const role = u.pukat_role || 'none'
+                  const roleInfo = roleBySlug.get(role)
+                  const roleLabel = role === 'none' ? 'No Access' : (roleInfo?.display_name || role)
+                  const roleTone = role === 'none' ? 'gray' : (roleInfo?.is_system_role ? 'violet' : 'gray')
 
                   return (
                     <tr key={u.id}>
                       <td><div className="flex items-center gap-2"><div className="w-7 h-7 rounded-full bg-violet-100 flex items-center justify-center text-violet-600 text-xs font-bold">{u.display_name?.charAt(0)}</div><span className="font-medium">{u.display_name}</span></div></td>
                       <td className="text-gray-500">{u.email}</td>
-                      <td><Badge tone={getPukatRoleBadge(role).replace('badge-', '')}>{ROLE_LABELS[role]}</Badge></td>
+                      <td><Badge tone={roleTone}>{roleLabel}</Badge></td>
                       <td>
                         <select className="input py-1 text-xs w-auto" value={role} onChange={e => roleMutation.mutate({ id: u.id, role: e.target.value })}>
-                          {ROLE_VALUES.map(r => <option key={r} value={r}>{ROLE_LABELS[r]}</option>)}
+                          <option value="none">No Access</option>
+                          {roles.map(r => <option key={r.role_slug} value={r.role_slug}>{r.display_name}</option>)}
                         </select>
                       </td>
                     </tr>

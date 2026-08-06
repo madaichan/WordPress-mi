@@ -41,12 +41,17 @@ export const queryKeys = {
 
   permissions: {
     mine: ['permissions', 'mine'],
+    registry: ['permissions', 'registry'],
   },
 
   reports: {
     all: ['reports'],
     riskScores: (params = {}) => ['reports', 'risk-scores', params],
     campaign: (campaignId) => ['reports', 'campaign', campaignId],
+  },
+
+  roles: {
+    all: ['roles'],
   },
 
   users: {
