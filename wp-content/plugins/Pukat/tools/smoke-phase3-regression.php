@@ -349,6 +349,90 @@ assert_permission_matrix(
 );
 
 // ---------------------------------------------------------------------------
+// PlaybookMasterController (Phase 3, controller 6/11) — master_playbooks.view/
+// create/edit, all shared/operator-gated in Phase 1, same population as
+// permission_read()/permission_manage() allowed before. duplicate reuses
+// .create (new row); submit-review and archive reuse .edit (status
+// transitions on an existing row).
+//
+// /approve is intentionally NOT migrated here — still permission_manage(),
+// exactly as before. Tested below to snapshot that it's genuinely unchanged
+// in this step; Phase 4 migrates it together with the new self-approval
+// guard as its own reviewable unit.
+// ---------------------------------------------------------------------------
+assert_permission_matrix(
+	'GET /playbook-masters',
+	'GET',
+	'/pukat/v1/playbook-masters',
+	[],
+	[ 'admin' => 200, 'operator' => 200, 'viewer' => 200, 'anon' => 401 ],
+	$admin_id, $operator_id, $viewer_id, $failures
+);
+
+assert_permission_matrix(
+	'POST /playbook-masters (empty body — proves permission boundary without creating real data)',
+	'POST',
+	'/pukat/v1/playbook-masters',
+	[],
+	[ 'admin' => 422, 'operator' => 422, 'viewer' => 403, 'anon' => 401 ],
+	$admin_id, $operator_id, $viewer_id, $failures
+);
+
+assert_permission_matrix(
+	'GET /playbook-masters/999999 (nonexistent id)',
+	'GET',
+	'/pukat/v1/playbook-masters/999999',
+	[],
+	[ 'admin' => 404, 'operator' => 404, 'viewer' => 404, 'anon' => 401 ],
+	$admin_id, $operator_id, $viewer_id, $failures
+);
+
+assert_permission_matrix(
+	'PUT /playbook-masters/999999 (nonexistent id — safe, no real row touched)',
+	'PUT',
+	'/pukat/v1/playbook-masters/999999',
+	[ 'name' => 'Phase 3 Regression Test' ],
+	[ 'admin' => 404, 'operator' => 404, 'viewer' => 403, 'anon' => 401 ],
+	$admin_id, $operator_id, $viewer_id, $failures
+);
+
+assert_permission_matrix(
+	'POST /playbook-masters/999999/duplicate (nonexistent id — safe, no real row touched)',
+	'POST',
+	'/pukat/v1/playbook-masters/999999/duplicate',
+	[],
+	[ 'admin' => 404, 'operator' => 404, 'viewer' => 403, 'anon' => 401 ],
+	$admin_id, $operator_id, $viewer_id, $failures
+);
+
+assert_permission_matrix(
+	'POST /playbook-masters/999999/submit-review (nonexistent id — safe, no real row touched)',
+	'POST',
+	'/pukat/v1/playbook-masters/999999/submit-review',
+	[],
+	[ 'admin' => 404, 'operator' => 404, 'viewer' => 403, 'anon' => 401 ],
+	$admin_id, $operator_id, $viewer_id, $failures
+);
+
+assert_permission_matrix(
+	'POST /playbook-masters/999999/archive (nonexistent id — safe, no real row touched)',
+	'POST',
+	'/pukat/v1/playbook-masters/999999/archive',
+	[],
+	[ 'admin' => 404, 'operator' => 404, 'viewer' => 403, 'anon' => 401 ],
+	$admin_id, $operator_id, $viewer_id, $failures
+);
+
+assert_permission_matrix(
+	'POST /playbook-masters/999999/approve (unchanged this step — still permission_manage(), migrates in Phase 4)',
+	'POST',
+	'/pukat/v1/playbook-masters/999999/approve',
+	[],
+	[ 'admin' => 404, 'operator' => 404, 'viewer' => 403, 'anon' => 401 ],
+	$admin_id, $operator_id, $viewer_id, $failures
+);
+
+// ---------------------------------------------------------------------------
 // Cleanup
 // ---------------------------------------------------------------------------
 wp_delete_user( $viewer_id );

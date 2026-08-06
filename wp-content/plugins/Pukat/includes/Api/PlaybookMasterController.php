@@ -9,7 +9,9 @@ declare(strict_types=1);
 
 namespace Pukat\Api;
 
+use Pukat\Services\PermissionRegistry;
 use Pukat\Services\PlaybookMasterService;
+use WP_Error;
 use WP_REST_Request;
 use WP_REST_Response;
 
@@ -29,12 +31,12 @@ class PlaybookMasterController extends RestController {
 			[
 				'methods'             => 'GET',
 				'callback'            => [ $this, 'list_playbooks' ],
-				'permission_callback' => [ $this, 'permission_read' ],
+				'permission_callback' => [ $this, 'permission_view_playbook_master' ],
 			],
 			[
 				'methods'             => 'POST',
 				'callback'            => [ $this, 'create_playbook' ],
-				'permission_callback' => [ $this, 'permission_manage' ],
+				'permission_callback' => [ $this, 'permission_create_playbook_master' ],
 			],
 		] );
 
@@ -42,38 +44,70 @@ class PlaybookMasterController extends RestController {
 			[
 				'methods'             => 'GET',
 				'callback'            => [ $this, 'get_playbook' ],
-				'permission_callback' => [ $this, 'permission_read' ],
+				'permission_callback' => [ $this, 'permission_view_playbook_master' ],
 			],
 			[
 				'methods'             => 'PUT',
 				'callback'            => [ $this, 'update_playbook' ],
-				'permission_callback' => [ $this, 'permission_manage' ],
+				'permission_callback' => [ $this, 'permission_edit_playbook_master' ],
 			],
 		] );
 
 		register_rest_route( $this->namespace, '/playbook-masters/(?P<id>\d+)/duplicate', [
 			'methods'             => 'POST',
 			'callback'            => [ $this, 'duplicate_playbook' ],
-			'permission_callback' => [ $this, 'permission_manage' ],
+			'permission_callback' => [ $this, 'permission_create_playbook_master' ], // creates a new row
 		] );
 
 		register_rest_route( $this->namespace, '/playbook-masters/(?P<id>\d+)/submit-review', [
 			'methods'             => 'POST',
 			'callback'            => [ $this, 'submit_review' ],
-			'permission_callback' => [ $this, 'permission_manage' ],
+			'permission_callback' => [ $this, 'permission_edit_playbook_master' ], // status transition on an existing row
 		] );
 
 		register_rest_route( $this->namespace, '/playbook-masters/(?P<id>\d+)/approve', [
 			'methods'             => 'POST',
 			'callback'            => [ $this, 'approve_playbook' ],
-			'permission_callback' => [ $this, 'permission_manage' ],
+			'permission_callback' => [ $this, 'permission_manage' ], // Phase 4 migrates this + adds the self-approval guard
 		] );
 
 		register_rest_route( $this->namespace, '/playbook-masters/(?P<id>\d+)/archive', [
 			'methods'             => 'POST',
 			'callback'            => [ $this, 'archive_playbook' ],
-			'permission_callback' => [ $this, 'permission_manage' ],
+			'permission_callback' => [ $this, 'permission_edit_playbook_master' ], // status transition on an existing row, same as submit-review
 		] );
+	}
+
+	/**
+	 * Phase 3 of docs/IMPLEMENTATION_PLAN_RBAC.md: granular capability checks
+	 * for the 7 routes NOT deferred to Phase 4. duplicate reuses .create
+	 * (makes a new row); submit-review and archive both reuse .edit (status
+	 * transitions on an existing row — draft->review and X->archived are
+	 * the same kind of action as any other field edit, not a create or a
+	 * destructive delete). /approve is deliberately left on permission_manage()
+	 * here — Phase 4 migrates it together with the new self-approval guard
+	 * as one reviewable unit, per the implementation plan.
+	 */
+	public function permission_view_playbook_master(): bool|WP_Error {
+		return $this->require_capability( 'master_playbooks.view' );
+	}
+
+	public function permission_create_playbook_master(): bool|WP_Error {
+		return $this->require_capability( 'master_playbooks.create' );
+	}
+
+	public function permission_edit_playbook_master(): bool|WP_Error {
+		return $this->require_capability( 'master_playbooks.edit' );
+	}
+
+	private function require_capability( string $permission_key ): bool|WP_Error {
+		if ( ! is_user_logged_in() ) {
+			return new WP_Error( 'rest_forbidden', __( 'Authentication required.', 'pukat' ), [ 'status' => 401 ] );
+		}
+		if ( ! current_user_can( PermissionRegistry::capability_for( $permission_key ) ) ) {
+			return new WP_Error( 'rest_forbidden', __( 'Insufficient permissions.', 'pukat' ), [ 'status' => 403 ] );
+		}
+		return true;
 	}
 
 	public function list_playbooks( WP_REST_Request $request ): WP_REST_Response {
