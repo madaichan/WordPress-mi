@@ -25,8 +25,21 @@ use WP_REST_Response;
  */
 class UserController extends RestController {
 
-	/** Allowed Pukat roles. */
-	private const PUKAT_ROLES = [ 'pukat_admin', 'pukat_operator', 'pukat_viewer' ];
+	/**
+	 * All RBAC-managed role slugs (system + custom), read from
+	 * `wp_pukat_role_meta` — the single source of truth for "what roles
+	 * exist" since Activator::seed_rbac_defaults() and RoleController both
+	 * write there (see docs/PRD_RBAC.md). Not cached: role list changes are
+	 * rare and always admin-driven, a per-request query is cheap enough.
+	 *
+	 * @return string[]
+	 */
+	private function pukat_role_slugs(): array {
+		global $wpdb;
+
+		$table = $wpdb->prefix . 'pukat_role_meta';
+		return $wpdb->get_col( "SELECT role_slug FROM {$table}" );
+	}
 
 	public function register_routes(): void {
 		register_rest_route( $this->namespace, '/users', [
@@ -68,12 +81,13 @@ class UserController extends RestController {
 		$users       = get_users( $args );
 		$total       = count( get_users( array_merge( $args, [ 'number' => -1, 'fields' => 'ids' ] ) ) );
 		$result      = [];
+		$role_slugs  = $this->pukat_role_slugs();
 
 		foreach ( $users as $user ) {
 			$roles      = $user->roles;
 			$pukat_role = 'none';
 
-			foreach ( self::PUKAT_ROLES as $r ) {
+			foreach ( $role_slugs as $r ) {
 				if ( in_array( $r, $roles, true ) ) {
 					$pukat_role = $r;
 					break;
@@ -112,12 +126,14 @@ class UserController extends RestController {
 			return $this->error( 'not_found', __( 'User not found.', 'pukat' ), 404 );
 		}
 
-		if ( ! in_array( $new_role, array_merge( self::PUKAT_ROLES, [ 'none' ] ), true ) ) {
+		$role_slugs = $this->pukat_role_slugs();
+
+		if ( ! in_array( $new_role, array_merge( $role_slugs, [ 'none' ] ), true ) ) {
 			return $this->error( 'invalid_role', __( 'Invalid Pukat role.', 'pukat' ), 422 );
 		}
 
 		// Remove all existing Pukat roles.
-		foreach ( self::PUKAT_ROLES as $role ) {
+		foreach ( $role_slugs as $role ) {
 			$user->remove_role( $role );
 		}
 
