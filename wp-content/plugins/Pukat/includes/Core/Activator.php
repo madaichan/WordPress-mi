@@ -9,6 +9,8 @@ declare(strict_types=1);
 
 namespace Pukat\Core;
 
+use Pukat\Services\PermissionRegistry;
+
 /**
  * Class Activator
  *
@@ -26,6 +28,7 @@ class Activator {
 		self::create_tables();
 		self::set_default_options();
 		self::add_roles();
+		self::seed_rbac_defaults();
 		self::schedule_cron();
 
 		// Register frontend rewrite rules then flush so /pukat is available immediately.
@@ -34,7 +37,7 @@ class Activator {
 
 		// Store the version so we can handle future migrations.
 		update_option( 'pukat_version', PUKAT_VERSION );
-		update_option( 'pukat_db_version', '1.5.0' );
+		update_option( 'pukat_db_version', '1.6.0' );
 	}
 
 	/**
@@ -429,6 +432,25 @@ class Activator {
 			KEY created_at (created_at)
 		) $charset_collate;";
 
+		// -----------------------------------------------------------------------
+		// pukat_role_meta — display/description metadata for RBAC roles
+		// (the roles themselves and their capability grants live in WP's
+		// native wp_user_roles option, see PermissionRegistry + seed_rbac_defaults())
+		// -----------------------------------------------------------------------
+		$sql[] = "CREATE TABLE IF NOT EXISTS {$prefix}role_meta (
+			id             BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
+			role_slug      VARCHAR(60)     NOT NULL,
+			display_name   VARCHAR(255)    NOT NULL,
+			description    TEXT            DEFAULT NULL,
+			is_system_role TINYINT(1)      NOT NULL DEFAULT 0,
+			created_by     BIGINT UNSIGNED NOT NULL DEFAULT 0,
+			updated_by     BIGINT UNSIGNED DEFAULT NULL,
+			created_at     DATETIME        NOT NULL DEFAULT CURRENT_TIMESTAMP,
+			updated_at     DATETIME        NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+			PRIMARY KEY (id),
+			UNIQUE KEY role_slug (role_slug)
+		) $charset_collate;";
+
 		foreach ( $sql as $query ) {
 			dbDelta( $query );
 		}
@@ -481,6 +503,13 @@ class Activator {
 			self::create_tables();
 			self::ensure_targets_campaign_run_column();
 			update_option( 'pukat_db_version', '1.5.0' );
+			$db_version = '1.5.0';
+		}
+
+		if ( version_compare( $db_version, '1.6.0', '<' ) ) {
+			self::create_tables();
+			self::seed_rbac_defaults();
+			update_option( 'pukat_db_version', '1.6.0' );
 		}
 	}
 
@@ -715,6 +744,130 @@ class Activator {
 			$admin_role->add_cap( 'pukat_manage_users' );
 			$admin_role->add_cap( 'pukat_manage_settings' );
 		}
+	}
+
+	/**
+	 * RBAC role metadata — display name/description for the 4 system roles.
+	 * The roles/capabilities themselves live in WP's native role storage
+	 * (seeded by `grant_rbac_capabilities()`); this table only carries what
+	 * WP roles can't (description, `is_system_role`, audit trail columns).
+	 *
+	 * @var array<string, array{0: string, 1: string}> role_slug => [display_name, description]
+	 */
+	private const RBAC_SYSTEM_ROLES = [
+		'pukat_admin'    => [ 'Admin', 'Full access to every feature, including role and permission management.' ],
+		'pukat_operator' => [ 'Operator', 'Runs campaigns, manages master content, and edits own-entity assets.' ],
+		'pukat_reviewer' => [ 'Reviewer / Approver', 'Reviews and approves master playbooks, email templates, and landing pages before they go live.' ],
+		'pukat_viewer'   => [ 'Viewer', 'Read-only access to dashboards, reports, and master data.' ],
+	];
+
+	/**
+	 * Seed the RBAC system: register the new Reviewer/Approver role, grant
+	 * every system role its capability set from the Permission Registry, and
+	 * record role metadata. Idempotent — safe to run on every activation and
+	 * every version upgrade (see `activate()`/`maybe_upgrade()`).
+	 *
+	 * Phase 1 of `docs/IMPLEMENTATION_PLAN_RBAC.md`: this only seeds
+	 * capabilities, it does not change what any REST endpoint actually
+	 * checks — `pukat_admin`/`pukat_operator`/`pukat_viewer` end up with the
+	 * exact same effective access they have today via the old 4-capability
+	 * model. Controllers migrate to these granular capabilities in Phase 3.
+	 */
+	private static function seed_rbac_defaults(): void {
+		self::seed_role_meta_table();
+		self::grant_rbac_capabilities();
+	}
+
+	/**
+	 * Insert the 4 system roles into `wp_pukat_role_meta` if not already present.
+	 */
+	private static function seed_role_meta_table(): void {
+		global $wpdb;
+
+		$table = $wpdb->prefix . 'pukat_role_meta';
+
+		foreach ( self::RBAC_SYSTEM_ROLES as $slug => [ $display_name, $description ] ) {
+			$exists = $wpdb->get_var(
+				$wpdb->prepare( "SELECT id FROM {$table} WHERE role_slug = %s", $slug )
+			);
+
+			if ( $exists ) {
+				continue;
+			}
+
+			$wpdb->insert(
+				$table,
+				[
+					'role_slug'      => $slug,
+					'display_name'   => $display_name,
+					'description'    => $description,
+					'is_system_role' => 1,
+					'created_by'     => 0,
+					'created_at'     => current_time( 'mysql' ),
+					'updated_at'     => current_time( 'mysql' ),
+				],
+				[ '%s', '%s', '%s', '%d', '%d', '%s', '%s' ]
+			);
+		}
+	}
+
+	/**
+	 * Register the Reviewer/Approver WP role and grant every system role
+	 * (plus WP `administrator`) its Permission Registry capabilities.
+	 *
+	 * `pukat_admin`/`administrator` get every registry key. `pukat_operator`
+	 * gets every `shared` + `operator`-gated key (today's `permission_manage`
+	 * scope). `pukat_viewer` gets every `shared` (view-only) key (today's
+	 * `permission_read` scope). `pukat_reviewer` is new and does not map to
+	 * an existing gate — it gets view + approve only, see
+	 * `reviewer_capability_keys()`.
+	 */
+	private static function grant_rbac_capabilities(): void {
+		add_role( 'pukat_reviewer', __( 'Pukat Reviewer / Approver', 'pukat' ), [ 'read' => true ] );
+
+		$shared_keys   = PermissionRegistry::keys_by_gate( 'shared' );
+		$operator_keys = PermissionRegistry::keys_by_gate( 'operator' );
+		$admin_keys    = PermissionRegistry::keys_by_gate( 'admin' );
+
+		$role_keys = [
+			'pukat_admin'    => array_merge( $shared_keys, $operator_keys, $admin_keys ),
+			'pukat_operator' => array_merge( $shared_keys, $operator_keys ),
+			'pukat_viewer'   => $shared_keys,
+			'pukat_reviewer' => self::reviewer_capability_keys(),
+			'administrator'  => array_merge( $shared_keys, $operator_keys, $admin_keys ),
+		];
+
+		foreach ( $role_keys as $role_slug => $keys ) {
+			$role = get_role( $role_slug );
+
+			if ( ! $role ) {
+				continue;
+			}
+
+			foreach ( $keys as $key ) {
+				$role->add_cap( PermissionRegistry::capability_for( $key ) );
+			}
+		}
+	}
+
+	/**
+	 * The Reviewer/Approver's fixed capability set — view + approve on the
+	 * 3 approvable master resources, nothing else. Doesn't derive from a
+	 * registry gate like the other 3 system roles because it's a genuinely
+	 * new cross-cutting role, not a reproduction of an existing gate.
+	 *
+	 * @return string[]
+	 */
+	private static function reviewer_capability_keys(): array {
+		return [
+			'dashboard.view',
+			'master_playbooks.view',
+			'master_playbooks.approve',
+			'master_email_templates.view',
+			'master_email_templates.approve',
+			'master_landing_pages.view',
+			'master_landing_pages.approve',
+		];
 	}
 
 	/**
