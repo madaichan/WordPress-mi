@@ -217,6 +217,72 @@ assert_permission_matrix(
 );
 
 // ---------------------------------------------------------------------------
+// QuizController (Phase 3, controller 4/11) — post_sim.manage/post_sim.view
+// replacing permission_manage()/permission_read() on the 4 authenticated
+// routes. post_sim.manage is operator-gated, post_sim.view is shared-gated
+// in Phase 1 — same population as before for every existing role.
+//
+// /quiz/submit is deliberately NOT touched here — it stays __return_true,
+// a genuine public endpoint (quiz link delivered via email to targets who
+// are never WP users), not a permission gap. Tested below only to prove
+// this migration didn't accidentally change that.
+// ---------------------------------------------------------------------------
+assert_permission_matrix(
+	'GET /quiz/questions',
+	'GET',
+	'/pukat/v1/quiz/questions',
+	[],
+	[ 'admin' => 200, 'operator' => 200, 'viewer' => 403, 'anon' => 401 ],
+	$admin_id, $operator_id, $viewer_id, $failures
+);
+
+// Empty body so a permitted call fails its own validation (422) rather than
+// actually inserting a quiz question.
+assert_permission_matrix(
+	'POST /quiz/questions (empty body — proves permission boundary without creating real data)',
+	'POST',
+	'/pukat/v1/quiz/questions',
+	[],
+	[ 'admin' => 422, 'operator' => 422, 'viewer' => 403, 'anon' => 401 ],
+	$admin_id, $operator_id, $viewer_id, $failures
+);
+
+// Nonexistent question id — delete_question() unconditionally reports
+// success regardless of whether a row matched, so this is a safe no-op.
+assert_permission_matrix(
+	'DELETE /quiz/questions/999999 (nonexistent id — safe no-op)',
+	'DELETE',
+	'/pukat/v1/quiz/questions/999999',
+	[],
+	[ 'admin' => 200, 'operator' => 200, 'viewer' => 403, 'anon' => 401 ],
+	$admin_id, $operator_id, $viewer_id, $failures
+);
+
+assert_permission_matrix(
+	'GET /quiz/results/1',
+	'GET',
+	'/pukat/v1/quiz/results/1',
+	[],
+	[ 'admin' => 200, 'operator' => 200, 'viewer' => 200, 'anon' => 401 ],
+	$admin_id, $operator_id, $viewer_id, $failures
+);
+
+// __return_true regression guard: same (validation) outcome for every
+// identity, including anonymous — proves the public route wasn't touched.
+// Empty body so nothing is actually inserted into quiz_results.
+$submit_statuses = [
+	'admin'      => call( 'POST', '/pukat/v1/quiz/submit', [], $admin_id ),
+	'operator'   => call( 'POST', '/pukat/v1/quiz/submit', [], $operator_id ),
+	'viewer'     => call( 'POST', '/pukat/v1/quiz/submit', [], $viewer_id ),
+	'anonymous'  => call( 'POST', '/pukat/v1/quiz/submit', [], null ),
+];
+check(
+	'POST /quiz/submit — still __return_true (identical outcome for every identity, including anonymous)',
+	1 === count( array_unique( $submit_statuses ) ) && 422 === $submit_statuses['anonymous'],
+	$failures
+);
+
+// ---------------------------------------------------------------------------
 // Cleanup
 // ---------------------------------------------------------------------------
 wp_delete_user( $viewer_id );

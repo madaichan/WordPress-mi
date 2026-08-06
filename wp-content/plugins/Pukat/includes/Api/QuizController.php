@@ -9,6 +9,8 @@ declare(strict_types=1);
 
 namespace Pukat\Api;
 
+use Pukat\Services\PermissionRegistry;
+use WP_Error;
 use WP_REST_Request;
 use WP_REST_Response;
 
@@ -31,32 +33,57 @@ class QuizController extends RestController {
 			[
 				'methods'             => 'GET',
 				'callback'            => [ $this, 'get_questions' ],
-				'permission_callback' => [ $this, 'permission_manage' ],
+				'permission_callback' => [ $this, 'permission_manage_quiz' ],
 			],
 			[
 				'methods'             => 'POST',
 				'callback'            => [ $this, 'create_question' ],
-				'permission_callback' => [ $this, 'permission_manage' ],
+				'permission_callback' => [ $this, 'permission_manage_quiz' ],
 			],
 		] );
 
 		register_rest_route( $this->namespace, '/quiz/questions/(?P<id>\d+)', [
 			'methods'             => 'DELETE',
 			'callback'            => [ $this, 'delete_question' ],
-			'permission_callback' => [ $this, 'permission_manage' ],
+			'permission_callback' => [ $this, 'permission_manage_quiz' ],
 		] );
 
 		register_rest_route( $this->namespace, '/quiz/submit', [
 			'methods'             => 'POST',
 			'callback'            => [ $this, 'submit_quiz' ],
-			'permission_callback' => '__return_true', // Accessible by targets via email link.
+			'permission_callback' => '__return_true', // Accessible by targets via email link — Phase 3 leaves this untouched, it's not a permission gap.
 		] );
 
 		register_rest_route( $this->namespace, '/quiz/results/(?P<campaign_id>\d+)', [
 			'methods'             => 'GET',
 			'callback'            => [ $this, 'get_results' ],
-			'permission_callback' => [ $this, 'permission_read' ],
+			'permission_callback' => [ $this, 'permission_view_quiz' ],
 		] );
+	}
+
+	/**
+	 * Phase 3 of docs/IMPLEMENTATION_PLAN_RBAC.md: granular capability checks
+	 * for the 4 authenticated routes. post_sim.manage/view are seeded
+	 * operator/shared-gated in Phase 1 — same population permission_manage()/
+	 * permission_read() allowed before. /quiz/submit's `__return_true` is
+	 * intentionally untouched (public quiz link via email, not a gap).
+	 */
+	public function permission_manage_quiz(): bool|WP_Error {
+		return $this->require_capability( 'post_sim.manage' );
+	}
+
+	public function permission_view_quiz(): bool|WP_Error {
+		return $this->require_capability( 'post_sim.view' );
+	}
+
+	private function require_capability( string $permission_key ): bool|WP_Error {
+		if ( ! is_user_logged_in() ) {
+			return new WP_Error( 'rest_forbidden', __( 'Authentication required.', 'pukat' ), [ 'status' => 401 ] );
+		}
+		if ( ! current_user_can( PermissionRegistry::capability_for( $permission_key ) ) ) {
+			return new WP_Error( 'rest_forbidden', __( 'Insufficient permissions.', 'pukat' ), [ 'status' => 403 ] );
+		}
+		return true;
 	}
 
 	public function get_questions( WP_REST_Request $request ): WP_REST_Response {
