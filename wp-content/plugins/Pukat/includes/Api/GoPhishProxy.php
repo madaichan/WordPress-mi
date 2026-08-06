@@ -114,7 +114,7 @@ class GoPhishProxy extends RestController {
 			[
 				'methods'             => 'POST',
 				'callback'            => [ $this, 'create_sending_profile' ],
-				'permission_callback' => [ $this, 'permission_manage' ],
+				'permission_callback' => [ $this, 'permission_admin' ],
 			],
 		] );
 
@@ -122,25 +122,25 @@ class GoPhishProxy extends RestController {
 			[
 				'methods'             => 'PUT',
 				'callback'            => [ $this, 'update_sending_profile' ],
-				'permission_callback' => [ $this, 'permission_manage' ],
+				'permission_callback' => [ $this, 'permission_admin' ],
 			],
 			[
 				'methods'             => 'DELETE',
 				'callback'            => [ $this, 'delete_sending_profile' ],
-				'permission_callback' => [ $this, 'permission_manage' ],
+				'permission_callback' => [ $this, 'permission_admin' ],
 			],
 		] );
 
 		register_rest_route( $this->namespace, '/gophish/smtp/test-email', [
 			'methods'             => 'POST',
 			'callback'            => [ $this, 'send_test_email' ],
-			'permission_callback' => [ $this, 'permission_manage' ],
+			'permission_callback' => [ $this, 'permission_admin' ],
 		] );
 
 		register_rest_route( $this->namespace, '/gophish/smtp/(?P<id>\d+)/entity', [
 			'methods'             => 'PUT',
 			'callback'            => [ $this, 'update_sending_profile_entity' ],
-			'permission_callback' => [ $this, 'permission_manage' ],
+			'permission_callback' => [ $this, 'permission_admin' ],
 		] );
 
 		// Groups.

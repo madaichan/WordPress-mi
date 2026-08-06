@@ -1,0 +1,1 @@
+import{j as s,c as n}from"./main-AK2ExkSS.js";function c({required:a,className:e,children:l,...r}){return s.jsxs("label",{className:n("label",e),...r,children:[l,a&&s.jsx("span",{className:"text-danger",children:" *"})]})}export{c as L};
