@@ -123,6 +123,63 @@ update_option( 'pukat_org_name', $original_org_name );
 check( 'pukat_org_name restored to its original value', $original_org_name === get_option( 'pukat_org_name' ), $failures );
 
 // ---------------------------------------------------------------------------
+// TableController (Phase 3, controller 2/11) — table_key-aware view checks
+// replacing the blanket permission_read(). 5 of 6 table_keys keep the exact
+// same admin+operator+viewer scope as before (their Permission Registry key
+// is `shared`-gated, same population permission_read allowed).
+//
+// `audit_logs` is the one deliberate exception, not a bug: its Registry key
+// (audit_logs.view) was seeded `admin`-only in Phase 1 to match the OTHER
+// audit log endpoint (UserController's /audit-logs, already permission_admin
+// today) — but TableController's /tables/audit_logs/* had been on the loose
+// blanket permission_read this whole time, a pre-existing inconsistency
+// between two routes serving the same data. This migration step closes that
+// gap: operator/viewer lose table-API access to audit logs, matching what
+// was clearly always the intent (WP-admin's own "User Access" submenu page
+// already required pukat_manage_users, admin-only). Flagged here explicitly
+// rather than silently absorbed — see docs/PRD_RBAC.md's changelog norms.
+// ---------------------------------------------------------------------------
+$shared_table_keys = [ 'sending_profiles', 'landing_pages', 'email_templates', 'dynamic_domains', 'campaigns' ];
+
+foreach ( $shared_table_keys as $table_key ) {
+	assert_permission_matrix(
+		"GET /tables/{$table_key}/schema",
+		'GET',
+		"/pukat/v1/tables/{$table_key}/schema",
+		[],
+		[ 'admin' => 200, 'operator' => 200, 'viewer' => 200, 'anon' => 401 ],
+		$admin_id, $operator_id, $viewer_id, $failures
+	);
+}
+
+assert_permission_matrix(
+	'GET /tables/audit_logs/schema (tightened: admin-only, was operator+viewer)',
+	'GET',
+	'/pukat/v1/tables/audit_logs/schema',
+	[],
+	[ 'admin' => 200, 'operator' => 403, 'viewer' => 403, 'anon' => 401 ],
+	$admin_id, $operator_id, $viewer_id, $failures
+);
+
+assert_permission_matrix(
+	'GET /tables/audit_logs/rows (tightened: admin-only, was operator+viewer)',
+	'GET',
+	'/pukat/v1/tables/audit_logs/rows',
+	[],
+	[ 'admin' => 200, 'operator' => 403, 'viewer' => 403, 'anon' => 401 ],
+	$admin_id, $operator_id, $viewer_id, $failures
+);
+
+assert_permission_matrix(
+	'GET /tables/not_a_real_table/schema (unrecognized table_key falls through to TableQueryService)',
+	'GET',
+	'/pukat/v1/tables/not_a_real_table/schema',
+	[],
+	[ 'admin' => 404, 'operator' => 404, 'viewer' => 404, 'anon' => 401 ],
+	$admin_id, $operator_id, $viewer_id, $failures
+);
+
+// ---------------------------------------------------------------------------
 // Cleanup
 // ---------------------------------------------------------------------------
 wp_delete_user( $viewer_id );
