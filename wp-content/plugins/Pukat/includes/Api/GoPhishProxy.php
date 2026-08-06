@@ -11,6 +11,7 @@ namespace Pukat\Api;
 
 use Pukat\Services\GoPhishService;
 use Pukat\Services\MasterComponentService;
+use Pukat\Services\PermissionRegistry;
 use WP_Error;
 use WP_REST_Request;
 use WP_REST_Response;
@@ -35,7 +36,7 @@ class GoPhishProxy extends RestController {
 		register_rest_route( $this->namespace, '/gophish/status', [
 			'methods'             => 'GET',
 			'callback'            => [ $this, 'get_status' ],
-			'permission_callback' => [ $this, 'permission_admin' ],
+			'permission_callback' => [ $this, 'permission_view_settings' ],
 		] );
 
 		// Email templates.
@@ -43,12 +44,12 @@ class GoPhishProxy extends RestController {
 			[
 				'methods'             => 'GET',
 				'callback'            => [ $this, 'get_email_templates' ],
-				'permission_callback' => [ $this, 'permission_read' ],
+				'permission_callback' => [ $this, 'permission_view_email_template' ],
 			],
 			[
 				'methods'             => 'POST',
 				'callback'            => [ $this, 'create_email_template' ],
-				'permission_callback' => [ $this, 'permission_manage' ],
+				'permission_callback' => [ $this, 'permission_create_email_template' ],
 			],
 		] );
 
@@ -56,19 +57,19 @@ class GoPhishProxy extends RestController {
 			[
 				'methods'             => 'PUT',
 				'callback'            => [ $this, 'update_email_template' ],
-				'permission_callback' => [ $this, 'permission_manage' ],
+				'permission_callback' => [ $this, 'permission_edit_email_template' ],
 			],
 			[
 				'methods'             => 'DELETE',
 				'callback'            => [ $this, 'delete_email_template' ],
-				'permission_callback' => [ $this, 'permission_manage' ],
+				'permission_callback' => [ $this, 'permission_delete_email_template' ],
 			],
 		] );
 
 		register_rest_route( $this->namespace, '/gophish/templates/email/(?P<id>\d+)/entity', [
 			'methods'             => 'PUT',
 			'callback'            => [ $this, 'update_email_template_entity' ],
-			'permission_callback' => [ $this, 'permission_manage' ],
+			'permission_callback' => [ $this, 'permission_edit_email_template' ], // entity-scoping still restricts non-admins to their own entity, see enforce_write_entity_value()
 		] );
 
 		// Landing pages.
@@ -76,12 +77,12 @@ class GoPhishProxy extends RestController {
 			[
 				'methods'             => 'GET',
 				'callback'            => [ $this, 'get_landing_pages' ],
-				'permission_callback' => [ $this, 'permission_read' ],
+				'permission_callback' => [ $this, 'permission_view_landing_page' ],
 			],
 			[
 				'methods'             => 'POST',
 				'callback'            => [ $this, 'create_landing_page' ],
-				'permission_callback' => [ $this, 'permission_manage' ],
+				'permission_callback' => [ $this, 'permission_create_landing_page' ],
 			],
 		] );
 
@@ -89,19 +90,19 @@ class GoPhishProxy extends RestController {
 			[
 				'methods'             => 'PUT',
 				'callback'            => [ $this, 'update_landing_page' ],
-				'permission_callback' => [ $this, 'permission_manage' ],
+				'permission_callback' => [ $this, 'permission_edit_landing_page' ],
 			],
 			[
 				'methods'             => 'DELETE',
 				'callback'            => [ $this, 'delete_landing_page' ],
-				'permission_callback' => [ $this, 'permission_manage' ],
+				'permission_callback' => [ $this, 'permission_delete_landing_page' ],
 			],
 		] );
 
 		register_rest_route( $this->namespace, '/gophish/templates/landing/(?P<id>\d+)/entity', [
 			'methods'             => 'PUT',
 			'callback'            => [ $this, 'update_landing_page_entity' ],
-			'permission_callback' => [ $this, 'permission_manage' ],
+			'permission_callback' => [ $this, 'permission_edit_landing_page' ], // entity-scoping still restricts non-admins to their own entity, see enforce_write_entity_value()
 		] );
 
 		// Sending profiles.
@@ -109,12 +110,12 @@ class GoPhishProxy extends RestController {
 			[
 				'methods'             => 'GET',
 				'callback'            => [ $this, 'get_sending_profiles' ],
-				'permission_callback' => [ $this, 'permission_read' ],
+				'permission_callback' => [ $this, 'permission_view_sending_profile' ],
 			],
 			[
 				'methods'             => 'POST',
 				'callback'            => [ $this, 'create_sending_profile' ],
-				'permission_callback' => [ $this, 'permission_admin' ],
+				'permission_callback' => [ $this, 'permission_create_sending_profile' ],
 			],
 		] );
 
@@ -122,33 +123,135 @@ class GoPhishProxy extends RestController {
 			[
 				'methods'             => 'PUT',
 				'callback'            => [ $this, 'update_sending_profile' ],
-				'permission_callback' => [ $this, 'permission_admin' ],
+				'permission_callback' => [ $this, 'permission_edit_sending_profile' ],
 			],
 			[
 				'methods'             => 'DELETE',
 				'callback'            => [ $this, 'delete_sending_profile' ],
-				'permission_callback' => [ $this, 'permission_admin' ],
+				'permission_callback' => [ $this, 'permission_delete_sending_profile' ],
 			],
 		] );
 
 		register_rest_route( $this->namespace, '/gophish/smtp/test-email', [
 			'methods'             => 'POST',
 			'callback'            => [ $this, 'send_test_email' ],
-			'permission_callback' => [ $this, 'permission_admin' ],
+			'permission_callback' => [ $this, 'permission_test_sending_profile' ],
 		] );
 
 		register_rest_route( $this->namespace, '/gophish/smtp/(?P<id>\d+)/entity', [
 			'methods'             => 'PUT',
 			'callback'            => [ $this, 'update_sending_profile_entity' ],
-			'permission_callback' => [ $this, 'permission_admin' ],
+			'permission_callback' => [ $this, 'permission_assign_entity_sending_profile' ],
 		] );
 
 		// Groups.
 		register_rest_route( $this->namespace, '/gophish/groups', [
 			'methods'             => 'GET',
 			'callback'            => [ $this, 'get_groups' ],
-			'permission_callback' => [ $this, 'permission_read' ],
+			'permission_callback' => [ $this, 'permission_view_groups' ],
 		] );
+	}
+
+	/**
+	 * Phase 3 of docs/IMPLEMENTATION_PLAN_RBAC.md: granular capability checks
+	 * replacing permission_read()/permission_manage()/permission_admin().
+	 *
+	 * Email/landing page routes map to the NON-master email_templates and
+	 * landing_pages keys, not master_email_templates/master_landing_pages —
+	 * those are reserved for MasterComponentController's WordPress-owned
+	 * versioned catalog (a different data model entirely, next controller in
+	 * this phase). GoPhishProxy only ever talks to the live GoPhish API, which
+	 * is what backs the non-master Simulation pages. Entity-reassign routes
+	 * reuse .edit rather than a new .assign_entity action — unlike the master
+	 * page's cross-entity reassignment, non-admins here can only ever claim
+	 * their own entity (enforced in enforce_write_entity_value()), closer in
+	 * spirit to editing metadata on an owned asset than a privileged reassign.
+	 *
+	 * Sending profile routes map to master_sending_profiles.* — sending
+	 * profiles have no separate WordPress-owned master table the way email/
+	 * landing content does, GoPhishProxy is the only backend for both the
+	 * Master Sending Profiles admin page AND (before 2026-08-06) the non-
+	 * master page. All 5 actions are `admin`-gated in Phase 1, matching the
+	 * hardcoded permission_admin() this whole controller already had for
+	 * sending profile mutations — that hardcode becomes a configurable seed
+	 * grant now, with the exact same effective result.
+	 *
+	 * /gophish/status maps to settings.view (a GoPhish connection diagnostic,
+	 * conceptually part of Settings). /gophish/groups maps to campaigns.view
+	 * (used to resolve target groups during campaign launch).
+	 */
+	public function permission_view_settings(): bool|WP_Error {
+		return $this->require_capability( 'settings.view' );
+	}
+
+	public function permission_view_email_template(): bool|WP_Error {
+		return $this->require_capability( 'email_templates.view' );
+	}
+
+	public function permission_create_email_template(): bool|WP_Error {
+		return $this->require_capability( 'email_templates.create' );
+	}
+
+	public function permission_edit_email_template(): bool|WP_Error {
+		return $this->require_capability( 'email_templates.edit' );
+	}
+
+	public function permission_delete_email_template(): bool|WP_Error {
+		return $this->require_capability( 'email_templates.delete' );
+	}
+
+	public function permission_view_landing_page(): bool|WP_Error {
+		return $this->require_capability( 'landing_pages.view' );
+	}
+
+	public function permission_create_landing_page(): bool|WP_Error {
+		return $this->require_capability( 'landing_pages.create' );
+	}
+
+	public function permission_edit_landing_page(): bool|WP_Error {
+		return $this->require_capability( 'landing_pages.edit' );
+	}
+
+	public function permission_delete_landing_page(): bool|WP_Error {
+		return $this->require_capability( 'landing_pages.delete' );
+	}
+
+	public function permission_view_sending_profile(): bool|WP_Error {
+		return $this->require_capability( 'master_sending_profiles.view' );
+	}
+
+	public function permission_create_sending_profile(): bool|WP_Error {
+		return $this->require_capability( 'master_sending_profiles.create' );
+	}
+
+	public function permission_edit_sending_profile(): bool|WP_Error {
+		return $this->require_capability( 'master_sending_profiles.edit' );
+	}
+
+	public function permission_delete_sending_profile(): bool|WP_Error {
+		return $this->require_capability( 'master_sending_profiles.delete' );
+	}
+
+	public function permission_test_sending_profile(): bool|WP_Error {
+		return $this->require_capability( 'master_sending_profiles.test' );
+	}
+
+	public function permission_assign_entity_sending_profile(): bool|WP_Error {
+		return $this->require_capability( 'master_sending_profiles.assign_entity' );
+	}
+
+	public function permission_view_groups(): bool|WP_Error {
+		return $this->require_capability( 'campaigns.view' );
+	}
+
+	private function require_capability( string $permission_key ): bool|WP_Error {
+		if ( ! is_user_logged_in() ) {
+			return new WP_Error( 'rest_forbidden', __( 'Authentication required.', 'pukat' ), [ 'status' => 401 ] );
+		}
+		if ( ! current_user_can( PermissionRegistry::capability_for( $permission_key ) ) ) {
+			return new WP_Error( 'rest_forbidden', __( 'Insufficient permissions.', 'pukat' ), [ 'status' => 403 ] );
+		}
+		return true;
 	}
 
 	protected function success( mixed $data = null, int $status = 200 ): WP_REST_Response {

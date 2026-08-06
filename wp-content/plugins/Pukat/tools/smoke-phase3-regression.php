@@ -72,6 +72,44 @@ function assert_permission_matrix(
 	check( "{$label} — anonymous", $expected['anon'] === call( $method, $route, $params, null ), $failures );
 }
 
+/**
+ * Same permission boundary check as assert_permission_matrix(), but for
+ * routes whose ALLOWED-role status depends on a live external service (here:
+ * GoPhish, which may or may not be reachable from this environment) —
+ * confirmed by direct probing that GoPhish is unreachable right now, turning
+ * would-be 404s into 500s. Blocked roles are still asserted exactly (401/403
+ * is decided by the permission_callback before any GoPhish call happens, so
+ * it's always deterministic). Allowed roles are only asserted to have
+ * cleared the permission boundary (i.e. NOT 401/403) — whatever GoPhish
+ * says afterward is out of scope for an RBAC regression check.
+ *
+ * @param string[] $blocked_roles Subset of ['admin','operator','viewer','anon'] expected to be blocked.
+ */
+function assert_permission_boundary_only(
+	string $label,
+	string $method,
+	string $route,
+	array $params,
+	array $blocked_roles,
+	int $admin_id,
+	int $operator_id,
+	int $viewer_id,
+	array &$failures
+): void {
+	$identities = [ 'admin' => $admin_id, 'operator' => $operator_id, 'viewer' => $viewer_id, 'anon' => null ];
+
+	foreach ( $identities as $role => $user_id ) {
+		$status = call( $method, $route, $params, $user_id );
+
+		if ( in_array( $role, $blocked_roles, true ) ) {
+			$expected = 'anon' === $role ? 401 : 403;
+			check( "{$label} — {$role} (blocked)", $expected === $status, $failures );
+		} else {
+			check( "{$label} — {$role} (permission cleared; downstream status depends on live GoPhish, not asserted)", ! in_array( $status, [ 401, 403 ], true ), $failures );
+		}
+	}
+}
+
 do_action( 'rest_api_init' );
 Activator::maybe_upgrade();
 
@@ -684,6 +722,188 @@ assert_permission_matrix(
 	'/pukat/v1/campaign-runs/999999/send-follow-up-reminder',
 	[],
 	[ 'admin' => 404, 'operator' => 404, 'viewer' => 403, 'anon' => 401 ],
+	$admin_id, $operator_id, $viewer_id, $failures
+);
+
+// ---------------------------------------------------------------------------
+// GoPhishProxy (Phase 3, controller 10/11) — largest single controller
+// migrated this phase. Email/landing page routes map to the non-master
+// email_templates.*/landing_pages.* keys (shared/operator-gated, same
+// population as permission_read()/permission_manage() before). Sending
+// profile routes map to master_sending_profiles.* (admin-gated in Phase 1) —
+// the exact same effective scope the 2026-08-06 hardcode already enforced,
+// now a configurable seed grant instead. See GoPhishProxy's own doc comment
+// for the full rationale.
+//
+// GoPhish is confirmed unreachable from this environment right now (probed
+// directly: cURL "Failed to connect to host.docker.internal port 3333"), so
+// routes that hit GoPhish immediately (list/delete/entity/status) use
+// assert_permission_boundary_only() — only the permission boundary is
+// deterministic, not the downstream status. Routes with body validation
+// that runs BEFORE any GoPhish call (create/update/test-email — confirmed by
+// reading each handler) use the exact assert_permission_matrix() with an
+// empty body, since validation_error (422) fires without ever touching
+// GoPhish regardless of its availability.
+// ---------------------------------------------------------------------------
+assert_permission_boundary_only(
+	'GET /gophish/status (settings.view, admin-only)',
+	'GET',
+	'/pukat/v1/gophish/status',
+	[],
+	[ 'operator', 'viewer', 'anon' ],
+	$admin_id, $operator_id, $viewer_id, $failures
+);
+
+assert_permission_boundary_only(
+	'GET /gophish/templates/email',
+	'GET',
+	'/pukat/v1/gophish/templates/email',
+	[],
+	[ 'anon' ],
+	$admin_id, $operator_id, $viewer_id, $failures
+);
+
+assert_permission_matrix(
+	'POST /gophish/templates/email (empty body — validates before touching GoPhish)',
+	'POST',
+	'/pukat/v1/gophish/templates/email',
+	[],
+	[ 'admin' => 422, 'operator' => 422, 'viewer' => 403, 'anon' => 401 ],
+	$admin_id, $operator_id, $viewer_id, $failures
+);
+
+assert_permission_matrix(
+	'PUT /gophish/templates/email/999999 (empty body — validates before touching GoPhish)',
+	'PUT',
+	'/pukat/v1/gophish/templates/email/999999',
+	[],
+	[ 'admin' => 422, 'operator' => 422, 'viewer' => 403, 'anon' => 401 ],
+	$admin_id, $operator_id, $viewer_id, $failures
+);
+
+assert_permission_boundary_only(
+	'DELETE /gophish/templates/email/999999',
+	'DELETE',
+	'/pukat/v1/gophish/templates/email/999999',
+	[],
+	[ 'viewer', 'anon' ],
+	$admin_id, $operator_id, $viewer_id, $failures
+);
+
+assert_permission_matrix(
+	'PUT /gophish/templates/email/999999/entity (no entity param — validates before touching GoPhish)',
+	'PUT',
+	'/pukat/v1/gophish/templates/email/999999/entity',
+	[],
+	[ 'admin' => 422, 'operator' => 422, 'viewer' => 403, 'anon' => 401 ],
+	$admin_id, $operator_id, $viewer_id, $failures
+);
+
+assert_permission_boundary_only(
+	'GET /gophish/templates/landing',
+	'GET',
+	'/pukat/v1/gophish/templates/landing',
+	[],
+	[ 'anon' ],
+	$admin_id, $operator_id, $viewer_id, $failures
+);
+
+assert_permission_matrix(
+	'POST /gophish/templates/landing (empty body — validates before touching GoPhish)',
+	'POST',
+	'/pukat/v1/gophish/templates/landing',
+	[],
+	[ 'admin' => 422, 'operator' => 422, 'viewer' => 403, 'anon' => 401 ],
+	$admin_id, $operator_id, $viewer_id, $failures
+);
+
+assert_permission_matrix(
+	'PUT /gophish/templates/landing/999999 (empty body — validates before touching GoPhish)',
+	'PUT',
+	'/pukat/v1/gophish/templates/landing/999999',
+	[],
+	[ 'admin' => 422, 'operator' => 422, 'viewer' => 403, 'anon' => 401 ],
+	$admin_id, $operator_id, $viewer_id, $failures
+);
+
+assert_permission_boundary_only(
+	'DELETE /gophish/templates/landing/999999',
+	'DELETE',
+	'/pukat/v1/gophish/templates/landing/999999',
+	[],
+	[ 'viewer', 'anon' ],
+	$admin_id, $operator_id, $viewer_id, $failures
+);
+
+assert_permission_matrix(
+	'PUT /gophish/templates/landing/999999/entity (no entity param — validates before touching GoPhish)',
+	'PUT',
+	'/pukat/v1/gophish/templates/landing/999999/entity',
+	[],
+	[ 'admin' => 422, 'operator' => 422, 'viewer' => 403, 'anon' => 401 ],
+	$admin_id, $operator_id, $viewer_id, $failures
+);
+
+assert_permission_boundary_only(
+	'GET /gophish/smtp',
+	'GET',
+	'/pukat/v1/gophish/smtp',
+	[],
+	[ 'anon' ],
+	$admin_id, $operator_id, $viewer_id, $failures
+);
+
+assert_permission_matrix(
+	'POST /gophish/smtp (empty body, admin-only — validates before touching GoPhish)',
+	'POST',
+	'/pukat/v1/gophish/smtp',
+	[],
+	[ 'admin' => 422, 'operator' => 403, 'viewer' => 403, 'anon' => 401 ],
+	$admin_id, $operator_id, $viewer_id, $failures
+);
+
+assert_permission_matrix(
+	'PUT /gophish/smtp/999999 (empty body, admin-only — validates before touching GoPhish)',
+	'PUT',
+	'/pukat/v1/gophish/smtp/999999',
+	[],
+	[ 'admin' => 422, 'operator' => 403, 'viewer' => 403, 'anon' => 401 ],
+	$admin_id, $operator_id, $viewer_id, $failures
+);
+
+assert_permission_boundary_only(
+	'DELETE /gophish/smtp/999999 (admin-only)',
+	'DELETE',
+	'/pukat/v1/gophish/smtp/999999',
+	[],
+	[ 'operator', 'viewer', 'anon' ],
+	$admin_id, $operator_id, $viewer_id, $failures
+);
+
+assert_permission_matrix(
+	'POST /gophish/smtp/test-email (empty body, admin-only — validates before touching GoPhish)',
+	'POST',
+	'/pukat/v1/gophish/smtp/test-email',
+	[],
+	[ 'admin' => 422, 'operator' => 403, 'viewer' => 403, 'anon' => 401 ],
+	$admin_id, $operator_id, $viewer_id, $failures
+);
+
+assert_permission_matrix(
+	'PUT /gophish/smtp/999999/entity (no entity param, admin-only — validates before touching GoPhish)',
+	'PUT',
+	'/pukat/v1/gophish/smtp/999999/entity',
+	[],
+	[ 'admin' => 422, 'operator' => 403, 'viewer' => 403, 'anon' => 401 ],
+	$admin_id, $operator_id, $viewer_id, $failures
+);
+
+assert_permission_boundary_only(
+	'GET /gophish/groups',
+	'GET',
+	'/pukat/v1/gophish/groups',
+	[],
+	[ 'anon' ],
 	$admin_id, $operator_id, $viewer_id, $failures
 );
 
