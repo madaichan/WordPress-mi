@@ -53,8 +53,8 @@ foreach ( $all as $entry ) {
 }
 check( 'no entry has an empty capability string', $all_have_capability, $failures );
 
-// Every entry's gate must be one of the 3 values the seed logic understands.
-$valid_gates    = [ 'shared', 'operator', 'admin' ];
+// Every entry's gate must be one of the 4 values the seed logic understands.
+$valid_gates    = [ 'shared', 'operator', 'admin', 'approve' ];
 $all_gates_known = true;
 foreach ( $all as $entry ) {
 	if ( ! in_array( $entry['gate'], $valid_gates, true ) ) {
@@ -62,7 +62,7 @@ foreach ( $all as $entry ) {
 		break;
 	}
 }
-check( 'every entry has a recognized seed gate (shared/operator/admin)', $all_gates_known, $failures );
+check( 'every entry has a recognized seed gate (shared/operator/admin/approve)', $all_gates_known, $failures );
 
 // capability_for() must be deterministic and match what all() already computed.
 $capability_matches = true;
@@ -82,12 +82,19 @@ check( 'has_key() false for an invented key', ! PermissionRegistry::has_key( 'no
 $shared   = PermissionRegistry::keys_by_gate( 'shared' );
 $operator = PermissionRegistry::keys_by_gate( 'operator' );
 $admin    = PermissionRegistry::keys_by_gate( 'admin' );
+$approve  = PermissionRegistry::keys_by_gate( 'approve' );
+$gate_buckets = [ $shared, $operator, $admin, $approve ];
+$no_overlap   = true;
+foreach ( $gate_buckets as $i => $bucket_a ) {
+	foreach ( $gate_buckets as $j => $bucket_b ) {
+		if ( $i < $j && count( array_intersect( $bucket_a, $bucket_b ) ) > 0 ) {
+			$no_overlap = false;
+		}
+	}
+}
 check(
-	'keys_by_gate(shared/operator/admin) partitions the full registry with no overlap',
-	count( $shared ) + count( $operator ) + count( $admin ) === count( $all )
-		&& count( array_intersect( $shared, $operator ) ) === 0
-		&& count( array_intersect( $shared, $admin ) ) === 0
-		&& count( array_intersect( $operator, $admin ) ) === 0,
+	'keys_by_gate(shared/operator/admin/approve) partitions the full registry with no overlap',
+	count( $shared ) + count( $operator ) + count( $admin ) + count( $approve ) === count( $all ) && $no_overlap,
 	$failures
 );
 
@@ -98,18 +105,18 @@ check( 'grouped() contains every entry exactly once', $grouped_count === count( 
 // dashboard.view must be `shared` — every seeded role (incl. Reviewer) depends on this as the universal landing page.
 check( 'dashboard.view gate is shared', ( $all['dashboard.view']['gate'] ?? null ) === 'shared', $failures );
 
-// The 3 approvable master resources must have an `.approve` action gated `operator`
-// (today's permission_manage scope) — Phase 4 revokes it from Operator later, but
-// Phase 1 must reproduce today's behavior exactly.
+// The 3 approvable master resources must have an `.approve` action gated `approve`
+// (Phase 4 of docs/IMPLEMENTATION_PLAN_RBAC.md) — a dedicated bucket, distinct from
+// `operator`, since Operator does not hold approve-gated keys (only Admin/Reviewer do).
 foreach ( [ 'master_playbooks', 'master_email_templates', 'master_landing_pages' ] as $menu ) {
 	check(
-		"{$menu}.approve exists and is gated operator (matches today's permission_manage)",
-		( $all["{$menu}.approve"]['gate'] ?? null ) === 'operator',
+		"{$menu}.approve exists and is gated approve (Operator excluded, Admin/Reviewer included)",
+		( $all["{$menu}.approve"]['gate'] ?? null ) === 'approve',
 		$failures
 	);
 }
 
-echo "\n" . count( $all ) . " total permission keys (" . count( $shared ) . " shared, " . count( $operator ) . " operator, " . count( $admin ) . " admin).\n";
+echo "\n" . count( $all ) . " total permission keys (" . count( $shared ) . " shared, " . count( $operator ) . " operator, " . count( $admin ) . " admin, " . count( $approve ) . " approve).\n";
 
 if ( $failures ) {
 	fwrite( STDERR, "\n" . count( $failures ) . " check(s) failed.\n" );

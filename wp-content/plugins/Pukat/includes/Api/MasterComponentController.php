@@ -32,10 +32,13 @@ class MasterComponentController extends RestController {
 	 * sub-resources. *.view/create/edit/delete all keep the exact
 	 * shared/operator population permission_read()/permission_manage() had —
 	 * pure swaps, no behavior change. Version-create routes reuse .create
-	 * (a new version is new content); version-update reuses .edit. The 2
-	 * "approve" routes are NOT migrated here — still permission_manage(),
-	 * exactly as before; Phase 4 migrates them with the new self-approval
-	 * guard as their own reviewable unit.
+	 * (a new version is new content); version-update reuses .edit.
+	 *
+	 * Phase 4: the 2 "approve" routes now check their own dedicated
+	 * `.approve` gate (excluded from Operator, see PermissionRegistry's
+	 * `approve` gate and Activator::grant_rbac_capabilities()) instead of
+	 * permission_manage(). See approve_email_template_version()/
+	 * approve_landing_page_version() for the accompanying self-approval guard.
 	 *
 	 * sending-profiles here got a NEW registry menu, sending_profile_references
 	 * — discovered while migrating this controller that MasterComponentService
@@ -77,6 +80,14 @@ class MasterComponentController extends RestController {
 
 	public function permission_delete_landing_page_master(): bool|WP_Error {
 		return $this->require_capability( 'master_landing_pages.delete' );
+	}
+
+	public function permission_approve_email_template_master(): bool|WP_Error {
+		return $this->require_capability( 'master_email_templates.approve' );
+	}
+
+	public function permission_approve_landing_page_master(): bool|WP_Error {
+		return $this->require_capability( 'master_landing_pages.approve' );
 	}
 
 	public function permission_view_sending_profile_reference(): bool|WP_Error {
@@ -192,7 +203,7 @@ class MasterComponentController extends RestController {
 		register_rest_route( $this->namespace, '/master/email-template-versions/(?P<id>\d+)/approve', [
 			'methods'             => 'POST',
 			'callback'            => [ $this, 'approve_email_template_version' ],
-			'permission_callback' => [ $this, 'permission_manage' ], // Phase 4 migrates this + adds the self-approval guard
+			'permission_callback' => [ $this, 'permission_approve_email_template_master' ],
 		] );
 	}
 
@@ -252,7 +263,7 @@ class MasterComponentController extends RestController {
 		register_rest_route( $this->namespace, '/master/landing-page-versions/(?P<id>\d+)/approve', [
 			'methods'             => 'POST',
 			'callback'            => [ $this, 'approve_landing_page_version' ],
-			'permission_callback' => [ $this, 'permission_manage' ], // Phase 4 migrates this + adds the self-approval guard
+			'permission_callback' => [ $this, 'permission_approve_landing_page_master' ],
 		] );
 	}
 
@@ -374,7 +385,14 @@ class MasterComponentController extends RestController {
 	}
 
 	public function approve_email_template_version( WP_REST_Request $request ): WP_REST_Response {
-		$result = $this->components->approve_email_template_version( (int) $request->get_param( 'id' ), get_current_user_id() );
+		$id = (int) $request->get_param( 'id' );
+
+		$self_approval_error = $this->reject_self_approval( $this->components->get_email_template_version( $id ) );
+		if ( $self_approval_error ) {
+			return $self_approval_error;
+		}
+
+		$result = $this->components->approve_email_template_version( $id, get_current_user_id() );
 		return $this->result_response( $result );
 	}
 
@@ -418,8 +436,45 @@ class MasterComponentController extends RestController {
 	}
 
 	public function approve_landing_page_version( WP_REST_Request $request ): WP_REST_Response {
-		$result = $this->components->approve_landing_page_version( (int) $request->get_param( 'id' ), get_current_user_id() );
+		$id = (int) $request->get_param( 'id' );
+
+		$self_approval_error = $this->reject_self_approval( $this->components->get_landing_page_version( $id ) );
+		if ( $self_approval_error ) {
+			return $self_approval_error;
+		}
+
+		$result = $this->components->approve_landing_page_version( $id, get_current_user_id() );
 		return $this->result_response( $result );
+	}
+
+	/**
+	 * PRD_RBAC.md §12/§18: whoever created or last updated a version may
+	 * never approve it themselves, even with the .approve capability —
+	 * segregation of duties is the whole point of the Reviewer/Approver
+	 * role. A missing row is not this method's concern (the real
+	 * not_found_error from the service's approve_* method itself is what
+	 * should surface), so it only blocks on an actual creator/updater match.
+	 *
+	 * @param array<string, mixed>|null $existing
+	 */
+	private function reject_self_approval( ?array $existing ): ?WP_REST_Response {
+		if ( ! $existing ) {
+			return null;
+		}
+
+		$current_user_id = get_current_user_id();
+		$created_by      = (int) ( $existing['created_by'] ?? 0 );
+		$updated_by      = (int) ( $existing['updated_by'] ?? 0 );
+
+		if ( $current_user_id === $created_by || $current_user_id === $updated_by ) {
+			return $this->error(
+				'self_approval_forbidden',
+				__( 'You cannot approve a version you created or last edited yourself.', 'pukat' ),
+				403
+			);
+		}
+
+		return null;
 	}
 
 	public function list_sending_profiles( WP_REST_Request $request ): WP_REST_Response {

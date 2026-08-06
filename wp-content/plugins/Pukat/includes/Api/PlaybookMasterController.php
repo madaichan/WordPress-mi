@@ -68,7 +68,7 @@ class PlaybookMasterController extends RestController {
 		register_rest_route( $this->namespace, '/playbook-masters/(?P<id>\d+)/approve', [
 			'methods'             => 'POST',
 			'callback'            => [ $this, 'approve_playbook' ],
-			'permission_callback' => [ $this, 'permission_manage' ], // Phase 4 migrates this + adds the self-approval guard
+			'permission_callback' => [ $this, 'permission_approve_playbook_master' ],
 		] );
 
 		register_rest_route( $this->namespace, '/playbook-masters/(?P<id>\d+)/archive', [
@@ -79,14 +79,16 @@ class PlaybookMasterController extends RestController {
 	}
 
 	/**
-	 * Phase 3 of docs/IMPLEMENTATION_PLAN_RBAC.md: granular capability checks
-	 * for the 7 routes NOT deferred to Phase 4. duplicate reuses .create
-	 * (makes a new row); submit-review and archive both reuse .edit (status
-	 * transitions on an existing row — draft->review and X->archived are
-	 * the same kind of action as any other field edit, not a create or a
-	 * destructive delete). /approve is deliberately left on permission_manage()
-	 * here — Phase 4 migrates it together with the new self-approval guard
-	 * as one reviewable unit, per the implementation plan.
+	 * Phase 3 of docs/IMPLEMENTATION_PLAN_RBAC.md: granular capability checks.
+	 * duplicate reuses .create (makes a new row); submit-review and archive
+	 * both reuse .edit (status transitions on an existing row — draft->review
+	 * and X->archived are the same kind of action as any other field edit,
+	 * not a create or a destructive delete).
+	 *
+	 * Phase 4: /approve now checks master_playbooks.approve (its own gate,
+	 * excluded from Operator — see PermissionRegistry's `approve` gate and
+	 * Activator::grant_rbac_capabilities()) instead of permission_manage().
+	 * See approve_playbook() for the accompanying self-approval guard.
 	 */
 	public function permission_view_playbook_master(): bool|WP_Error {
 		return $this->require_capability( 'master_playbooks.view' );
@@ -98,6 +100,10 @@ class PlaybookMasterController extends RestController {
 
 	public function permission_edit_playbook_master(): bool|WP_Error {
 		return $this->require_capability( 'master_playbooks.edit' );
+	}
+
+	public function permission_approve_playbook_master(): bool|WP_Error {
+		return $this->require_capability( 'master_playbooks.approve' );
 	}
 
 	private function require_capability( string $permission_key ): bool|WP_Error {
@@ -157,9 +163,46 @@ class PlaybookMasterController extends RestController {
 	}
 
 	public function approve_playbook( WP_REST_Request $request ): WP_REST_Response {
-		$result = $this->playbooks->approve( (int) $request->get_param( 'id' ), get_current_user_id() );
+		$id = (int) $request->get_param( 'id' );
+
+		$self_approval_error = $this->reject_self_approval( $this->playbooks->get( $id ) );
+		if ( $self_approval_error ) {
+			return $self_approval_error;
+		}
+
+		$result = $this->playbooks->approve( $id, get_current_user_id() );
 
 		return $this->result_response( $result );
+	}
+
+	/**
+	 * PRD_RBAC.md §12/§18: whoever created or last updated a draft may never
+	 * approve it themselves, even with the .approve capability — segregation
+	 * of duties is the whole point of the Reviewer/Approver role. A missing
+	 * row is not this method's concern (the real not_found_error from
+	 * approve() itself is what should surface), so it only blocks on an
+	 * actual creator/updater match.
+	 *
+	 * @param array<string, mixed>|null $existing
+	 */
+	private function reject_self_approval( ?array $existing ): ?WP_REST_Response {
+		if ( ! $existing ) {
+			return null;
+		}
+
+		$current_user_id = get_current_user_id();
+		$created_by      = (int) ( $existing['created_by'] ?? 0 );
+		$updated_by      = (int) ( $existing['updated_by'] ?? 0 );
+
+		if ( $current_user_id === $created_by || $current_user_id === $updated_by ) {
+			return $this->error(
+				'self_approval_forbidden',
+				__( 'You cannot approve a draft you created or last edited yourself.', 'pukat' ),
+				403
+			);
+		}
+
+		return null;
 	}
 
 	public function archive_playbook( WP_REST_Request $request ): WP_REST_Response {

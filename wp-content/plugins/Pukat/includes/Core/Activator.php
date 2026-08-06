@@ -37,7 +37,7 @@ class Activator {
 
 		// Store the version so we can handle future migrations.
 		update_option( 'pukat_version', PUKAT_VERSION );
-		update_option( 'pukat_db_version', '1.6.0' );
+		update_option( 'pukat_db_version', '1.7.0' );
 	}
 
 	/**
@@ -510,6 +510,12 @@ class Activator {
 			self::create_tables();
 			self::seed_rbac_defaults();
 			update_option( 'pukat_db_version', '1.6.0' );
+			$db_version = '1.6.0';
+		}
+
+		if ( version_compare( $db_version, '1.7.0', '<' ) ) {
+			self::seed_rbac_defaults();
+			update_option( 'pukat_db_version', '1.7.0' );
 		}
 	}
 
@@ -815,12 +821,14 @@ class Activator {
 	 * Register the Reviewer/Approver WP role and grant every system role
 	 * (plus WP `administrator`) its Permission Registry capabilities.
 	 *
-	 * `pukat_admin`/`administrator` get every registry key. `pukat_operator`
-	 * gets every `shared` + `operator`-gated key (today's `permission_manage`
-	 * scope). `pukat_viewer` gets every `shared` (view-only) key (today's
-	 * `permission_read` scope). `pukat_reviewer` is new and does not map to
-	 * an existing gate — it gets view + approve only, see
-	 * `reviewer_capability_keys()`.
+	 * `pukat_admin`/`administrator` get every registry key, including
+	 * `approve`-gated ones. `pukat_operator` gets every `shared` +
+	 * `operator`-gated key but NOT `approve`-gated ones (Phase 4 of
+	 * docs/IMPLEMENTATION_PLAN_RBAC.md — Operator lost approval rights on
+	 * the 3 master resources; Reviewer/Approver is the only non-admin role
+	 * that can approve now). `pukat_viewer` gets every `shared` (view-only)
+	 * key. `pukat_reviewer` is new and does not map to an existing gate — it
+	 * gets view + approve only, see `reviewer_capability_keys()`.
 	 */
 	private static function grant_rbac_capabilities(): void {
 		add_role( 'pukat_reviewer', __( 'Pukat Reviewer / Approver', 'pukat' ), [ 'read' => true ] );
@@ -828,13 +836,14 @@ class Activator {
 		$shared_keys   = PermissionRegistry::keys_by_gate( 'shared' );
 		$operator_keys = PermissionRegistry::keys_by_gate( 'operator' );
 		$admin_keys    = PermissionRegistry::keys_by_gate( 'admin' );
+		$approve_keys  = PermissionRegistry::keys_by_gate( 'approve' );
 
 		$role_keys = [
-			'pukat_admin'    => array_merge( $shared_keys, $operator_keys, $admin_keys ),
+			'pukat_admin'    => array_merge( $shared_keys, $operator_keys, $admin_keys, $approve_keys ),
 			'pukat_operator' => array_merge( $shared_keys, $operator_keys ),
 			'pukat_viewer'   => $shared_keys,
 			'pukat_reviewer' => self::reviewer_capability_keys(),
-			'administrator'  => array_merge( $shared_keys, $operator_keys, $admin_keys ),
+			'administrator'  => array_merge( $shared_keys, $operator_keys, $admin_keys, $approve_keys ),
 		];
 
 		foreach ( $role_keys as $role_slug => $keys ) {
@@ -846,6 +855,18 @@ class Activator {
 
 			foreach ( $keys as $key ) {
 				$role->add_cap( PermissionRegistry::capability_for( $key ) );
+			}
+		}
+
+		// Defensively strip approve-gated capabilities from Operator. Phase 1
+		// originally seeded these onto Operator (approve was operator-gated
+		// back then); add_cap() above is purely additive, so an install that
+		// already ran that seed needs an explicit remove_cap() to actually
+		// lose the capability rather than just stop being re-granted it.
+		$operator_role = get_role( 'pukat_operator' );
+		if ( $operator_role ) {
+			foreach ( $approve_keys as $key ) {
+				$operator_role->remove_cap( PermissionRegistry::capability_for( $key ) );
 			}
 		}
 	}

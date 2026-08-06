@@ -205,6 +205,19 @@ class MasterComponentService {
 	}
 
 	/**
+	 * Raw single-version lookup, no entity filtering — mirrors what
+	 * approve_email_template_version() itself already does internally (no
+	 * entity check today). Added for MasterComponentController's Phase 4
+	 * self-approval guard (docs/PRD_RBAC.md §12/§18), which needs
+	 * created_by/updated_by before calling approve_email_template_version();
+	 * not otherwise exposed as its own REST route.
+	 */
+	public function get_email_template_version( int $id ): ?array {
+		$version = $this->repository->find( self::EMAIL_VERSION_TABLE, $id );
+		return $version ? $this->prepare_email_template_version( $version ) : null;
+	}
+
+	/**
 	 * @param array<string, mixed> $params Raw request params.
 	 * @return array<string, mixed>|WP_Error
 	 */
@@ -318,7 +331,8 @@ class MasterComponentService {
 			'master.email_template_version.approved',
 			'email_template_version',
 			[ $this, 'prepare_email_template_version' ],
-			__( 'Email template version not found.', 'pukat' )
+			__( 'Email template version not found.', 'pukat' ),
+			'master_email_templates.approve'
 		);
 	}
 
@@ -463,6 +477,15 @@ class MasterComponentService {
 	}
 
 	/**
+	 * Raw single-version lookup, no entity filtering — same rationale as
+	 * get_email_template_version() above.
+	 */
+	public function get_landing_page_version( int $id ): ?array {
+		$version = $this->repository->find( self::LANDING_VERSION_TABLE, $id );
+		return $version ? $this->prepare_landing_page_version( $version ) : null;
+	}
+
+	/**
 	 * @param array<string, mixed> $params Raw request params.
 	 * @return array<string, mixed>|WP_Error
 	 */
@@ -576,7 +599,8 @@ class MasterComponentService {
 			'master.landing_page_version.approved',
 			'landing_page_version',
 			[ $this, 'prepare_landing_page_version' ],
-			__( 'Landing page version not found.', 'pukat' )
+			__( 'Landing page version not found.', 'pukat' ),
+			'master_landing_pages.approve'
 		);
 	}
 
@@ -1571,7 +1595,8 @@ class MasterComponentService {
 		string $audit_action,
 		string $object_type,
 		callable $prepare_callback,
-		string $not_found_message
+		string $not_found_message,
+		string $approve_permission_key
 	): array|WP_Error {
 		$version = $this->repository->find( $version_table, $id );
 		if ( ! $version ) {
@@ -1583,9 +1608,17 @@ class MasterComponentService {
 			return $this->not_found_error( __( 'Parent master component not found.', 'pukat' ) );
 		}
 
-		$permission_error = $this->enforce_existing_row_editable( $master, 'entity' );
-		if ( $permission_error ) {
-			return $permission_error;
+		// A user holding the resource's .approve capability skips the
+		// entity-ownership check below — Reviewer/Approver (Phase 4 of
+		// docs/IMPLEMENTATION_PLAN_RBAC.md) has no entity of its own and no
+		// create/edit rights, so it must be able to approve versions
+		// regardless of which entity owns the parent master; that's the
+		// entire point of an independent reviewer.
+		if ( ! current_user_can( PermissionRegistry::capability_for( $approve_permission_key ) ) ) {
+			$permission_error = $this->enforce_existing_row_editable( $master, 'entity' );
+			if ( $permission_error ) {
+				return $permission_error;
+			}
 		}
 
 		$this->repository->update(

@@ -86,7 +86,7 @@ check( 'row IDs and created_at unchanged across repeat runs (no re-insert happen
 // Capability counts should match what the registry gates predict.
 $shared_count   = count( PermissionRegistry::keys_by_gate( 'shared' ) );
 $operator_count = count( PermissionRegistry::keys_by_gate( 'operator' ) );
-$admin_count    = count( PermissionRegistry::keys_by_gate( 'admin' ) );
+$total_count    = count( PermissionRegistry::all() );
 
 // Count RBAC-registry-derived capabilities specifically (prefixed pukat_ and
 // present in the registry's capability list) rather than all pukat_* caps,
@@ -103,8 +103,8 @@ function pukat_registry_cap_count( string $role_slug ): int {
 	return count( array_intersect( $registry_caps, array_keys( array_filter( $role->capabilities ) ) ) );
 }
 
-check( 'pukat_admin has all ' . ( $shared_count + $operator_count + $admin_count ) . ' registry capabilities', pukat_registry_cap_count( 'pukat_admin' ) === $shared_count + $operator_count + $admin_count, $failures );
-check( 'administrator has all ' . ( $shared_count + $operator_count + $admin_count ) . ' registry capabilities', pukat_registry_cap_count( 'administrator' ) === $shared_count + $operator_count + $admin_count, $failures );
+check( "pukat_admin has all {$total_count} registry capabilities", pukat_registry_cap_count( 'pukat_admin' ) === $total_count, $failures );
+check( "administrator has all {$total_count} registry capabilities", pukat_registry_cap_count( 'administrator' ) === $total_count, $failures );
 check( 'pukat_operator has ' . ( $shared_count + $operator_count ) . ' registry capabilities (shared+operator, no admin)', pukat_registry_cap_count( 'pukat_operator' ) === $shared_count + $operator_count, $failures );
 check( 'pukat_viewer has ' . $shared_count . ' registry capabilities (shared only)', pukat_registry_cap_count( 'pukat_viewer' ) === $shared_count, $failures );
 check( 'pukat_reviewer has exactly 7 registry capabilities (view+approve on 3 resources + dashboard)', pukat_registry_cap_count( 'pukat_reviewer' ) === 7, $failures );

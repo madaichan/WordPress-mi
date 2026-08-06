@@ -11,6 +11,12 @@
  * append to $cases as each controller is migrated, don't create a new
  * one-off smoke script per controller.
  *
+ * Kept live past Phase 3's own close: the 3 approve-route assertions here
+ * were updated in Phase 4 (docs/IMPLEMENTATION_PLAN_RBAC.md §8) once Operator
+ * actually lost .approve — this file reflects current reality, not a frozen
+ * Phase 3 snapshot. Phase 4's own self-approval-guard/Reviewer-lifecycle
+ * behavior lives in the separate tools/smoke-phase4-approval.php instead.
+ *
  * Usage from the WordPress container:
  * php wp-content/plugins/Pukat/tools/smoke-phase3-regression.php
  *
@@ -462,11 +468,11 @@ assert_permission_matrix(
 );
 
 assert_permission_matrix(
-	'POST /playbook-masters/999999/approve (unchanged this step — still permission_manage(), migrates in Phase 4)',
+	'POST /playbook-masters/999999/approve (Phase 4: master_playbooks.approve, Operator now excluded)',
 	'POST',
 	'/pukat/v1/playbook-masters/999999/approve',
 	[],
-	[ 'admin' => 404, 'operator' => 404, 'viewer' => 403, 'anon' => 401 ],
+	[ 'admin' => 404, 'operator' => 403, 'viewer' => 403, 'anon' => 401 ],
 	$admin_id, $operator_id, $viewer_id, $failures
 );
 
@@ -973,9 +979,9 @@ assert_permission_matrix(
 	$admin_id, $operator_id, $viewer_id, $failures
 );
 assert_permission_matrix(
-	'POST /master/email-template-versions/999999/approve (unchanged this step — still permission_manage())',
+	'POST /master/email-template-versions/999999/approve (Phase 4: master_email_templates.approve, Operator now excluded)',
 	'POST', '/pukat/v1/master/email-template-versions/999999/approve', [],
-	[ 'admin' => 404, 'operator' => 404, 'viewer' => 403, 'anon' => 401 ],
+	[ 'admin' => 404, 'operator' => 403, 'viewer' => 403, 'anon' => 401 ],
 	$admin_id, $operator_id, $viewer_id, $failures
 );
 
@@ -1028,9 +1034,9 @@ assert_permission_matrix(
 	$admin_id, $operator_id, $viewer_id, $failures
 );
 assert_permission_matrix(
-	'POST /master/landing-page-versions/999999/approve (unchanged this step — still permission_manage())',
+	'POST /master/landing-page-versions/999999/approve (Phase 4: master_landing_pages.approve, Operator now excluded)',
 	'POST', '/pukat/v1/master/landing-page-versions/999999/approve', [],
-	[ 'admin' => 404, 'operator' => 404, 'viewer' => 403, 'anon' => 401 ],
+	[ 'admin' => 404, 'operator' => 403, 'viewer' => 403, 'anon' => 401 ],
 	$admin_id, $operator_id, $viewer_id, $failures
 );
 
