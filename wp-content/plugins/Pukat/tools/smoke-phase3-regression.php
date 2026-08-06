@@ -433,6 +433,66 @@ assert_permission_matrix(
 );
 
 // ---------------------------------------------------------------------------
+// ReportController (Phase 3, controller 7/11) — all 6 routes are read-only,
+// so they all map to the single reports.view key (shared-gated in Phase 1),
+// replacing permission_read(). Same admin+operator+viewer population as
+// before. All GET, nothing to worry about mutating.
+// ---------------------------------------------------------------------------
+assert_permission_matrix(
+	'GET /reports/999999 (nonexistent campaign)',
+	'GET',
+	'/pukat/v1/reports/999999',
+	[],
+	[ 'admin' => 404, 'operator' => 404, 'viewer' => 404, 'anon' => 401 ],
+	$admin_id, $operator_id, $viewer_id, $failures
+);
+
+assert_permission_matrix(
+	'GET /reports/999999/export',
+	'GET',
+	'/pukat/v1/reports/999999/export',
+	[],
+	[ 'admin' => 200, 'operator' => 200, 'viewer' => 200, 'anon' => 401 ],
+	$admin_id, $operator_id, $viewer_id, $failures
+);
+
+assert_permission_matrix(
+	'GET /reports/campaign-runs/999999 (nonexistent campaign run)',
+	'GET',
+	'/pukat/v1/reports/campaign-runs/999999',
+	[],
+	[ 'admin' => 404, 'operator' => 404, 'viewer' => 404, 'anon' => 401 ],
+	$admin_id, $operator_id, $viewer_id, $failures
+);
+
+assert_permission_matrix(
+	'GET /reports/campaign-runs/999999/export',
+	'GET',
+	'/pukat/v1/reports/campaign-runs/999999/export',
+	[],
+	[ 'admin' => 200, 'operator' => 200, 'viewer' => 200, 'anon' => 401 ],
+	$admin_id, $operator_id, $viewer_id, $failures
+);
+
+assert_permission_matrix(
+	'GET /risk-scores',
+	'GET',
+	'/pukat/v1/risk-scores',
+	[],
+	[ 'admin' => 200, 'operator' => 200, 'viewer' => 200, 'anon' => 401 ],
+	$admin_id, $operator_id, $viewer_id, $failures
+);
+
+assert_permission_matrix(
+	'GET /risk-scores/not-a-real-email@example.test',
+	'GET',
+	'/pukat/v1/risk-scores/not-a-real-email@example.test',
+	[],
+	[ 'admin' => 404, 'operator' => 404, 'viewer' => 404, 'anon' => 401 ],
+	$admin_id, $operator_id, $viewer_id, $failures
+);
+
+// ---------------------------------------------------------------------------
 // Cleanup
 // ---------------------------------------------------------------------------
 wp_delete_user( $viewer_id );

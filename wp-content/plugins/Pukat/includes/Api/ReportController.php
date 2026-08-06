@@ -11,7 +11,9 @@ namespace Pukat\Api;
 
 use Pukat\Services\CampaignRunService;
 use Pukat\Services\GoPhishService;
+use Pukat\Services\PermissionRegistry;
 use Pukat\Services\RiskScoringService;
+use WP_Error;
 use WP_REST_Request;
 use WP_REST_Response;
 
@@ -31,38 +33,54 @@ class ReportController extends RestController {
 		register_rest_route( $this->namespace, '/reports/(?P<campaign_id>\d+)', [
 			'methods'             => 'GET',
 			'callback'            => [ $this, 'get_report' ],
-			'permission_callback' => [ $this, 'permission_read' ],
+			'permission_callback' => [ $this, 'permission_view_reports' ],
 		] );
 
 		register_rest_route( $this->namespace, '/reports/(?P<campaign_id>\d+)/export', [
 			'methods'             => 'GET',
 			'callback'            => [ $this, 'export_csv' ],
-			'permission_callback' => [ $this, 'permission_read' ],
+			'permission_callback' => [ $this, 'permission_view_reports' ],
 		] );
 
 		register_rest_route( $this->namespace, '/reports/campaign-runs/(?P<campaign_run_id>\d+)', [
 			'methods'             => 'GET',
 			'callback'            => [ $this, 'get_campaign_run_report' ],
-			'permission_callback' => [ $this, 'permission_read' ],
+			'permission_callback' => [ $this, 'permission_view_reports' ],
 		] );
 
 		register_rest_route( $this->namespace, '/reports/campaign-runs/(?P<campaign_run_id>\d+)/export', [
 			'methods'             => 'GET',
 			'callback'            => [ $this, 'export_campaign_run_csv' ],
-			'permission_callback' => [ $this, 'permission_read' ],
+			'permission_callback' => [ $this, 'permission_view_reports' ],
 		] );
 
 		register_rest_route( $this->namespace, '/risk-scores', [
 			'methods'             => 'GET',
 			'callback'            => [ $this, 'get_all_risk_scores' ],
-			'permission_callback' => [ $this, 'permission_read' ],
+			'permission_callback' => [ $this, 'permission_view_reports' ],
 		] );
 
 		register_rest_route( $this->namespace, '/risk-scores/(?P<email>[^/]+)', [
 			'methods'             => 'GET',
 			'callback'            => [ $this, 'get_user_risk_score' ],
-			'permission_callback' => [ $this, 'permission_read' ],
+			'permission_callback' => [ $this, 'permission_view_reports' ],
 		] );
+	}
+
+	/**
+	 * Phase 3 of docs/IMPLEMENTATION_PLAN_RBAC.md: all 6 routes here are
+	 * read-only, so they all map to the single reports.view registry key
+	 * (shared-gated in Phase 1), replacing permission_read(). Same
+	 * admin+operator+viewer population as before.
+	 */
+	public function permission_view_reports(): bool|WP_Error {
+		if ( ! is_user_logged_in() ) {
+			return new WP_Error( 'rest_forbidden', __( 'Authentication required.', 'pukat' ), [ 'status' => 401 ] );
+		}
+		if ( ! current_user_can( PermissionRegistry::capability_for( 'reports.view' ) ) ) {
+			return new WP_Error( 'rest_forbidden', __( 'You do not have permission to view this resource.', 'pukat' ), [ 'status' => 403 ] );
+		}
+		return true;
 	}
 
 	public function get_report( WP_REST_Request $request ): WP_REST_Response {
