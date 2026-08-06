@@ -12,6 +12,8 @@ namespace Pukat\Api;
 use Pukat\Services\AuditLogService;
 use Pukat\Services\EncryptionService;
 use Pukat\Services\GoPhishService;
+use Pukat\Services\PermissionRegistry;
+use WP_Error;
 use WP_REST_Request;
 use WP_REST_Response;
 
@@ -42,14 +44,41 @@ class SettingsController extends RestController {
 			[
 				'methods'             => 'GET',
 				'callback'            => [ $this, 'get_settings' ],
-				'permission_callback' => [ $this, 'permission_admin' ],
+				'permission_callback' => [ $this, 'permission_view_settings' ],
 			],
 			[
 				'methods'             => 'PUT',
 				'callback'            => [ $this, 'update_settings' ],
-				'permission_callback' => [ $this, 'permission_admin' ],
+				'permission_callback' => [ $this, 'permission_edit_settings' ],
 			],
 		] );
+	}
+
+	/**
+	 * Phase 3 of docs/IMPLEMENTATION_PLAN_RBAC.md: first controller migrated
+	 * from the blanket permission_admin() gate to a granular Permission
+	 * Registry capability. Both settings.view and settings.edit are seeded
+	 * `admin`-gated in Phase 1 — only pukat_admin/administrator hold them
+	 * today, identical to who passed permission_admin() before this change.
+	 */
+	public function permission_view_settings(): bool|WP_Error {
+		if ( ! is_user_logged_in() ) {
+			return new WP_Error( 'rest_forbidden', __( 'Authentication required.', 'pukat' ), [ 'status' => 401 ] );
+		}
+		if ( ! current_user_can( PermissionRegistry::capability_for( 'settings.view' ) ) ) {
+			return new WP_Error( 'rest_forbidden', __( 'Admin access required.', 'pukat' ), [ 'status' => 403 ] );
+		}
+		return true;
+	}
+
+	public function permission_edit_settings(): bool|WP_Error {
+		if ( ! is_user_logged_in() ) {
+			return new WP_Error( 'rest_forbidden', __( 'Authentication required.', 'pukat' ), [ 'status' => 401 ] );
+		}
+		if ( ! current_user_can( PermissionRegistry::capability_for( 'settings.edit' ) ) ) {
+			return new WP_Error( 'rest_forbidden', __( 'Admin access required.', 'pukat' ), [ 'status' => 403 ] );
+		}
+		return true;
 	}
 
 	public function get_settings( WP_REST_Request $request ): WP_REST_Response {
