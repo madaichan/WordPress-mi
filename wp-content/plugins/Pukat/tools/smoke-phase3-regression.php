@@ -581,6 +581,113 @@ assert_permission_matrix(
 );
 
 // ---------------------------------------------------------------------------
+// CampaignRunController (Phase 3, controller 9/11) — shares CampaignController's
+// campaigns.* keys. lock-snapshot, sync, sync-results, and send-follow-up-
+// reminder all reuse .edit (operational state changes on an existing run);
+// .cancel gets its first real use. All shared/operator-gated in Phase 1,
+// same population as before.
+// ---------------------------------------------------------------------------
+assert_permission_matrix(
+	'GET /campaign-runs',
+	'GET',
+	'/pukat/v1/campaign-runs',
+	[],
+	[ 'admin' => 200, 'operator' => 200, 'viewer' => 200, 'anon' => 401 ],
+	$admin_id, $operator_id, $viewer_id, $failures
+);
+
+// Empty body -> playbook_master_id missing -> 422 before any lookup, safe.
+assert_permission_matrix(
+	'POST /campaign-runs (empty body — proves permission boundary without creating real data)',
+	'POST',
+	'/pukat/v1/campaign-runs',
+	[],
+	[ 'admin' => 422, 'operator' => 422, 'viewer' => 403, 'anon' => 401 ],
+	$admin_id, $operator_id, $viewer_id, $failures
+);
+
+assert_permission_matrix(
+	'GET /campaign-runs/999999 (nonexistent id)',
+	'GET',
+	'/pukat/v1/campaign-runs/999999',
+	[],
+	[ 'admin' => 404, 'operator' => 404, 'viewer' => 404, 'anon' => 401 ],
+	$admin_id, $operator_id, $viewer_id, $failures
+);
+
+assert_permission_matrix(
+	'POST /campaign-runs/999999/lock-snapshot (nonexistent id — safe, no real row touched)',
+	'POST',
+	'/pukat/v1/campaign-runs/999999/lock-snapshot',
+	[],
+	[ 'admin' => 404, 'operator' => 404, 'viewer' => 403, 'anon' => 401 ],
+	$admin_id, $operator_id, $viewer_id, $failures
+);
+
+assert_permission_matrix(
+	'POST /campaign-runs/999999/sync (nonexistent id — safe, no real row touched)',
+	'POST',
+	'/pukat/v1/campaign-runs/999999/sync',
+	[],
+	[ 'admin' => 404, 'operator' => 404, 'viewer' => 403, 'anon' => 401 ],
+	$admin_id, $operator_id, $viewer_id, $failures
+);
+
+assert_permission_matrix(
+	'POST /campaign-runs/999999/launch (nonexistent id — safe, no real row touched)',
+	'POST',
+	'/pukat/v1/campaign-runs/999999/launch',
+	[],
+	[ 'admin' => 404, 'operator' => 404, 'viewer' => 403, 'anon' => 401 ],
+	$admin_id, $operator_id, $viewer_id, $failures
+);
+
+assert_permission_matrix(
+	'POST /campaign-runs/999999/cancel (nonexistent id — safe, no real row touched)',
+	'POST',
+	'/pukat/v1/campaign-runs/999999/cancel',
+	[],
+	[ 'admin' => 404, 'operator' => 404, 'viewer' => 403, 'anon' => 401 ],
+	$admin_id, $operator_id, $viewer_id, $failures
+);
+
+assert_permission_matrix(
+	'GET /campaign-runs/999999/results (nonexistent id)',
+	'GET',
+	'/pukat/v1/campaign-runs/999999/results',
+	[],
+	[ 'admin' => 404, 'operator' => 404, 'viewer' => 404, 'anon' => 401 ],
+	$admin_id, $operator_id, $viewer_id, $failures
+);
+
+assert_permission_matrix(
+	'POST /campaign-runs/999999/sync-results (nonexistent id — safe, no real row touched)',
+	'POST',
+	'/pukat/v1/campaign-runs/999999/sync-results',
+	[],
+	[ 'admin' => 404, 'operator' => 404, 'viewer' => 403, 'anon' => 401 ],
+	$admin_id, $operator_id, $viewer_id, $failures
+);
+
+assert_permission_matrix(
+	'GET /campaign-runs/999999/report (nonexistent id)',
+	'GET',
+	'/pukat/v1/campaign-runs/999999/report',
+	[],
+	[ 'admin' => 404, 'operator' => 404, 'viewer' => 404, 'anon' => 401 ],
+	$admin_id, $operator_id, $viewer_id, $failures
+);
+
+assert_permission_matrix(
+	'POST /campaign-runs/999999/send-follow-up-reminder (nonexistent id — safe, no real row touched)',
+	'POST',
+	'/pukat/v1/campaign-runs/999999/send-follow-up-reminder',
+	[],
+	[ 'admin' => 404, 'operator' => 404, 'viewer' => 403, 'anon' => 401 ],
+	$admin_id, $operator_id, $viewer_id, $failures
+);
+
+// ---------------------------------------------------------------------------
 // Cleanup
 // ---------------------------------------------------------------------------
 wp_delete_user( $viewer_id );

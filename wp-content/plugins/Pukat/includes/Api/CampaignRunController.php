@@ -11,6 +11,8 @@ namespace Pukat\Api;
 
 use Pukat\Services\CampaignRunService;
 use Pukat\Services\FollowUpReminderService;
+use Pukat\Services\PermissionRegistry;
+use WP_Error;
 use WP_REST_Request;
 use WP_REST_Response;
 
@@ -32,12 +34,12 @@ class CampaignRunController extends RestController {
 			[
 				'methods'             => 'GET',
 				'callback'            => [ $this, 'list_campaign_runs' ],
-				'permission_callback' => [ $this, 'permission_read' ],
+				'permission_callback' => [ $this, 'permission_view_campaign_run' ],
 			],
 			[
 				'methods'             => 'POST',
 				'callback'            => [ $this, 'create_campaign_run' ],
-				'permission_callback' => [ $this, 'permission_manage' ],
+				'permission_callback' => [ $this, 'permission_create_campaign_run' ],
 			],
 		] );
 
@@ -45,57 +47,96 @@ class CampaignRunController extends RestController {
 			[
 				'methods'             => 'GET',
 				'callback'            => [ $this, 'get_campaign_run' ],
-				'permission_callback' => [ $this, 'permission_read' ],
+				'permission_callback' => [ $this, 'permission_view_campaign_run' ],
 			],
 		] );
 
 		register_rest_route( $this->namespace, '/campaign-runs/(?P<id>\d+)/lock-snapshot', [
 			'methods'             => 'POST',
 			'callback'            => [ $this, 'lock_snapshot' ],
-			'permission_callback' => [ $this, 'permission_manage' ],
+			'permission_callback' => [ $this, 'permission_edit_campaign_run' ],
 		] );
 
 		register_rest_route( $this->namespace, '/campaign-runs/(?P<id>\d+)/sync', [
 			'methods'             => 'POST',
 			'callback'            => [ $this, 'sync_campaign_run' ],
-			'permission_callback' => [ $this, 'permission_manage' ],
+			'permission_callback' => [ $this, 'permission_edit_campaign_run' ],
 		] );
 
 		register_rest_route( $this->namespace, '/campaign-runs/(?P<id>\d+)/launch', [
 			'methods'             => 'POST',
 			'callback'            => [ $this, 'launch_campaign_run' ],
-			'permission_callback' => [ $this, 'permission_manage' ],
+			'permission_callback' => [ $this, 'permission_launch_campaign_run' ],
 		] );
 
 		register_rest_route( $this->namespace, '/campaign-runs/(?P<id>\d+)/cancel', [
 			'methods'             => 'POST',
 			'callback'            => [ $this, 'cancel_campaign_run' ],
-			'permission_callback' => [ $this, 'permission_manage' ],
+			'permission_callback' => [ $this, 'permission_cancel_campaign_run' ],
 		] );
 
 		register_rest_route( $this->namespace, '/campaign-runs/(?P<id>\d+)/results', [
 			'methods'             => 'GET',
 			'callback'            => [ $this, 'get_results' ],
-			'permission_callback' => [ $this, 'permission_read' ],
+			'permission_callback' => [ $this, 'permission_view_campaign_run' ],
 		] );
 
 		register_rest_route( $this->namespace, '/campaign-runs/(?P<id>\d+)/sync-results', [
 			'methods'             => 'POST',
 			'callback'            => [ $this, 'sync_results' ],
-			'permission_callback' => [ $this, 'permission_manage' ],
+			'permission_callback' => [ $this, 'permission_edit_campaign_run' ],
 		] );
 
 		register_rest_route( $this->namespace, '/campaign-runs/(?P<id>\d+)/report', [
 			'methods'             => 'GET',
 			'callback'            => [ $this, 'get_report' ],
-			'permission_callback' => [ $this, 'permission_read' ],
+			'permission_callback' => [ $this, 'permission_view_campaign_run' ],
 		] );
 
 		register_rest_route( $this->namespace, '/campaign-runs/(?P<id>\d+)/send-follow-up-reminder', [
 			'methods'             => 'POST',
 			'callback'            => [ $this, 'send_follow_up_reminder' ],
-			'permission_callback' => [ $this, 'permission_manage' ],
+			'permission_callback' => [ $this, 'permission_edit_campaign_run' ], // ancillary action on an existing run, no better fit
 		] );
+	}
+
+	/**
+	 * Phase 3 of docs/IMPLEMENTATION_PLAN_RBAC.md: granular capability checks
+	 * replacing permission_read()/permission_manage(). Shares the same
+	 * campaigns.* registry keys as CampaignController — lock-snapshot, sync,
+	 * sync-results, and send-follow-up-reminder all reuse .edit (operational
+	 * state changes on an existing run, none of them a create/delete/launch/
+	 * cancel). .cancel gets its first real use here. All shared/operator-
+	 * gated in Phase 1, same population as before.
+	 */
+	public function permission_view_campaign_run(): bool|WP_Error {
+		return $this->require_capability( 'campaigns.view' );
+	}
+
+	public function permission_create_campaign_run(): bool|WP_Error {
+		return $this->require_capability( 'campaigns.create' );
+	}
+
+	public function permission_edit_campaign_run(): bool|WP_Error {
+		return $this->require_capability( 'campaigns.edit' );
+	}
+
+	public function permission_launch_campaign_run(): bool|WP_Error {
+		return $this->require_capability( 'campaigns.launch' );
+	}
+
+	public function permission_cancel_campaign_run(): bool|WP_Error {
+		return $this->require_capability( 'campaigns.cancel' );
+	}
+
+	private function require_capability( string $permission_key ): bool|WP_Error {
+		if ( ! is_user_logged_in() ) {
+			return new WP_Error( 'rest_forbidden', __( 'Authentication required.', 'pukat' ), [ 'status' => 401 ] );
+		}
+		if ( ! current_user_can( PermissionRegistry::capability_for( $permission_key ) ) ) {
+			return new WP_Error( 'rest_forbidden', __( 'Insufficient permissions.', 'pukat' ), [ 'status' => 403 ] );
+		}
+		return true;
 	}
 
 	public function list_campaign_runs( WP_REST_Request $request ): WP_REST_Response {
