@@ -39,6 +39,10 @@ export const queryKeys = {
     list: ['playbooks', 'list'],
   },
 
+  permissions: {
+    mine: ['permissions', 'mine'],
+  },
+
   reports: {
     all: ['reports'],
     riskScores: (params = {}) => ['reports', 'risk-scores', params],

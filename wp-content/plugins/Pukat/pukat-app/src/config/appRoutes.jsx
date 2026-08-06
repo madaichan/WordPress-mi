@@ -23,40 +23,84 @@ const NextPlanning = lazy(() => import('../pages/PostSimulation/NextPlanning.jsx
 const Socialization = lazy(() => import('../pages/PreSimulation/Socialization.jsx'))
 const Playbooks = lazy(() => import('../features/setup/playbooks/Playbooks.jsx'))
 
+// Every guarded route names the Permission Registry key it requires (see
+// includes/Services/PermissionRegistry.php on the backend — this is the same
+// catalog, just consumed for frontend UX). `*` is deliberately left
+// unguarded: it already just falls back to Dashboard, and wrapping it too
+// would self-redirect to /dashboard on the same navigation for a role that
+// somehow lacks dashboard.view (every seeded role has it, but no reason to
+// build a redirect loop on an edge case that shouldn't exist).
 export const adminRoutes = [
-  { index: true, element: <Dashboard /> },
-  { path: '/dashboard', element: <Dashboard /> },
-  { path: '/master/playbooks', element: <MasterAssetPage key="playbooks" type="playbooks" /> },
-  { path: '/master/sending-profiles', element: <MasterSendingProfiles /> },
-  { path: '/master/email-templates', element: <MasterEmailTemplates /> },
-  { path: '/master/landing-pages', element: <MasterLandingPages /> },
-  { path: '/master/domains', element: <MasterDomains /> },
-  { path: '/admin/users', element: <Users /> },
-  { path: '/admin/settings', element: <Settings /> },
+  { index: true, element: <Dashboard />, permission: 'dashboard.view' },
+  { path: '/dashboard', element: <Dashboard />, permission: 'dashboard.view' },
+  { path: '/master/playbooks', element: <MasterAssetPage key="playbooks" type="playbooks" />, permission: 'master_playbooks.view' },
+  { path: '/master/sending-profiles', element: <MasterSendingProfiles />, permission: 'master_sending_profiles.view' },
+  { path: '/master/email-templates', element: <MasterEmailTemplates />, permission: 'master_email_templates.view' },
+  { path: '/master/landing-pages', element: <MasterLandingPages />, permission: 'master_landing_pages.view' },
+  { path: '/master/domains', element: <MasterDomains />, permission: 'domains.view' },
+  { path: '/admin/users', element: <Users />, permission: 'users.view' },
+  { path: '/admin/settings', element: <Settings />, permission: 'settings.view' },
   { path: '*', element: <Dashboard /> },
 ]
 
 export const frontendRoutes = [
-  { index: true, element: <Dashboard /> },
-  { path: '/dashboard', element: <Dashboard /> },
-  { path: '/calendar', element: <Calendar /> },
-  { path: '/pre/socialization', element: <Socialization /> },
-  { path: '/campaigns', element: <Campaigns /> },
-  { path: '/playbooks', element: <Playbooks /> },
-  { path: '/monitoring', element: <Performing /> },
-  { path: '/sending-profiles', element: <SendingProfiles /> },
-  { path: '/email-templates', element: <EmailTemplates /> },
-  { path: '/landing-pages', element: <LandingPages /> },
-  { path: '/simulation/preparation', element: <Preparation /> },
-  { path: '/simulation/performing', element: <Performing /> },
-  { path: '/reports', element: <Reports /> },
-  { path: '/reports/:campaignId', element: <Reports /> },
-  { path: '/post/quiz', element: <Quiz /> },
-  { path: '/post/coaching', element: <Coaching /> },
-  { path: '/next-planning', element: <NextPlanning /> },
-  { path: '/setup/playbooks', element: <Playbooks /> },
+  { index: true, element: <Dashboard />, permission: 'dashboard.view' },
+  { path: '/dashboard', element: <Dashboard />, permission: 'dashboard.view' },
+  { path: '/calendar', element: <Calendar />, permission: 'campaigns.view' },
+  { path: '/pre/socialization', element: <Socialization />, permission: 'campaigns.view' },
+  { path: '/campaigns', element: <Campaigns />, permission: 'campaigns.view' },
+  { path: '/playbooks', element: <Playbooks />, permission: 'playbooks.view' },
+  { path: '/monitoring', element: <Performing />, permission: 'campaigns.view' },
+  { path: '/sending-profiles', element: <SendingProfiles />, permission: 'sending_profiles.view' },
+  { path: '/email-templates', element: <EmailTemplates />, permission: 'email_templates.view' },
+  { path: '/landing-pages', element: <LandingPages />, permission: 'landing_pages.view' },
+  { path: '/simulation/preparation', element: <Preparation />, permission: 'campaigns.view' },
+  { path: '/simulation/performing', element: <Performing />, permission: 'campaigns.view' },
+  { path: '/reports', element: <Reports />, permission: 'reports.view' },
+  { path: '/reports/:campaignId', element: <Reports />, permission: 'reports.view' },
+  { path: '/post/quiz', element: <Quiz />, permission: 'post_sim.view' },
+  { path: '/post/coaching', element: <Coaching />, permission: 'post_sim.view' },
+  { path: '/next-planning', element: <NextPlanning />, permission: 'post_sim.view' },
+  { path: '/setup/playbooks', element: <Playbooks />, permission: 'playbooks.view' },
   { path: '*', element: <Dashboard /> },
 ]
+
+/**
+ * path -> permission key lookup, derived from the route arrays above so the
+ * permission is only ever declared once per route. Consumed by the sidebar
+ * nav filters (Sidebar.jsx / FrontendLayout.jsx) to hide items the current
+ * user can't reach — the actual access control is PermissionRoute (route
+ * guard) plus, ultimately, the backend.
+ */
+function buildRoutePermissionMap(routes) {
+  const map = new Map()
+  routes.forEach((route) => {
+    if (route.path && route.permission) {
+      map.set(route.path, route.permission)
+    }
+  })
+  return map
+}
+
+export const adminRoutePermissions = buildRoutePermissionMap(adminRoutes)
+export const frontendRoutePermissions = buildRoutePermissionMap(frontendRoutes)
+
+/**
+ * Filter nav groups down to items whose route requires a permission the
+ * current user actually holds (items with no mapped permission always show).
+ * Drops any group left with zero items so an empty group heading never renders.
+ */
+export function filterNavGroupsByPermission(groups, routePermissionMap, permissions) {
+  return groups
+    .map((group) => ({
+      ...group,
+      items: group.items.filter((item) => {
+        const required = routePermissionMap.get(item.to)
+        return !required || permissions.includes(required)
+      }),
+    }))
+    .filter((group) => group.items.length > 0)
+}
 
 export const adminNavGroups = [
   {

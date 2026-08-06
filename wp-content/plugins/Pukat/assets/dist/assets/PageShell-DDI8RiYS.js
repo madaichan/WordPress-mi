@@ -1,1 +1,0 @@
-import{j as i,c as m}from"./main-AK2ExkSS.js";function x({as:a="div",children:e,className:l,animated:s=!0,spacing:t="space-y-6",...c}){return i.jsx(a,{...c,className:m("mt-4 min-w-0 lg:flex lg:min-h-[calc(100vh-110px)] lg:flex-col",t,s&&"animate-fade-in",l),children:e})}export{x as P};

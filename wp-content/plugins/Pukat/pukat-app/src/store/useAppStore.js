@@ -24,6 +24,14 @@ const useAppStore = create((set, get) => ({
   // ── User (injected by WP) ──────────────────────────────────────
   user: normalizeUser(injectedUser || fallbackUser),
 
+  // ── RBAC permission keys (fetched from /me/permissions at bootstrap,
+  //    see App.jsx) — the frontend's nav-filtering/route-guard source of
+  //    truth. Never the real enforcement; the backend permission_callback
+  //    on each REST route always is (see AGENTS.md §5.1). ────────────
+  permissions: [],
+  setPermissions: (permissions) => set({ permissions }),
+  hasPermission: (key) => get().permissions.includes(key),
+
   // ── Sidebar collapsed state ────────────────────────────────────
   sidebarCollapsed: false,
   toggleSidebar: () => set((s) => ({ sidebarCollapsed: !s.sidebarCollapsed })),

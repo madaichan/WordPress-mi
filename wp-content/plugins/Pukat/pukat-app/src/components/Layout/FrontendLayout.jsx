@@ -5,7 +5,8 @@ import SidebarBrand from './SidebarBrand.jsx'
 import SidebarNav from './SidebarNav.jsx'
 import Topbar from './Topbar.jsx'
 import { getRouteMeta } from '../../config/routeMeta.js'
-import { frontendNavGroups } from '../../config/appRoutes.jsx'
+import { frontendNavGroups, frontendRoutePermissions, filterNavGroupsByPermission } from '../../config/appRoutes.jsx'
+import useAppStore from '../../store/useAppStore.js'
 
 /**
  * FrontendLayout — Standalone full-page layout for the /pukat front page.
@@ -16,6 +17,8 @@ import { frontendNavGroups } from '../../config/appRoutes.jsx'
 export default function FrontendLayout({ children }) {
   const { pathname } = useLocation()
   const { breadcrumb: activeLabel } = getRouteMeta(pathname, { breadcrumb: 'Dashboard' })
+  const permissions = useAppStore((s) => s.permissions)
+  const navGroups   = filterNavGroupsByPermission(frontendNavGroups, frontendRoutePermissions, permissions)
 
   return (
     <div className="flex min-h-screen bg-gray-50">
@@ -30,7 +33,7 @@ export default function FrontendLayout({ children }) {
         />
 
         {/* Navigation */}
-        <SidebarNav groups={frontendNavGroups} defaultEnd groupGapClassName="space-y-1" />
+        <SidebarNav groups={navGroups} defaultEnd groupGapClassName="space-y-1" />
 
         <div className="p-4 border-t border-gray-800/80 bg-navy-light/10 text-xs">
           <GoPhishStatus />

@@ -4,11 +4,13 @@ import useAppStore from '../../store/useAppStore.js'
 import GoPhishStatus from '../UI/GoPhishStatus.jsx'
 import SidebarBrand from './SidebarBrand.jsx'
 import SidebarNav from './SidebarNav.jsx'
-import { adminNavGroups } from '../../config/appRoutes.jsx'
+import { adminNavGroups, adminRoutePermissions, filterNavGroupsByPermission } from '../../config/appRoutes.jsx'
 
 export default function Sidebar() {
-  const collapsed = useAppStore((s) => s.sidebarCollapsed)
-  const toggle    = useAppStore((s) => s.toggleSidebar)
+  const collapsed   = useAppStore((s) => s.sidebarCollapsed)
+  const toggle      = useAppStore((s) => s.toggleSidebar)
+  const permissions = useAppStore((s) => s.permissions)
+  const navGroups   = filterNavGroupsByPermission(adminNavGroups, adminRoutePermissions, permissions)
 
   return (
     <aside
@@ -28,7 +30,7 @@ export default function Sidebar() {
       />
 
       {/* Navigation */}
-      <SidebarNav groups={adminNavGroups} collapsed={collapsed} />
+      <SidebarNav groups={navGroups} collapsed={collapsed} />
 
       {/* Footer: link to front page + GoPhish status */}
       <div className={clsx(
