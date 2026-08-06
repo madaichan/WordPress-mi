@@ -11,6 +11,8 @@ namespace Pukat\Api;
 
 use Pukat\Services\AuditLogService;
 use Pukat\Services\GoPhishService;
+use Pukat\Services\PermissionRegistry;
+use WP_Error;
 use WP_REST_Request;
 use WP_REST_Response;
 
@@ -36,12 +38,12 @@ class CampaignController extends RestController {
 			[
 				'methods'             => 'GET',
 				'callback'            => [ $this, 'get_campaigns' ],
-				'permission_callback' => [ $this, 'permission_read' ],
+				'permission_callback' => [ $this, 'permission_view_campaign' ],
 			],
 			[
 				'methods'             => 'POST',
 				'callback'            => [ $this, 'create_campaign' ],
-				'permission_callback' => [ $this, 'permission_manage' ],
+				'permission_callback' => [ $this, 'permission_create_campaign' ],
 			],
 		] );
 
@@ -49,44 +51,82 @@ class CampaignController extends RestController {
 			[
 				'methods'             => 'GET',
 				'callback'            => [ $this, 'get_campaign' ],
-				'permission_callback' => [ $this, 'permission_read' ],
+				'permission_callback' => [ $this, 'permission_view_campaign' ],
 			],
 			[
 				'methods'             => 'DELETE',
 				'callback'            => [ $this, 'delete_campaign' ],
-				'permission_callback' => [ $this, 'permission_manage' ],
+				'permission_callback' => [ $this, 'permission_delete_campaign' ],
 			],
 		] );
 
 		register_rest_route( $this->namespace, '/campaigns/(?P<id>\d+)/launch', [
 			'methods'             => 'POST',
 			'callback'            => [ $this, 'launch_campaign' ],
-			'permission_callback' => [ $this, 'permission_manage' ],
+			'permission_callback' => [ $this, 'permission_launch_campaign' ],
 		] );
 
 		register_rest_route( $this->namespace, '/campaigns/(?P<id>\d+)/complete', [
 			'methods'             => 'POST',
 			'callback'            => [ $this, 'complete_campaign' ],
-			'permission_callback' => [ $this, 'permission_manage' ],
+			'permission_callback' => [ $this, 'permission_edit_campaign' ], // terminal status transition, same treatment as targets import below
 		] );
 
 		register_rest_route( $this->namespace, '/campaigns/(?P<id>\d+)/results', [
 			'methods'             => 'GET',
 			'callback'            => [ $this, 'get_results' ],
-			'permission_callback' => [ $this, 'permission_read' ],
+			'permission_callback' => [ $this, 'permission_view_campaign' ],
 		] );
 
 		register_rest_route( $this->namespace, '/targets/import', [
 			'methods'             => 'POST',
 			'callback'            => [ $this, 'import_targets' ],
-			'permission_callback' => [ $this, 'permission_manage' ],
+			'permission_callback' => [ $this, 'permission_edit_campaign' ], // modifies a campaign's target list, no distinct "targets" registry entry
 		] );
 
 		register_rest_route( $this->namespace, '/campaigns/(?P<id>\d+)/targets', [
 			'methods'             => 'GET',
 			'callback'            => [ $this, 'get_targets' ],
-			'permission_callback' => [ $this, 'permission_read' ],
+			'permission_callback' => [ $this, 'permission_view_campaign' ],
 		] );
+	}
+
+	/**
+	 * Phase 3 of docs/IMPLEMENTATION_PLAN_RBAC.md: granular capability checks
+	 * replacing permission_read()/permission_manage(). All 5 campaigns.*
+	 * actions in the registry get used across this controller and
+	 * CampaignRunController (next) — .cancel is CampaignRunController's,
+	 * not used here. All shared/operator-gated in Phase 1, same population
+	 * as before.
+	 */
+	public function permission_view_campaign(): bool|WP_Error {
+		return $this->require_capability( 'campaigns.view' );
+	}
+
+	public function permission_create_campaign(): bool|WP_Error {
+		return $this->require_capability( 'campaigns.create' );
+	}
+
+	public function permission_edit_campaign(): bool|WP_Error {
+		return $this->require_capability( 'campaigns.edit' );
+	}
+
+	public function permission_delete_campaign(): bool|WP_Error {
+		return $this->require_capability( 'campaigns.delete' );
+	}
+
+	public function permission_launch_campaign(): bool|WP_Error {
+		return $this->require_capability( 'campaigns.launch' );
+	}
+
+	private function require_capability( string $permission_key ): bool|WP_Error {
+		if ( ! is_user_logged_in() ) {
+			return new WP_Error( 'rest_forbidden', __( 'Authentication required.', 'pukat' ), [ 'status' => 401 ] );
+		}
+		if ( ! current_user_can( PermissionRegistry::capability_for( $permission_key ) ) ) {
+			return new WP_Error( 'rest_forbidden', __( 'Insufficient permissions.', 'pukat' ), [ 'status' => 403 ] );
+		}
+		return true;
 	}
 
 	// ---------------------------------------------------------------------------

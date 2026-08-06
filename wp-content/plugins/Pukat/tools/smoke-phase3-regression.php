@@ -493,6 +493,94 @@ assert_permission_matrix(
 );
 
 // ---------------------------------------------------------------------------
+// CampaignController (Phase 3, controller 8/11) — campaigns.view/create/
+// edit/delete/launch replacing permission_read()/permission_manage().
+// complete and targets/import both reuse .edit (a status transition and a
+// campaign-content modification, neither a create/delete/launch). All
+// shared/operator-gated in Phase 1, same population as before.
+// ---------------------------------------------------------------------------
+assert_permission_matrix(
+	'GET /campaigns',
+	'GET',
+	'/pukat/v1/campaigns',
+	[],
+	[ 'admin' => 200, 'operator' => 200, 'viewer' => 200, 'anon' => 401 ],
+	$admin_id, $operator_id, $viewer_id, $failures
+);
+
+assert_permission_matrix(
+	'POST /campaigns (empty body — proves permission boundary without creating real data)',
+	'POST',
+	'/pukat/v1/campaigns',
+	[],
+	[ 'admin' => 422, 'operator' => 422, 'viewer' => 403, 'anon' => 401 ],
+	$admin_id, $operator_id, $viewer_id, $failures
+);
+
+assert_permission_matrix(
+	'GET /campaigns/999999 (nonexistent id)',
+	'GET',
+	'/pukat/v1/campaigns/999999',
+	[],
+	[ 'admin' => 404, 'operator' => 404, 'viewer' => 404, 'anon' => 401 ],
+	$admin_id, $operator_id, $viewer_id, $failures
+);
+
+assert_permission_matrix(
+	'DELETE /campaigns/999999 (nonexistent id — safe, no real row touched)',
+	'DELETE',
+	'/pukat/v1/campaigns/999999',
+	[],
+	[ 'admin' => 404, 'operator' => 404, 'viewer' => 403, 'anon' => 401 ],
+	$admin_id, $operator_id, $viewer_id, $failures
+);
+
+assert_permission_matrix(
+	'POST /campaigns/999999/launch (nonexistent id — safe, no real row touched)',
+	'POST',
+	'/pukat/v1/campaigns/999999/launch',
+	[],
+	[ 'admin' => 404, 'operator' => 404, 'viewer' => 403, 'anon' => 401 ],
+	$admin_id, $operator_id, $viewer_id, $failures
+);
+
+assert_permission_matrix(
+	'POST /campaigns/999999/complete (nonexistent id — safe, no real row touched)',
+	'POST',
+	'/pukat/v1/campaigns/999999/complete',
+	[],
+	[ 'admin' => 404, 'operator' => 404, 'viewer' => 403, 'anon' => 401 ],
+	$admin_id, $operator_id, $viewer_id, $failures
+);
+
+assert_permission_matrix(
+	'GET /campaigns/999999/results (nonexistent id)',
+	'GET',
+	'/pukat/v1/campaigns/999999/results',
+	[],
+	[ 'admin' => 404, 'operator' => 404, 'viewer' => 404, 'anon' => 401 ],
+	$admin_id, $operator_id, $viewer_id, $failures
+);
+
+assert_permission_matrix(
+	'POST /targets/import (empty body — proves permission boundary without writing real data)',
+	'POST',
+	'/pukat/v1/targets/import',
+	[],
+	[ 'admin' => 422, 'operator' => 422, 'viewer' => 403, 'anon' => 401 ],
+	$admin_id, $operator_id, $viewer_id, $failures
+);
+
+assert_permission_matrix(
+	'GET /campaigns/999999/targets (nonexistent id — route has no existence check, always 200)',
+	'GET',
+	'/pukat/v1/campaigns/999999/targets',
+	[],
+	[ 'admin' => 200, 'operator' => 200, 'viewer' => 200, 'anon' => 401 ],
+	$admin_id, $operator_id, $viewer_id, $failures
+);
+
+// ---------------------------------------------------------------------------
 // Cleanup
 // ---------------------------------------------------------------------------
 wp_delete_user( $viewer_id );
