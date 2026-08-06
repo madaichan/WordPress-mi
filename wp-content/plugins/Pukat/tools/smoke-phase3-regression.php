@@ -283,6 +283,72 @@ check(
 );
 
 // ---------------------------------------------------------------------------
+// PlaybookController (Phase 3, controller 5/11) — the deprecated legacy
+// compat layer for the pre-Playbook-Master pukat_playbooks table. Reuses
+// master_playbooks.view/create/edit/delete (no distinct registry entry of
+// its own — see PlaybookController's doc comment), all `shared`/`operator`
+// gated in Phase 1, same population as permission_read()/permission_manage()
+// allowed before.
+// ---------------------------------------------------------------------------
+assert_permission_matrix(
+	'GET /playbooks',
+	'GET',
+	'/pukat/v1/playbooks',
+	[],
+	[ 'admin' => 200, 'operator' => 200, 'viewer' => 200, 'anon' => 401 ],
+	$admin_id, $operator_id, $viewer_id, $failures
+);
+
+// Empty body -> PlaybookService::create() 422s on missing name before
+// anything is written, proving the boundary without creating real data.
+assert_permission_matrix(
+	'POST /playbooks (empty body — proves permission boundary without creating real data)',
+	'POST',
+	'/pukat/v1/playbooks',
+	[],
+	[ 'admin' => 422, 'operator' => 422, 'viewer' => 403, 'anon' => 401 ],
+	$admin_id, $operator_id, $viewer_id, $failures
+);
+
+// Nonexistent id (999999) -> all 3 mutating routes 404 at PlaybookService's
+// own not_found check, no real row touched.
+assert_permission_matrix(
+	'GET /playbooks/999999 (nonexistent id)',
+	'GET',
+	'/pukat/v1/playbooks/999999',
+	[],
+	[ 'admin' => 404, 'operator' => 404, 'viewer' => 404, 'anon' => 401 ],
+	$admin_id, $operator_id, $viewer_id, $failures
+);
+
+assert_permission_matrix(
+	'PUT /playbooks/999999 (nonexistent id — safe, no real row touched)',
+	'PUT',
+	'/pukat/v1/playbooks/999999',
+	[ 'name' => 'Phase 3 Regression Test' ],
+	[ 'admin' => 404, 'operator' => 404, 'viewer' => 403, 'anon' => 401 ],
+	$admin_id, $operator_id, $viewer_id, $failures
+);
+
+assert_permission_matrix(
+	'DELETE /playbooks/999999 (nonexistent id — safe, no real row touched)',
+	'DELETE',
+	'/pukat/v1/playbooks/999999',
+	[],
+	[ 'admin' => 404, 'operator' => 404, 'viewer' => 403, 'anon' => 401 ],
+	$admin_id, $operator_id, $viewer_id, $failures
+);
+
+assert_permission_matrix(
+	'POST /playbooks/999999/migrate-to-master (nonexistent id — safe, no real row touched)',
+	'POST',
+	'/pukat/v1/playbooks/999999/migrate-to-master',
+	[],
+	[ 'admin' => 404, 'operator' => 404, 'viewer' => 403, 'anon' => 401 ],
+	$admin_id, $operator_id, $viewer_id, $failures
+);
+
+// ---------------------------------------------------------------------------
 // Cleanup
 // ---------------------------------------------------------------------------
 wp_delete_user( $viewer_id );
