@@ -20,11 +20,11 @@ import {
 } from '../../../hooks/queries/useMasterAssetQueries.js'
 import { useGophishSmtpProfiles } from '../../../hooks/queries/useGophishQueries.js'
 import { usePlaybooks } from '../../../hooks/queries/usePlaybookQueries.js'
-import { useCreatePlaybookMutation, useDeletePlaybookMutation, useUpdatePlaybookMutation } from '../../../hooks/mutations/usePlaybookMutations.js'
+import { useApprovePlaybookMutation, useCreatePlaybookMutation, useDeletePlaybookMutation, useSubmitPlaybookReviewMutation, useUpdatePlaybookMutation } from '../../../hooks/mutations/usePlaybookMutations.js'
 import { masterAssetApi } from '../../../api/index.js'
 import useAppStore from '../../../store/useAppStore.js'
 import { GENERAL_ENTITY, assetEntityForUser, canUserCreateAsset, canUserEditAsset, filterAssetsForUser } from '../../../utils/entityAssignmentHelpers.js'
-import { masterAssetLockMessage } from '../../../utils/masterAssetHelpers.js'
+import { masterAssetLockMessage, playbookDisplayStatus } from '../../../utils/masterAssetHelpers.js'
 import {
   EMPTY_PLAYBOOK_COMPONENT_OPTIONS,
   firstOption,
@@ -252,6 +252,14 @@ const DIFFICULTY_TAG = {
   5: 'bg-pink-100 text-pink-800',
 }
 
+const STATUS_TAG = {
+  Draft: 'bg-gray-100 text-gray-700',
+  Review: 'bg-amber-100 text-amber-800',
+  Published: 'bg-emerald-100 text-emerald-800',
+  Deprecated: 'bg-gray-100 text-gray-500',
+  Archived: 'bg-gray-100 text-gray-400',
+}
+
 const CATEGORY_META = {
   BEC: { iconBg: '#FEE2E2', iconColor: '#B91C1C', iconName: 'ti-alert-triangle' },
   Credential: { iconBg: '#DBEAFE', iconColor: '#1D4ED8', iconName: 'ti-lock' },
@@ -430,6 +438,9 @@ function playbookMasterToUiPlaybook(row, assets, componentOptions) {
       { text: 'Historical results will appear after this playbook is used', sub: 'No campaign telemetry is linked yet', icon: 'ti-trending-up', color: '#EF4444' },
       { text: `Visible to entity: ${entity}`, sub: 'Assignment is controlled by the playbook entity field', icon: 'ti-building', color: '#F59E0B' },
     ],
+    createdBy: row.created_by ?? null,
+    updatedBy: row.updated_by ?? null,
+    raw: row,
   }
 }
 
@@ -572,6 +583,11 @@ function PlaybookListItem({ playbook, selected, onSelect }) {
       </div>
 
       <div className="mt-3 flex flex-wrap gap-1.5">
+        {playbook.source === 'api' && (
+          <Tag className={STATUS_TAG[playbookDisplayStatus(playbook.status)] ?? 'bg-gray-100 text-gray-700'}>
+            {playbookDisplayStatus(playbook.status)}
+          </Tag>
+        )}
         <Tag className={CATEGORY_TAG[playbook.category] ?? 'bg-gray-100 text-gray-700'}>{playbook.category}</Tag>
         <Tag className={DIFFICULTY_TAG[difficulty] ?? 'bg-gray-100 text-gray-700'}>Difficulty {playbook.diffScore}</Tag>
         <Tag className="bg-gray-100 text-gray-700">{playbook.dept}</Tag>
@@ -871,7 +887,7 @@ function DifficultyBlock({ playbook }) {
   )
 }
 
-function DetailPanel({ playbook, canManage, onDuplicate, onEdit, onPreviewComponent }) {
+function DetailPanel({ playbook, canManage, canSubmitReview, canApprove, onDuplicate, onEdit, onSubmitReview, onApprove, onPreviewComponent }) {
   if (!playbook) {
     return (
       <section className="flex min-h-[620px] items-center justify-center rounded-xl border border-dashed border-gray-200 bg-white p-6 text-center">
@@ -903,6 +919,11 @@ function DetailPanel({ playbook, canManage, onDuplicate, onEdit, onPreviewCompon
         </div>
 
         <div className="flex flex-wrap gap-2">
+          {playbook.source === 'api' && (
+            <Tag className={STATUS_TAG[playbookDisplayStatus(playbook.status)] ?? 'bg-gray-100 text-gray-700'}>
+              {playbookDisplayStatus(playbook.status)}
+            </Tag>
+          )}
           <Tag className={CATEGORY_TAG[playbook.category] ?? 'bg-gray-100 text-gray-700'}>{playbook.category}</Tag>
           <Tag className={DIFFICULTY_TAG[difficulty] ?? 'bg-gray-100 text-gray-700'}>Difficulty {playbook.diffScore}</Tag>
           {playbook.deptTag.map(tag => (
@@ -939,6 +960,18 @@ function DetailPanel({ playbook, canManage, onDuplicate, onEdit, onPreviewCompon
                 Edit
               </button>
             </>
+          )}
+          {canSubmitReview && (
+            <button type="button" onClick={onSubmitReview} className="inline-flex items-center gap-1.5 rounded-lg border border-blue-200 bg-white px-4 py-2 text-xs font-semibold text-blue-700 transition-colors hover:bg-blue-50">
+              <i className="ti ti-send" />
+              Submit for review
+            </button>
+          )}
+          {canApprove && (
+            <button type="button" onClick={onApprove} className="inline-flex items-center gap-1.5 rounded-lg border border-emerald-200 bg-white px-4 py-2 text-xs font-semibold text-emerald-700 transition-colors hover:bg-emerald-50">
+              <i className="ti ti-shield-check" />
+              Approve
+            </button>
           )}
         </div>
       </div>
@@ -1009,6 +1042,9 @@ export default function Playbooks() {
   const [resolvingComponents, setResolvingComponents] = useState(false)
   const [previewPanel, setPreviewPanel] = useState(null)
   const [deletingPlaybook, setDeletingPlaybook] = useState(null)
+  const [approvingPlaybook, setApprovingPlaybook] = useState(null)
+  const canSubmitReviewCapability = useAppStore(state => state.hasPermission('master_playbooks.edit'))
+  const canApproveCapability = useAppStore(state => state.hasPermission('master_playbooks.approve'))
   const { data: storedPlaybooks = [], isLoading: playbooksLoading, refetch: refetchPlaybooks } = usePlaybooks({
     placeholderData: previous => previous,
   })
@@ -1061,6 +1097,10 @@ export default function Playbooks() {
       closePlaybookForm()
     },
   })
+  const submitReviewMutation = useSubmitPlaybookReviewMutation()
+  const approveMutation = useApprovePlaybookMutation({
+    onSuccess: () => setApprovingPlaybook(null),
+  })
   const playbookSaving = resolvingComponents || createPlaybookMutation.isPending || updatePlaybookMutation.isPending
 
   useEffect(() => {
@@ -1084,6 +1124,34 @@ export default function Playbooks() {
 
   const activePlaybook = availablePlaybooks.find(playbook => playbook.id === activeId) ?? availablePlaybooks[0]
   const canManageActivePlaybook = canUserEditAsset(activePlaybook, currentUser)
+  const canSubmitReviewActivePlaybook = Boolean(
+    activePlaybook?.source === 'api'
+    && canManageActivePlaybook
+    && canSubmitReviewCapability
+    && activePlaybook.status === 'draft'
+  )
+  const canApproveActivePlaybook = Boolean(
+    activePlaybook?.source === 'api'
+    && canApproveCapability
+    && activePlaybook.status === 'review'
+    && Number(currentUser.id) !== Number(activePlaybook.createdBy)
+    && Number(currentUser.id) !== Number(activePlaybook.updatedBy)
+  )
+
+  function handleSubmitReview() {
+    if (!activePlaybook) return
+    submitReviewMutation.mutate(activePlaybook.id)
+  }
+
+  function handleApprove() {
+    if (!activePlaybook) return
+    setApprovingPlaybook(activePlaybook)
+  }
+
+  function confirmApprove() {
+    if (!approvingPlaybook) return
+    approveMutation.mutate(approvingPlaybook.id)
+  }
 
   async function handleSync() {
     setSyncing(true)
@@ -1414,8 +1482,12 @@ export default function Playbooks() {
         <DetailPanel
           playbook={activePlaybook}
           canManage={canManageActivePlaybook}
+          canSubmitReview={canSubmitReviewActivePlaybook}
+          canApprove={canApproveActivePlaybook}
           onDuplicate={duplicateSelectedPlaybook}
           onEdit={openEditPlaybook}
+          onSubmitReview={handleSubmitReview}
+          onApprove={handleApprove}
           onPreviewComponent={previewDetailComponent}
         />
       </div>
@@ -1450,6 +1522,19 @@ export default function Playbooks() {
           isPending={deletePlaybookMutation.isPending}
           onCancel={() => setDeletingPlaybook(null)}
           onConfirm={confirmDeletePlaybook}
+        />
+      )}
+      {approvingPlaybook && (
+        <AlertConfirmation
+          title="Approve playbook?"
+          message={`Approve "${approvingPlaybook.name}"? It will become available for use in campaigns.`}
+          icon="ti-shield-check"
+          tone="warning"
+          confirmLabel="Approve"
+          pendingLabel="Approving..."
+          isPending={approveMutation.isPending}
+          onCancel={() => setApprovingPlaybook(null)}
+          onConfirm={confirmApprove}
         />
       )}
     </PageShell>

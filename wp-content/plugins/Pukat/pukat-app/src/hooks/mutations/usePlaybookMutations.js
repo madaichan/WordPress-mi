@@ -70,3 +70,40 @@ export function useDeletePlaybookMutation(options = {}) {
     },
   })
 }
+
+export function useSubmitPlaybookReviewMutation(options = {}) {
+  const qc = useQueryClient()
+
+  return useMutation({
+    mutationFn: playbookApi.submitReview,
+    onSuccess: (data, variables, context) => {
+      toast.success('Playbook submitted for review.')
+      qc.invalidateQueries({ queryKey: queryKeys.playbooks.all })
+      options.onSuccess?.(data, variables, context)
+    },
+    onError: (err, variables, context) => {
+      toast.error(err.message || 'Failed to submit playbook for review.')
+      options.onError?.(err, variables, context)
+    },
+  })
+}
+
+export function useApprovePlaybookMutation(options = {}) {
+  const qc = useQueryClient()
+
+  return useMutation({
+    mutationFn: playbookApi.approve,
+    onSuccess: (data, variables, context) => {
+      toast.success('Playbook approved.')
+      qc.invalidateQueries({ queryKey: queryKeys.playbooks.all })
+      options.onSuccess?.(data, variables, context)
+    },
+    onError: (err, variables, context) => {
+      // playbook_not_ready's granular `errors` array is dropped by
+      // RestController::from_wp_error() (only message/code/status survive) —
+      // surfacing err.message is the best available UX without a backend change.
+      toast.error(err.message || 'Failed to approve playbook.')
+      options.onError?.(err, variables, context)
+    },
+  })
+}

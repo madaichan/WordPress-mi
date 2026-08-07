@@ -23,8 +23,14 @@ function displayStatus(status) {
   return READY_STATUSES.has(String(status || '').toLowerCase()) ? 'Published' : 'Draft'
 }
 
-function masterStatusFromDisplay(status) {
-  return status === 'Published' ? 'active' : 'draft'
+/** Shared status label for the Playbook Master lifecycle (draft/review/approved/active/deprecated/archived). */
+export function playbookDisplayStatus(status) {
+  const normalized = String(status || '').toLowerCase()
+  if (normalized === 'active' || normalized === 'approved') return 'Published'
+  if (normalized === 'review') return 'Review'
+  if (normalized === 'deprecated') return 'Deprecated'
+  if (normalized === 'archived') return 'Archived'
+  return 'Draft'
 }
 
 function versionVariables(variables) {
@@ -79,6 +85,8 @@ export function masterEmailTemplateToUiTemplate(master) {
     activeUsageCount,
     editLockReason: master.edit_lock_reason || 'This email template is used by an active campaign or playbook.',
     thumbnail: emailTemplateThumbnail(category),
+    versionCreatedBy: version?.created_by ?? null,
+    versionUpdatedBy: version?.updated_by ?? null,
     raw: master,
   }
 }
@@ -86,7 +94,6 @@ export function masterEmailTemplateToUiTemplate(master) {
 export function buildMasterEmailTemplatePayload({
   name,
   category = 'alert',
-  status = 'Published',
   entity = '',
   subject,
   html,
@@ -96,13 +103,11 @@ export function buildMasterEmailTemplatePayload({
   description = '',
 }) {
   return {
-    publish: status === 'Published',
     master: {
       name: name.trim(),
       description: description.trim(),
       category,
       entity: trimOrDefault(entity, 'General'),
-      status: masterStatusFromDisplay(status),
     },
     version: {
       subject: subject.trim(),
@@ -148,6 +153,8 @@ export function masterLandingPageToUiPage(master) {
     activeUsageCount,
     editLockReason: master.edit_lock_reason || 'This landing page is used by an active campaign or playbook.',
     thumbnail: landingPageThumbnail(category),
+    versionCreatedBy: version?.created_by ?? null,
+    versionUpdatedBy: version?.updated_by ?? null,
     raw: master,
   }
 }
@@ -159,20 +166,17 @@ export function buildMasterLandingPagePayload({
   captureData,
   capturePass,
   entity = '',
-  status = 'Published',
   language = 'id',
   description = '',
 }) {
   const category = landingCategoryForCapture({ captureData, capturePass, redirectUrl })
 
   return {
-    publish: status === 'Published',
     master: {
       name: name.trim(),
       description: description.trim(),
       category,
       entity: trimOrDefault(entity, 'General'),
-      status: masterStatusFromDisplay(status),
     },
     version: {
       html_body: html,

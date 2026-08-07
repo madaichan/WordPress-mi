@@ -8,40 +8,21 @@ function invalidateMasterAssets(qc, queryKey) {
   qc.invalidateQueries({ queryKey: queryKeys.masterAssets.all })
 }
 
-async function publishEmailTemplateVersion(masterId, versionId) {
-  if (!versionId) return null
-
-  const version = await masterAssetApi.approveEmailTemplateVersion(versionId)
-  await masterAssetApi.updateEmailTemplate(masterId, { status: 'active' })
-  return version
-}
-
-async function publishLandingPageVersion(masterId, versionId) {
-  if (!versionId) return null
-
-  const version = await masterAssetApi.approveLandingPageVersion(versionId)
-  await masterAssetApi.updateLandingPage(masterId, { status: 'active' })
-  return version
-}
-
 export function useCreateMasterEmailTemplateMutation(options = {}) {
   const qc = useQueryClient()
 
   return useMutation({
-    mutationFn: async ({ master, version, publish }) => {
+    mutationFn: async ({ master, version }) => {
       const template = await masterAssetApi.createEmailTemplate({
         ...master,
         ...version,
         status: 'draft',
       })
-      const publishedVersion = publish
-        ? await publishEmailTemplateVersion(template.id, template.latest_version?.id)
-        : null
 
-      return { template, version: publishedVersion ?? template.latest_version }
+      return { template, version: template.latest_version }
     },
     onSuccess: (data, variables, context) => {
-      toast.success(variables.publish ? 'Email template published in master.' : 'Email template draft saved.')
+      toast.success('Email template draft saved.')
       invalidateMasterAssets(qc, queryKeys.masterAssets.emailTemplates)
       options.onSuccess?.(data, variables, context)
     },
@@ -56,29 +37,40 @@ export function useUpdateMasterEmailTemplateMutation(options = {}) {
   const qc = useQueryClient()
 
   return useMutation({
-    mutationFn: async ({ id, master, version, publish }) => {
+    mutationFn: async ({ id, master, version }) => {
       const template = await masterAssetApi.updateEmailTemplate(id, master)
       const nextVersion = await masterAssetApi.createEmailTemplateVersion(id, {
         ...version,
         status: 'draft',
       })
-      const publishedVersion = publish
-        ? await publishEmailTemplateVersion(id, nextVersion.id)
-        : null
 
-      if (!publish && master.status !== template.status) {
-        await masterAssetApi.updateEmailTemplate(id, { status: master.status })
-      }
-
-      return { template, version: publishedVersion ?? nextVersion }
+      return { template, version: nextVersion }
     },
     onSuccess: (data, variables, context) => {
-      toast.success(variables.publish ? 'Email template version published.' : 'Email template draft version saved.')
+      toast.success('Email template draft version saved.')
       invalidateMasterAssets(qc, queryKeys.masterAssets.emailTemplates)
       options.onSuccess?.(data, variables, context)
     },
     onError: (err, variables, context) => {
       toast.error(err.message || 'Failed to update email template master.')
+      options.onError?.(err, variables, context)
+    },
+  })
+}
+
+export function useApproveMasterEmailTemplateVersionMutation(options = {}) {
+  const qc = useQueryClient()
+
+  return useMutation({
+    mutationFn: (versionId) => masterAssetApi.approveEmailTemplateVersion(versionId),
+    onSuccess: (data, variables, context) => {
+      toast.success('Email template version approved.')
+      invalidateMasterAssets(qc, queryKeys.masterAssets.emailTemplates)
+      qc.invalidateQueries({ queryKey: queryKeys.tables.all })
+      options.onSuccess?.(data, variables, context)
+    },
+    onError: (err, variables, context) => {
+      toast.error(err.message || 'Failed to approve email template version.')
       options.onError?.(err, variables, context)
     },
   })
@@ -122,20 +114,17 @@ export function useCreateMasterLandingPageMutation(options = {}) {
   const qc = useQueryClient()
 
   return useMutation({
-    mutationFn: async ({ master, version, publish }) => {
+    mutationFn: async ({ master, version }) => {
       const page = await masterAssetApi.createLandingPage({
         ...master,
         ...version,
         status: 'draft',
       })
-      const publishedVersion = publish
-        ? await publishLandingPageVersion(page.id, page.latest_version?.id)
-        : null
 
-      return { page, version: publishedVersion ?? page.latest_version }
+      return { page, version: page.latest_version }
     },
     onSuccess: (data, variables, context) => {
-      toast.success(variables.publish ? 'Landing page published in master.' : 'Landing page draft saved.')
+      toast.success('Landing page draft saved.')
       invalidateMasterAssets(qc, queryKeys.masterAssets.landingPages)
       options.onSuccess?.(data, variables, context)
     },
@@ -150,29 +139,40 @@ export function useUpdateMasterLandingPageMutation(options = {}) {
   const qc = useQueryClient()
 
   return useMutation({
-    mutationFn: async ({ id, master, version, publish }) => {
+    mutationFn: async ({ id, master, version }) => {
       const page = await masterAssetApi.updateLandingPage(id, master)
       const nextVersion = await masterAssetApi.createLandingPageVersion(id, {
         ...version,
         status: 'draft',
       })
-      const publishedVersion = publish
-        ? await publishLandingPageVersion(id, nextVersion.id)
-        : null
 
-      if (!publish && master.status !== page.status) {
-        await masterAssetApi.updateLandingPage(id, { status: master.status })
-      }
-
-      return { page, version: publishedVersion ?? nextVersion }
+      return { page, version: nextVersion }
     },
     onSuccess: (data, variables, context) => {
-      toast.success(variables.publish ? 'Landing page version published.' : 'Landing page draft version saved.')
+      toast.success('Landing page draft version saved.')
       invalidateMasterAssets(qc, queryKeys.masterAssets.landingPages)
       options.onSuccess?.(data, variables, context)
     },
     onError: (err, variables, context) => {
       toast.error(err.message || 'Failed to update landing page master.')
+      options.onError?.(err, variables, context)
+    },
+  })
+}
+
+export function useApproveMasterLandingPageVersionMutation(options = {}) {
+  const qc = useQueryClient()
+
+  return useMutation({
+    mutationFn: (versionId) => masterAssetApi.approveLandingPageVersion(versionId),
+    onSuccess: (data, variables, context) => {
+      toast.success('Landing page version approved.')
+      invalidateMasterAssets(qc, queryKeys.masterAssets.landingPages)
+      qc.invalidateQueries({ queryKey: queryKeys.tables.all })
+      options.onSuccess?.(data, variables, context)
+    },
+    onError: (err, variables, context) => {
+      toast.error(err.message || 'Failed to approve landing page version.')
       options.onError?.(err, variables, context)
     },
   })

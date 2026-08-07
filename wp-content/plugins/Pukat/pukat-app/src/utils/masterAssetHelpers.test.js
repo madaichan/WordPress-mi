@@ -4,6 +4,7 @@ import {
   buildMasterLandingPagePayload,
   masterEmailTemplateToUiTemplate,
   masterLandingPageToUiPage,
+  playbookDisplayStatus,
 } from './masterAssetHelpers.js'
 
 describe('masterAssetHelpers', () => {
@@ -21,6 +22,8 @@ describe('masterAssetHelpers', () => {
         html_body: '<p>Hello {{.FirstName}}</p>',
         text_body: 'Hello',
         status: 'approved',
+        created_by: 7,
+        updated_by: 9,
       },
     })
 
@@ -33,27 +36,26 @@ describe('masterAssetHelpers', () => {
       status: 'Published',
       subject: 'Verify your account',
       html: '<p>Hello {{.FirstName}}</p>',
+      versionCreatedBy: 7,
+      versionUpdatedBy: 9,
     })
   })
 
-  it('builds versioned email payloads for publish flow', () => {
+  it('builds versioned email payloads without a status/publish field', () => {
     const payload = buildMasterEmailTemplatePayload({
       name: ' Security Alert ',
       category: 'urgent',
-      status: 'Published',
       entity: '',
       subject: ' Verify ',
       html: '<p>Verify</p>',
     })
 
     expect(payload).toEqual({
-      publish: true,
       master: {
         name: 'Security Alert',
         description: '',
         category: 'urgent',
         entity: 'General',
-        status: 'active',
       },
       version: {
         subject: 'Verify',
@@ -96,7 +98,7 @@ describe('masterAssetHelpers', () => {
     })
   })
 
-  it('builds landing page payloads with CampaignRun-compatible setting names', () => {
+  it('builds landing page payloads with CampaignRun-compatible setting names, no status/publish field', () => {
     const payload = buildMasterLandingPagePayload({
       name: 'Portal Login',
       html: '<form></form>',
@@ -104,16 +106,13 @@ describe('masterAssetHelpers', () => {
       captureData: true,
       capturePass: false,
       entity: 'HR',
-      status: 'Draft',
     })
 
     expect(payload).toMatchObject({
-      publish: false,
       master: {
         name: 'Portal Login',
         category: 'form',
         entity: 'HR',
-        status: 'draft',
       },
       version: {
         capture_settings: {
@@ -125,5 +124,17 @@ describe('masterAssetHelpers', () => {
         },
       },
     })
+    expect(payload.master.status).toBeUndefined()
+    expect(payload.publish).toBeUndefined()
+  })
+
+  it('maps playbook lifecycle statuses to display labels', () => {
+    expect(playbookDisplayStatus('draft')).toBe('Draft')
+    expect(playbookDisplayStatus('review')).toBe('Review')
+    expect(playbookDisplayStatus('approved')).toBe('Published')
+    expect(playbookDisplayStatus('active')).toBe('Published')
+    expect(playbookDisplayStatus('deprecated')).toBe('Deprecated')
+    expect(playbookDisplayStatus('archived')).toBe('Archived')
+    expect(playbookDisplayStatus(undefined)).toBe('Draft')
   })
 })

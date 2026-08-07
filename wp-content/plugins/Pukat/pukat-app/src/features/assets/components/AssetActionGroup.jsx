@@ -3,6 +3,7 @@ import clsx from 'clsx'
 const TONE_CLASS = {
   gray: 'border border-gray-200 bg-white text-gray-700 hover:bg-gray-50',
   red: 'border border-red-100 bg-white text-red-600 hover:bg-red-50',
+  green: 'border border-emerald-100 bg-white text-emerald-600 hover:bg-emerald-50',
 }
 
 export default function AssetActionGroup({ variant = 'card', actions = [] }) {

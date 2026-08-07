@@ -32,13 +32,16 @@ import {
 import { useGophishSmtpProfiles } from '../../hooks/queries/useGophishQueries.js'
 import { usePlaybooks } from '../../hooks/queries/usePlaybookQueries.js'
 import {
+  useApprovePlaybookMutation,
   useCreatePlaybookMutation,
   useDeletePlaybookMutation,
   useDuplicatePlaybookMutation,
+  useSubmitPlaybookReviewMutation,
   useUpdatePlaybookMutation,
 } from '../../hooks/mutations/usePlaybookMutations.js'
 import { useUsers } from '../../hooks/queries/useUserQueries.js'
 import { masterAssetApi } from '../../api/index.js'
+import useAppStore from '../../store/useAppStore.js'
 import {
   EMPTY_PLAYBOOK_COMPONENT_OPTIONS,
   firstOption,
@@ -46,6 +49,7 @@ import {
   playbookComponentOptions,
 } from '../../utils/playbookComponentOptions.js'
 import { GENERAL_ENTITY, applyAssignmentFromEntity, entityFromAssignment } from '../../utils/entityAssignmentHelpers.js'
+import { playbookDisplayStatus } from '../../utils/masterAssetHelpers.js'
 import { normalizePukatRole } from '../../utils/roles.js'
 
 const ATTACK_TYPE_OPTIONS = ['BEC', 'Credential', 'Malware', 'Vishing']
@@ -172,15 +176,6 @@ function statusTone(status) {
   if (status === 'Published' || status === 'Valid') return 'success'
   if (status === 'Draft' || status === 'Not tested') return 'warning'
   return 'gray'
-}
-
-function displayPlaybookStatus(status) {
-  const normalized = String(status || '').toLowerCase()
-  if (normalized === 'active' || normalized === 'approved') return 'Published'
-  if (normalized === 'review') return 'Review'
-  if (normalized === 'deprecated') return 'Deprecated'
-  if (normalized === 'archived') return 'Archived'
-  return 'Draft'
 }
 
 function playbookStatusFromDisplay(status) {
@@ -398,7 +393,8 @@ function playbookItemFromRow(row, users) {
     name: row.name || `Playbook ${row.id}`,
     metaA: row.scenario || 'Credential',
     metaB: playbookDifficultyLabel(row.difficulty || 3),
-    status: displayPlaybookStatus(row.status),
+    status: playbookDisplayStatus(row.status),
+    rawStatus: row.status,
     entity: row.entity || GENERAL_ENTITY,
     assignedTo: 'all',
     users: [],
@@ -449,7 +445,7 @@ function playbookFormFromItem(item) {
 
   return {
     name: row.name || item?.name || '',
-    status: displayPlaybookStatus(row.status || item?.status),
+    status: playbookDisplayStatus(row.status || item?.status),
     assignedTo: item?.assignedTo || 'all',
     users: item?.users || [],
     description: row.description || '',
@@ -1000,8 +996,12 @@ export default function MasterAssetPage({ type }) {
   const [editing, setEditing] = useState(null)
   const [editingPlaybook, setEditingPlaybook] = useState(null)
   const [deletingPlaybook, setDeletingPlaybook] = useState(null)
+  const [approvingPlaybook, setApprovingPlaybook] = useState(null)
   const [creating, setCreating] = useState(false)
   const [savingPlaybook, setSavingPlaybook] = useState(false)
+  const currentUser = useAppStore(state => state.user)
+  const canSubmitReviewCapability = useAppStore(state => state.hasPermission('master_playbooks.edit'))
+  const canApproveCapability = useAppStore(state => state.hasPermission('master_playbooks.approve'))
 
   const { data: usersData } = useUsers({ per_page: 100 })
   const componentQueryOptions = { enabled: type === 'playbooks' }
@@ -1034,6 +1034,10 @@ export default function MasterAssetPage({ type }) {
       setEditingPlaybook(null)
       setDeletingPlaybook(null)
     },
+  })
+  const submitReviewMutation = useSubmitPlaybookReviewMutation()
+  const approveMutation = useApprovePlaybookMutation({
+    onSuccess: () => setApprovingPlaybook(null),
   })
 
   const users = useMemo(() => {
@@ -1215,6 +1219,19 @@ export default function MasterAssetPage({ type }) {
     deletePlaybookMutation.mutate(deletingPlaybook.id)
   }
 
+  function submitPlaybookForReview(item) {
+    submitReviewMutation.mutate(item.id)
+  }
+
+  function approvePlaybook(item) {
+    setApprovingPlaybook(item)
+  }
+
+  function confirmApprovePlaybook() {
+    if (!approvingPlaybook) return
+    approveMutation.mutate(approvingPlaybook.id)
+  }
+
   async function createAsset(asset) {
     if (type === 'playbooks') {
       const result = entityFromAssignment(asset, users)
@@ -1370,6 +1387,31 @@ export default function MasterAssetPage({ type }) {
                           disabled={item.editLocked || deletePlaybookMutation.isPending}
                           onClick={() => deletePlaybook(item)}
                         />
+                        {item.rawStatus === 'draft' && canSubmitReviewCapability && (
+                          <TableActionButton
+                            icon="ti-send"
+                            label={`Submit ${item.name} for review`}
+                            title={item.editLocked ? playbookLockMessage(item) : 'Submit for review'}
+                            tone="blue"
+                            size="md"
+                            disabled={item.editLocked || submitReviewMutation.isPending}
+                            onClick={() => item.editLocked ? notifyPlaybookLocked(item) : submitPlaybookForReview(item)}
+                          />
+                        )}
+                        {item.rawStatus === 'review'
+                          && canApproveCapability
+                          && Number(currentUser.id) !== Number(item.raw?.created_by)
+                          && Number(currentUser.id) !== Number(item.raw?.updated_by) && (
+                          <TableActionButton
+                            icon="ti-shield-check"
+                            label={`Approve ${item.name}`}
+                            title="Approve"
+                            tone="green"
+                            size="md"
+                            disabled={approveMutation.isPending}
+                            onClick={() => approvePlaybook(item)}
+                          />
+                        )}
                       </>
                     )}
                   </div>
@@ -1420,6 +1462,19 @@ export default function MasterAssetPage({ type }) {
           isPending={deletePlaybookMutation.isPending}
           onCancel={() => setDeletingPlaybook(null)}
           onConfirm={confirmDeletePlaybook}
+        />
+      )}
+      {type === 'playbooks' && approvingPlaybook && (
+        <AlertConfirmation
+          title="Approve playbook?"
+          message={`Approve "${approvingPlaybook.name}"? It will become available for use in campaigns.`}
+          icon="ti-shield-check"
+          tone="warning"
+          confirmLabel="Approve"
+          pendingLabel="Approving..."
+          isPending={approveMutation.isPending}
+          onCancel={() => setApprovingPlaybook(null)}
+          onConfirm={confirmApprovePlaybook}
         />
       )}
       {creating && (

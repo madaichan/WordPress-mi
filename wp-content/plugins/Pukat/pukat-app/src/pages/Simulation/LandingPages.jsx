@@ -8,7 +8,7 @@ import PageShell from '../../components/Layout/PageShell.jsx'
 import Button from '../../components/UI/Button.jsx'
 import AlertConfirmation from '../../components/UI/AlertConfirmation.jsx'
 import { useMasterLandingPages } from '../../hooks/queries/useMasterAssetQueries.js'
-import { useCreateMasterLandingPageMutation, useDeleteMasterLandingPageMutation, useUpdateMasterLandingPageMutation } from '../../hooks/mutations/useMasterAssetMutations.js'
+import { useApproveMasterLandingPageVersionMutation, useCreateMasterLandingPageMutation, useDeleteMasterLandingPageMutation, useUpdateMasterLandingPageMutation } from '../../hooks/mutations/useMasterAssetMutations.js'
 import useAppStore from '../../store/useAppStore.js'
 import { canManagePukat } from '../../utils/roles.js'
 import { assetEntityForUser, canUserCreateAsset, canUserEditAsset, filterAssetsForUser } from '../../utils/entityAssignmentHelpers.js'
@@ -62,7 +62,7 @@ function ThumbnailMockup({ page }) {
   )
 }
 
-function LandingPageCard({ page, canEdit, onEdit, onPreview, onDelete }) {
+function LandingPageCard({ page, canEdit, canApprove, onEdit, onPreview, onDelete, onApprove }) {
   const lockMessage = masterAssetLockMessage(page, 'Landing page')
 
   const actions = [
@@ -82,6 +82,13 @@ function LandingPageCard({ page, canEdit, onEdit, onPreview, onDelete }) {
       disabled: page.editLocked,
       title: page.editLocked ? lockMessage : 'Delete',
       onClick: () => onDelete(page.id),
+    },
+    canApprove && {
+      key: 'approve',
+      label: 'Approve',
+      icon: 'ti-shield-check',
+      tone: 'green',
+      onClick: () => onApprove(page.id),
     },
     {
       key: 'preview',
@@ -104,6 +111,10 @@ function LandingPageCard({ page, canEdit, onEdit, onPreview, onDelete }) {
       lockReason={lockMessage}
       thumbnail={<ThumbnailMockup page={page} />}
       actions={actions}
+      statusBadge={{
+        label: page.status,
+        cls: page.status === 'Published' ? 'bg-emerald-100 text-emerald-700' : 'bg-gray-100 text-gray-600',
+      }}
     />
   )
 }
@@ -295,6 +306,7 @@ export default function LandingPages() {
   const [editingCaptureData, setEditingCaptureData] = useState(true)
   const [editingCapturePass, setEditingCapturePass] = useState(true)
   const [deletingPage, setDeletingPage] = useState(null)
+  const [approvingPage, setApprovingPage] = useState(null)
 
   const [syncing, setSyncing] = useState(false)
 
@@ -319,10 +331,14 @@ export default function LandingPages() {
   const deleteMutation = useDeleteMasterLandingPageMutation({
     onSuccess: () => setDeletingPage(null),
   })
+  const approveMutation = useApproveMasterLandingPageVersionMutation({
+    onSuccess: () => setApprovingPage(null),
+  })
   const saving = createMutation.isPending || updateMutation.isPending || deleteMutation.isPending
   const defaultEntity = useMemo(() => assetEntityForUser(currentUser), [currentUser])
   const canCreateAssets = useMemo(() => canUserCreateAsset(currentUser), [currentUser])
   const entityLocked = !canManagePukat(currentUser.role)
+  const canApproveLandingPages = useAppStore(state => state.hasPermission('master_landing_pages.approve'))
 
   useEffect(() => {
     const visiblePages = filterAssetsForUser(
@@ -449,7 +465,6 @@ export default function LandingPages() {
       entity: payloadEntity,
       captureData: editingCaptureData,
       capturePass: editingCapturePass,
-      status: 'Published',
     })
 
     if (editingId) {
@@ -483,6 +498,18 @@ export default function LandingPages() {
 
     deleteMutation.mutate(deletingPage.id)
   }, [deleteMutation, deletingPage])
+
+  const handleApprove = useCallback((id) => {
+    const page = pages.find((p) => p.id === id)
+    if (page) {
+      setApprovingPage(page)
+    }
+  }, [pages])
+
+  const confirmApprove = useCallback(() => {
+    if (!approvingPage) return
+    approveMutation.mutate(approvingPage.versionId)
+  }, [approveMutation, approvingPage])
 
   const handleSync = useCallback(async () => {
     setSyncing(true)
@@ -603,9 +630,16 @@ export default function LandingPages() {
                   key={page.id}
                   page={page}
                   canEdit={canUserEditAsset(page, currentUser)}
+                  canApprove={
+                    canApproveLandingPages
+                    && page.status !== 'Published'
+                    && Number(currentUser.id) !== Number(page.versionCreatedBy)
+                    && Number(currentUser.id) !== Number(page.versionUpdatedBy)
+                  }
                   onEdit={handleEdit}
                   onPreview={handlePreview}
                   onDelete={handleDelete}
+                  onApprove={handleApprove}
                 />
               ))}
               {canCreateAssets && <AssetCreateCard label="Buat landing page baru" onClick={handleCreate} />}
@@ -677,6 +711,20 @@ export default function LandingPages() {
           isPending={deleteMutation.isPending}
           onCancel={() => setDeletingPage(null)}
           onConfirm={confirmDelete}
+        />
+      )}
+
+      {approvingPage && (
+        <AlertConfirmation
+          title="Approve landing page version?"
+          message={`Approve the current version of "${approvingPage.name}"? It will become available for use in campaigns.`}
+          icon="ti-shield-check"
+          tone="warning"
+          confirmLabel="Approve"
+          pendingLabel="Approving..."
+          isPending={approveMutation.isPending}
+          onCancel={() => setApprovingPage(null)}
+          onConfirm={confirmApprove}
         />
       )}
     </PageShell>

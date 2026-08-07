@@ -16,11 +16,13 @@ import { useMasterLandingPages } from '../../hooks/queries/useMasterAssetQueries
 import { useTableRows, useTableSchema } from '../../hooks/queries/useTableQueries.js'
 import { useUsers } from '../../hooks/queries/useUserQueries.js'
 import {
+  useApproveMasterLandingPageVersionMutation,
   useAssignMasterLandingPageEntityMutation,
   useCreateMasterLandingPageMutation,
   useDeleteMasterLandingPageMutation,
   useUpdateMasterLandingPageMutation,
 } from '../../hooks/mutations/useMasterAssetMutations.js'
+import useAppStore from '../../store/useAppStore.js'
 import { applyAssignmentFromEntity, entityFromAssignment, userForAssignmentPanel } from '../../utils/entityAssignmentHelpers.js'
 import { buildMasterLandingPagePayload, masterAssetLockMessage, masterLandingPageToUiPage } from '../../utils/masterAssetHelpers.js'
 
@@ -91,7 +93,6 @@ export default function MasterLandingPages() {
   const [activeTab, setActiveTab] = useState('list')
   const [editingId, setEditingId] = useState(null)
   const [editingName, setEditingName] = useState('')
-  const [editingStatus, setEditingStatus] = useState('Published')
   const [editingHtml, setEditingHtml] = useState('')
   const [editingEntity, setEditingEntity] = useState('')
   const [editingRedirectUrl, setEditingRedirectUrl] = useState('https://portal.office.com')
@@ -100,6 +101,9 @@ export default function MasterLandingPages() {
   const [previewTitle, setPreviewTitle] = useState('Microsoft 365 Login')
   const [assignmentPageId, setAssignmentPageId] = useState(null)
   const [deletingPageId, setDeletingPageId] = useState(null)
+  const [approvingPageId, setApprovingPageId] = useState(null)
+  const canApproveLandingPages = useAppStore(state => state.hasPermission('master_landing_pages.approve'))
+  const currentUser = useAppStore(state => state.user)
 
   const { data: schema } = useTableSchema(TABLE_KEY)
   const { data: rowsData, isLoading, isFetching: isFetchingRows, refetch: refetchRows } = useTableRows(TABLE_KEY, {
@@ -156,7 +160,6 @@ export default function MasterLandingPages() {
   const resetEditor = useCallback(() => {
     setEditingId(null)
     setEditingName('')
-    setEditingStatus('Published')
     setEditingHtml('')
     setEditingEntity('')
     setEditingRedirectUrl('https://portal.office.com')
@@ -181,6 +184,9 @@ export default function MasterLandingPages() {
   const assignEntityMutation = useAssignMasterLandingPageEntityMutation({
     onSuccess: () => setAssignmentPageId(null),
   })
+  const approveMutation = useApproveMasterLandingPageVersionMutation({
+    onSuccess: () => setApprovingPageId(null),
+  })
   const saving = createMutation.isPending || updateMutation.isPending || deleteMutation.isPending
 
   useEffect(() => {
@@ -196,11 +202,23 @@ export default function MasterLandingPages() {
   const deletingPage = useMemo(() => (
     pages.find(page => page.id === deletingPageId) ?? null
   ), [deletingPageId, pages])
+  const approvingPage = useMemo(() => (
+    pages.find(page => page.id === approvingPageId) ?? null
+  ), [approvingPageId, pages])
+  const editingPage = useMemo(() => (
+    pages.find(page => page.id === editingId) ?? null
+  ), [editingId, pages])
+  const canApproveEditingPage = Boolean(
+    editingPage
+    && canApproveLandingPages
+    && editingPage.status !== 'Published'
+    && Number(currentUser.id) !== Number(editingPage.versionCreatedBy)
+    && Number(currentUser.id) !== Number(editingPage.versionUpdatedBy)
+  )
 
   const handleCreate = useCallback(() => {
     setEditingId(null)
     setEditingName('')
-    setEditingStatus('Published')
     setEditingHtml(DEFAULT_HTML)
     setEditingEntity('')
     setEditingRedirectUrl('https://portal.office.com')
@@ -219,7 +237,6 @@ export default function MasterLandingPages() {
 
     setEditingId(page.id)
     setEditingName(page.name)
-    setEditingStatus(page.status || 'Published')
     setEditingHtml(page.html || '')
     setEditingEntity(page.entity || '')
     setEditingRedirectUrl(page.redirectUrl || 'https://portal.office.com')
@@ -233,7 +250,6 @@ export default function MasterLandingPages() {
     if (!page) return
     setEditingId(page.id)
     setEditingName(page.name)
-    setEditingStatus(page.status || 'Published')
     setEditingHtml(page.html || '')
     setEditingEntity(page.entity || '')
     setEditingRedirectUrl(page.redirectUrl || 'https://portal.office.com')
@@ -275,6 +291,15 @@ export default function MasterLandingPages() {
     deleteMutation.mutate(deletingPage.id)
   }, [deleteMutation, deletingPage])
 
+  const handleApprove = useCallback((id) => {
+    setApprovingPageId(id)
+  }, [])
+
+  const confirmApprove = useCallback(() => {
+    if (!approvingPage) return
+    approveMutation.mutate(approvingPage.versionId)
+  }, [approveMutation, approvingPage])
+
   function handleSave() {
     const currentPage = pages.find(page => page.id === editingId)
     if (currentPage?.editLocked) {
@@ -293,13 +318,12 @@ export default function MasterLandingPages() {
       html: editingHtml,
       redirectUrl: editingRedirectUrl,
       entity: editingEntity,
-      status: editingStatus,
       captureData: editingCaptureData,
       capturePass: editingCapturePass,
     })
 
     if (editingId) {
-      updateMutation.mutate({ id: editingId, data: payload })
+      updateMutation.mutate({ id: editingId, ...payload })
     } else {
       createMutation.mutate(payload)
     }
@@ -407,6 +431,12 @@ export default function MasterLandingPages() {
                 <p className="mt-0.5 text-xs text-gray-500">Configure the HTML template and capture behavior.</p>
               </div>
               <div className="flex items-center gap-3">
+                {canApproveEditingPage && (
+                  <Button variant="outline" className="border-emerald-200 text-emerald-700 hover:bg-emerald-50" onClick={() => handleApprove(editingId)}>
+                    <i className="ti ti-shield-check text-base" />
+                    <span>Approve</span>
+                  </Button>
+                )}
                 <Button variant="outline" onClick={() => switchTab('list')}>Cancel</Button>
                 <Button variant="primary" onClick={handleSave} disabled={saving}>
                   {saving ? 'Saving...' : 'Save template'}
@@ -428,13 +458,14 @@ export default function MasterLandingPages() {
                   <span className="font-semibold text-gray-700">Entity</span>
                   <input value={editingEntity} onChange={event => setEditingEntity(event.target.value)} placeholder="Example: EntityA" className="w-full rounded-lg border border-gray-200 bg-white px-3 py-2 text-gray-950 outline-none focus:border-violet-500" />
                 </label>
-                <label className="block space-y-1 text-xs">
-                  <span className="font-semibold text-gray-700">Status</span>
-                  <select value={editingStatus} onChange={event => setEditingStatus(event.target.value)} className="w-full rounded-lg border border-gray-200 bg-white px-3 py-2 text-gray-950 outline-none focus:border-violet-500">
-                    <option>Published</option>
-                    <option>Draft</option>
-                  </select>
-                </label>
+                {editingId && editingPage && (
+                  <div className="block space-y-1 text-xs">
+                    <span className="font-semibold text-gray-700">Status</span>
+                    <div className="pt-1.5">
+                      <Badge tone={editingPage.status === 'Published' ? 'success' : 'gray'}>{editingPage.status}</Badge>
+                    </div>
+                  </div>
+                )}
                 <div className="space-y-3 pt-2 text-xs">
                   <label className="flex cursor-pointer items-start gap-2.5">
                     <input type="checkbox" checked={editingCaptureData} onChange={event => setEditingCaptureData(event.target.checked)} className="mt-0.5 rounded border-gray-300 text-violet-600 focus:ring-violet-500" />
@@ -503,6 +534,19 @@ export default function MasterLandingPages() {
           isPending={deleteMutation.isPending}
           onCancel={() => setDeletingPageId(null)}
           onConfirm={confirmDelete}
+        />
+      )}
+      {approvingPage && (
+        <AlertConfirmation
+          title="Approve landing page version?"
+          message={`Approve the current version of "${approvingPage.name}"? It will become available for use in campaigns.`}
+          icon="ti-shield-check"
+          tone="warning"
+          confirmLabel="Approve"
+          pendingLabel="Approving..."
+          isPending={approveMutation.isPending}
+          onCancel={() => setApprovingPageId(null)}
+          onConfirm={confirmApprove}
         />
       )}
     </PageShell>

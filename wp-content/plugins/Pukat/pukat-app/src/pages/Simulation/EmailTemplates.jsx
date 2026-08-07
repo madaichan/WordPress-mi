@@ -9,7 +9,7 @@ import PageShell from '../../components/Layout/PageShell.jsx'
 import Button from '../../components/UI/Button.jsx'
 import AlertConfirmation from '../../components/UI/AlertConfirmation.jsx'
 import { useMasterEmailTemplates } from '../../hooks/queries/useMasterAssetQueries.js'
-import { useCreateMasterEmailTemplateMutation, useDeleteMasterEmailTemplateMutation, useUpdateMasterEmailTemplateMutation } from '../../hooks/mutations/useMasterAssetMutations.js'
+import { useApproveMasterEmailTemplateVersionMutation, useCreateMasterEmailTemplateMutation, useDeleteMasterEmailTemplateMutation, useUpdateMasterEmailTemplateMutation } from '../../hooks/mutations/useMasterAssetMutations.js'
 import useAppStore from '../../store/useAppStore.js'
 import { canManagePukat } from '../../utils/roles.js'
 import { assetEntityForUser, canUserCreateAsset, canUserEditAsset, filterAssetsForUser } from '../../utils/entityAssignmentHelpers.js'
@@ -65,7 +65,7 @@ function ThumbnailMockup({ page }) {
   )
 }
 
-function EmailTemplateCard({ page, canEdit, onEdit, onPreview, onDelete }) {
+function EmailTemplateCard({ page, canEdit, canApprove, onEdit, onPreview, onDelete, onApprove }) {
   const lockMessage = masterAssetLockMessage(page, 'Email template')
 
   const actions = [
@@ -86,6 +86,13 @@ function EmailTemplateCard({ page, canEdit, onEdit, onPreview, onDelete }) {
       title: page.editLocked ? lockMessage : 'Delete',
       onClick: () => onDelete(page.id),
     },
+    canApprove && {
+      key: 'approve',
+      label: 'Approve',
+      icon: 'ti-shield-check',
+      tone: 'green',
+      onClick: () => onApprove(page.id),
+    },
     {
       key: 'preview',
       label: 'Preview',
@@ -105,6 +112,10 @@ function EmailTemplateCard({ page, canEdit, onEdit, onPreview, onDelete }) {
       lockReason={lockMessage}
       thumbnail={<ThumbnailMockup page={page} />}
       actions={actions}
+      statusBadge={{
+        label: page.status,
+        cls: page.status === 'Published' ? 'bg-emerald-100 text-emerald-700' : 'bg-gray-100 text-gray-600',
+      }}
     />
   )
 }
@@ -272,6 +283,7 @@ export default function EmailTemplates() {
   const [editingSubject, setEditingSubject] = useState('')
   const [editingHtml, setEditingHtml] = useState('')
   const [deletingTemplate, setDeletingTemplate] = useState(null)
+  const [approvingTemplate, setApprovingTemplate] = useState(null)
 
   const [syncing, setSyncing] = useState(false)
 
@@ -295,10 +307,14 @@ export default function EmailTemplates() {
   const deleteMutation = useDeleteMasterEmailTemplateMutation({
     onSuccess: () => setDeletingTemplate(null),
   })
+  const approveMutation = useApproveMasterEmailTemplateVersionMutation({
+    onSuccess: () => setApprovingTemplate(null),
+  })
   const saving = createMutation.isPending || updateMutation.isPending || deleteMutation.isPending
   const defaultEntity = useMemo(() => assetEntityForUser(currentUser), [currentUser])
   const canCreateAssets = useMemo(() => canUserCreateAsset(currentUser), [currentUser])
   const entityLocked = !canManagePukat(currentUser.role)
+  const canApproveEmailTemplates = useAppStore(state => state.hasPermission('master_email_templates.approve'))
 
   useEffect(() => {
     const visibleTemplates = filterAssetsForUser(
@@ -422,7 +438,6 @@ export default function EmailTemplates() {
       subject: editingSubject,
       html,
       text: '',
-      status: 'Published',
     })
 
     if (editingId) {
@@ -456,6 +471,18 @@ export default function EmailTemplates() {
 
     deleteMutation.mutate(deletingTemplate.id)
   }, [deleteMutation, deletingTemplate])
+
+  const handleApprove = useCallback((id) => {
+    const page = pages.find((p) => p.id === id)
+    if (page) {
+      setApprovingTemplate(page)
+    }
+  }, [pages])
+
+  const confirmApprove = useCallback(() => {
+    if (!approvingTemplate) return
+    approveMutation.mutate(approvingTemplate.versionId)
+  }, [approveMutation, approvingTemplate])
 
   const handleSync = useCallback(async () => {
     setSyncing(true)
@@ -575,9 +602,16 @@ export default function EmailTemplates() {
                   key={page.id}
                   page={page}
                   canEdit={canUserEditAsset(page, currentUser)}
+                  canApprove={
+                    canApproveEmailTemplates
+                    && page.status !== 'Published'
+                    && Number(currentUser.id) !== Number(page.versionCreatedBy)
+                    && Number(currentUser.id) !== Number(page.versionUpdatedBy)
+                  }
                   onEdit={handleEdit}
                   onPreview={handlePreview}
                   onDelete={handleDelete}
+                  onApprove={handleApprove}
                 />
               ))}
               {canCreateAssets && <AssetCreateCard label="Buat template baru" onClick={handleCreate} />}
@@ -651,6 +685,20 @@ export default function EmailTemplates() {
           isPending={deleteMutation.isPending}
           onCancel={() => setDeletingTemplate(null)}
           onConfirm={confirmDelete}
+        />
+      )}
+
+      {approvingTemplate && (
+        <AlertConfirmation
+          title="Approve email template version?"
+          message={`Approve the current version of "${approvingTemplate.name}"? It will become available for use in campaigns.`}
+          icon="ti-shield-check"
+          tone="warning"
+          confirmLabel="Approve"
+          pendingLabel="Approving..."
+          isPending={approveMutation.isPending}
+          onCancel={() => setApprovingTemplate(null)}
+          onConfirm={confirmApprove}
         />
       )}
     </PageShell>

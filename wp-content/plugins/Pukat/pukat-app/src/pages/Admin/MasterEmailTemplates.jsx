@@ -9,6 +9,7 @@ import { DataTable } from '../../components/DataTable/index.js'
 import AssignmentBadge from '../../components/UI/AssignmentBadge.jsx'
 import AssignmentPanel from '../../components/UI/AssignmentPanel.jsx'
 import AlertConfirmation from '../../components/UI/AlertConfirmation.jsx'
+import Badge from '../../components/UI/Badge.jsx'
 import PageHeader from '../../components/UI/PageHeader.jsx'
 import PageShell from '../../components/Layout/PageShell.jsx'
 import Button from '../../components/UI/Button.jsx'
@@ -17,11 +18,13 @@ import { useMasterEmailTemplates } from '../../hooks/queries/useMasterAssetQueri
 import { useTableRows, useTableSchema } from '../../hooks/queries/useTableQueries.js'
 import { useUsers } from '../../hooks/queries/useUserQueries.js'
 import {
+  useApproveMasterEmailTemplateVersionMutation,
   useAssignMasterEmailTemplateEntityMutation,
   useCreateMasterEmailTemplateMutation,
   useDeleteMasterEmailTemplateMutation,
   useUpdateMasterEmailTemplateMutation,
 } from '../../hooks/mutations/useMasterAssetMutations.js'
+import useAppStore from '../../store/useAppStore.js'
 import { applyAssignmentFromEntity, entityFromAssignment, userForAssignmentPanel } from '../../utils/entityAssignmentHelpers.js'
 import { buildMasterEmailTemplatePayload, masterAssetLockMessage, masterEmailTemplateToUiTemplate } from '../../utils/masterAssetHelpers.js'
 
@@ -64,12 +67,11 @@ function PreviewFallback() {
 
 function EditorPane({
   editingName,
+  currentTemplate,
   name,
   setName,
   category,
   setCategory,
-  status,
-  setStatus,
   sender,
   setSender,
   entity,
@@ -79,8 +81,10 @@ function EditorPane({
   htmlCode,
   setHtmlCode,
   saving,
+  canApprove,
   onBack,
   onSave,
+  onApprove,
 }) {
   const title = editingName ? `Edit template: ${editingName}` : 'Create email template'
 
@@ -92,6 +96,12 @@ function EditorPane({
           <p className="mt-0.5 text-xs text-gray-500">Configure master metadata and the versioned email HTML source.</p>
         </div>
         <div className="flex items-center gap-3">
+          {canApprove && (
+            <Button variant="outline" className="border-emerald-200 text-emerald-700 hover:bg-emerald-50" onClick={onApprove}>
+              <i className="ti ti-shield-check text-base" />
+              <span>Approve</span>
+            </Button>
+          )}
           <Button variant="outline" onClick={onBack}>Cancel</Button>
           <Button variant="primary" onClick={onSave} disabled={saving}>
             {saving ? 'Saving...' : 'Save template'}
@@ -116,13 +126,14 @@ function EditorPane({
                   <option value="urgent">Urgent notification</option>
                 </select>
               </label>
-              <label className="block space-y-1">
-                <span className="block font-semibold text-gray-700">Status</span>
-                <select value={status} onChange={event => setStatus(event.target.value)} className="w-full rounded-lg border border-gray-200 bg-white px-3 py-2 text-gray-950 outline-none focus:border-violet-500">
-                  <option>Published</option>
-                  <option>Draft</option>
-                </select>
-              </label>
+              {editingName && currentTemplate && (
+                <div className="block space-y-1">
+                  <span className="block font-semibold text-gray-700">Status</span>
+                  <div className="pt-1.5">
+                    <Badge tone={currentTemplate.status === 'Published' ? 'success' : 'gray'}>{currentTemplate.status}</Badge>
+                  </div>
+                </div>
+              )}
             </div>
             <label className="block space-y-1">
               <span className="block font-semibold text-gray-700">Preview sender</span>
@@ -174,14 +185,16 @@ export default function MasterEmailTemplates() {
   const [editingId, setEditingId] = useState(null)
   const [editingName, setEditingName] = useState('')
   const [editingCategory, setEditingCategory] = useState('alert')
-  const [editingStatus, setEditingStatus] = useState('Published')
   const [editingSender, setEditingSender] = useState('')
   const [editingEntity, setEditingEntity] = useState('')
   const [editingSubject, setEditingSubject] = useState('')
   const [editingHtml, setEditingHtml] = useState('')
   const [assignmentTemplateId, setAssignmentTemplateId] = useState(null)
   const [deletingTemplateId, setDeletingTemplateId] = useState(null)
+  const [approvingTemplateId, setApprovingTemplateId] = useState(null)
   const [syncing, setSyncing] = useState(false)
+  const canApproveEmailTemplates = useAppStore(state => state.hasPermission('master_email_templates.approve'))
+  const currentUser = useAppStore(state => state.user)
 
   const { data: schema } = useTableSchema(TABLE_KEY)
   const { data: rowsData, isLoading, isFetching: isFetchingRows, refetch: refetchRows } = useTableRows(TABLE_KEY, {
@@ -228,7 +241,6 @@ export default function MasterEmailTemplates() {
     setEditingId(null)
     setEditingName('')
     setEditingCategory('alert')
-    setEditingStatus('Published')
     setEditingSender('')
     setEditingEntity('')
     setEditingSubject('')
@@ -252,6 +264,9 @@ export default function MasterEmailTemplates() {
   const assignEntityMutation = useAssignMasterEmailTemplateEntityMutation({
     onSuccess: () => setAssignmentTemplateId(null),
   })
+  const approveMutation = useApproveMasterEmailTemplateVersionMutation({
+    onSuccess: () => setApprovingTemplateId(null),
+  })
   const saving = createMutation.isPending || updateMutation.isPending || deleteMutation.isPending
 
   useEffect(() => {
@@ -267,6 +282,19 @@ export default function MasterEmailTemplates() {
   const deletingTemplate = useMemo(() => (
     templates.find(template => template.id === deletingTemplateId) ?? null
   ), [deletingTemplateId, templates])
+  const approvingTemplate = useMemo(() => (
+    templates.find(template => template.id === approvingTemplateId) ?? null
+  ), [approvingTemplateId, templates])
+  const editingTemplate = useMemo(() => (
+    templates.find(template => template.id === editingId) ?? null
+  ), [editingId, templates])
+  const canApproveEditingTemplate = Boolean(
+    editingTemplate
+    && canApproveEmailTemplates
+    && editingTemplate.status !== 'Published'
+    && Number(currentUser.id) !== Number(editingTemplate.versionCreatedBy)
+    && Number(currentUser.id) !== Number(editingTemplate.versionUpdatedBy)
+  )
 
   const loadTemplateForWork = useCallback((id) => {
     const template = templates.find(item => item.id === id)
@@ -275,7 +303,6 @@ export default function MasterEmailTemplates() {
     setEditingId(template.id)
     setEditingName(template.name)
     setEditingCategory(template.category || 'alert')
-    setEditingStatus(template.status || 'Published')
     setEditingSender(template.sender || '')
     setEditingEntity(template.entity || '')
     setEditingSubject(template.subject || '')
@@ -304,7 +331,6 @@ export default function MasterEmailTemplates() {
     setEditingId(null)
     setEditingName('')
     setEditingCategory('alert')
-    setEditingStatus('Published')
     setEditingSender('Admin <admin@company.id>')
     setEditingEntity('')
     setEditingSubject('Action Required: Important Notification')
@@ -344,6 +370,15 @@ export default function MasterEmailTemplates() {
     deleteMutation.mutate(deletingTemplate.id)
   }, [deleteMutation, deletingTemplate])
 
+  const handleApprove = useCallback((id) => {
+    setApprovingTemplateId(id)
+  }, [])
+
+  const confirmApprove = useCallback(() => {
+    if (!approvingTemplate) return
+    approveMutation.mutate(approvingTemplate.versionId)
+  }, [approveMutation, approvingTemplate])
+
   const handleSave = useCallback(() => {
     const currentTemplate = templates.find(template => template.id === editingId)
     if (currentTemplate?.editLocked) {
@@ -359,18 +394,17 @@ export default function MasterEmailTemplates() {
     const payload = buildMasterEmailTemplatePayload({
       name: editingName,
       category: editingCategory,
-      status: editingStatus,
       entity: editingEntity,
       subject: editingSubject,
       html: editingHtml,
     })
 
     if (editingId) {
-      updateMutation.mutate({ id: editingId, data: payload })
+      updateMutation.mutate({ id: editingId, ...payload })
     } else {
       createMutation.mutate(payload)
     }
-  }, [createMutation, editingCategory, editingEntity, editingHtml, editingId, editingName, editingStatus, editingSubject, templates, updateMutation])
+  }, [createMutation, editingCategory, editingEntity, editingHtml, editingId, editingName, editingSubject, templates, updateMutation])
 
   const handleSync = useCallback(async () => {
     setSyncing(true)
@@ -473,12 +507,11 @@ export default function MasterEmailTemplates() {
         {activeTab === 'editor' && (
           <EditorPane
             editingName={editingId ? editingName : ''}
+            currentTemplate={editingTemplate}
             name={editingName}
             setName={setEditingName}
             category={editingCategory}
             setCategory={setEditingCategory}
-            status={editingStatus}
-            setStatus={setEditingStatus}
             sender={editingSender}
             setSender={setEditingSender}
             entity={editingEntity}
@@ -488,6 +521,8 @@ export default function MasterEmailTemplates() {
             htmlCode={editingHtml}
             setHtmlCode={setEditingHtml}
             saving={saving}
+            canApprove={canApproveEditingTemplate}
+            onApprove={() => handleApprove(editingId)}
             onBack={() => switchTab('list')}
             onSave={handleSave}
           />
@@ -540,6 +575,19 @@ export default function MasterEmailTemplates() {
           isPending={deleteMutation.isPending}
           onCancel={() => setDeletingTemplateId(null)}
           onConfirm={confirmDelete}
+        />
+      )}
+      {approvingTemplate && (
+        <AlertConfirmation
+          title="Approve email template version?"
+          message={`Approve the current version of "${approvingTemplate.name}"? It will become available for use in campaigns.`}
+          icon="ti-shield-check"
+          tone="warning"
+          confirmLabel="Approve"
+          pendingLabel="Approving..."
+          isPending={approveMutation.isPending}
+          onCancel={() => setApprovingTemplateId(null)}
+          onConfirm={confirmApprove}
         />
       )}
     </PageShell>
