@@ -144,27 +144,20 @@ class PermissionRegistry {
 				'cancel' => 'operator',
 			],
 		],
-		'playbooks'                => [
-			'label'     => 'Playbooks',
-			'group'     => 'Simulation',
-			'view_gate' => 'shared',
-			'actions'   => [
-				'use' => 'operator',
-			],
-		],
-		'sending_profiles'         => [
-			'label'     => 'Sending Profiles',
-			'group'     => 'Simulation',
-			'view_gate' => 'shared',
-			'actions'   => [
-				'create' => 'operator',
-				'edit'   => 'operator',
-				'delete' => 'operator',
-			],
-		],
+		// `playbooks` and `sending_profiles` (non-master) menus were removed
+		// 2026-08-07 — confirmed zero backend consumers anywhere (nothing
+		// ever called require_capability() with either key). The apps'
+		// Playbooks/Sending Profiles nav items are gated by
+		// `master_playbooks.view`/`master_sending_profiles.view` instead
+		// (same master-catalog data the admin panel's Master Library pages
+		// show — there was never a separate resource these keys could have
+		// meaningfully gated). Keeping them in the registry only made the
+		// Roles UI's "Simulation" group look like it independently
+		// controlled apps nav visibility for those two, when toggling it
+		// silently did nothing.
 		'email_templates'          => [
-			'label'     => 'Email Templates',
-			'group'     => 'Simulation',
+			'label'     => 'Email Templates (GoPhish)',
+			'group'     => 'Campaign Setup',
 			'view_gate' => 'shared',
 			'actions'   => [
 				'create' => 'operator',
@@ -173,8 +166,8 @@ class PermissionRegistry {
 			],
 		],
 		'landing_pages'            => [
-			'label'     => 'Landing Pages',
-			'group'     => 'Simulation',
+			'label'     => 'Landing Pages (GoPhish)',
+			'group'     => 'Campaign Setup',
 			'view_gate' => 'shared',
 			'actions'   => [
 				'create' => 'operator',

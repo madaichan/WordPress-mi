@@ -37,7 +37,7 @@ class Activator {
 
 		// Store the version so we can handle future migrations.
 		update_option( 'pukat_version', PUKAT_VERSION );
-		update_option( 'pukat_db_version', '1.7.1' );
+		update_option( 'pukat_db_version', '1.7.2' );
 	}
 
 	/**
@@ -534,6 +534,42 @@ class Activator {
 		if ( version_compare( $db_version, '1.7.1', '<' ) ) {
 			self::seed_rbac_defaults();
 			update_option( 'pukat_db_version', '1.7.1' );
+			$db_version = '1.7.1';
+		}
+
+		// Removed the `playbooks`/`sending_profiles` (non-master) registry
+		// menus entirely (zero backend consumers — nothing ever checked
+		// their capabilities) and dropped `email_templates`/`landing_pages`
+		// (non-master) from the "Simulation" group into a new "Campaign
+		// Setup" group. None of this changes what any role can actually do
+		// (those routes were never gated by these keys), but the WP
+		// capability strings for the two removed menus are still sitting on
+		// every role from earlier seed runs — `add_cap()` is additive-only,
+		// so removing a key from the registry doesn't retroactively revoke
+		// it. Explicitly strip them so the Roles UI stops showing
+		// capabilities that no longer exist in the registry at all.
+		if ( version_compare( $db_version, '1.7.2', '<' ) ) {
+			self::seed_rbac_defaults();
+
+			$removed_caps = [
+				'pukat_playbooks_view',
+				'pukat_playbooks_use',
+				'pukat_sending_profiles_view',
+				'pukat_sending_profiles_create',
+				'pukat_sending_profiles_edit',
+				'pukat_sending_profiles_delete',
+			];
+			foreach ( [ 'pukat_admin', 'pukat_operator', 'pukat_viewer', 'pukat_reviewer', 'administrator' ] as $role_slug ) {
+				$role = get_role( $role_slug );
+				if ( ! $role ) {
+					continue;
+				}
+				foreach ( $removed_caps as $cap ) {
+					$role->remove_cap( $cap );
+				}
+			}
+
+			update_option( 'pukat_db_version', '1.7.2' );
 		}
 	}
 
