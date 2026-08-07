@@ -26,10 +26,15 @@ class AdminMenu {
 	 */
 	public function register(): void {
 		// Top-level menu — callback is never reached because load-{hook} exits first.
+		// Capability is admin-only: the admin panel's whole domain is Pukat
+		// admin/management features, operational work happens in the /pukat
+		// front page (see comment below) — 'read' (WP's default, held by
+		// every role including Subscriber) let any logged-in user load this
+		// page at all, which was the actual gap, not the per-submenu gates.
 		$top_hook = add_menu_page(
 			__( 'Pukat', 'pukat' ),
 			__( 'Pukat', 'pukat' ),
-			'read',
+			'pukat_manage_settings',
 			self::MENU_SLUG,
 			'__return_empty_string',
 			$this->get_menu_icon(),
@@ -45,7 +50,7 @@ class AdminMenu {
 		// Operational features (Campaigns, Simulation, Reports, etc.)
 		// are accessible via the front page at /pukat.
 		$submenus = [
-			'dashboard'         => [ __( 'Dashboard', 'pukat' ),          'read',                   '' ],
+			'dashboard'         => [ __( 'Dashboard', 'pukat' ),          'pukat_manage_settings',  '' ],
 			'master_playbooks'  => [ __( 'Master Playbooks', 'pukat' ),   'pukat_manage_settings',  '#/master/playbooks' ],
 			'master_smtp'       => [ __( 'Master Sending Profiles', 'pukat' ), 'pukat_manage_settings', '#/master/sending-profiles' ],
 			'master_emails'     => [ __( 'Master Email Templates', 'pukat' ), 'pukat_manage_settings', '#/master/email-templates' ],

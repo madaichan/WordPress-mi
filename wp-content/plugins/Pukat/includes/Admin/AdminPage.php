@@ -30,8 +30,15 @@ class AdminPage {
 	 * @param string $initial_hash URL hash for the SPA to navigate to on load (e.g. '#/admin/settings').
 	 */
 	public static function render_standalone( string $initial_hash = '' ): void {
-		if ( ! is_user_logged_in() || ! current_user_can( 'read' ) ) {
-			wp_die( esc_html__( 'Access denied.', 'pukat' ) );
+		// Belt-and-suspenders with AdminMenu.php's own 'pukat_manage_settings'
+		// menu-capability gate (which WordPress core enforces before this
+		// method is ever reached in normal navigation) — this is what a
+		// direct URL hit ultimately falls back to. Redirects to the front
+		// page rather than wp_die(), since apps is where every non-admin
+		// role's work actually happens.
+		if ( ! is_user_logged_in() || ! current_user_can( 'pukat_manage_settings' ) ) {
+			wp_safe_redirect( home_url( '/pukat' ) );
+			exit;
 		}
 
 		$assets     = ( new AssetManifestService() )->app_entry();
