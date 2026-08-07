@@ -37,7 +37,7 @@ class Activator {
 
 		// Store the version so we can handle future migrations.
 		update_option( 'pukat_version', PUKAT_VERSION );
-		update_option( 'pukat_db_version', '1.7.0' );
+		update_option( 'pukat_db_version', '1.7.1' );
 	}
 
 	/**
@@ -516,6 +516,24 @@ class Activator {
 		if ( version_compare( $db_version, '1.7.0', '<' ) ) {
 			self::seed_rbac_defaults();
 			update_option( 'pukat_db_version', '1.7.0' );
+			$db_version = '1.7.0';
+		}
+
+		// Re-sync every role's capabilities against the current Permission
+		// Registry. Needed because `PermissionRegistry::MENUS` grew after the
+		// 1.7.0 seed ran (sending_profile_references, and a handful of
+		// pre-existing keys — domains.*, email_templates.view,
+		// landing_pages.view, sending_profiles.view — were present in the
+		// registry file but had never actually been granted to
+		// pukat_viewer/pukat_operator by any completed seed run), and nothing
+		// re-invoked `grant_rbac_capabilities()` after that growth: each
+		// upgrade block above only fires once, gated on a version bump, so a
+		// registry change that lands without a matching version bump here
+		// silently never reaches already-active installs. `seed_rbac_defaults()`
+		// is idempotent (see its own doc comment) — safe to call again.
+		if ( version_compare( $db_version, '1.7.1', '<' ) ) {
+			self::seed_rbac_defaults();
+			update_option( 'pukat_db_version', '1.7.1' );
 		}
 	}
 
