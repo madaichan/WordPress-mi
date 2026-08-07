@@ -133,7 +133,7 @@ class PermissionRegistry {
 			'actions'   => [],
 		],
 		'campaigns'                => [
-			'label'     => 'Campaigns',
+			'label'     => 'New Campaign',
 			'group'     => 'Simulation',
 			'view_gate' => 'shared',
 			'actions'   => [
@@ -143,6 +143,32 @@ class PermissionRegistry {
 				'launch' => 'operator',
 				'cancel' => 'operator',
 			],
+		],
+		// `monitoring`/`calendar` split out of `campaigns.view` 2026-08-07 so
+		// the Roles UI can control "Monitoring"/"Simulation Calendar"
+		// independently instead of only as a bundle with "New Campaign" (all
+		// 3 previously shared one `campaigns.view` toggle). Unlike every
+		// other menu in this registry, these two gate NO backend REST
+		// resource — confirmed by reading every GET handler in
+		// CampaignController/CampaignRunController, all still uniformly
+		// gated by `campaigns.view`; the standalone /calendar and /monitoring
+		// pages (Calendar.jsx, Performing.jsx) are static mockups with zero
+		// data-fetching calls. Their `.view` key therefore only ever gates
+		// client-side route/nav visibility via `<PermissionRoute>` (see its
+		// own doc comment: "Frontend-only UX guard, not enforcement") — do
+		// not assume a backend capability check exists for these two, there
+		// isn't one, by design, unless/until these pages get real data.
+		'monitoring'               => [
+			'label'     => 'Monitoring',
+			'group'     => 'Simulation',
+			'view_gate' => 'shared',
+			'actions'   => [],
+		],
+		'calendar'                 => [
+			'label'     => 'Simulation Calendar',
+			'group'     => 'Overview',
+			'view_gate' => 'shared',
+			'actions'   => [],
 		],
 		// `playbooks` and `sending_profiles` (non-master) menus were removed
 		// 2026-08-07 — confirmed zero backend consumers anywhere (nothing

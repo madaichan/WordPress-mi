@@ -37,7 +37,7 @@ class Activator {
 
 		// Store the version so we can handle future migrations.
 		update_option( 'pukat_version', PUKAT_VERSION );
-		update_option( 'pukat_db_version', '1.7.2' );
+		update_option( 'pukat_db_version', '1.7.3' );
 	}
 
 	/**
@@ -570,6 +570,22 @@ class Activator {
 			}
 
 			update_option( 'pukat_db_version', '1.7.2' );
+			$db_version = '1.7.2';
+		}
+
+		// Added `calendar.view`/`monitoring.view` registry keys (split out of
+		// the previously-bundled `campaigns.view`) and relabeled the
+		// `campaigns` menu to "New Campaign". The label change needs no
+		// re-sync (labels aren't capability strings), but the two new keys
+		// do — same class of bug the 1.7.1 fix above addressed: a registry
+		// key that isn't re-seeded here never reaches an already-active
+		// install's roles, since grant_rbac_capabilities() only runs from
+		// activate()/maybe_upgrade(). Purely additive (no keys removed), so
+		// this only needs the re-seed half, not a remove_cap() cleanup like
+		// 1.7.2 needed.
+		if ( version_compare( $db_version, '1.7.3', '<' ) ) {
+			self::seed_rbac_defaults();
+			update_option( 'pukat_db_version', '1.7.3' );
 		}
 	}
 

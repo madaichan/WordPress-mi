@@ -48,7 +48,7 @@ export const adminRoutes = [
 export const frontendRoutes = [
   { index: true, element: <Dashboard />, permission: 'dashboard.view' },
   { path: '/dashboard', element: <Dashboard />, permission: 'dashboard.view' },
-  { path: '/calendar', element: <Calendar />, permission: 'campaigns.view' },
+  { path: '/calendar', element: <Calendar />, permission: 'calendar.view' },
   { path: '/pre/socialization', element: <Socialization />, permission: 'campaigns.view' },
   { path: '/campaigns', element: <Campaigns />, permission: 'campaigns.view' },
   // These 4 pages render the same entity-filtered Master Library catalog the
@@ -61,12 +61,12 @@ export const frontendRoutes = [
   // live-GoPhish endpoints, only actually consumed by Preparation.jsx's
   // template picker — genuinely unused for viewing this catalog).
   { path: '/playbooks', element: <Playbooks />, permission: 'master_playbooks.view' },
-  { path: '/monitoring', element: <Performing />, permission: 'campaigns.view' },
+  { path: '/monitoring', element: <Performing />, permission: 'monitoring.view' },
   { path: '/sending-profiles', element: <SendingProfiles />, permission: 'master_sending_profiles.view' },
   { path: '/email-templates', element: <EmailTemplates />, permission: 'master_email_templates.view' },
   { path: '/landing-pages', element: <LandingPages />, permission: 'master_landing_pages.view' },
   { path: '/simulation/preparation', element: <Preparation />, permission: 'campaigns.view' },
-  { path: '/simulation/performing', element: <Performing />, permission: 'campaigns.view' },
+  { path: '/simulation/performing', element: <Performing />, permission: 'monitoring.view' },
   { path: '/reports', element: <Reports />, permission: 'reports.view' },
   { path: '/reports/:campaignId', element: <Reports />, permission: 'reports.view' },
   { path: '/post/quiz', element: <Quiz />, permission: 'post_sim.view' },

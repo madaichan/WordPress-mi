@@ -1,1 +1,0 @@
-import{g as u,p as r,u as t,q as o}from"./main-DanweEXW.js";const a={list:s=>u("/users",{params:s}),updateRole:(s,e)=>r(`/users/${s}/role`,{pukat_role:e}),auditLogs:s=>u("/audit-logs",{params:s})};function l(s={},e={}){return t({queryKey:o.users.list(s),queryFn:()=>a.list(s),...e})}export{l as a,a as u};
