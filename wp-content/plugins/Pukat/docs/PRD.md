@@ -103,6 +103,8 @@ Komponen master:
 
 ## 5. Aktor dan Role
 
+_4 aktor di bawah tetap valid secara konseptual, tapi implementasi akses sejak `docs/PRD_RBAC.md` bukan lagi 4 role tetap — sistem RBAC generik dengan role dinamis dan permission per menu/action. Admin/Operator/Reviewer/Viewer di sini dipetakan jadi 4 default seeded role (lihat `docs/PRD_RBAC.md` §8); admin bisa membuat role custom lain lewat `Admin/Roles.jsx`._
+
 ### 5.1 Admin
 
 Dapat mengelola semua master data, konfigurasi GoPhish, approval policy, user access, dan audit log.
