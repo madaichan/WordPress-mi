@@ -2,7 +2,18 @@
   "permissions": {
     "allow": [
       "Bash(npm test *)",
-      "Bash(git -C /workspaces/WordPress-mi status --short wp-content/plugins/Pukat/pukat-app/src/pages/Admin/Users.jsx wp-content/plugins/Pukat/pukat-app/src/pages/Admin/MasterAssetPage.jsx wp-content/plugins/Pukat/pukat-app/src/pages/Admin/MasterLandingPages.jsx wp-content/plugins/Pukat/pukat-app/src/pages/Admin/MasterSendingProfiles.jsx wp-content/plugins/Pukat/pukat-app/src/pages/Admin/MasterDomains.jsx)"
+      "Bash(git -C /workspaces/WordPress-mi status --short wp-content/plugins/Pukat/pukat-app/src/pages/Admin/Users.jsx wp-content/plugins/Pukat/pukat-app/src/pages/Admin/MasterAssetPage.jsx wp-content/plugins/Pukat/pukat-app/src/pages/Admin/MasterLandingPages.jsx wp-content/plugins/Pukat/pukat-app/src/pages/Admin/MasterSendingProfiles.jsx wp-content/plugins/Pukat/pukat-app/src/pages/Admin/MasterDomains.jsx)",
+      "Bash(docker exec wordpress_app php -r ' *)",
+      "Bash(docker cp *)",
+      "Bash(node -e ' *)",
+      "Bash(git add *)",
+      "Bash(git commit -m ' *)",
+      "Bash(php -l /workspaces/WordPress-mi/wp-content/plugins/Pukat/includes/Admin/AdminMenu.php)",
+      "Bash(php -l /workspaces/WordPress-mi/wp-content/plugins/Pukat/includes/Admin/AdminPage.php)",
+      "Bash(npm install *)",
+      "Read(//home/codespace/.cache/ms-playwright/**)",
+      "Bash(node check.js)",
+      "Bash(npx eslint *)"
     ]
   }
 }
