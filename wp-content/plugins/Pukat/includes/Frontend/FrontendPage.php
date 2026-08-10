@@ -74,7 +74,23 @@ class FrontendPage {
 			<script>
 				window.PukatData = <?php echo $pukat_data; // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped ?>;
 			</script>
-			<script type="module" src="<?php echo esc_url( $assets['dist_url'] . $assets['js_file'] ); ?>?v=<?php echo esc_attr( PUKAT_VERSION ); ?>"></script>
+			<?php
+			/*
+			 * No manual ?v= cache-buster here: Vite already content-hashes
+			 * this filename (main-<hash>.js), and appending one anyway broke
+			 * the app. Vite's chunk-to-chunk imports (e.g. a lazy route
+			 * pulling `useNavigate` from this main chunk) use a bare relative
+			 * specifier with no query string. A querystring on THIS script
+			 * tag made the browser's ES module loader treat
+			 * "main-<hash>.js?v=X" and "main-<hash>.js" as two different
+			 * modules, instantiating React twice — any lazy-loaded page
+			 * whose hooks resolved through the second copy crashed with
+			 * "Invalid hook call" (React never activated that copy's
+			 * dispatcher), which then surfaced as a removeChild NotFoundError
+			 * during the failed render's cleanup.
+			 */
+			?>
+			<script type="module" src="<?php echo esc_url( $assets['dist_url'] . $assets['js_file'] ); ?>"></script>
 		</body>
 		</html>
 		<?php

@@ -149,11 +149,17 @@ final class Plugin {
 		}
 
 		// JS (module type for ESM Vite output).
+		// $ver is deliberately null, not PUKAT_VERSION: passing a version
+		// string makes WP append `?ver=X` to the src, which duplicates this
+		// module under the ESM loader (Vite's chunk-to-chunk imports for lazy
+		// routes reference this file with no querystring) — see the matching
+		// fix + full explanation in FrontendPage.php. The filename is already
+		// content-hashed by Vite, so no manual cache-buster is needed anyway.
 		wp_enqueue_script(
 			'pukat-app',
 			$assets['dist_url'] . $assets['js_file'],
 			[],
-			PUKAT_VERSION,
+			null,
 			true
 		);
 
