@@ -81,7 +81,18 @@ class AdminPage {
 			<script>
 				window.PukatData = <?php echo $pukat_data; // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped ?>;
 			</script>
-			<script type="module" src="<?php echo esc_url( $assets['dist_url'] . $assets['js_file'] ); ?>?v=<?php echo esc_attr( PUKAT_VERSION ); ?>"></script>
+			<?php
+			/*
+			 * No manual ?v= cache-buster: Vite already content-hashes this
+			 * filename. Appending one made the browser's ES module loader
+			 * treat this script's URL and the no-querystring relative import
+			 * Vite generates for lazy-chunk-to-main-chunk references (e.g. a
+			 * lazy route pulling useNavigate) as two different modules,
+			 * instantiating React twice — see the full writeup in
+			 * FrontendPage.php, which had the identical bug.
+			 */
+			?>
+			<script type="module" src="<?php echo esc_url( $assets['dist_url'] . $assets['js_file'] ); ?>"></script>
 		</body>
 		</html>
 		<?php
