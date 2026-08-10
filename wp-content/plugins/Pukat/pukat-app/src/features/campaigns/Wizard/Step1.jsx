@@ -1,9 +1,13 @@
 import clsx from 'clsx'
+import { useState } from 'react'
 import { useCsvUpload } from '../../../hooks/useCsvUpload.js'
-import { DEMO_TARGET_TOTAL, DEMO_TARGETS } from './wizardData.js'
+import Modal from '../../../components/UI/Modal.jsx'
+import AlertConfirmation from '../../../components/UI/AlertConfirmation.jsx'
+import TargetForm from './TargetForm.jsx'
+import TargetsTable from './TargetsTable.jsx'
 
 function downloadTemplateCsv() {
-  const csv = 'name,email,department,position\nJane Doe,jane.doe@example.com,Finance,Analyst\n'
+  const csv = 'first_name,last_name,email,position,department\nJane,Doe,jane.doe@example.com,Analyst,Finance\n'
   const url = URL.createObjectURL(new Blob([csv], { type: 'text/csv;charset=utf-8' }))
   const link = document.createElement('a')
 
@@ -24,6 +28,22 @@ export default function Step1({ form, setForm, csvData, setCsvData, onCancel, on
       `${validCount} targets loaded successfully.${errorCount ? ` (${errorCount} skipped)` : ''}`,
     parseErrorMessage: (err) => `Failed to read CSV: ${err.message}`,
   })
+  const [editingIndex, setEditingIndex] = useState(null)
+  const [deletingIndex, setDeletingIndex] = useState(null)
+
+  function handleAddTarget(target) {
+    setCsvData(prev => [...prev, target])
+  }
+
+  function handleEditSubmit(target) {
+    setCsvData(prev => prev.map((row, i) => (i === editingIndex ? target : row)))
+    setEditingIndex(null)
+  }
+
+  function handleDeleteConfirm() {
+    setCsvData(prev => prev.filter((_, i) => i !== deletingIndex))
+    setDeletingIndex(null)
+  }
 
   return (
     <div className="space-y-6">
@@ -68,7 +88,7 @@ export default function Step1({ form, setForm, csvData, setCsvData, onCancel, on
           <input {...getInputProps()} />
           <i className="ti ti-upload text-3xl text-gray-300" />
           <span className="text-xs font-semibold text-gray-700">Upload CSV file</span>
-          <span className="text-[10px] text-gray-400">Columns: name, email, department, position</span>
+          <span className="text-[10px] text-gray-400">Columns: first_name, last_name, email, position, department</span>
         </div>
 
         <div className="flex items-center justify-between text-xs">
@@ -80,76 +100,48 @@ export default function Step1({ form, setForm, csvData, setCsvData, onCancel, on
             <i className="ti ti-download" />
             <span>Download template CSV</span>
           </button>
-          <span className="inline-flex items-center gap-1 font-semibold text-emerald-600">
-            <i className="ti ti-circle-check" />
-            <span>{(csvData.length || DEMO_TARGET_TOTAL).toLocaleString('en-US')} targets imported successfully</span>
-          </span>
+          {csvData.length > 0 && (
+            <span className="inline-flex items-center gap-1 font-semibold text-emerald-600">
+              <i className="ti ti-circle-check" />
+              <span>{csvData.length.toLocaleString('en-US')} targets imported successfully</span>
+            </span>
+          )}
+        </div>
+
+        {/* Add target manually */}
+        <div className="border border-gray-200 rounded-xl p-4 bg-gray-50/50">
+          <h4 className="text-xs font-semibold text-gray-700 mb-3">Add target manually</h4>
+          <TargetForm onSubmit={handleAddTarget} />
         </div>
 
         {/* Preview table */}
-        {csvData.length > 0 ? (
-          <div className="border border-gray-200 rounded-xl overflow-hidden">
-            <table className="w-full text-left text-[11px] text-gray-700">
-              <thead>
-                <tr className="bg-gray-50 border-b border-gray-200 text-[10px] font-bold text-gray-500 uppercase tracking-wider">
-                  <th className="py-2 px-4">Name</th>
-                  <th className="py-2 px-4">Email</th>
-                  <th className="py-2 px-4">Department</th>
-                  <th className="py-2 px-4">Position</th>
-                </tr>
-              </thead>
-              <tbody>
-                {csvData.slice(0, 2).map((r, i) => (
-                  <tr key={i} className="border-b border-gray-100">
-                    <td className="py-2 px-4 font-semibold text-gray-900">{r.first_name || r.firstname || ''} {r.last_name || r.lastname || ''}</td>
-                    <td className="py-2 px-4">{r.email}</td>
-                    <td className="py-2 px-4">{r.department || '—'}</td>
-                    <td className="py-2 px-4">{r.position || '—'}</td>
-                  </tr>
-                ))}
-                {csvData.length > 2 && (
-                  <tr className="bg-gray-50/50">
-                    <td colSpan={4} className="py-2 px-4 italic text-gray-400 text-center">
-                      + {(csvData.length - 2).toLocaleString('en-US')} more targets
-                    </td>
-                  </tr>
-                )}
-              </tbody>
-            </table>
-          </div>
-        ) : (
-          /* Static demo table */
-          <div className="border border-gray-200 rounded-xl overflow-hidden">
-            <table className="w-full text-left text-[11px] text-gray-700">
-              <thead>
-                <tr className="bg-gray-50 border-b border-gray-200 text-[10px] font-bold text-gray-500 uppercase tracking-wider">
-                  <th className="py-2 px-4">Name</th>
-                  <th className="py-2 px-4">Email</th>
-                  <th className="py-2 px-4">Department</th>
-                  <th className="py-2 px-4">Position</th>
-                </tr>
-              </thead>
-              <tbody>
-                <tr className="border-b border-gray-100">
-                  <td className="py-2 px-4 font-semibold text-gray-900">Budi Santoso</td>
-                  <td className="py-2 px-4">budi.santoso@company.id</td>
-                  <td className="py-2 px-4">Finance</td>
-                  <td className="py-2 px-4">Finance manager</td>
-                </tr>
-                <tr className="border-b border-gray-100">
-                  <td className="py-2 px-4 font-semibold text-gray-900">Sari Dewi</td>
-                  <td className="py-2 px-4">sari.dewi@company.id</td>
-                  <td className="py-2 px-4">HR</td>
-                  <td className="py-2 px-4">HR generalist</td>
-                </tr>
-                <tr className="bg-gray-50/50">
-                  <td colSpan={4} className="py-2 px-4 italic text-gray-400 text-center">+ {(DEMO_TARGET_TOTAL - DEMO_TARGETS.length).toLocaleString('en-US')} more targets</td>
-                </tr>
-              </tbody>
-            </table>
-          </div>
-        )}
+        <TargetsTable
+          rows={csvData}
+          onEdit={setEditingIndex}
+          onDelete={setDeletingIndex}
+        />
       </div>
+
+      {editingIndex !== null && (
+        <Modal title="Edit target" onClose={() => setEditingIndex(null)}>
+          <TargetForm
+            initialValues={csvData[editingIndex]}
+            onSubmit={handleEditSubmit}
+            onCancel={() => setEditingIndex(null)}
+            submitLabel="Save changes"
+          />
+        </Modal>
+      )}
+
+      {deletingIndex !== null && (
+        <AlertConfirmation
+          title="Delete target"
+          message={`Remove ${csvData[deletingIndex]?.email || 'this target'} from the target list?`}
+          confirmLabel="Delete"
+          onConfirm={handleDeleteConfirm}
+          onCancel={() => setDeletingIndex(null)}
+        />
+      )}
 
       {/* Footer */}
       <div className="flex items-center justify-between pt-4 border-t border-gray-100">
