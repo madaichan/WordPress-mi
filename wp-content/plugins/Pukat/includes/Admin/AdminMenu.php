@@ -78,17 +78,25 @@ class AdminMenu {
 		}
 
 		// Add a direct link to the front page from WP Admin sidebar.
-		add_submenu_page(
+		// Redirect happens on load-{hook} (fires before any HTML output),
+		// same as every submenu above — doing it from the page callback
+		// itself is too late: WP has already started streaming the admin
+		// chrome by then, so wp_redirect() fails silently with "headers
+		// already sent" and the user is stranded on a blank admin page.
+		$frontend_hook = add_submenu_page(
 			self::MENU_SLUG,
 			__( 'Open Front Page', 'pukat' ),
 			'Open App (/pukat)',
 			'read',
 			self::MENU_SLUG . '_frontend',
-			static function (): void {
+			'__return_empty_string'
+		);
+		if ( $frontend_hook ) {
+			add_action( 'load-' . $frontend_hook, static function (): void {
 				wp_redirect( home_url( '/pukat' ) );
 				exit;
-			}
-		);
+			} );
+		}
 
 		// Remove the duplicate top-level item that WP auto-creates.
 		remove_submenu_page( self::MENU_SLUG, self::MENU_SLUG );
