@@ -2,20 +2,26 @@ import { defineConfig } from 'vite'
 import react from '@vitejs/plugin-react'
 import { resolve } from 'path'
 
+const wpProxyTarget = process.env.VITE_WP_PROXY_TARGET || 'http://localhost:8080'
+const vitePort = Number(process.env.VITE_PORT || 3000)
+
 // https://vitejs.dev/config/
 export default defineConfig({
   plugins: [react()],
 
   // Dev server — proxy WP REST API requests during development
   server: {
-    port: 3000,
+    host: '0.0.0.0',
+    port: vitePort,
+    strictPort: true,
+    cors: true,
     proxy: {
       '/wp-json': {
-        target: 'http://localhost:8080', // Change to your WP dev URL
+        target: wpProxyTarget,
         changeOrigin: true,
       },
       '/wp-admin': {
-        target: 'http://localhost:8080',
+        target: wpProxyTarget,
         changeOrigin: true,
       },
     },

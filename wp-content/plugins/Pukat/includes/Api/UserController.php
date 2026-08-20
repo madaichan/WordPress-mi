@@ -138,6 +138,7 @@ class UserController extends RestController {
 
 			$result[] = [
 				'id'           => $user->ID,
+				'username'     => $user->user_login,
 				'display_name' => $user->display_name,
 				'email'        => $user->user_email,
 				'wp_roles'     => $roles,
@@ -195,7 +196,11 @@ class UserController extends RestController {
 	 * Resolve a user's entity code from WordPress user meta.
 	 */
 	private function get_user_entity( int $user_id ): string {
-		$entity = (string) get_user_meta( $user_id, 'entity', true );
+		$entity = (string) get_user_meta( $user_id, 'meta_entity', true );
+
+		if ( '' === trim( $entity ) ) {
+			$entity = (string) get_user_meta( $user_id, 'entity', true );
+		}
 
 		if ( '' === trim( $entity ) ) {
 			$entity = (string) get_user_meta( $user_id, 'pukat_entity', true );

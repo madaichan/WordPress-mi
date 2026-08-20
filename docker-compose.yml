@@ -1,9 +1,9 @@
-version: '3.8'
+name: plugindev
 
 services:
   db:
     image: mysql:8.0
-    container_name: wordpress_db
+    container_name: plugindev_db
     restart: unless-stopped
     environment:
       MYSQL_ROOT_PASSWORD: rootpassword
@@ -22,7 +22,7 @@ services:
 
   wordpress:
     image: wordpress:latest
-    container_name: wordpress_app
+    container_name: plugindev_wordpress
     restart: unless-stopped
     depends_on:
       db:
@@ -37,15 +37,53 @@ services:
       WORDPRESS_DB_USER: wordpress
       WORDPRESS_DB_PASSWORD: wordpress
       WORDPRESS_DEBUG: '1'
+      PUKAT_VITE_DEV_SERVER: http://192.168.137.250:3000
     volumes:
       - .:/var/www/html
       - wp_uploads:/var/www/html/wp-content/uploads
     networks:
       - wordpress_network
 
+  phpmyadmin:
+    image: phpmyadmin:latest
+    container_name: plugindev_phpmyadmin
+    restart: unless-stopped
+    depends_on:
+      db:
+        condition: service_healthy
+    ports:
+      - "8082:80"
+    environment:
+      PMA_HOST: db
+      PMA_PORT: 3306
+      PMA_ARBITRARY: 0
+      UPLOAD_LIMIT: 256M
+    networks:
+      - wordpress_network
+
+  node:
+    image: node:20-alpine
+    container_name: plugindev_node
+    restart: unless-stopped
+    working_dir: /app
+    depends_on:
+      - wordpress
+    environment:
+      VITE_PORT: 3000
+      VITE_WP_PROXY_TARGET: http://wordpress
+    ports:
+      - "3000:3000"
+    volumes:
+      - ./wp-content/plugins/Pukat/pukat-app:/app
+      - pukat_node_modules:/app/node_modules
+    command: sh -c "npm ci && npm run dev"
+    networks:
+      - wordpress_network
+
 volumes:
   db_data:
   wp_uploads:
+  pukat_node_modules:
 
 networks:
   wordpress_network:

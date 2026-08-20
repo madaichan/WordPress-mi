@@ -39,7 +39,6 @@ export default function Users() {
 
   const roleMutation = useUpdateUserRoleMutation()
   const { data: roles = [] } = useRoles()
-  const roleBySlug = new Map(roles.map(r => [r.role_slug, r]))
 
   const users = usersData?.users || []
 
@@ -54,29 +53,37 @@ export default function Users() {
           <Input className="max-w-xs" placeholder="Search users..." value={search} onChange={e => setSearch(e.target.value)} />
           <Card className="p-0">
             <Table>
-              <thead><tr><th>User</th><th>Email</th><th>Pukat Role</th><th>Change Role</th></tr></thead>
+              <thead>
+                <tr>
+                  <th>Username</th>
+                  <th>Name</th>
+                  <th>Email</th>
+                  <th>Entity</th>
+                  <th>Change Role</th>
+                </tr>
+              </thead>
               <tbody>
-                {isLoading ? [...Array(5)].map((_,i) => <tr key={i}>{[...Array(4)].map((_,j) => <td key={j}><div className="h-4 bg-gray-100 rounded animate-pulse" /></td>)}</tr>) :
-                users.map(u => {
-                  const role = u.pukat_role || 'none'
-                  const roleInfo = roleBySlug.get(role)
-                  const roleLabel = role === 'none' ? 'No Access' : (roleInfo?.display_name || role)
-                  const roleTone = role === 'none' ? 'gray' : (roleInfo?.is_system_role ? 'violet' : 'gray')
+                {isLoading ? [...Array(5)].map((_, i) => <tr key={i}>{[...Array(5)].map((_, j) => <td key={j}><div className="h-4 bg-gray-100 rounded animate-pulse" /></td>)}</tr>) :
+                  users.map(u => {
+                    const role = u.pukat_role || 'none'
+                    const name = u.display_name || u.username || u.email || `User ${u.id}`
+                    const initial = name.charAt(0).toUpperCase()
 
-                  return (
-                    <tr key={u.id}>
-                      <td><div className="flex items-center gap-2"><div className="w-7 h-7 rounded-full bg-violet-100 flex items-center justify-center text-violet-600 text-xs font-bold">{u.display_name?.charAt(0)}</div><span className="font-medium">{u.display_name}</span></div></td>
-                      <td className="text-gray-500">{u.email}</td>
-                      <td><Badge tone={roleTone}>{roleLabel}</Badge></td>
-                      <td>
-                        <select className="input py-1 text-xs w-auto" value={role} onChange={e => roleMutation.mutate({ id: u.id, role: e.target.value })}>
-                          <option value="none">No Access</option>
-                          {roles.map(r => <option key={r.role_slug} value={r.role_slug}>{r.display_name}</option>)}
-                        </select>
-                      </td>
-                    </tr>
-                  )
-                })}
+                    return (
+                      <tr key={u.id}>
+                        <td className="font-medium text-gray-900">{u.username || '-'}</td>
+                        <td><div className="flex items-center gap-2"><div className="w-7 h-7 rounded-full bg-violet-100 flex items-center justify-center text-violet-600 text-xs font-bold">{initial}</div><span className="font-medium text-gray-900">{name}</span></div></td>
+                        <td className="text-gray-500">{u.email}</td>
+                        <td>{u.entity ? <Badge tone="gray">{u.entity}</Badge> : <span className="font-medium text-gray-900">-</span>}</td>
+                        <td>
+                          <select className="input py-1 font-medium text-gray-900 w-auto" value={role} onChange={e => roleMutation.mutate({ id: u.id, role: e.target.value })}>
+                            <option value="none">No Access</option>
+                            {roles.map(r => <option key={r.role_slug} value={r.role_slug}>{r.display_name}</option>)}
+                          </select>
+                        </td>
+                      </tr>
+                    )
+                  })}
               </tbody>
             </Table>
           </Card>

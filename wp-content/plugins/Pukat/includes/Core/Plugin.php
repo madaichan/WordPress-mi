@@ -136,6 +136,52 @@ final class Plugin {
 		wp_dequeue_script( 'wp-auth-check' );
 		wp_dequeue_script( 'admin-bar' );
 
+		$dev_server = $this->vite_dev_server_url();
+
+		if ( null !== $dev_server ) {
+			add_action( 'admin_head', static function () use ( $dev_server ): void {
+				?>
+				<script type="module">
+				import RefreshRuntime from '<?php echo esc_url( $dev_server . '/@react-refresh' ); ?>';
+				RefreshRuntime.injectIntoGlobalHook(window);
+				window.$RefreshReg$ = () => {};
+				window.$RefreshSig$ = () => (type) => type;
+				window.__vite_plugin_react_preamble_installed__ = true;
+				</script>
+				<?php
+			} );
+
+			wp_enqueue_script(
+				'pukat-vite-client',
+				$dev_server . '/@vite/client',
+				[],
+				null,
+				true
+			);
+			wp_enqueue_script(
+				'pukat-app',
+				$dev_server . '/src/main.jsx',
+				[ 'pukat-vite-client' ],
+				null,
+				true
+			);
+
+			add_filter( 'script_loader_tag', static function ( string $tag, string $handle ): string {
+				if ( in_array( $handle, [ 'pukat-vite-client', 'pukat-app' ], true ) ) {
+					return str_replace( '<script ', '<script type="module" ', $tag );
+				}
+				return $tag;
+			}, 10, 2 );
+
+			wp_localize_script(
+				'pukat-app',
+				'PukatData',
+				( new UserContextService() )->app_context( 'admin' )
+			);
+
+			return;
+		}
+
 		$assets = ( new AssetManifestService() )->app_entry();
 
 		// CSS.
@@ -176,6 +222,23 @@ final class Plugin {
 			'PukatData',
 			( new UserContextService() )->app_context( 'admin' )
 		);
+	}
+
+	/**
+	 * Resolve a browser-accessible Vite dev server URL when dev mode is enabled.
+	 */
+	private function vite_dev_server_url(): ?string {
+		if ( defined( 'PUKAT_VITE_DEV_SERVER' ) && PUKAT_VITE_DEV_SERVER ) {
+			return untrailingslashit( (string) PUKAT_VITE_DEV_SERVER );
+		}
+
+		$dev_server = getenv( 'PUKAT_VITE_DEV_SERVER' );
+
+		if ( false !== $dev_server && '' !== trim( $dev_server ) ) {
+			return untrailingslashit( $dev_server );
+		}
+
+		return null;
 	}
 
 	/**

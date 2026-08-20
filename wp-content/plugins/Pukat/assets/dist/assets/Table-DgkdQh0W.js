@@ -1,0 +1,1 @@
+import{j as a,c as s}from"./main-C2cWumfg.js";function x({wrapperClassName:e,className:r,children:t,...l}){return a.jsx("div",{className:s("table-wrapper",e),children:a.jsx("table",{className:s("table",r),...l,children:t})})}export{x as T};

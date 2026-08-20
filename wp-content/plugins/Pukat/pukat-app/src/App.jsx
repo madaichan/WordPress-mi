@@ -1,4 +1,4 @@
-import React, { useEffect } from 'react'
+import React, { useEffect, useState } from 'react'
 import AppAdmin    from './AppAdmin.jsx'
 import AppFrontend from './AppFrontend.jsx'
 import PageLoader from './components/UI/PageLoader.jsx'
@@ -23,18 +23,21 @@ import useAppStore from './store/useAppStore.js'
 export default function App() {
   const context = window?.PukatData?.context ?? 'frontend'
   const { data, isError } = useMyPermissions()
+  const [permissionsHydrated, setPermissionsHydrated] = useState(false)
   const setPermissions = useAppStore((s) => s.setPermissions)
   const permissionsReady = Boolean(data) || isError
 
   useEffect(() => {
     if (data?.permissions) {
       setPermissions(data.permissions)
+      setPermissionsHydrated(true)
     } else if (isError) {
       setPermissions([])
+      setPermissionsHydrated(true)
     }
   }, [data, isError, setPermissions])
 
-  if (!permissionsReady) {
+  if (!permissionsReady || !permissionsHydrated) {
     return <PageLoader />
   }
 

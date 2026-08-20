@@ -31,6 +31,7 @@ class FrontendPage {
 		}
 
 		$assets     = ( new AssetManifestService() )->app_entry();
+		$dev_server = self::vite_dev_server_url();
 		$pukat_data = wp_json_encode( ( new UserContextService() )->app_context( 'frontend' ) );
 
 		// Output standalone HTML page.
@@ -42,7 +43,7 @@ class FrontendPage {
 			<meta name="viewport" content="width=device-width, initial-scale=1.0" />
 			<meta name="robots" content="noindex, nofollow" />
 			<title>Pukat — Phishing Simulation Platform</title>
-			<?php if ( $assets['css_file'] && file_exists( $assets['dist_dir'] . $assets['css_file'] ) ) : ?>
+			<?php if ( null === $dev_server && $assets['css_file'] && file_exists( $assets['dist_dir'] . $assets['css_file'] ) ) : ?>
 			<link rel="stylesheet" href="<?php echo esc_url( $assets['dist_url'] . $assets['css_file'] ); ?>?v=<?php echo esc_attr( PUKAT_VERSION ); ?>" />
 			<?php endif; ?>
 		</head>
@@ -90,10 +91,39 @@ class FrontendPage {
 			 * during the failed render's cleanup.
 			 */
 			?>
+			<?php if ( null !== $dev_server ) : ?>
+			<script type="module">
+				import RefreshRuntime from '<?php echo esc_url( $dev_server . '/@react-refresh' ); ?>';
+				RefreshRuntime.injectIntoGlobalHook(window);
+				window.$RefreshReg$ = () => {};
+				window.$RefreshSig$ = () => (type) => type;
+				window.__vite_plugin_react_preamble_installed__ = true;
+			</script>
+			<script type="module" src="<?php echo esc_url( $dev_server . '/@vite/client' ); ?>"></script>
+			<script type="module" src="<?php echo esc_url( $dev_server . '/src/main.jsx' ); ?>"></script>
+			<?php else : ?>
 			<script type="module" src="<?php echo esc_url( $assets['dist_url'] . $assets['js_file'] ); ?>"></script>
+			<?php endif; ?>
 		</body>
 		</html>
 		<?php
 		exit;
+	}
+
+	/**
+	 * Resolve the configured Vite dev server URL.
+	 */
+	private static function vite_dev_server_url(): ?string {
+		if ( defined( 'PUKAT_VITE_DEV_SERVER' ) && PUKAT_VITE_DEV_SERVER ) {
+			return untrailingslashit( (string) PUKAT_VITE_DEV_SERVER );
+		}
+
+		$dev_server = getenv( 'PUKAT_VITE_DEV_SERVER' );
+
+		if ( false !== $dev_server && '' !== trim( $dev_server ) ) {
+			return untrailingslashit( $dev_server );
+		}
+
+		return null;
 	}
 }
