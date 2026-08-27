@@ -229,6 +229,30 @@ export function useCreateMasterSendingProfileMutation(options = {}) {
   })
 }
 
+export function useSyncMasterSendingProfilesMutation(options = {}) {
+  const qc = useQueryClient()
+
+  return useMutation({
+    mutationFn: masterAssetApi.syncSendingProfilesFromGophish,
+    onSuccess: (data, variables, context) => {
+      if (!options.silent) {
+        const createdCount = data?.created?.length || 0
+        toast.success(createdCount > 0
+          ? `Synced ${createdCount} sending profile${createdCount > 1 ? 's' : ''} from GoPhish.`
+          : 'Sending profiles are already up to date with GoPhish.')
+      }
+      invalidateMasterAssets(qc, queryKeys.masterAssets.sendingProfiles)
+      options.onSuccess?.(data, variables, context)
+    },
+    onError: (err, variables, context) => {
+      if (!options.silent) {
+        toast.error(err.message || 'Failed to sync sending profiles from GoPhish.')
+      }
+      options.onError?.(err, variables, context)
+    },
+  })
+}
+
 export function useUpdateMasterSendingProfileMutation(options = {}) {
   const qc = useQueryClient()
 

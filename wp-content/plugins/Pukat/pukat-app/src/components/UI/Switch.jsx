@@ -17,7 +17,7 @@ export default function Switch({ checked, onChange, label, disabled, className }
         onClick={() => onChange?.(!checked)}
         className={clsx(
           'relative inline-flex h-5 w-9 flex-shrink-0 items-center rounded-full transition-colors focus:outline-none focus:ring-2 focus:ring-violet-400/40',
-          checked ? 'bg-violet-500' : 'bg-gray-200'
+          disabled ? 'bg-gray-200' : checked ? 'bg-violet-500' : 'bg-gray-200'
         )}
       >
         <span

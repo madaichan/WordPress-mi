@@ -96,10 +96,15 @@ export default function Step2({ form, setForm, playbooks = [], playbooksLoading 
       {/* Card 3 — Sending schedule */}
       <div className="bg-white border border-gray-200 rounded-xl p-5 space-y-4">
         <h3 className="text-sm font-semibold text-gray-900">Sending schedule</h3>
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
           <div className="space-y-1">
             <label className="block text-xs font-semibold text-gray-600">Start date *</label>
             <input type="date" value={form.dateStart} onChange={e => setForm(f => ({ ...f, dateStart: e.target.value }))}
+              className="w-full bg-white border border-gray-200 rounded-xl px-4 py-2 text-sm focus:outline-none focus:border-violet-500" />
+          </div>
+          <div className="space-y-1">
+            <label className="block text-xs font-semibold text-gray-600">Send time *</label>
+            <input type="time" value={form.sendTime || '09:00'} onChange={e => setForm(f => ({ ...f, sendTime: e.target.value }))}
               className="w-full bg-white border border-gray-200 rounded-xl px-4 py-2 text-sm focus:outline-none focus:border-violet-500" />
           </div>
           <div className="space-y-1">
@@ -117,6 +122,7 @@ export default function Step2({ form, setForm, playbooks = [], playbooksLoading 
             </select>
           </div>
         </div>
+        <p className="text-[10px] text-gray-500">Campaign emails start sending at this time on the start date, in the selected timezone.</p>
       </div>
 
       {/* Footer */}

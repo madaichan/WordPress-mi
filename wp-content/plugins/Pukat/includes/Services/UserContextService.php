@@ -27,6 +27,7 @@ class UserContextService {
 			'restUrl'   => esc_url_raw( rest_url( PUKAT_REST_NAMESPACE ) ),
 			'nonce'     => wp_create_nonce( 'wp_rest' ),
 			'adminUrl'  => esc_url_raw( admin_url() ),
+			'logoutUrl' => esc_url_raw( wp_logout_url( admin_url() ) ),
 			'pluginUrl' => esc_url_raw( PUKAT_PLUGIN_URL ),
 			'version'   => PUKAT_VERSION,
 			'context'   => $context,

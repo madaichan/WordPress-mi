@@ -36,6 +36,7 @@ const INITIAL_FORM = {
   playbook: '',
   dateStart: '2025-06-28',
   dateEnd: '2025-07-05',
+  sendTime: '09:00',
   timezone: 'WIB',
   followUp: {
     quizEnabled: true,

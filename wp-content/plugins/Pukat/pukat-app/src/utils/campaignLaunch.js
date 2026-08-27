@@ -4,9 +4,12 @@ export function timezoneForRegion(region) {
   return 'Asia/Jakarta'
 }
 
-export function scheduleAtForDate(date) {
+export function scheduleAtForDate(date, time) {
   if (!date) return null
-  if (/^\d{4}-\d{2}-\d{2}$/.test(date)) return `${date} 09:00:00`
+  if (/^\d{4}-\d{2}-\d{2}$/.test(date)) {
+    const sendTime = /^\d{2}:\d{2}$/.test(time) ? time : '09:00'
+    return `${date} ${sendTime}:00`
+  }
   return String(date).replace('T', ' ').slice(0, 19)
 }
 
@@ -35,7 +38,7 @@ export function buildCampaignLaunchPayload(form, playbooks) {
     name: form.name.trim(),
     difficulty: selected?.diff ?? 3,
     timezone: timezoneForRegion(form.timezone),
-    schedule_at: scheduleAtForDate(form.dateStart),
+    schedule_at: scheduleAtForDate(form.dateStart, form.sendTime),
     target_group_name: form.targetGroupName?.trim() || null,
     follow_up: {
       quiz_enabled: form.followUp?.quizEnabled ?? true,

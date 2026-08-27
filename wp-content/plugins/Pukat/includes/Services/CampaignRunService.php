@@ -78,14 +78,16 @@ class CampaignRunService {
 			return $readiness_error;
 		}
 
+		$run_timezone = $this->sanitize_timezone( (string) ( $params['timezone'] ?? 'UTC' ) );
+
 		$data = [
 			'playbook_master_id' => $playbook_id,
 			'playbook_version'   => (int) ( $playbook['version'] ?? 1 ) ?: 1,
 			'name'               => sanitize_text_field( (string) ( $params['name'] ?? $playbook['name'] ?? '' ) ),
 			'target_segment_id'  => (int) ( $params['target_segment_id'] ?? 0 ) ?: null,
 			'target_group_name'  => sanitize_text_field( (string) ( $params['target_group_name'] ?? '' ) ),
-			'schedule_at'        => $this->sanitize_datetime( (string) ( $params['schedule_at'] ?? $params['scheduled_at'] ?? '' ) ),
-			'timezone'           => $this->sanitize_timezone( (string) ( $params['timezone'] ?? 'UTC' ) ),
+			'schedule_at'        => $this->sanitize_datetime( (string) ( $params['schedule_at'] ?? $params['scheduled_at'] ?? '' ), $run_timezone ),
+			'timezone'           => $run_timezone,
 			'status'             => 'draft_run',
 			'metrics_json'       => $this->json_value( $params, 'metrics', 'metrics_json' ),
 			'follow_up_json'     => $this->sanitize_follow_up( (array) ( $params['follow_up'] ?? [] ) ),
@@ -1408,18 +1410,31 @@ class CampaignRunService {
 		);
 	}
 
-	private function sanitize_datetime( string $datetime ): ?string {
+	/**
+	 * Normalizes a wizard-supplied schedule datetime to UTC for storage.
+	 *
+	 * A bare "Y-m-d H:i:s" string (as sent by the Campaign Run wizard) has no
+	 * timezone of its own, so it must be interpreted in the Campaign Run's
+	 * selected timezone before being converted to UTC — otherwise it gets
+	 * read back as UTC as-is (WordPress forces UTC as the PHP default
+	 * timezone), which is wrong by the timezone's offset. A datetime string
+	 * that already carries an explicit offset/zone is respected as-is.
+	 */
+	private function sanitize_datetime( string $datetime, string $timezone = 'UTC' ): ?string {
 		$datetime = trim( sanitize_text_field( $datetime ) );
 		if ( '' === $datetime ) {
 			return null;
 		}
 
-		$timestamp = strtotime( $datetime );
-		if ( false === $timestamp ) {
+		try {
+			$date = new \DateTime( $datetime, new \DateTimeZone( $this->sanitize_timezone( $timezone ) ) );
+		} catch ( \Exception $e ) {
 			return null;
 		}
 
-		return gmdate( 'Y-m-d H:i:s', $timestamp );
+		$date->setTimezone( new \DateTimeZone( 'UTC' ) );
+
+		return $date->format( 'Y-m-d H:i:s' );
 	}
 
 	private function sanitize_timezone( string $timezone ): string {
@@ -1571,7 +1586,11 @@ class CampaignRunService {
 
 	private function current_user_entity(): string {
 		$user_id = get_current_user_id();
-		$entity  = (string) get_user_meta( $user_id, 'entity', true );
+		$entity  = (string) get_user_meta( $user_id, 'meta_entity', true );
+
+		if ( '' === trim( $entity ) ) {
+			$entity = (string) get_user_meta( $user_id, 'entity', true );
+		}
 
 		if ( '' === trim( $entity ) ) {
 			$entity = (string) get_user_meta( $user_id, 'pukat_entity', true );

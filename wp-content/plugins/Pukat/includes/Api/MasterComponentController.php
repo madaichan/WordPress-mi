@@ -304,6 +304,12 @@ class MasterComponentController extends RestController {
 			'callback'            => [ $this, 'validate_sending_profile_gophish_mapping' ],
 			'permission_callback' => [ $this, 'permission_validate_sending_profile_reference' ],
 		] );
+
+		register_rest_route( $this->namespace, '/master/sending-profiles/sync-gophish', [
+			'methods'             => 'POST',
+			'callback'            => [ $this, 'sync_sending_profiles_from_gophish' ],
+			'permission_callback' => [ $this, 'permission_create_sending_profile_reference' ],
+		] );
 	}
 
 	private function register_dynamic_domain_routes(): void {
@@ -503,6 +509,11 @@ class MasterComponentController extends RestController {
 
 	public function validate_sending_profile_gophish_mapping( WP_REST_Request $request ): WP_REST_Response {
 		$result = $this->components->validate_sending_profile_gophish_mapping( (int) $request->get_param( 'id' ) );
+		return $this->result_response( $result );
+	}
+
+	public function sync_sending_profiles_from_gophish( WP_REST_Request $request ): WP_REST_Response {
+		$result = $this->components->sync_sending_profiles_from_gophish( get_current_user_id() );
 		return $this->result_response( $result );
 	}
 

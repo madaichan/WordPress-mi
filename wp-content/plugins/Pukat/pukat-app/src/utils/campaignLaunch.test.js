@@ -21,6 +21,11 @@ describe('campaignLaunch', () => {
     expect(scheduleAtForDate('')).toBeNull()
   })
 
+  it('applies an explicit send time to a date-only schedule', () => {
+    expect(scheduleAtForDate('2026-08-10', '14:30')).toBe('2026-08-10 14:30:00')
+    expect(scheduleAtForDate('2026-08-10', 'not-a-time')).toBe('2026-08-10 09:00:00')
+  })
+
   it('resolves selected Playbook Master ID as a number', () => {
     expect(playbookMasterIdForForm({ playbook: '24' }, [{ id: '24' }])).toBe(24)
     expect(playbookMasterIdForForm({ playbook: 'missing' }, [])).toBeNull()
@@ -28,7 +33,7 @@ describe('campaignLaunch', () => {
 
   it('builds launch payload from wizard form and selected playbook', () => {
     const payload = buildCampaignLaunchPayload(
-      { name: ' Finance wave ', playbook: '24', timezone: 'WITA', dateStart: '2026-08-10' },
+      { name: ' Finance wave ', playbook: '24', timezone: 'WITA', dateStart: '2026-08-10', sendTime: '16:45' },
       [{ id: '11', diff: 2 }, { id: '24', diff: 5 }]
     )
 
@@ -37,7 +42,7 @@ describe('campaignLaunch', () => {
       name: 'Finance wave',
       difficulty: 5,
       timezone: 'Asia/Makassar',
-      schedule_at: '2026-08-10 09:00:00',
+      schedule_at: '2026-08-10 16:45:00',
       target_group_name: null,
       follow_up: {
         quiz_enabled: true,

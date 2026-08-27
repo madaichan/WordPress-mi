@@ -5,7 +5,7 @@ import SidebarBrand from './SidebarBrand.jsx'
 import SidebarNav from './SidebarNav.jsx'
 import Topbar from './Topbar.jsx'
 import { getRouteMeta } from '../../config/routeMeta.js'
-import { frontendNavGroups, frontendRoutePermissions, filterNavGroupsByPermission } from '../../config/appRoutes.jsx'
+import { frontendNavGroups, frontendRoutePermissions, filterNavGroupsByPermission, getActiveGroupLabel } from '../../config/appRoutes.jsx'
 import useAppStore from '../../store/useAppStore.js'
 
 /**
@@ -17,6 +17,7 @@ import useAppStore from '../../store/useAppStore.js'
 export default function FrontendLayout({ children }) {
   const { pathname } = useLocation()
   const { breadcrumb: activeLabel } = getRouteMeta(pathname, { breadcrumb: 'Dashboard' })
+  const groupLabel = getActiveGroupLabel(pathname, frontendNavGroups)
   const permissions = useAppStore((s) => s.permissions)
   const navGroups   = filterNavGroupsByPermission(frontendNavGroups, frontendRoutePermissions, permissions)
 
@@ -43,7 +44,7 @@ export default function FrontendLayout({ children }) {
 
       {/* Main content — offset by sidebar width, same shape as admin's Layout.jsx */}
       <div className="ml-[220px] flex flex-1 flex-col" style={{ minHeight: '100vh' }}>
-        <Topbar activeLabel={activeLabel} className="sticky top-0" />
+        <Topbar groupLabel={groupLabel} activeLabel={activeLabel} className="sticky top-0" />
         <main className="flex-1 overflow-x-hidden p-6 animate-fade-in">
           {children}
         </main>

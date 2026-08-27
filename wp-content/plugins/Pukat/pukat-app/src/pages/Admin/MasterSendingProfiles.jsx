@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import clsx from 'clsx'
 import toast from 'react-hot-toast'
 import { FALLBACK_USERS } from '../../data/fallbacks.js'
@@ -14,6 +14,7 @@ import { useTableRows, useTableSchema } from '../../hooks/queries/useTableQuerie
 import { useGophishSmtpProfiles } from '../../hooks/queries/useGophishQueries.js'
 import { useUsers } from '../../hooks/queries/useUserQueries.js'
 import { useAssignSmtpProfileEntityMutation, useCreateSmtpProfileMutation, useDeleteSmtpProfileMutation, useSendTestSmtpEmailMutation, useUpdateSmtpProfileMutation } from '../../hooks/mutations/useGophishMutations.js'
+import { useSyncMasterSendingProfilesMutation } from '../../hooks/mutations/useMasterAssetMutations.js'
 import { applyAssignmentFromEntity, entityFromAssignment, userForAssignmentPanel } from '../../utils/entityAssignmentHelpers.js'
 import { masterAssetLockMessage } from '../../utils/masterAssetHelpers.js'
 import {
@@ -105,7 +106,32 @@ export default function MasterSendingProfiles() {
     onSuccess: () => setAssignmentProfile(null),
   })
   const sendTestEmailMutation = useSendTestSmtpEmailMutation()
+  const syncMutation = useSyncMasterSendingProfilesMutation({
+    onSuccess: () => {
+      refetchGophish()
+      refetchRows()
+    },
+  })
+  const autoSyncMutation = useSyncMasterSendingProfilesMutation({
+    silent: true,
+    onSuccess: () => {
+      refetchGophish()
+      refetchRows()
+    },
+  })
   const saving = createMutation.isPending || updateMutation.isPending || deleteMutation.isPending
+  const syncing = syncMutation.isPending || autoSyncMutation.isPending
+
+  // Sync once per page visit so freshly created GoPhish profiles (created
+  // directly in GoPhish, or before this reference table existed for them)
+  // show up without the user having to click "Sync GoPhish" manually.
+  const hasAutoSyncedRef = useRef(false)
+  useEffect(() => {
+    if (hasAutoSyncedRef.current) return
+    hasAutoSyncedRef.current = true
+    autoSyncMutation.mutate()
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [])
 
   function closeSlideover() {
     setSlideoverMode(null)
@@ -212,13 +238,8 @@ export default function MasterSendingProfiles() {
     setChanged(true)
   }
 
-  async function syncGoPhish() {
-    const [result] = await Promise.all([refetchGophish(), refetchRows()])
-    if (result.error) {
-      toast.error(result.error.message || 'Failed to sync SMTP profiles.')
-      return
-    }
-    toast.success('SMTP profiles synced with GoPhish.')
+  function syncGoPhish() {
+    syncMutation.mutate()
   }
 
   function runConnectionTest(overrideForm = form, overrideSourceId = sourceProfile?.id) {
@@ -360,8 +381,8 @@ export default function MasterSendingProfiles() {
         subtitle="SMTP configuration grouped by GoPhish entity for delivery"
         actions={
           <>
-            <Button variant="outline" onClick={syncGoPhish} disabled={isFetching}>
-              <i className={clsx('ti ti-refresh text-base', isFetching && 'animate-spin')} />
+            <Button variant="outline" onClick={syncGoPhish} disabled={syncing || isFetching}>
+              <i className={clsx('ti ti-refresh text-base', (syncing || isFetching) && 'animate-spin')} />
               Sync GoPhish
             </Button>
             <Button variant="primary" onClick={openCreate}>

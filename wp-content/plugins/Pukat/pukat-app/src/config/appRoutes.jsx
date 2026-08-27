@@ -113,6 +113,17 @@ export function filterNavGroupsByPermission(groups, routePermissionMap, permissi
     .filter((group) => group.items.length > 0)
 }
 
+/**
+ * Finds the sidebar group heading (e.g. "Admin", "Simulation") that owns the
+ * current pathname, for the breadcrumb's "[Group Menu]/[Page]" leading
+ * segment. Returns null when no group's item matches (e.g. /dashboard, which
+ * lives under "Overview" but is treated as the breadcrumb root elsewhere).
+ */
+export function getActiveGroupLabel(pathname, groups) {
+  const match = groups.find((group) => group.items.some((item) => pathname.startsWith(item.to)))
+  return match?.group ?? null
+}
+
 export const adminNavGroups = [
   {
     group: 'Overview',

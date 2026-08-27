@@ -76,7 +76,7 @@ export default function Users() {
                         <td className="text-gray-500">{u.email}</td>
                         <td>{u.entity ? <Badge tone="gray">{u.entity}</Badge> : <span className="font-medium text-gray-900">-</span>}</td>
                         <td>
-                          <select className="input py-1 font-medium text-gray-900 w-auto" value={role} onChange={e => roleMutation.mutate({ id: u.id, role: e.target.value })}>
+                          <select className="input py-1 font-medium text-gray-500 w-auto" value={role} onChange={e => roleMutation.mutate({ id: u.id, role: e.target.value })}>
                             <option value="none">No Access</option>
                             {roles.map(r => <option key={r.role_slug} value={r.role_slug}>{r.display_name}</option>)}
                           </select>

@@ -659,6 +659,89 @@ class MasterComponentService {
 	}
 
 	/**
+	 * Backfill WordPress-owned sending profile references for GoPhish SMTP
+	 * profiles that don't have one yet. This is what the "Sync GoPhish" button
+	 * on the Master Sending Profiles page needs — until now a ref row was only
+	 * ever created lazily when a GoPhish profile got picked inside a Playbook
+	 * Master form (see resolvePlaybookFormForSave() on the frontend), so any
+	 * profile created directly in GoPhish (or via the non-master SMTP page)
+	 * never showed up here. Existing refs are left untouched.
+	 *
+	 * @return array<string, mixed>|WP_Error
+	 */
+	public function sync_sending_profiles_from_gophish( int $user_id ): array|WP_Error {
+		$gophish_profiles = ( new GoPhishService() )->get_sending_profiles();
+		if ( is_wp_error( $gophish_profiles ) ) {
+			return $gophish_profiles;
+		}
+
+		$known_gophish_ids = [];
+		foreach ( $this->repository->all( self::SENDING_TABLE ) as $ref ) {
+			$known_gophish_ids[ (int) ( $ref['gophish_sending_profile_id'] ?? 0 ) ] = true;
+		}
+
+		$created = [];
+		$skipped = [];
+
+		foreach ( $gophish_profiles as $profile ) {
+			$gophish_id = (int) ( $profile['id'] ?? 0 );
+			if ( $gophish_id <= 0 || isset( $known_gophish_ids[ $gophish_id ] ) ) {
+				continue;
+			}
+
+			$payload = [
+				'name'                       => $profile['name'] ?? '',
+				'from_name'                  => $profile['name'] ?? '',
+				'from_email'                 => $this->extract_gophish_mailbox_address( (string) ( $profile['from_address'] ?? '' ) ),
+				'gophish_sending_profile_id' => $gophish_id,
+				'environment'                => 'production',
+				'status'                     => 'active',
+			];
+
+			$profile_entity = trim( (string) ( $profile['entity'] ?? '' ) );
+			if ( '' !== $profile_entity ) {
+				$payload['entity'] = $profile_entity;
+			}
+
+			$result = $this->create_sending_profile( $payload, $user_id );
+			if ( is_wp_error( $result ) ) {
+				$skipped[] = [
+					'gophish_sending_profile_id' => $gophish_id,
+					'name'                       => $profile['name'] ?? '',
+					'reason'                     => $result->get_error_message(),
+				];
+				continue;
+			}
+
+			$created[] = $result;
+		}
+
+		AuditLogService::log(
+			'master.sending_profile.synced',
+			[ 'created' => count( $created ), 'skipped' => count( $skipped ) ],
+			null,
+			'sending_profile_ref',
+			null
+		);
+
+		return [
+			'created' => $created,
+			'skipped' => $skipped,
+		];
+	}
+
+	/**
+	 * Extract the raw address from GoPhish's "Display Name <mailbox>" from_address format.
+	 */
+	private function extract_gophish_mailbox_address( string $value ): string {
+		if ( preg_match( '/<([^<>@\s]+@[^<>\s]+)>/', $value, $matches ) ) {
+			return sanitize_email( $matches[1] );
+		}
+
+		return sanitize_email( $value );
+	}
+
+	/**
 	 * @param array<string, mixed> $params Raw request params.
 	 * @return array<string, mixed>|WP_Error
 	 */

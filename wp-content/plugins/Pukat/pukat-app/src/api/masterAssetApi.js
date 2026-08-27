@@ -24,6 +24,7 @@ export const masterAssetApi = {
   updateSendingProfile: (id, data) => put(`/master/sending-profiles/${id}`, data),
   deleteSendingProfile: (id) => del(`/master/sending-profiles/${id}`),
   validateSendingProfile: (id) => post(`/master/sending-profiles/${id}/validate-gophish`),
+  syncSendingProfilesFromGophish: () => post('/master/sending-profiles/sync-gophish'),
 
   dynamicDomains: () => get('/master/dynamic-domains'),
   createDynamicDomain: (data) => post('/master/dynamic-domains', data),
