@@ -6,6 +6,8 @@ Owner: Pukat Product and Engineering
 Related area: Email templates, landing pages, sending profiles, playbooks, campaign runs
 Implementation plan: `docs/IMPLEMENTATION_PLAN_ASSET_ACCESS_AND_VERSIONING.md`
 
+Revision 2026-08-27: Menambahkan Usage Lock policy — assign master ke campaign/playbook baru selalu boleh, tetapi edit dan delete master terkunci permanen begitu master pernah dipakai campaign (langsung atau melalui playbook). Lihat §5.8. Ini menggantikan prinsip "edit tidak perlu diblokir usage" pada draft sebelumnya (§6.3, §9.4.1).
+
 ## 1. Ringkasan
 
 Pukat membutuhkan aturan akses yang konsisten untuk asset yang dapat dipakai ulang oleh campaign, terutama asset `general` yang dapat digunakan banyak user secara bersamaan. Asset tidak boleh berubah secara live ketika sudah dipakai campaign. Karena itu, proses edit harus memakai model version-only edit: perubahan asset selalu membuat versi baru, sedangkan campaign tetap memakai versi/snapshot yang sudah dikunci.
@@ -16,7 +18,7 @@ PRD ini mengatur:
 - Perbedaan route master dan non-master.
 - Perbedaan asset `general` dan `own`.
 - Version-only edit untuk mencegah perubahan campaign yang sedang atau pernah berjalan.
-- Delete policy berdasarkan riwayat penggunaan campaign.
+- Usage lock: assign master selalu boleh, tetapi edit dan delete terkunci begitu master punya riwayat penggunaan campaign.
 - Enforcement security di backend/API sebagai source of truth.
 
 ## 2. Latar Belakang
@@ -41,8 +43,9 @@ Untuk mencegah hal tersebut, campaign harus menyimpan `asset_version_id` atau sn
 - Mencegah non-admin mengedit asset `general`.
 - Mencegah admin mengedit asset user lain dari flow non-master.
 - Menjaga histori campaign tetap akurat walaupun asset sumber sudah diedit.
-- Membuat edit tetap bisa dilakukan tanpa menunggu campaign aktif selesai, karena edit menghasilkan versi baru.
-- Mencegah delete asset yang pernah digunakan campaign.
+- Mengizinkan assign/reuse master ke campaign atau playbook baru kapan pun, tanpa terhalang oleh usage yang sudah ada pada master tersebut.
+- Mengunci edit dan delete master yang sudah pernah dipakai campaign (langsung atau melalui playbook), sampai seluruh relasi usage tersebut dilepas.
+- Mencegah edit dan delete asset yang pernah digunakan campaign.
 - Memberi frontend informasi permission yang konsisten dari backend.
 
 ## 4. Non-Tujuan
@@ -50,6 +53,8 @@ Untuk mencegah hal tersebut, campaign harus menyimpan `asset_version_id` atau sn
 - Membuat permission builder dinamis di UI admin.
 - Mengizinkan non-admin mengelola asset `general`.
 - Mengizinkan delete paksa untuk asset yang sudah pernah digunakan campaign.
+- Mengizinkan edit paksa untuk asset yang sudah pernah digunakan campaign atau playbook.
+- Membuat mekanisme unlock otomatis untuk melepas usage lock tanpa proses purge data terpisah.
 - Mengubah GoPhish sebagai source of truth.
 - Menyimpan SMTP password atau secret provider di WordPress sebagai plain text.
 
@@ -129,9 +134,19 @@ Campaign yang sudah memilih versi lama tetap memakai versi lama.
 
 ### 5.7 Campaign Usage
 
-Campaign usage adalah catatan bahwa campaign pernah menggunakan asset atau versi asset tertentu. Usage ini menjadi dasar untuk menolak delete.
+Campaign usage adalah catatan bahwa campaign pernah menggunakan asset atau versi asset tertentu. Usage ini menjadi dasar untuk menolak **edit dan delete** master terkait (lihat §5.8).
 
-Usage harus dicatat minimal saat campaign snapshot dikunci, disync, atau diluncurkan, mana yang terjadi lebih dulu.
+Usage harus dicatat minimal saat campaign snapshot dikunci, disync, atau diluncurkan, mana yang terjadi lebih dulu. Sekali usage tercatat, relasi ini bersifat permanen — baris usage tidak dihapus otomatis walaupun campaign yang bersangkutan sudah completed, cancelled, atau archived.
+
+### 5.8 Usage Lock (Assign vs Edit/Delete)
+
+Usage lock memisahkan hak **assign** (memakai ulang master) dari hak **edit/delete** master itu sendiri, berdasarkan keberadaan baris di `pukat_campaign_asset_usages`.
+
+- **Assign selalu boleh.** Master boleh dipilih sebagai component Playbook baru atau dipakai Campaign Run baru kapan pun, terlepas dari apakah master tersebut sudah pernah dipakai campaign atau playbook lain sebelumnya. Assign tidak pernah diblokir oleh usage lock.
+- **Edit dan delete terkunci begitu usage ada.** Begitu sebuah master (email template, landing page, sending profile, atau playbook) memiliki minimal satu baris `pukat_campaign_asset_usages`, master tersebut tidak bisa lagi di-edit (create version baru) atau di-delete.
+- **Lock permanen berdasarkan histori, bukan status campaign saat ini.** Status campaign (draft_run, running, completed, cancelled, archived) tidak melepas lock. Selama baris usage masih ada, master tetap terkunci — termasuk untuk campaign yang sudah lama selesai.
+- **Assignment ke Playbook saja tidak membuat usage.** Memasukkan Email Template/Landing Page/Sending Profile sebagai component default di sebuah Playbook Master tidak mencatat `pukat_campaign_asset_usages`. Usage baru tercatat saat Playbook tersebut benar-benar dipakai membuat Campaign Run dan snapshot-nya dikunci/disync/diluncurkan (lihat §5.7). Sampai titik itu, Email Template/Landing Page/Sending Profile/Playbook yang bersangkutan masih bebas diedit/dihapus.
+- **Archive tetap tersedia** sebagai jalan keluar ketika edit/delete terkunci karena usage (lihat §8.2); archive tidak mengubah konten sehingga tidak melanggar version-only edit.
 
 ## 6. Policy Matrix
 
@@ -152,15 +167,18 @@ Usage harus dicatat minimal saat campaign snapshot dikunci, disync, atau diluncu
 | Own milik sendiri | Boleh memakai | Boleh memakai |
 | Own milik user lain | Tidak boleh melalui flow normal | Tidak boleh |
 
+Assign/select master ke campaign atau ke component playbook baru tidak pernah diblokir oleh usage lock (§5.8), walaupun master tersebut sudah dipakai campaign atau playbook lain sebelumnya.
+
 ### 6.3 Edit
 
 | Asset Scope | Admin | Non-admin | Behavior |
 |---|---|---|---|
-| General | Boleh | Tidak boleh | Create new version |
-| Own milik sendiri | Boleh melalui non-master jika owner | Boleh | Create new version |
+| General, belum ada usage | Boleh | Tidak boleh | Create new version |
+| Own milik sendiri, belum ada usage | Boleh melalui non-master jika owner | Boleh | Create new version |
 | Own milik user lain | Tidak boleh melalui flow normal | Tidak boleh | 403 |
+| Asset apa pun yang sudah punya `campaign_asset_usages` | Tidak boleh | Tidak boleh | 409 `asset_already_used`, gunakan archive |
 
-Edit tidak perlu diblokir karena campaign aktif selama campaign selalu memakai snapshot/version yang sudah dikunci.
+Edit terkunci begitu asset (langsung atau melalui playbook) sudah pernah dipakai campaign — lihat Usage Lock (§5.8). Selama belum ada usage, edit tetap version-only (create version baru, bukan overwrite) sesuai §7.
 
 ### 6.4 Delete
 
@@ -170,7 +188,7 @@ Edit tidak perlu diblokir karena campaign aktif selama campaign selalu memakai s
 | Own milik sendiri | Boleh melalui non-master jika owner | Boleh | Belum pernah digunakan campaign |
 | Own milik user lain | Tidak boleh melalui flow normal | Tidak boleh | 403 |
 
-Jika asset pernah digunakan campaign, action yang tersedia adalah `archive`, bukan `delete`.
+Jika asset pernah digunakan campaign, action yang tersedia adalah `archive`, bukan `delete`. Syarat "belum pernah digunakan campaign" ini permanen — sekali usage tercatat, delete (dan edit, §6.3) tetap terkunci walaupun campaign yang memakainya sudah completed/cancelled/archived (lihat §5.8).
 
 ### 6.5 Archive
 
@@ -188,6 +206,7 @@ Archive tidak boleh mengubah campaign yang sudah memakai asset tersebut.
 
 - Asset version harus immutable setelah dibuat.
 - Edit asset berarti membuat version baru.
+- Edit hanya bisa dilakukan sebelum asset punya `campaign_asset_usages`; begitu usage tercatat, edit terkunci (lihat §5.8, §6.3).
 - Campaign harus menyimpan `asset_version_id` dan snapshot payload.
 - Campaign tidak boleh membaca konten asset live saat execution.
 - Versi lama tidak boleh dihapus jika pernah dipakai campaign.
@@ -206,6 +225,7 @@ Archive tidak boleh mengubah campaign yang sudah memakai asset tersebut.
 
 ```text
 User/Admin klik edit
+Backend cek NOT EXISTS campaign_asset_usages untuk asset_id; jika ada, tolak 409 asset_already_used
 Backend validasi permission berdasarkan role, scope, dan owner
 Backend membuat row version baru
 Backend update asset.current_version_id ke version baru
@@ -228,6 +248,8 @@ Campaign execution membaca snapshot, bukan asset live
 ```
 
 ## 8. Delete and Archive Requirement
+
+Aturan usage-based lock pada bagian ini sekarang berlaku untuk **delete maupun edit** (lihat §5.8, §6.3). Kondisi `NOT EXISTS campaign_asset_usages` yang dipakai untuk delete di §8.1 adalah kondisi yang sama dipakai untuk mengizinkan edit.
 
 ### 8.1 Delete
 
@@ -332,6 +354,8 @@ Request create version masuk
 -> Ambil current authenticated user dari server
 -> Ambil asset terbaru dari database berdasarkan asset_id
 -> Jika asset tidak ditemukan atau deleted/archived, tolak request
+-> Cek NOT EXISTS campaign_asset_usages untuk asset_id dan asset_type
+-> Jika usage ada, tolak request dengan 409 asset_already_used dan sarankan archive
 -> Hitung role user dari server
 -> Hitung scope asset dari database
 -> Hitung owner asset dari database
@@ -346,7 +370,7 @@ Request create version masuk
 
 Jika permission gagal, backend harus mengembalikan `403`.
 
-Edit tidak perlu mengecek apakah asset sedang dipakai campaign aktif, karena edit membuat version baru dan campaign execution wajib memakai snapshot/version lama.
+Edit wajib mengecek usage sebelum membuat version baru. Jika asset sudah pernah dipakai campaign (langsung atau melalui playbook), request edit ditolak dengan `409`, terlepas dari role admin atau owner — lihat Usage Lock (§5.8).
 
 #### 9.4.2 Delete
 
@@ -431,7 +455,7 @@ Server harus membedakan jenis kegagalan:
 | User tidak boleh action berdasarkan role/scope/owner | 403 | `asset_action_forbidden` |
 | Non-admin mencoba edit/delete/archive general asset | 403 | `general_asset_admin_only` |
 | Non-owner mencoba action own asset | 403 | `asset_owner_forbidden` |
-| Asset pernah dipakai campaign saat delete | 409 | `asset_already_used` |
+| Asset pernah dipakai campaign saat edit atau delete | 409 | `asset_already_used` |
 | Asset berubah menjadi archived/deleted/inactive saat campaign lock | 409 | `asset_not_usable` |
 | Usage berubah saat delete berjalan | 409 | `asset_usage_changed` |
 
@@ -632,6 +656,8 @@ Frontend harus:
 - Menampilkan tombol action berdasarkan `permissions` dari API.
 - Tetap menangani error 403/409 dari API meskipun tombol sebelumnya aktif.
 - Menampilkan alasan disabled, misalnya "General asset hanya bisa diedit admin" atau "Asset sudah pernah digunakan campaign".
+- Menonaktifkan tombol edit (bukan hanya delete) dengan alasan yang sama ketika asset sudah punya usage campaign/playbook, dan mengarahkan user ke action archive sebagai alternatif.
+- Tetap menampilkan tombol assign/use asset ke campaign atau playbook baru walaupun asset tersebut sudah punya usage — assign tidak pernah dikunci oleh usage lock.
 - Setelah edit/delete/archive, selalu refetch list/detail.
 - Tidak mengirim `can_edit`, `can_delete`, `scope`, atau `owner_user_id` sebagai sumber kebenaran.
 
@@ -719,11 +745,14 @@ Jika endpoint lama masih memakai `PUT` untuk edit konten, backend harus mengubah
 
 ### 16.2 Edit
 
-- Admin bisa edit asset `general`; backend membuat version baru.
+- Admin bisa edit asset `general` yang belum pernah dipakai campaign/playbook; backend membuat version baru.
 - Non-admin tidak bisa edit asset `general`.
-- Owner bisa edit asset `own`; backend membuat version baru.
+- Owner bisa edit asset `own` yang belum pernah dipakai campaign/playbook; backend membuat version baru.
 - Non-owner tidak bisa edit asset `own`.
-- Campaign yang sedang berjalan tetap memakai version lama setelah asset diedit.
+- Campaign yang sedang berjalan tetap memakai version lama setelah asset diedit (untuk asset yang masih boleh diedit).
+- Edit master yang sudah pernah dipakai campaign (langsung atau melalui playbook) ditolak dengan 409, walaupun requester admin atau owner.
+- Master yang sudah dipakai campaign yang sudah lama completed/archived tetap terkunci edit (usage lock permanen).
+- Assign master yang sudah punya usage ke campaign atau playbook baru tetap berhasil — assign tidak diblokir usage lock.
 
 ### 16.3 Delete
 
@@ -731,6 +760,7 @@ Jika endpoint lama masih memakai `PUT` untuk edit konten, backend harus mengubah
 - Owner bisa delete asset `own` yang belum pernah digunakan campaign.
 - Delete asset yang pernah digunakan campaign gagal dengan 409.
 - Jika asset sudah pernah digunakan, archive tersedia sesuai permission.
+- Delete tetap gagal 409 walaupun campaign yang memakai asset sudah completed/cancelled/archived (usage lock permanen, sama seperti edit).
 
 ### 16.4 Campaign
 
@@ -762,12 +792,14 @@ Jika endpoint lama masih memakai `PUT` untuk edit konten, backend harus mengubah
 - Terapkan policy ke list/detail/mutation/campaign flow.
 - Tambah response `permissions` dan `usage`.
 - Pastikan delete atomic terhadap usage.
+- Tambah usage lock check yang dipakai bersama oleh edit dan delete (§5.8).
 
 ### Phase 3: Version-Only Edit
 
 - Ubah semua edit konten menjadi create-version.
 - Pastikan version lama immutable.
 - Pastikan campaign snapshot memakai version, bukan live asset.
+- Pastikan create-version ditolak 409 jika asset sudah punya usage (§6.3, §9.4.1).
 
 ### Phase 4: Frontend Integration
 
@@ -786,5 +818,6 @@ Jika endpoint lama masih memakai `PUT` untuk edit konten, backend harus mengubah
 ## 18. Open Questions
 
 - Apakah admin boleh mengambil alih ownership asset `own` user lain melalui action khusus governance? Default PRD: tidak, out of scope.
-- Apakah campaign draft yang belum lock snapshot harus memblokir delete sementara? Default PRD: lock/sync/launch menjadi titik usage permanen; draft reference harus divalidasi ulang saat lock.
+- Apakah campaign draft yang belum lock snapshot harus memblokir delete sementara? Default PRD: lock/sync/launch menjadi titik usage permanen untuk delete maupun edit; draft reference harus divalidasi ulang saat lock (lihat §5.8).
 - Apakah `owner_user_id` cukup, atau perlu tenant/entity ownership terpisah untuk organisasi besar? Default PRD: `owner_user_id` untuk security, `entity` untuk metadata/grouping.
+- Karena usage lock sekarang permanen, apakah perlu mekanisme purge/retention untuk baris `campaign_asset_usages` milik campaign yang sudah sangat lama, agar master tidak terkunci selamanya? Default PRD: tidak ada override otomatis; unlock hanya melalui purge/retention policy yang didefinisikan terpisah dari PRD ini, dengan approval governance.

@@ -4,6 +4,8 @@ Status: Draft
 Date: 2026-07-27
 Related PRD: `docs/PRD_ASSET_ACCESS_AND_VERSIONING.md`
 
+Revision 2026-08-27: Selaras dengan PRD §5.8 Usage Lock. Edit sekarang **diblokir permanen** begitu asset punya baris `pukat_campaign_asset_usages` (bukan lagi "edit selalu boleh, campaign tetap pakai snapshot lama"). Assign/use asset ke campaign atau playbook baru tetap selalu boleh, tidak pernah dikunci. Bagian yang paling terdampak: §3.2, §6.1, §7.2, §8.5, §10.3 validation, §13.1, §13.2, §18.
+
 ## 1. Ringkasan
 
 Implementation plan ini menerjemahkan PRD asset access/versioning menjadi tahapan teknis untuk backend WordPress/Pukat dan frontend React.
@@ -14,8 +16,8 @@ Target utama:
 - API mengembalikan `permissions` untuk UX frontend, tetapi mutation tetap validasi ulang di server.
 - Asset `general` dapat dipakai semua user, tetapi hanya admin yang dapat mengelola.
 - Asset `own` hanya dapat dikelola oleh owner.
-- Edit asset selalu membuat versi/revision baru.
-- Delete hanya boleh jika asset belum pernah dipakai campaign.
+- Edit asset selalu membuat versi/revision baru, tapi hanya jika asset belum pernah dipakai campaign/playbook.
+- Edit dan delete terkunci permanen begitu asset punya usage; assign ke campaign/playbook baru tetap selalu boleh.
 - Campaign memakai immutable snapshot/version, bukan membaca asset live.
 
 ## 2. Current State
@@ -51,7 +53,7 @@ Observasi saat ini:
 - Email template dan landing page sudah punya table version.
 - Sending profile belum punya version/revision table.
 - Playbook Master punya field `version`, tetapi update masih mengubah row utama.
-- Edit/delete saat ini diblokir jika asset digunakan active campaign/playbook.
+- Edit/delete saat ini diblokir jika asset digunakan active campaign/playbook. Target PRD memperluas ini jadi permanen (all-history usage), bukan hanya campaign yang sedang aktif.
 - Delete saat ini dapat menghapus version rows, sehingga perlu diubah untuk asset yang pernah dipakai campaign.
 - Usage permanen "pernah dipakai campaign" belum punya table khusus.
 - Campaign Run sudah memiliki `snapshot_json`, tetapi belum menulis `pukat_campaign_asset_usages`.
@@ -125,6 +127,7 @@ Edit behavior:
 ```text
 edit request
 -> validate role/scope/owner
+-> check NOT EXISTS campaign_asset_usages for asset_id (409 asset_already_used if it exists)
 -> insert new version/revision
 -> update current_version_id
 -> audit log
@@ -143,7 +146,7 @@ lock/sync/launch campaign
 
 ### 3.3 Delete Model
 
-Delete only when:
+This is the same condition used to gate edit (§3.2). Delete only when:
 
 ```text
 role/scope/owner valid
@@ -420,21 +423,28 @@ can_view_master_route(int $user_id): bool
 can_view_asset(int $user_id, array $asset, string $context): bool
 can_use_asset(int $user_id, array $asset): bool
 can_create_asset(int $user_id, string $scope, ?int $owner_user_id, string $context): bool
-can_edit_asset(int $user_id, array $asset): bool
+can_edit_asset(int $user_id, array $asset, array $usage): bool
 can_delete_asset(int $user_id, array $asset, array $usage): bool
 can_archive_asset(int $user_id, array $asset): bool
 permissions_for_asset(int $user_id, array $asset, array $usage): array
 ```
 
+`can_use_asset()` (assign to a new campaign or as a playbook component) never consults `$usage` — it is never blocked by existing usage on the asset.
+
+`can_edit_asset()` and `can_delete_asset()` both take `$usage`: if `$usage['used_count'] > 0` (any row ever written to `pukat_campaign_asset_usages`, any campaign status), both return `false` regardless of role/scope/owner.
+
 Policy rules:
 
 ```text
 general asset:
-  view/use: admin and non-admin allowed
-  edit/delete/archive: admin only
+  view/use: admin and non-admin allowed, regardless of usage
+  edit/delete: admin only AND used_count == 0
+  archive: admin only
 
 own asset:
-  view/use/edit/delete/archive: owner only
+  view/use: owner only, regardless of usage
+  edit/delete: owner only AND used_count == 0
+  archive: owner only
   admin can view through master context for governance
 ```
 
@@ -547,7 +557,7 @@ active_playbook_count: active playbook reference count if still needed for readi
 
 Delete uses `used_count`, not active count.
 
-Edit no longer blocked by usage if permission passes.
+Edit is blocked once `used_count > 0`, even if role/scope/owner permission passes. Assign (use in a new campaign or playbook) is never blocked by `used_count`.
 
 Deliverables:
 
@@ -604,39 +614,49 @@ Target:
 - Active campaign runs keep original playbook version in snapshot.
 - `current_version_id` or `version` points to latest active revision for new campaign runs.
 
-### 8.5 Remove Active Usage Edit Lock
+### 8.5 Usage Lock for Edit and Delete (Permanent)
 
-Replace current behavior:
+Replace current "active campaign/playbook" check with a permanent, usage-table-based check shared by edit and delete (PRD §5.8):
 
 ```text
-cannot edit because active campaign/playbook uses this asset
+cannot edit or delete once used_count > 0 in pukat_campaign_asset_usages
+applies regardless of campaign status (draft_run, running, completed, cancelled, archived)
 ```
 
-With:
+Allowed while `used_count == 0`:
 
 ```text
-can edit if role/scope/owner valid
+can edit if role/scope/owner valid AND used_count == 0
 edit creates new version
-campaign keeps old snapshot
+```
+
+Always allowed, independent of `used_count`:
+
+```text
+assign/select asset into a new campaign run or as a playbook component
 ```
 
 Still block:
 
 ```text
-delete if used_count > 0
+edit or delete if used_count > 0
 update immutable old version
 use archived/deleted asset in new campaign
 ```
 
 Deliverables:
 
-- All edit paths either create version/revision or only update safe metadata.
+- All edit paths either create version/revision (only when `used_count == 0`) or only update safe metadata.
+- Edit requests on an asset with `used_count > 0` return `409 asset_already_used`, same code as delete.
 - Old versions cannot be modified once used.
-- API error messages distinguish edit permission from delete usage.
+- Assign/select flows are verified to bypass the usage check entirely.
+- API error messages distinguish edit-blocked-by-permission (403) from edit-blocked-by-usage (409).
 
 Validation:
 
-- Edit asset used by active campaign succeeds as new version.
+- Edit unused asset succeeds as new version.
+- Edit asset with `used_count > 0` fails with 409 `asset_already_used`, even for admin/owner.
+- Assign an already-used asset into a new campaign or playbook still succeeds.
 - Existing campaign snapshot remains unchanged.
 - Attempt to update used version row fails.
 
@@ -772,7 +792,8 @@ Validation:
 
 - Create campaign draft, archive selected asset, lock fails with 409.
 - Lock campaign, delete asset fails with 409.
-- Edit locked asset creates new version and locked campaign still points to old version.
+- Lock campaign, edit that asset fails with 409 (usage was written at lock, not just draft reference).
+- Before lock (draft only, no usage row yet), the same asset can still be edited or deleted freely.
 
 ## 11. Phase 7: Route and API Surface Alignment
 
@@ -944,12 +965,16 @@ Add tests for:
 - Non-admin master route returns 403.
 - Non-admin non-master list sees general + own only.
 - Non-admin cannot fetch another user's own detail.
-- Admin can edit general asset and create new version.
+- Admin can edit unused general asset and create new version.
+- Admin cannot edit general asset once it has any `campaign_asset_usages` row (409, even though role passes).
 - Non-admin cannot edit general asset.
-- Owner can edit own asset and create new version.
+- Owner can edit unused own asset and create new version.
+- Owner cannot edit own asset once it has any `campaign_asset_usages` row (409, even though ownership passes).
 - Non-owner cannot edit own asset.
 - Delete unused asset succeeds if policy allows it.
 - Delete used asset fails with 409.
+- Edit/delete lock stays in place after the campaign that created the usage row is completed, cancelled, or archived.
+- Assigning an already-used asset (general or own) to a new campaign or playbook still succeeds.
 - Archive used asset succeeds if policy allows it.
 - Mutation ignores client-supplied `can_delete`, `scope`, and `owner_user_id`.
 
@@ -971,9 +996,11 @@ create general asset
 create own asset for user A
 assert user B cannot view/edit/delete user A asset
 assert user A can view general but cannot edit/delete general
-assert admin can edit general and creates new version
+assert admin can edit general and creates new version (before any usage)
 lock campaign with general asset
 assert delete general fails with 409
+assert admin can no longer edit general (409, permanent lock)
+assert admin can still assign general asset to a new campaign draft or playbook component
 assert archive general succeeds for admin
 ```
 
@@ -1143,6 +1170,7 @@ Rollback strategy:
 | Existing active campaigns rely on live assets | Campaign output changes unexpectedly | Ensure execution reads `snapshot_json` and GoPhish synced snapshot |
 | Non-master APIs duplicate master logic | Policy drift | Use centralized policy and shared repository helpers |
 | Route rename breaks bookmarks | UX regression | Keep `/master/playbooks` alias temporarily |
+| Permanent usage lock blocks legitimate edit on assets tied to very old completed campaigns | Admin/owner stuck unable to fix a typo or content bug | Offer archive + "duplicate as new asset" as the workaround; retention/purge policy for `pukat_campaign_asset_usages` is tracked as an open question in the PRD (§18), not solved by this plan |
 
 ## 18. Definition of Done
 
@@ -1152,8 +1180,10 @@ Implementation is complete when:
 - Non-admin cannot access master routes.
 - Non-admin sees only `general` + own assets on non-master routes.
 - Non-admin cannot edit/delete/archive `general`.
-- Owner can edit own asset by creating a new version/revision.
-- Admin can edit `general` by creating a new version/revision.
+- Owner can edit own asset by creating a new version/revision, only while it has zero permanent usage.
+- Admin can edit `general` by creating a new version/revision, only while it has zero permanent usage.
+- Edit and delete are both permanently blocked (409) once an asset has any `pukat_campaign_asset_usages` row, regardless of current campaign status.
+- Assigning an already-used asset to a new campaign or playbook remains allowed and is never blocked by usage.
 - Delete succeeds only for assets with zero permanent usage.
 - Archive works for used assets when policy allows it.
 - Campaign snapshot writes `pukat_campaign_asset_usages`.
