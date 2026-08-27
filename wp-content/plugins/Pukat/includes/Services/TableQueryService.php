@@ -99,7 +99,7 @@ class TableQueryService {
 
 		// One MasterComponentService instance for the whole page of rows, not one per row: its
 		// active_campaign_run_rows() is memoized per instance, so reusing it turns what used to be
-		// one campaign_runs_by_status() query per row into a single query for the entire response.
+		// one campaign_runs_with_locked_snapshot() query per row into a single query for the entire response.
 		$master_component_service = new MasterComponentService();
 		$rows = array_map(
 			fn( array $row ): array => $this->decorate_row( $table_key, $row, $gophish, $master_component_service ),

@@ -45,7 +45,8 @@ export function gophishEmailTemplateToUiTemplate(template) {
   const activeCampaignRunCount = Number(template.usage?.active_campaign_run_count || 0)
   const activePlaybookCount = Number(template.usage?.active_playbook_count || 0)
   const activeLegacyCampaignCount = Number(template.usage?.active_legacy_campaign_count || 0)
-  const activeUsageCount = Number(template.usage?.active_usage_count || activeCampaignRunCount + activePlaybookCount + activeLegacyCampaignCount || 0)
+  // activePlaybookCount is informational only — it never contributes to the lock (PRD §5.8).
+  const activeUsageCount = Number(template.usage?.active_usage_count || activeCampaignRunCount + activeLegacyCampaignCount || 0)
 
   return {
     id: template.id,
@@ -66,7 +67,7 @@ export function gophishEmailTemplateToUiTemplate(template) {
     activePlaybookCount,
     activeLegacyCampaignCount,
     activeUsageCount,
-    editLockReason: template.edit_lock_reason || 'This email template is used by an active campaign or playbook.',
+    editLockReason: template.edit_lock_reason || 'This email template is used by a Campaign.',
     thumbnail: emailTemplateThumbnail(category),
     raw: template,
   }
@@ -135,7 +136,8 @@ export function gophishLandingPageToUiPage(page) {
   const activeCampaignRunCount = Number(page.usage?.active_campaign_run_count || 0)
   const activePlaybookCount = Number(page.usage?.active_playbook_count || 0)
   const activeLegacyCampaignCount = Number(page.usage?.active_legacy_campaign_count || 0)
-  const activeUsageCount = Number(page.usage?.active_usage_count || activeCampaignRunCount + activePlaybookCount + activeLegacyCampaignCount || 0)
+  // activePlaybookCount is informational only — it never contributes to the lock (PRD §5.8).
+  const activeUsageCount = Number(page.usage?.active_usage_count || activeCampaignRunCount + activeLegacyCampaignCount || 0)
 
   return {
     id: page.id,
@@ -153,7 +155,7 @@ export function gophishLandingPageToUiPage(page) {
     activePlaybookCount,
     activeLegacyCampaignCount,
     activeUsageCount,
-    editLockReason: page.edit_lock_reason || 'This landing page is used by an active campaign or playbook.',
+    editLockReason: page.edit_lock_reason || 'This landing page is used by a Campaign.',
     thumbnail: landingPageThumbnail(category),
     raw: page,
   }

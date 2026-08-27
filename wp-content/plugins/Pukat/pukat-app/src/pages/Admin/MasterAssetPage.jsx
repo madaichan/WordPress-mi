@@ -400,7 +400,7 @@ function playbookItemFromRow(row, users) {
     users: [],
     editLocked: Boolean(row.edit_locked) || activeCampaignRunCount > 0,
     activeCampaignRunCount,
-    editLockReason: row.edit_lock_reason || 'This playbook is used by an active campaign.',
+    editLockReason: row.edit_lock_reason || 'This playbook is used by a Campaign.',
   }
 
   return applyAssignmentFromEntity(item, users)
@@ -1125,10 +1125,10 @@ export default function MasterAssetPage({ type }) {
   function playbookLockMessage(item) {
     const count = Number(item?.activeCampaignRunCount || 0)
     if (count > 0) {
-      return `Playbook is locked because it is used by ${count} active Campaign Run${count > 1 ? 's' : ''}.`
+      return `Playbook is locked because it is used by ${count} Campaign Run${count > 1 ? 's' : ''}.`
     }
 
-    return item?.editLockReason || 'Playbook is locked while it is used by an active Campaign Run.'
+    return item?.editLockReason || 'Playbook is locked while it is used by a Campaign Run.'
   }
 
   function notifyPlaybookLocked(item) {

@@ -108,23 +108,17 @@ class PlaybookMasterRepository {
 	}
 
 	/**
-	 * Count Campaign Runs that currently lock a Playbook Master for editing.
-	 *
-	 * @param array<int, string> $statuses Campaign Run statuses considered active.
+	 * Count Campaign Runs that permanently lock a Playbook Master for editing
+	 * (PRD §5.8) — any Campaign Run whose snapshot was ever locked, regardless
+	 * of its current status. A `draft_run` with no snapshot yet never counts.
 	 */
-	public function count_campaign_runs_for_playbook( int $playbook_id, array $statuses ): int {
+	public function count_campaign_runs_for_playbook( int $playbook_id ): int {
 		global $wpdb;
 
-		if ( empty( $statuses ) ) {
-			return 0;
-		}
+		$table = $this->table( 'campaign_runs' );
+		$sql   = "SELECT COUNT(*) FROM {$table} WHERE playbook_master_id = %d AND snapshot_json IS NOT NULL AND snapshot_json != ''";
 
-		$table        = $this->table( 'campaign_runs' );
-		$placeholders = implode( ', ', array_fill( 0, count( $statuses ), '%s' ) );
-		$sql          = "SELECT COUNT(*) FROM {$table} WHERE playbook_master_id = %d AND status IN ({$placeholders})";
-		$params       = array_merge( [ $playbook_id ], $statuses );
-
-		return (int) $wpdb->get_var( $wpdb->prepare( $sql, $params ) );
+		return (int) $wpdb->get_var( $wpdb->prepare( $sql, $playbook_id ) );
 	}
 
 	private function table( string $table_suffix ): string {

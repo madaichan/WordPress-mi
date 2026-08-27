@@ -321,7 +321,7 @@ class PlaybookMasterService {
 		if ( $status_locked ) {
 			$lock_reason = __( 'This Playbook Master is active. Clone it or create a draft before changing it.', 'pukat' );
 		} elseif ( $usage_locked ) {
-			$lock_reason = __( 'This Playbook Master is used by an active Campaign Run.', 'pukat' );
+			$lock_reason = __( 'This Playbook Master is used by a Campaign Run and cannot be edited until that usage is removed.', 'pukat' );
 		}
 
 		return $this->decode_json_fields(
@@ -418,7 +418,7 @@ class PlaybookMasterService {
 	 */
 	private function active_campaign_run_usage( int $playbook_id ): array {
 		$count = $playbook_id > 0
-			? $this->repository->count_campaign_runs_for_playbook( $playbook_id, self::ACTIVE_CAMPAIGN_RUN_STATUSES )
+			? $this->repository->count_campaign_runs_for_playbook( $playbook_id )
 			: 0;
 
 		return [
@@ -437,8 +437,8 @@ class PlaybookMasterService {
 		}
 
 		return new WP_Error(
-			'playbook_locked_by_campaign_run',
-			__( 'Playbook Master cannot be edited while it is used by an active Campaign Run.', 'pukat' ),
+			'asset_already_used',
+			__( 'Playbook Master cannot be edited while it is used by a Campaign Run. Use archive instead.', 'pukat' ),
 			[
 				'status' => 409,
 				'usage'  => $usage,

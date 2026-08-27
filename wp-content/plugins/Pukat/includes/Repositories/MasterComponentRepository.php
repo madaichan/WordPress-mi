@@ -104,49 +104,44 @@ class MasterComponentRepository {
 	}
 
 	/**
-	 * Return Campaign Runs with statuses that can lock master component edits.
+	 * Return Campaign Runs with a locked snapshot (i.e. permanently "used" for
+	 * usage-lock purposes — see PRD §5.8), regardless of their current status.
+	 * A Campaign Run only reaches this state once its snapshot has been
+	 * locked/synced/launched; a `draft_run` with no snapshot yet never counts.
 	 *
-	 * @param array<int, string> $statuses Campaign Run statuses considered active.
 	 * @return array<int, array<string, mixed>>
 	 */
-	public function campaign_runs_by_status( array $statuses ): array {
+	public function campaign_runs_with_locked_snapshot(): array {
 		global $wpdb;
 
-		if ( empty( $statuses ) ) {
-			return [];
-		}
+		$table = $this->table( 'campaign_runs' );
+		$sql   = "SELECT id, status, playbook_master_id, gophish_template_id, gophish_page_id, gophish_sending_profile_id, snapshot_json FROM {$table} WHERE snapshot_json IS NOT NULL AND snapshot_json != ''";
 
-		$table        = $this->table( 'campaign_runs' );
-		$placeholders = implode( ', ', array_fill( 0, count( $statuses ), '%s' ) );
-		$sql          = "SELECT id, status, playbook_master_id, gophish_template_id, gophish_page_id, gophish_sending_profile_id, snapshot_json FROM {$table} WHERE status IN ({$placeholders})";
-
-		$rows = $wpdb->get_results( $wpdb->prepare( $sql, $statuses ), ARRAY_A );
+		$rows = $wpdb->get_results( $sql, ARRAY_A );
 
 		return $rows ?: [];
 	}
 
 	/**
-	 * Count active legacy campaigns using a GoPhish asset through a legacy playbook.
+	 * Count legacy campaigns (any status) using a GoPhish asset through a legacy playbook.
+	 * Permanent, all-history count — see PRD §5.8.
 	 *
-	 * @param string             $gophish_column GoPhish asset ID column on pukat_playbooks.
-	 * @param int                $gophish_id     GoPhish asset ID.
-	 * @param array<int, string> $statuses       Legacy campaign statuses considered active.
+	 * @param string $gophish_column GoPhish asset ID column on pukat_playbooks.
+	 * @param int    $gophish_id     GoPhish asset ID.
 	 */
-	public function count_legacy_campaigns_for_gophish_asset( string $gophish_column, int $gophish_id, array $statuses ): int {
+	public function count_legacy_campaigns_for_gophish_asset( string $gophish_column, int $gophish_id ): int {
 		global $wpdb;
 
 		$allowed_columns = [ 'gophish_template_id', 'gophish_page_id', 'gophish_smtp_id' ];
-		if ( $gophish_id <= 0 || empty( $statuses ) || ! in_array( $gophish_column, $allowed_columns, true ) ) {
+		if ( $gophish_id <= 0 || ! in_array( $gophish_column, $allowed_columns, true ) ) {
 			return 0;
 		}
 
-		$campaigns    = $this->table( 'campaigns' );
-		$playbooks    = $this->table( 'playbooks' );
-		$placeholders = implode( ', ', array_fill( 0, count( $statuses ), '%s' ) );
-		$sql          = "SELECT COUNT(*) FROM {$campaigns} c INNER JOIN {$playbooks} p ON p.id = c.playbook_id WHERE p.{$gophish_column} = %d AND c.status IN ({$placeholders})";
-		$params       = array_merge( [ $gophish_id ], $statuses );
+		$campaigns = $this->table( 'campaigns' );
+		$playbooks = $this->table( 'playbooks' );
+		$sql       = "SELECT COUNT(*) FROM {$campaigns} c INNER JOIN {$playbooks} p ON p.id = c.playbook_id WHERE p.{$gophish_column} = %d";
 
-		return (int) $wpdb->get_var( $wpdb->prepare( $sql, $params ) );
+		return (int) $wpdb->get_var( $wpdb->prepare( $sql, $gophish_id ) );
 	}
 
 	/**

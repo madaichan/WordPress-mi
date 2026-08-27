@@ -39,14 +39,15 @@ function versionVariables(variables) {
 
 export function masterAssetLockMessage(asset, label = 'Asset') {
   const runCount = Number(asset?.activeCampaignRunCount || asset?.usage?.active_campaign_run_count || 0)
-  const playbookCount = Number(asset?.activePlaybookCount || asset?.usage?.active_playbook_count || 0)
   const legacyCampaignCount = Number(asset?.activeLegacyCampaignCount || asset?.usage?.active_legacy_campaign_count || 0)
-  const count = Number(asset?.activeUsageCount || asset?.usage?.active_usage_count || runCount + playbookCount + legacyCampaignCount || 0)
+  // Being assigned to a Playbook alone never locks edit/delete (PRD §5.8) — only actual
+  // Campaign usage does, so activePlaybookCount is deliberately excluded here.
+  const count = Number(asset?.activeUsageCount || asset?.usage?.active_usage_count || runCount + legacyCampaignCount || 0)
   if (count > 0) {
-    return `${label} is locked because it is used by ${count} active Campaign or Playbook reference${count > 1 ? 's' : ''}.`
+    return `${label} is locked because it is used by ${count} Campaign reference${count > 1 ? 's' : ''}.`
   }
 
-  return asset?.editLockReason || `${label} is locked while it is used by an active Campaign or Playbook.`
+  return asset?.editLockReason || `${label} is locked while it is used by a Campaign.`
 }
 
 export function masterEmailTemplateToUiTemplate(master) {
@@ -57,7 +58,8 @@ export function masterEmailTemplateToUiTemplate(master) {
   })
   const activeCampaignRunCount = Number(master.usage?.active_campaign_run_count || master.active_campaign_run_count || 0)
   const activePlaybookCount = Number(master.usage?.active_playbook_count || master.active_playbook_count || 0)
-  const activeUsageCount = Number(master.usage?.active_usage_count || activeCampaignRunCount + activePlaybookCount || 0)
+  // activePlaybookCount is informational only — it never contributes to the lock (PRD §5.8).
+  const activeUsageCount = Number(master.usage?.active_usage_count || activeCampaignRunCount || 0)
 
   return {
     id: master.id,
@@ -83,7 +85,7 @@ export function masterEmailTemplateToUiTemplate(master) {
     activeCampaignRunCount,
     activePlaybookCount,
     activeUsageCount,
-    editLockReason: master.edit_lock_reason || 'This email template is used by an active campaign or playbook.',
+    editLockReason: master.edit_lock_reason || 'This email template is used by a Campaign.',
     thumbnail: emailTemplateThumbnail(category),
     versionCreatedBy: version?.created_by ?? null,
     versionUpdatedBy: version?.updated_by ?? null,
@@ -129,7 +131,8 @@ export function masterLandingPageToUiPage(master) {
   const category = master.category || landingCategoryForCapture({ captureData, capturePass, redirectUrl })
   const activeCampaignRunCount = Number(master.usage?.active_campaign_run_count || master.active_campaign_run_count || 0)
   const activePlaybookCount = Number(master.usage?.active_playbook_count || master.active_playbook_count || 0)
-  const activeUsageCount = Number(master.usage?.active_usage_count || activeCampaignRunCount + activePlaybookCount || 0)
+  // activePlaybookCount is informational only — it never contributes to the lock (PRD §5.8).
+  const activeUsageCount = Number(master.usage?.active_usage_count || activeCampaignRunCount || 0)
 
   return {
     id: master.id,
@@ -151,7 +154,7 @@ export function masterLandingPageToUiPage(master) {
     activeCampaignRunCount,
     activePlaybookCount,
     activeUsageCount,
-    editLockReason: master.edit_lock_reason || 'This landing page is used by an active campaign or playbook.',
+    editLockReason: master.edit_lock_reason || 'This landing page is used by a Campaign.',
     thumbnail: landingPageThumbnail(category),
     versionCreatedBy: version?.created_by ?? null,
     versionUpdatedBy: version?.updated_by ?? null,

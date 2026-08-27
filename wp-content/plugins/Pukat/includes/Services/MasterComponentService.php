@@ -804,8 +804,8 @@ class MasterComponentService {
 		}
 
 		return new WP_Error(
-			'master_component_locked_by_campaign_run',
-			__( 'Sending profile cannot be edited or deleted while it is used by an active Campaign or Playbook.', 'pukat' ),
+			'asset_already_used',
+			__( 'Sending profile cannot be edited or deleted while it is used by a Campaign. Use archive instead.', 'pukat' ),
 			[
 				'status' => 409,
 				'usage'  => $usage,
@@ -820,8 +820,8 @@ class MasterComponentService {
 		}
 
 		return new WP_Error(
-			'master_component_locked_by_campaign_run',
-			__( 'Email template cannot be edited or deleted while it is used by an active Campaign or Playbook.', 'pukat' ),
+			'asset_already_used',
+			__( 'Email template cannot be edited or deleted while it is used by a Campaign. Use archive instead.', 'pukat' ),
 			[
 				'status' => 409,
 				'usage'  => $usage,
@@ -836,8 +836,8 @@ class MasterComponentService {
 		}
 
 		return new WP_Error(
-			'master_component_locked_by_campaign_run',
-			__( 'Landing page cannot be edited or deleted while it is used by an active Campaign or Playbook.', 'pukat' ),
+			'asset_already_used',
+			__( 'Landing page cannot be edited or deleted while it is used by a Campaign. Use archive instead.', 'pukat' ),
 			[
 				'status' => 409,
 				'usage'  => $usage,
@@ -1130,7 +1130,7 @@ class MasterComponentService {
 		$row['edit_lock_reason'] = $locked
 			? sprintf(
 				/* translators: %s: master component label. */
-				__( '%s is used by an active Campaign or Playbook.', 'pukat' ),
+				__( '%s is used by a Campaign and cannot be edited or deleted until that usage is removed.', 'pukat' ),
 				$label
 			)
 			: '';
@@ -1220,7 +1220,7 @@ class MasterComponentService {
 		return $this->usage_summary(
 			$count,
 			$this->repository->count_active_playbook_masters_for_gophish_sending_profile( $gophish_id ),
-			$this->repository->count_legacy_campaigns_for_gophish_asset( 'gophish_smtp_id', $gophish_id, self::ACTIVE_LEGACY_CAMPAIGN_STATUSES )
+			$this->repository->count_legacy_campaigns_for_gophish_asset( 'gophish_smtp_id', $gophish_id )
 		);
 	}
 
@@ -1251,7 +1251,7 @@ class MasterComponentService {
 		return $this->usage_summary(
 			(int) $campaign_usage['active_campaign_run_count'],
 			0,
-			$this->repository->count_legacy_campaigns_for_gophish_asset( $legacy_playbook_column, $gophish_id, self::ACTIVE_LEGACY_CAMPAIGN_STATUSES )
+			$this->repository->count_legacy_campaigns_for_gophish_asset( $legacy_playbook_column, $gophish_id )
 		);
 	}
 
@@ -1277,7 +1277,11 @@ class MasterComponentService {
 			'active_campaign_run_count'      => $campaign_run_count,
 			'active_playbook_count'          => $playbook_count,
 			'active_legacy_campaign_count'   => $legacy_campaign_count,
-			'active_usage_count'             => $campaign_run_count + $playbook_count + $legacy_campaign_count,
+			// Usage lock (PRD §5.8) is driven only by permanent Campaign usage
+			// (campaign_run_count + legacy_campaign_count). Being assigned as a
+			// component in a Playbook (playbook_count) never locks edit/delete on
+			// its own — only an actual Campaign Run built from that Playbook does.
+			'active_usage_count'             => $campaign_run_count + $legacy_campaign_count,
 			'active_statuses'                => self::ACTIVE_CAMPAIGN_RUN_STATUSES,
 			'active_playbook_statuses'       => [ 'active' ],
 			'active_legacy_campaign_statuses' => self::ACTIVE_LEGACY_CAMPAIGN_STATUSES,
@@ -1289,7 +1293,7 @@ class MasterComponentService {
 	 */
 	private function active_campaign_run_rows(): array {
 		if ( null === $this->active_campaign_run_rows ) {
-			$this->active_campaign_run_rows = $this->repository->campaign_runs_by_status( self::ACTIVE_CAMPAIGN_RUN_STATUSES );
+			$this->active_campaign_run_rows = $this->repository->campaign_runs_with_locked_snapshot();
 		}
 
 		return $this->active_campaign_run_rows;
@@ -1323,10 +1327,10 @@ class MasterComponentService {
 		}
 
 		return new WP_Error(
-			'master_component_locked_by_campaign_run',
+			'asset_already_used',
 			sprintf(
 				/* translators: %s: master component label. */
-				__( '%s cannot be edited or deleted while it is used by an active Campaign or Playbook.', 'pukat' ),
+				__( '%s cannot be edited or deleted while it is used by a Campaign. Use archive instead.', 'pukat' ),
 				$label
 			),
 			[

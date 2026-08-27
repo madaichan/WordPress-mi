@@ -166,7 +166,8 @@ export function gophishSmtpProfileToUiProfile(profile) {
   const activeCampaignRunCount = Number(profile.usage?.active_campaign_run_count || 0)
   const activePlaybookCount = Number(profile.usage?.active_playbook_count || 0)
   const activeLegacyCampaignCount = Number(profile.usage?.active_legacy_campaign_count || 0)
-  const activeUsageCount = Number(profile.usage?.active_usage_count || activeCampaignRunCount + activePlaybookCount + activeLegacyCampaignCount || 0)
+  // activePlaybookCount is informational only — it never contributes to the lock (PRD §5.8).
+  const activeUsageCount = Number(profile.usage?.active_usage_count || activeCampaignRunCount + activeLegacyCampaignCount || 0)
 
   return {
     id: profile.id,
@@ -192,7 +193,7 @@ export function gophishSmtpProfileToUiProfile(profile) {
     activePlaybookCount,
     activeLegacyCampaignCount,
     activeUsageCount,
-    editLockReason: profile.edit_lock_reason || 'This sending profile is used by an active campaign or playbook.',
+    editLockReason: profile.edit_lock_reason || 'This sending profile is used by a Campaign.',
     raw: profile,
   }
 }
@@ -202,7 +203,8 @@ export function masterSendingProfileToUiProfile(profile) {
   const statusValue = profile.status || 'draft'
   const activeCampaignRunCount = Number(profile.usage?.active_campaign_run_count || profile.active_campaign_run_count || 0)
   const activePlaybookCount = Number(profile.usage?.active_playbook_count || profile.active_playbook_count || 0)
-  const activeUsageCount = Number(profile.usage?.active_usage_count || activeCampaignRunCount + activePlaybookCount || 0)
+  // activePlaybookCount is informational only — it never contributes to the lock (PRD §5.8).
+  const activeUsageCount = Number(profile.usage?.active_usage_count || activeCampaignRunCount || 0)
 
   return {
     id: profile.id,
@@ -229,7 +231,7 @@ export function masterSendingProfileToUiProfile(profile) {
     activeCampaignRunCount,
     activePlaybookCount,
     activeUsageCount,
-    editLockReason: profile.edit_lock_reason || 'This sending profile is used by an active campaign or playbook.',
+    editLockReason: profile.edit_lock_reason || 'This sending profile is used by a Campaign.',
     raw: profile,
   }
 }

@@ -375,7 +375,7 @@ function playbookMasterToUiPlaybook(row, assets, componentOptions) {
     editLocked: Boolean(row.edit_locked) || activeUsageCount > 0 || row.status === 'active',
     activeCampaignRunCount,
     activeUsageCount,
-    editLockReason: row.edit_lock_reason || 'This playbook is active or used by an active campaign.',
+    editLockReason: row.edit_lock_reason || 'This playbook is active or used by a Campaign.',
     diffScore: `${difficulty}/5`,
     diffText: DIFFICULTY_TEXT[difficulty] ?? DIFFICULTY_TEXT[3],
     dept: 'All departments',
