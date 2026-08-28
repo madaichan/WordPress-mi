@@ -179,9 +179,11 @@ class TableQueryService {
 
 		$full = $master_component_service->get_sending_profile( (int) $row['id'] );
 
-		$row['edit_locked']      = (bool) ( $full['edit_locked'] ?? false );
-		$row['edit_lock_reason'] = (string) ( $full['edit_lock_reason'] ?? '' );
-		$row['row_actions']      = $this->resolve_sending_profile_row_actions( $row );
+		$row['edit_locked']        = (bool) ( $full['edit_locked'] ?? false );
+		$row['edit_lock_reason']   = (string) ( $full['edit_lock_reason'] ?? '' );
+		$row['delete_locked']      = (bool) ( $full['delete_locked'] ?? false );
+		$row['delete_lock_reason'] = (string) ( $full['delete_lock_reason'] ?? '' );
+		$row['row_actions']        = $this->resolve_sending_profile_row_actions( $row );
 
 		return $row;
 	}
@@ -208,7 +210,8 @@ class TableQueryService {
 		$row['row_actions']      = $this->resolve_master_asset_row_actions(
 			$row,
 			[ 'assign', 'edit', 'delete' ],
-			[ 'preview' ]
+			[ 'preview', 'duplicate' ],
+			[ 'assign' ] // Assign and Clone stay allowed while used by a Campaign/Playbook; Edit/Delete don't.
 		);
 
 		return $row;
@@ -233,7 +236,8 @@ class TableQueryService {
 		$row['row_actions']      = $this->resolve_master_asset_row_actions(
 			$row,
 			[ 'assign', 'edit', 'delete' ],
-			[ 'preview' ]
+			[ 'preview', 'duplicate' ],
+			[ 'assign' ] // Assign and Clone stay allowed while used by a Campaign/Playbook; Edit/Delete don't.
 		);
 
 		return $row;
@@ -442,12 +446,16 @@ class TableQueryService {
 	 * edit_locked/entity permission (assign/edit/delete-style), plus a set
 	 * that's always enabled (preview-style, since it never mutates anything).
 	 *
-	 * @param array<string, mixed> $row               Decorated row (includes edit_locked/entity).
-	 * @param array<int, string>   $gated_action_keys  Actions disabled when locked or not entity-editable.
-	 * @param array<int, string>   $always_action_keys Actions never disabled.
+	 * @param array<string, mixed> $row                Decorated row (includes edit_locked/entity).
+	 * @param array<int, string>   $gated_action_keys   Actions disabled when locked or not entity-editable.
+	 * @param array<int, string>   $always_action_keys  Actions never disabled.
+	 * @param array<int, string>   $usage_exempt_keys   Subset of $gated_action_keys that stay entity-gated but
+	 *                                                   skip the usage-lock part of $disabled (PRD §5.8 per-asset
+	 *                                                   variant — e.g. "Assign" stays allowed while used, "Edit"/
+	 *                                                   "Delete" don't).
 	 * @return array<int, array<string, mixed>>
 	 */
-	private function resolve_master_asset_row_actions( array $row, array $gated_action_keys, array $always_action_keys = [] ): array {
+	private function resolve_master_asset_row_actions( array $row, array $gated_action_keys, array $always_action_keys = [], array $usage_exempt_keys = [] ): array {
 		$locked          = (bool) ( $row['edit_locked'] ?? false );
 		$can_edit_entity = $this->current_user_can_edit_row_entity( (string) ( $row['entity'] ?? '' ) );
 		$disabled        = $locked || ! $can_edit_entity;
@@ -459,8 +467,14 @@ class TableQueryService {
 			$reason = __( 'General components and components from other entities can only be edited by admins.', 'pukat' );
 		}
 
+		$entity_only_reason = $can_edit_entity ? '' : __( 'General components and components from other entities can only be edited by admins.', 'pukat' );
+
 		$actions = [];
 		foreach ( $gated_action_keys as $key ) {
+			if ( in_array( $key, $usage_exempt_keys, true ) ) {
+				$actions[] = [ 'key' => $key, 'disabled' => ! $can_edit_entity, 'reason' => $entity_only_reason ];
+				continue;
+			}
 			$actions[] = [ 'key' => $key, 'disabled' => $disabled, 'reason' => $reason ];
 		}
 		foreach ( $always_action_keys as $key ) {

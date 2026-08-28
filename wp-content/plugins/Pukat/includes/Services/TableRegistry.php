@@ -112,7 +112,7 @@ class TableRegistry {
 				[ 'key' => 'entity', 'label' => 'Entity', 'renderer' => 'badge', 'sortable' => true ],
 				[ 'key' => 'id', 'label' => 'Actions', 'renderer' => 'actions', 'align' => 'right', 'sortable' => false ],
 			],
-			'row_actions'        => [ 'assign', 'edit', 'preview', 'delete' ],
+			'row_actions'        => [ 'assign', 'edit', 'preview', 'duplicate', 'delete' ],
 			'bulk_actions'       => [],
 		],
 
@@ -158,7 +158,7 @@ class TableRegistry {
 				[ 'key' => 'entity', 'label' => 'Entity', 'renderer' => 'badge', 'sortable' => true ],
 				[ 'key' => 'id', 'label' => 'Actions', 'renderer' => 'actions', 'align' => 'right', 'sortable' => false ],
 			],
-			'row_actions'        => [ 'assign', 'edit', 'preview', 'delete' ],
+			'row_actions'        => [ 'assign', 'edit', 'preview', 'duplicate', 'delete' ],
 			'bulk_actions'       => [],
 		],
 

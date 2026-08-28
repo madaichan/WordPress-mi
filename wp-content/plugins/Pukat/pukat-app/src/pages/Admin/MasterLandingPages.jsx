@@ -4,6 +4,7 @@ import clsx from 'clsx'
 import { FALLBACK_USERS } from '../../data/fallbacks.js'
 import { AssetEditorLayout, BrowserPreview } from '../../features/assets/components/index.js'
 import { DataTable } from '../../components/DataTable/index.js'
+import { resolveRowActions } from '../../components/DataTable/actionRegistry.js'
 import AssignmentBadge from '../../components/UI/AssignmentBadge.jsx'
 import AssignmentPanel from '../../components/UI/AssignmentPanel.jsx'
 import AlertConfirmation from '../../components/UI/AlertConfirmation.jsx'
@@ -12,6 +13,7 @@ import PageShell from '../../components/Layout/PageShell.jsx'
 import Button from '../../components/UI/Button.jsx'
 import Tabs from '../../components/UI/Tabs.jsx'
 import Badge from '../../components/UI/Badge.jsx'
+import TableActionMenu from '../../components/UI/TableActionMenu.jsx'
 import { useMasterLandingPages } from '../../hooks/queries/useMasterAssetQueries.js'
 import { useTableRows, useTableSchema } from '../../hooks/queries/useTableQueries.js'
 import { useUsers } from '../../hooks/queries/useUserQueries.js'
@@ -20,6 +22,7 @@ import {
   useAssignMasterLandingPageEntityMutation,
   useCreateMasterLandingPageMutation,
   useDeleteMasterLandingPageMutation,
+  useDuplicateMasterLandingPageMutation,
   useUpdateMasterLandingPageMutation,
 } from '../../hooks/mutations/useMasterAssetMutations.js'
 import useAppStore from '../../store/useAppStore.js'
@@ -130,9 +133,44 @@ export default function MasterLandingPages() {
     [rowsData, users]
   )
 
+  // "Preview" as the always-visible primary action, everything else (Assign/Edit/
+  // Duplicate/Delete) tucked into a "More Actions" kebab menu — replaces the shared
+  // DataTable action cell's default inline-buttons layout for this page only.
+  function renderActionsCell(row) {
+    const resolved = resolveRowActions(row.row_actions)
+    const previewAction = resolved.find(action => action.key === 'preview')
+    const menuItems = resolved.filter(action => action.key !== 'preview')
+
+    return (
+      <div className="inline-flex items-center justify-end gap-1.5">
+        {previewAction && (
+          <Button
+            variant="secondary"
+            size="sm"
+            disabled={previewAction.disabled}
+            title={previewAction.disabled ? previewAction.reason : 'Preview'}
+            onClick={() => handleRowAction({ actionKey: 'preview', row })}
+          >
+            <i className={clsx('ti', previewAction.icon)} />
+            Preview
+          </Button>
+        )}
+        <TableActionMenu
+          items={menuItems}
+          triggerTitle="More Actions"
+          onSelect={actionKey => handleRowAction({ actionKey, row })}
+        />
+      </div>
+    )
+  }
+
   const columns = useMemo(() => {
     const merged = []
     ;(schema?.columns || []).forEach(column => {
+      if ('actions' === column.renderer) {
+        merged.push({ ...column, renderer: 'custom', render: row => renderActionsCell(row) })
+        return
+      }
       merged.push(column)
       if (column.key === 'category') {
         merged.push({
@@ -155,6 +193,7 @@ export default function MasterLandingPages() {
       }
     })
     return merged
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [schema, usersById])
 
   const resetEditor = useCallback(() => {
@@ -187,6 +226,7 @@ export default function MasterLandingPages() {
   const approveMutation = useApproveMasterLandingPageVersionMutation({
     onSuccess: () => setApprovingPageId(null),
   })
+  const duplicateMutation = useDuplicateMasterLandingPageMutation()
   const saving = createMutation.isPending || updateMutation.isPending || deleteMutation.isPending
 
   useEffect(() => {
@@ -260,14 +300,20 @@ export default function MasterLandingPages() {
   }, [pages])
 
   const handleAssign = useCallback((id) => {
-    const page = pages.find(item => item.id === id)
-    if (page?.editLocked) {
-      toast.error(masterAssetLockMessage(page, 'Landing page'))
-      return
-    }
-
+    // Assign is never blocked by Campaign/Playbook usage.
     setAssignmentPageId(id)
-  }, [pages])
+  }, [])
+
+  const handleDuplicate = useCallback((id) => {
+    // Clone is never blocked by Campaign/Playbook usage — it creates a brand-new row.
+    const page = pages.find(item => item.id === id)
+    if (!page) return
+
+    duplicateMutation.mutate({
+      id,
+      data: { name: `Copy of ${page.name}`, entity: page.entity || '' },
+    })
+  }, [duplicateMutation, pages])
 
   const handleDelete = useCallback((id) => {
     const page = pages.find(item => item.id === id)
@@ -331,11 +377,7 @@ export default function MasterLandingPages() {
 
   const saveAssignment = useCallback((assignment) => {
     if (!assignmentPage) return
-    if (assignmentPage.editLocked) {
-      toast.error(masterAssetLockMessage(assignmentPage, 'Landing page'))
-      setAssignmentPageId(null)
-      return
-    }
+    // Assign is never blocked by Campaign/Playbook usage.
 
     const result = entityFromAssignment(assignment, users)
     if (result.error) {
@@ -353,6 +395,7 @@ export default function MasterLandingPages() {
     if (actionKey === 'assign') handleAssign(row.id)
     else if (actionKey === 'edit') handleEdit(row.id)
     else if (actionKey === 'preview') handlePreview(row.id)
+    else if (actionKey === 'duplicate') handleDuplicate(row.id)
     else if (actionKey === 'delete') handleDelete(row.id)
   }
 

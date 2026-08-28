@@ -4,12 +4,14 @@ import toast from 'react-hot-toast'
 import { FALLBACK_USERS } from '../../data/fallbacks.js'
 import { SmtpProfileDrawer } from '../../features/assets/components/index.js'
 import { DataTable } from '../../components/DataTable/index.js'
+import { resolveRowActions } from '../../components/DataTable/actionRegistry.js'
 import AssignmentBadge from '../../components/UI/AssignmentBadge.jsx'
 import AssignmentPanel from '../../components/UI/AssignmentPanel.jsx'
 import AlertConfirmation from '../../components/UI/AlertConfirmation.jsx'
 import PageHeader from '../../components/UI/PageHeader.jsx'
 import PageShell from '../../components/Layout/PageShell.jsx'
 import Button from '../../components/UI/Button.jsx'
+import TableActionMenu from '../../components/UI/TableActionMenu.jsx'
 import { useTableRows, useTableSchema } from '../../hooks/queries/useTableQueries.js'
 import { useGophishSmtpProfiles } from '../../hooks/queries/useGophishQueries.js'
 import { useUsers } from '../../hooks/queries/useUserQueries.js'
@@ -78,6 +80,37 @@ export default function MasterSendingProfiles() {
     [rowsData, users]
   )
 
+  // "Test Email" as the always-visible primary action, everything else (Assign/Edit/
+  // Duplicate) tucked into a "More Actions" kebab menu — replaces the shared DataTable
+  // action cell's default inline-buttons layout for this page only.
+  function renderActionsCell(row) {
+    const resolved = resolveRowActions(row.row_actions)
+    const testAction = resolved.find(action => action.key === 'test')
+    const menuItems = resolved.filter(action => action.key !== 'test')
+
+    return (
+      <div className="inline-flex items-center justify-end gap-1.5">
+        {testAction && (
+          <Button
+            variant="secondary"
+            size="sm"
+            disabled={testAction.disabled}
+            title={testAction.disabled ? testAction.reason : 'Test Email'}
+            onClick={() => handleRowAction({ actionKey: 'test', row })}
+          >
+            <i className={clsx('ti', testAction.icon)} />
+            Test Email
+          </Button>
+        )}
+        <TableActionMenu
+          items={menuItems}
+          triggerTitle="More Actions"
+          onSelect={actionKey => handleRowAction({ actionKey, row })}
+        />
+      </div>
+    )
+  }
+
   const columns = useMemo(() => {
     const merged = []
     ;(schema?.columns || []).forEach(column => {
@@ -89,9 +122,14 @@ export default function MasterSendingProfiles() {
           render: row => <AssignmentBadge item={row} usersById={usersById} />,
         })
       }
+      if ('actions' === column.renderer) {
+        merged.push({ ...column, renderer: 'custom', render: row => renderActionsCell(row) })
+        return
+      }
       merged.push(column)
     })
     return merged
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [schema, usersById])
 
   const createMutation = useCreateSmtpProfileMutation({ onSuccess: () => closeSlideover() })
@@ -155,6 +193,8 @@ export default function MasterSendingProfiles() {
       entity: row.entity || '',
       editLocked: Boolean(row.edit_locked),
       editLockReason: row.edit_lock_reason || '',
+      deleteLocked: Boolean(row.delete_locked),
+      deleteLockReason: row.delete_lock_reason || '',
     }
   }
 
@@ -168,12 +208,10 @@ export default function MasterSendingProfiles() {
   }
 
   function openEdit(row) {
+    // Update is never blocked by Campaign/Playbook usage for sending profiles (product
+    // decision) — only delete is; see deleteProfile()/confirmDeleteProfile().
     const profile = loadGophishProfileForRow(row)
     if (!profile) return
-    if (profile.editLocked) {
-      toast.error(profile.editLockReason || masterAssetLockMessage(profile, 'Sending profile'))
-      return
-    }
 
     setSourceProfile(profile)
     setForm(profileToSmtpForm(profile, 'update'))
@@ -196,11 +234,7 @@ export default function MasterSendingProfiles() {
   }
 
   function openAssignment(row) {
-    if (row.edit_locked) {
-      toast.error(row.edit_lock_reason || masterAssetLockMessage(row, 'Sending profile'))
-      return
-    }
-
+    // Assign is never blocked by Campaign/Playbook usage for sending profiles.
     setAssignmentProfile(row)
   }
 
@@ -269,11 +303,7 @@ export default function MasterSendingProfiles() {
   }
 
   function submitProfile() {
-    if (slideoverMode === 'update' && sourceProfile?.editLocked) {
-      toast.error(masterAssetLockMessage(sourceProfile, 'Sending profile'))
-      return
-    }
-
+    // Update is never blocked by Campaign/Playbook usage for sending profiles.
     const name = form.name.trim()
     const host = form.host.trim()
     const port = Number(form.port)
@@ -302,8 +332,8 @@ export default function MasterSendingProfiles() {
 
   function deleteProfile() {
     if (!sourceProfile) return
-    if (sourceProfile.editLocked) {
-      toast.error(masterAssetLockMessage(sourceProfile, 'Sending profile'))
+    if (sourceProfile.deleteLocked) {
+      toast.error(sourceProfile.deleteLockReason || masterAssetLockMessage(sourceProfile, 'Sending profile'))
       return
     }
 
@@ -312,8 +342,8 @@ export default function MasterSendingProfiles() {
 
   function confirmDeleteProfile() {
     if (!deletingProfile) return
-    if (deletingProfile.editLocked) {
-      toast.error(masterAssetLockMessage(deletingProfile, 'Sending profile'))
+    if (deletingProfile.deleteLocked) {
+      toast.error(deletingProfile.deleteLockReason || masterAssetLockMessage(deletingProfile, 'Sending profile'))
       setDeletingProfile(null)
       return
     }
@@ -323,11 +353,7 @@ export default function MasterSendingProfiles() {
 
   function saveAssignment(assignment) {
     if (!assignmentProfile) return
-    if (assignmentProfile.edit_locked) {
-      toast.error(assignmentProfile.edit_lock_reason || masterAssetLockMessage(assignmentProfile, 'Sending profile'))
-      setAssignmentProfile(null)
-      return
-    }
+    // Assign is never blocked by Campaign/Playbook usage for sending profiles.
 
     const result = entityFromAssignment(assignment, users)
     if (result.error) {
@@ -362,12 +388,9 @@ export default function MasterSendingProfiles() {
     }
 
     if (actionKey === 'test') {
+      // Test send is never blocked by Campaign/Playbook usage for sending profiles.
       const profile = loadGophishProfileForRow(row)
       if (!profile) return
-      if (profile.editLocked) {
-        toast.error(profile.editLockReason || masterAssetLockMessage(profile, 'Sending profile'))
-        return
-      }
 
       openEdit(row)
       window.setTimeout(() => runConnectionTest(profileToSmtpForm(profile, 'update'), profile.id), 50)
@@ -435,8 +458,8 @@ export default function MasterSendingProfiles() {
         onRunTest={runConnectionTest}
         onSubmit={submitProfile}
         onDelete={deleteProfile}
-        locked={Boolean(sourceProfile?.editLocked)}
-        lockReason={sourceProfile?.editLockReason || (sourceProfile ? masterAssetLockMessage(sourceProfile, 'Sending profile') : '')}
+        locked={Boolean(sourceProfile?.deleteLocked)}
+        lockReason={sourceProfile?.deleteLockReason || (sourceProfile ? masterAssetLockMessage(sourceProfile, 'Sending profile') : '')}
       />
 
       {deletingProfile && (

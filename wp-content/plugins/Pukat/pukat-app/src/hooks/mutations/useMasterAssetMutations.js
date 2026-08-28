@@ -93,6 +93,24 @@ export function useAssignMasterEmailTemplateEntityMutation(options = {}) {
   })
 }
 
+export function useDuplicateMasterEmailTemplateMutation(options = {}) {
+  const qc = useQueryClient()
+
+  return useMutation({
+    mutationFn: ({ id, data }) => masterAssetApi.duplicateEmailTemplate(id, data),
+    onSuccess: (data, variables, context) => {
+      toast.success('Email template cloned.')
+      invalidateMasterAssets(qc, queryKeys.masterAssets.emailTemplates)
+      qc.invalidateQueries({ queryKey: queryKeys.tables.all })
+      options.onSuccess?.(data, variables, context)
+    },
+    onError: (err, variables, context) => {
+      toast.error(err.message || 'Failed to clone email template.')
+      options.onError?.(err, variables, context)
+    },
+  })
+}
+
 export function useDeleteMasterEmailTemplateMutation(options = {}) {
   const qc = useQueryClient()
 
@@ -190,6 +208,24 @@ export function useAssignMasterLandingPageEntityMutation(options = {}) {
     },
     onError: (err, variables, context) => {
       toast.error(err.message || 'Failed to save landing page assignment.')
+      options.onError?.(err, variables, context)
+    },
+  })
+}
+
+export function useDuplicateMasterLandingPageMutation(options = {}) {
+  const qc = useQueryClient()
+
+  return useMutation({
+    mutationFn: ({ id, data }) => masterAssetApi.duplicateLandingPage(id, data),
+    onSuccess: (data, variables, context) => {
+      toast.success('Landing page cloned.')
+      invalidateMasterAssets(qc, queryKeys.masterAssets.landingPages)
+      qc.invalidateQueries({ queryKey: queryKeys.tables.all })
+      options.onSuccess?.(data, variables, context)
+    },
+    onError: (err, variables, context) => {
+      toast.error(err.message || 'Failed to clone landing page.')
       options.onError?.(err, variables, context)
     },
   })

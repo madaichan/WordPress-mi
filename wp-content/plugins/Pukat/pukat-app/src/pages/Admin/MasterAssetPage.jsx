@@ -15,7 +15,7 @@ import Textarea from '../../components/UI/Textarea.jsx'
 import Label from '../../components/UI/Label.jsx'
 import Checkbox from '../../components/UI/Checkbox.jsx'
 import Drawer from '../../components/UI/Drawer.jsx'
-import TableActionButton from '../../components/UI/TableActionButton.jsx'
+import TableActionMenu from '../../components/UI/TableActionMenu.jsx'
 import AlertConfirmation from '../../components/UI/AlertConfirmation.jsx'
 import {
   PlaybookComponentSelect,
@@ -401,6 +401,7 @@ function playbookItemFromRow(row, users) {
     editLocked: Boolean(row.edit_locked) || activeCampaignRunCount > 0,
     activeCampaignRunCount,
     editLockReason: row.edit_lock_reason || 'This playbook is used by a Campaign.',
+    // Assign and Clone are never blocked by Campaign usage or active-status.
   }
 
   return applyAssignmentFromEntity(item, users)
@@ -419,24 +420,6 @@ function buildPlaybookPayloadFromForm(form, entity) {
     default_dynamic_domain_id: Number(form.domain) || null,
     entity: entity || GENERAL_ENTITY,
     status: playbookStatusFromDisplay(form.status),
-  }
-}
-
-function buildPlaybookPayloadFromRow(row, overrides = {}) {
-  return {
-    name: row.name || '',
-    description: row.description || '',
-    objective: row.objective || '',
-    scenario: row.scenario || '',
-    difficulty: Number(row.difficulty || 1) || 1,
-    default_email_template_version_id: Number(row.default_email_template_version_id || 0) || null,
-    default_landing_page_version_id: Number(row.default_landing_page_version_id || 0) || null,
-    default_sending_profile_ref_id: Number(row.default_sending_profile_ref_id || 0) || null,
-    default_dynamic_domain_id: Number(row.default_dynamic_domain_id || 0) || null,
-    entity: row.entity || GENERAL_ENTITY,
-    status: row.status || 'draft',
-    version: Number(row.version || 1) || 1,
-    ...overrides,
   }
 }
 
@@ -1137,11 +1120,9 @@ export default function MasterAssetPage({ type }) {
 
   function saveAssignment(nextAssignment) {
     if (type === 'playbooks') {
-      if (editing.editLocked) {
-        notifyPlaybookLocked(editing)
-        return
-      }
-
+      // Assign is never blocked by Campaign usage — only edit/archive are. Send an
+      // entity-only payload (not the full playbook payload) so the backend can tell
+      // this apart from a content edit and skip the usage-lock check for it.
       const result = entityFromAssignment(nextAssignment, users)
       if (result.error) {
         toast.error(result.error)
@@ -1150,7 +1131,7 @@ export default function MasterAssetPage({ type }) {
 
       updatePlaybookMutation.mutate({
         id: editing.id,
-        data: buildPlaybookPayloadFromRow(editing.raw, { entity: result.entity }),
+        data: { entity: result.entity },
       })
       return
     }
@@ -1230,6 +1211,68 @@ export default function MasterAssetPage({ type }) {
   function confirmApprovePlaybook() {
     if (!approvingPlaybook) return
     approveMutation.mutate(approvingPlaybook.id)
+  }
+
+  // Everything except Assign goes into the "More Actions" kebab menu for playbook rows.
+  function playbookMenuItems(item) {
+    const items = [
+      {
+        key: 'edit',
+        label: 'Edit',
+        icon: 'ti-edit',
+        disabled: item.editLocked,
+        reason: item.editLocked ? playbookLockMessage(item) : '',
+      },
+      {
+        key: 'duplicate',
+        label: 'Clone',
+        icon: 'ti-copy',
+        disabled: duplicatePlaybookMutation.isPending,
+        reason: '',
+      },
+      {
+        key: 'delete',
+        label: 'Delete',
+        icon: 'ti-trash',
+        disabled: item.editLocked || deletePlaybookMutation.isPending,
+        reason: item.editLocked ? playbookLockMessage(item) : '',
+      },
+    ]
+
+    if (item.rawStatus === 'draft' && canSubmitReviewCapability) {
+      items.push({
+        key: 'submit_review',
+        label: 'Submit for review',
+        icon: 'ti-send',
+        disabled: item.editLocked || submitReviewMutation.isPending,
+        reason: item.editLocked ? playbookLockMessage(item) : '',
+      })
+    }
+
+    if (
+      item.rawStatus === 'review'
+      && canApproveCapability
+      && Number(currentUser.id) !== Number(item.raw?.created_by)
+      && Number(currentUser.id) !== Number(item.raw?.updated_by)
+    ) {
+      items.push({
+        key: 'approve',
+        label: 'Approve',
+        icon: 'ti-shield-check',
+        disabled: approveMutation.isPending,
+        reason: '',
+      })
+    }
+
+    return items
+  }
+
+  function handlePlaybookMenuAction(actionKey, item) {
+    if (actionKey === 'edit') setEditingPlaybook(item)
+    else if (actionKey === 'duplicate') clonePlaybook(item)
+    else if (actionKey === 'delete') deletePlaybook(item)
+    else if (actionKey === 'submit_review') submitPlaybookForReview(item)
+    else if (actionKey === 'approve') approvePlaybook(item)
   }
 
   async function createAsset(asset) {
@@ -1351,68 +1394,19 @@ export default function MasterAssetPage({ type }) {
                     <Button
                       variant="secondary"
                       size="sm"
-                      onClick={() => item.editLocked ? notifyPlaybookLocked(item) : setEditing(item)}
-                      disabled={type === 'playbooks' && item.editLocked}
-                      title={type === 'playbooks' && item.editLocked ? playbookLockMessage(item) : 'Assign'}
+                      onClick={() => setEditing(item)}
+                      disabled={type === 'playbooks' && updatePlaybookMutation.isPending}
+                      title="Assign"
                     >
                       <i className="ti ti-user-check" />
                       Assign
                     </Button>
                     {type === 'playbooks' && (
-                      <>
-                        <TableActionButton
-                          icon="ti-edit"
-                          label={`Edit ${item.name}`}
-                          title={item.editLocked ? playbookLockMessage(item) : 'Edit'}
-                          tone="blue"
-                          size="md"
-                          disabled={item.editLocked}
-                          onClick={() => item.editLocked ? notifyPlaybookLocked(item) : setEditingPlaybook(item)}
-                        />
-                        <TableActionButton
-                          icon="ti-copy"
-                          label={`Clone ${item.name}`}
-                          title="Clone"
-                          tone="green"
-                          size="md"
-                          disabled={duplicatePlaybookMutation.isPending}
-                          onClick={() => clonePlaybook(item)}
-                        />
-                        <TableActionButton
-                          icon="ti-trash"
-                          label={`Delete ${item.name}`}
-                          title={item.editLocked ? playbookLockMessage(item) : 'Delete'}
-                          tone="red"
-                          size="md"
-                          disabled={item.editLocked || deletePlaybookMutation.isPending}
-                          onClick={() => deletePlaybook(item)}
-                        />
-                        {item.rawStatus === 'draft' && canSubmitReviewCapability && (
-                          <TableActionButton
-                            icon="ti-send"
-                            label={`Submit ${item.name} for review`}
-                            title={item.editLocked ? playbookLockMessage(item) : 'Submit for review'}
-                            tone="blue"
-                            size="md"
-                            disabled={item.editLocked || submitReviewMutation.isPending}
-                            onClick={() => item.editLocked ? notifyPlaybookLocked(item) : submitPlaybookForReview(item)}
-                          />
-                        )}
-                        {item.rawStatus === 'review'
-                          && canApproveCapability
-                          && Number(currentUser.id) !== Number(item.raw?.created_by)
-                          && Number(currentUser.id) !== Number(item.raw?.updated_by) && (
-                          <TableActionButton
-                            icon="ti-shield-check"
-                            label={`Approve ${item.name}`}
-                            title="Approve"
-                            tone="green"
-                            size="md"
-                            disabled={approveMutation.isPending}
-                            onClick={() => approvePlaybook(item)}
-                          />
-                        )}
-                      </>
+                      <TableActionMenu
+                        items={playbookMenuItems(item)}
+                        triggerTitle="More Actions"
+                        onSelect={actionKey => handlePlaybookMenuAction(actionKey, item)}
+                      />
                     )}
                   </div>
                 </td>

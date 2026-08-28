@@ -143,9 +143,14 @@ class MasterComponentService {
 			return $this->not_found_error( __( 'Email template master not found.', 'pukat' ) );
 		}
 
-		$usage_error = $this->enforce_not_used_by_active_campaign_run( 'email_template', $id, __( 'Email template master', 'pukat' ) );
-		if ( $usage_error ) {
-			return $usage_error;
+		// Assign (entity-only reassignment) is exempt from usage lock — only a content edit
+		// is gated by it. Both flow through this same endpoint, so tell them apart by payload
+		// shape: the frontend's "Assign" action only ever sends { entity }.
+		if ( ! $this->is_assign_only_payload( $params ) ) {
+			$usage_error = $this->enforce_not_used_by_active_campaign_run( 'email_template', $id, __( 'Email template master', 'pukat' ) );
+			if ( $usage_error ) {
+				return $usage_error;
+			}
 		}
 
 		$data             = $this->sanitize_email_template_master_data( $params, $existing );
@@ -184,6 +189,71 @@ class MasterComponentService {
 		AuditLogService::log( 'master.email_template.deleted', [ 'email_template_master_id' => $id ], null, 'email_template_master', $id );
 
 		return true;
+	}
+
+	/**
+	 * Clone (Clone action) — creates a new master + a fresh draft version copied
+	 * from the source's latest version. Never gated by usage lock: cloning creates
+	 * a brand-new row rather than mutating the used one, so it's always allowed
+	 * (PRD §5.8 assign/clone exemption), even while the source is usage-locked.
+	 *
+	 * @param array<string, mixed> $params Raw request params.
+	 * @return array<string, mixed>|WP_Error
+	 */
+	public function duplicate_email_template( int $id, array $params, int $user_id ): array|WP_Error {
+		$existing = $this->repository->find( self::EMAIL_MASTER_TABLE, $id );
+		if ( ! $existing || ! $this->current_user_can_access_row( $existing, 'entity' ) ) {
+			return $this->not_found_error( __( 'Email template master not found.', 'pukat' ) );
+		}
+
+		$versions = $this->repository->versions( self::EMAIL_VERSION_TABLE, self::EMAIL_VERSION_FK, $id );
+		$latest   = $versions[0] ?? null;
+
+		$data = [
+			'name'        => sanitize_text_field( (string) ( $params['name'] ?? sprintf( 'Copy of %s', $existing['name'] ?? 'Email template' ) ) ),
+			'description' => sanitize_textarea_field( (string) ( $existing['description'] ?? '' ) ),
+			'category'    => sanitize_text_field( (string) ( $existing['category'] ?? '' ) ),
+			'entity'      => sanitize_text_field( (string) ( $params['entity'] ?? $existing['entity'] ?? self::GENERAL_ENTITY ) ),
+			'status'      => 'draft',
+		];
+
+		$permission_error = $this->enforce_write_entity( $data, 'entity' );
+		if ( $permission_error ) {
+			return $permission_error;
+		}
+
+		$data['created_by'] = $user_id;
+		$new_id             = $this->repository->create( self::EMAIL_MASTER_TABLE, $data );
+		if ( false === $new_id ) {
+			return $this->db_error( __( 'Failed to duplicate email template master.', 'pukat' ) );
+		}
+
+		if ( $latest ) {
+			$this->repository->create(
+				self::EMAIL_VERSION_TABLE,
+				[
+					self::EMAIL_VERSION_FK => $new_id,
+					'version'              => 1,
+					'subject'              => (string) ( $latest['subject'] ?? '' ),
+					'html_body'            => (string) ( $latest['html_body'] ?? '' ),
+					'text_body'            => (string) ( $latest['text_body'] ?? '' ),
+					'variables_json'       => $latest['variables_json'] ?? null,
+					'language'             => (string) ( $latest['language'] ?? '' ),
+					'status'               => 'draft',
+					'created_by'           => $user_id,
+				]
+			);
+		}
+
+		AuditLogService::log(
+			'master.email_template.duplicated',
+			[ 'source_email_template_master_id' => $id, 'email_template_master_id' => $new_id ],
+			null,
+			'email_template_master',
+			$new_id
+		);
+
+		return $this->get_email_template( $new_id ) ?: [];
 	}
 
 	/**
@@ -415,9 +485,14 @@ class MasterComponentService {
 			return $this->not_found_error( __( 'Landing page master not found.', 'pukat' ) );
 		}
 
-		$usage_error = $this->enforce_not_used_by_active_campaign_run( 'landing_page', $id, __( 'Landing page master', 'pukat' ) );
-		if ( $usage_error ) {
-			return $usage_error;
+		// Assign (entity-only reassignment) is exempt from usage lock — only a content edit
+		// is gated by it. Both flow through this same endpoint, so tell them apart by payload
+		// shape: the frontend's "Assign" action only ever sends { entity }.
+		if ( ! $this->is_assign_only_landing_payload( $params ) ) {
+			$usage_error = $this->enforce_not_used_by_active_campaign_run( 'landing_page', $id, __( 'Landing page master', 'pukat' ) );
+			if ( $usage_error ) {
+				return $usage_error;
+			}
 		}
 
 		$data             = $this->sanitize_landing_page_master_data( $params, $existing );
@@ -456,6 +531,71 @@ class MasterComponentService {
 		AuditLogService::log( 'master.landing_page.deleted', [ 'landing_page_master_id' => $id ], null, 'landing_page_master', $id );
 
 		return true;
+	}
+
+	/**
+	 * Clone (Clone action) — creates a new master + a fresh draft version copied
+	 * from the source's latest version. Never gated by usage lock: cloning creates
+	 * a brand-new row rather than mutating the used one, so it's always allowed
+	 * (PRD §5.8 assign/clone exemption), even while the source is usage-locked.
+	 *
+	 * @param array<string, mixed> $params Raw request params.
+	 * @return array<string, mixed>|WP_Error
+	 */
+	public function duplicate_landing_page( int $id, array $params, int $user_id ): array|WP_Error {
+		$existing = $this->repository->find( self::LANDING_MASTER_TABLE, $id );
+		if ( ! $existing || ! $this->current_user_can_access_row( $existing, 'entity' ) ) {
+			return $this->not_found_error( __( 'Landing page master not found.', 'pukat' ) );
+		}
+
+		$versions = $this->repository->versions( self::LANDING_VERSION_TABLE, self::LANDING_VERSION_FK, $id );
+		$latest   = $versions[0] ?? null;
+
+		$data = [
+			'name'        => sanitize_text_field( (string) ( $params['name'] ?? sprintf( 'Copy of %s', $existing['name'] ?? 'Landing page' ) ) ),
+			'description' => sanitize_textarea_field( (string) ( $existing['description'] ?? '' ) ),
+			'category'    => sanitize_text_field( (string) ( $existing['category'] ?? '' ) ),
+			'entity'      => sanitize_text_field( (string) ( $params['entity'] ?? $existing['entity'] ?? self::GENERAL_ENTITY ) ),
+			'status'      => 'draft',
+		];
+
+		$permission_error = $this->enforce_write_entity( $data, 'entity' );
+		if ( $permission_error ) {
+			return $permission_error;
+		}
+
+		$data['created_by'] = $user_id;
+		$new_id             = $this->repository->create( self::LANDING_MASTER_TABLE, $data );
+		if ( false === $new_id ) {
+			return $this->db_error( __( 'Failed to duplicate landing page master.', 'pukat' ) );
+		}
+
+		if ( $latest ) {
+			$this->repository->create(
+				self::LANDING_VERSION_TABLE,
+				[
+					self::LANDING_VERSION_FK => $new_id,
+					'version'                => 1,
+					'html_body'              => (string) ( $latest['html_body'] ?? '' ),
+					'capture_settings_json'  => $latest['capture_settings_json'] ?? null,
+					'redirect_settings_json' => $latest['redirect_settings_json'] ?? null,
+					'variables_json'         => $latest['variables_json'] ?? null,
+					'language'               => (string) ( $latest['language'] ?? '' ),
+					'status'                 => 'draft',
+					'created_by'             => $user_id,
+				]
+			);
+		}
+
+		AuditLogService::log(
+			'master.landing_page.duplicated',
+			[ 'source_landing_page_master_id' => $id, 'landing_page_master_id' => $new_id ],
+			null,
+			'landing_page_master',
+			$new_id
+		);
+
+		return $this->get_landing_page( $new_id ) ?: [];
 	}
 
 	/**
@@ -1125,12 +1265,26 @@ class MasterComponentService {
 		$usage  = $this->active_component_usage( $component, $component_id );
 		$locked = $usage['active_usage_count'] > 0;
 
-		$row['usage']            = $usage;
-		$row['edit_locked']      = $locked;
-		$row['edit_lock_reason'] = $locked
+		// Sending profiles are exempt from the usage lock on edit (product decision):
+		// assign/update/test/clone stay available regardless of Campaign/Playbook usage —
+		// only delete is gated by it. Email template and landing page keep the general
+		// rule where edit and delete are both locked together.
+		$edit_locked = $locked && 'sending_profile' !== $component;
+
+		$row['usage']              = $usage;
+		$row['edit_locked']        = $edit_locked;
+		$row['edit_lock_reason']   = $edit_locked
 			? sprintf(
 				/* translators: %s: master component label. */
 				__( '%s is used by a Campaign and cannot be edited or deleted until that usage is removed.', 'pukat' ),
+				$label
+			)
+			: '';
+		$row['delete_locked']      = $locked;
+		$row['delete_lock_reason'] = $locked
+			? sprintf(
+				/* translators: %s: master component label. */
+				__( '%s is used by a Campaign and cannot be deleted until that usage is removed.', 'pukat' ),
 				$label
 			)
 			: '';
@@ -1479,10 +1633,54 @@ class MasterComponentService {
 	}
 
 	/**
+	 * True when a master update request is "Assign" (entity reassignment only) rather
+	 * than a content edit — used to exempt Assign from usage lock (PRD variant for
+	 * this asset type) while a genuine content/status edit stays usage-locked.
+	 *
+	 * @param array<string, mixed> $params Raw request params.
+	 */
+	private function is_assign_only_payload( array $params ): bool {
+		if ( ! array_key_exists( 'entity', $params ) ) {
+			return false;
+		}
+
+		$content_keys = [ 'name', 'description', 'category', 'status', 'subject', 'html_body', 'html', 'text_body', 'variables', 'language' ];
+		foreach ( $content_keys as $key ) {
+			if ( array_key_exists( $key, $params ) ) {
+				return false;
+			}
+		}
+
+		return true;
+	}
+
+	/**
 	 * @param array<string, mixed> $params Raw request params.
 	 */
 	private function has_landing_version_payload( array $params ): bool {
 		return array_key_exists( 'html_body', $params ) || array_key_exists( 'html', $params );
+	}
+
+	/**
+	 * True when a master update request is "Assign" (entity reassignment only) rather
+	 * than a content edit — used to exempt Assign from usage lock (PRD variant for
+	 * this asset type) while a genuine content/status edit stays usage-locked.
+	 *
+	 * @param array<string, mixed> $params Raw request params.
+	 */
+	private function is_assign_only_landing_payload( array $params ): bool {
+		if ( ! array_key_exists( 'entity', $params ) ) {
+			return false;
+		}
+
+		$content_keys = [ 'name', 'description', 'category', 'status', 'html_body', 'html', 'capture_settings', 'redirect_settings', 'variables', 'language' ];
+		foreach ( $content_keys as $key ) {
+			if ( array_key_exists( $key, $params ) ) {
+				return false;
+			}
+		}
+
+		return true;
 	}
 
 	/**

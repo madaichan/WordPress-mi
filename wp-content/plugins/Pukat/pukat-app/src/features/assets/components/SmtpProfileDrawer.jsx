@@ -89,7 +89,7 @@ export default function SmtpProfileDrawer({
             </Button>
           )}
           <Button variant="outline" className="ml-auto" onClick={onClose}>Cancel</Button>
-          <Button variant="primary" onClick={onSubmit} disabled={saving || (isUpdate && locked)} title={isUpdate && locked ? lockReason : 'Save profile'}>
+          <Button variant="primary" onClick={onSubmit} disabled={saving} title="Save profile">
             <i className={clsx('ti', saving ? 'ti-loader animate-spin' : 'ti-check')} />
             {saving ? 'Saving...' : isUpdate ? 'Save changes' : 'Save profile'}
           </Button>
@@ -97,11 +97,11 @@ export default function SmtpProfileDrawer({
       }
     >
       {isUpdate && locked && (
-        <div className="flex gap-2.5 rounded-xl border border-red-100 bg-red-50 p-3 text-xs">
-          <i className="ti ti-lock mt-0.5 flex-shrink-0 text-base text-red-600" />
-          <p className="font-medium text-red-700">
-            <span className="font-bold text-red-950">This sending profile is locked.</span>
-            {' '}{lockReason}
+        <div className="flex gap-2.5 rounded-xl border border-amber-100 bg-amber-50 p-3 text-xs">
+          <i className="ti ti-lock mt-0.5 flex-shrink-0 text-base text-amber-600" />
+          <p className="font-medium text-amber-700">
+            <span className="font-bold text-amber-950">Delete is disabled for this sending profile.</span>
+            {' '}{lockReason || 'It is used by a Campaign or Playbook.'} You can still update, assign, test, and clone it.
           </p>
         </div>
       )}

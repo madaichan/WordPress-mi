@@ -179,6 +179,12 @@ class MasterComponentController extends RestController {
 			],
 		] );
 
+		register_rest_route( $this->namespace, '/master/email-templates/(?P<id>\d+)/duplicate', [
+			'methods'             => 'POST',
+			'callback'            => [ $this, 'duplicate_email_template' ],
+			'permission_callback' => [ $this, 'permission_create_email_template_master' ], // duplicate reuses .create (makes a new row)
+		] );
+
 		register_rest_route( $this->namespace, '/master/email-templates/(?P<id>\d+)/versions', [
 			[
 				'methods'             => 'GET',
@@ -237,6 +243,12 @@ class MasterComponentController extends RestController {
 				'callback'            => [ $this, 'delete_landing_page' ],
 				'permission_callback' => [ $this, 'permission_delete_landing_page_master' ],
 			],
+		] );
+
+		register_rest_route( $this->namespace, '/master/landing-pages/(?P<id>\d+)/duplicate', [
+			'methods'             => 'POST',
+			'callback'            => [ $this, 'duplicate_landing_page' ],
+			'permission_callback' => [ $this, 'permission_create_landing_page_master' ], // duplicate reuses .create (makes a new row)
 		] );
 
 		register_rest_route( $this->namespace, '/master/landing-pages/(?P<id>\d+)/versions', [
@@ -370,6 +382,16 @@ class MasterComponentController extends RestController {
 		return $this->result_response( $result );
 	}
 
+	public function duplicate_email_template( WP_REST_Request $request ): WP_REST_Response {
+		$result = $this->components->duplicate_email_template(
+			(int) $request->get_param( 'id' ),
+			$this->request_params( $request ),
+			get_current_user_id()
+		);
+
+		return $this->result_response( $result, 201 );
+	}
+
 	public function delete_email_template( WP_REST_Request $request ): WP_REST_Response {
 		$result = $this->components->delete_email_template( (int) $request->get_param( 'id' ) );
 		return $this->delete_response( $result );
@@ -419,6 +441,16 @@ class MasterComponentController extends RestController {
 	public function update_landing_page( WP_REST_Request $request ): WP_REST_Response {
 		$result = $this->components->update_landing_page( (int) $request->get_param( 'id' ), $this->request_params( $request ), get_current_user_id() );
 		return $this->result_response( $result );
+	}
+
+	public function duplicate_landing_page( WP_REST_Request $request ): WP_REST_Response {
+		$result = $this->components->duplicate_landing_page(
+			(int) $request->get_param( 'id' ),
+			$this->request_params( $request ),
+			get_current_user_id()
+		);
+
+		return $this->result_response( $result, 201 );
 	}
 
 	public function delete_landing_page( WP_REST_Request $request ): WP_REST_Response {

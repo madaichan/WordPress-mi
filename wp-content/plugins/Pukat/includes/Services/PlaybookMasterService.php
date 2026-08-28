@@ -121,14 +121,22 @@ class PlaybookMasterService {
 			return $this->not_found_error( __( 'Playbook Master not found.', 'pukat' ) );
 		}
 
-		$status_error = $this->enforce_not_active_playbook( $existing );
-		if ( $status_error ) {
-			return $status_error;
-		}
+		// Assign (entity-only reassignment) is exempt from BOTH the active-status lock and
+		// usage lock — a Playbook must be `active` to ever be used by a Campaign Run, so a
+		// playbook-with-campaign-relation is virtually always also `active`; gating Assign on
+		// either lock here would defeat the exemption in the exact case it's meant to cover.
+		// Only a content edit is gated by these. Both flow through this same endpoint, so tell
+		// them apart by payload shape: the frontend's "Assign" action only ever sends { entity }.
+		if ( ! $this->is_assign_only_payload( $params ) ) {
+			$status_error = $this->enforce_not_active_playbook( $existing );
+			if ( $status_error ) {
+				return $status_error;
+			}
 
-		$usage_error = $this->enforce_not_used_by_active_campaign_run( $existing );
-		if ( $usage_error ) {
-			return $usage_error;
+			$usage_error = $this->enforce_not_used_by_active_campaign_run( $existing );
+			if ( $usage_error ) {
+				return $usage_error;
+			}
 		}
 
 		$data             = $this->sanitize_data( $params, $existing );
@@ -271,15 +279,14 @@ class PlaybookMasterService {
 			}
 		}
 
-		// Usage lock (PRD §5.8) blocks edit and delete, never archive — archive is the
-		// documented escape hatch once a Playbook Master has permanent Campaign usage
-		// (see enforce_not_used_by_active_campaign_run()'s own "Use archive instead"
-		// message). Only gate non-archive transitions (submit_review/approve) on it.
-		if ( 'archived' !== $status ) {
-			$usage_error = $this->enforce_not_used_by_active_campaign_run( $existing );
-			if ( $usage_error ) {
-				return $usage_error;
-			}
+		// Playbook Master has no hard-delete endpoint — Archive is its terminal/destructive
+		// action, so it plays the role "delete" plays for the other master asset types.
+		// Usage lock (PRD §5.8 per-asset variant for Playbook) therefore blocks archive here
+		// too, same as edit — unlike Email Template/Landing Page/Sending Profile, where
+		// Archive/keep-editable and Delete are separate actions and only Delete is gated.
+		$usage_error = $this->enforce_not_used_by_active_campaign_run( $existing );
+		if ( $usage_error ) {
+			return $usage_error;
 		}
 
 		if ( 'archived' === (string) $existing['status'] && 'archived' !== $status ) {
@@ -327,18 +334,21 @@ class PlaybookMasterService {
 		if ( $status_locked ) {
 			$lock_reason = __( 'This Playbook Master is active. Clone it or create a draft before changing it.', 'pukat' );
 		} elseif ( $usage_locked ) {
-			$lock_reason = __( 'This Playbook Master is used by a Campaign Run and cannot be edited until that usage is removed.', 'pukat' );
+			$lock_reason = __( 'This Playbook Master is used by a Campaign Run and cannot be edited or archived until that usage is removed.', 'pukat' );
 		}
 
 		return $this->decode_json_fields(
 			array_merge(
 				$playbook,
 				[
-					'components'        => $components,
-					'readiness'         => $this->readiness_summary( $playbook ),
-					'usage'             => $usage,
-					'edit_locked'       => $usage_locked || $status_locked,
-					'edit_lock_reason'  => $lock_reason,
+					'components'       => $components,
+					'readiness'        => $this->readiness_summary( $playbook ),
+					'usage'            => $usage,
+					'edit_locked'      => $usage_locked || $status_locked,
+					'edit_lock_reason' => $lock_reason,
+					// Assign (entity reassignment) and Clone are never locked — neither the
+					// active-status rule nor usage lock applies to them, only to edit/archive
+					// (see update()/enforce_not_used_by_active_campaign_run()).
 				]
 			),
 			[
@@ -444,7 +454,7 @@ class PlaybookMasterService {
 
 		return new WP_Error(
 			'asset_already_used',
-			__( 'Playbook Master cannot be edited while it is used by a Campaign Run. Use archive instead.', 'pukat' ),
+			__( 'Playbook Master cannot be edited or archived while it is used by a Campaign Run.', 'pukat' ),
 			[
 				'status' => 409,
 				'usage'  => $usage,
@@ -526,6 +536,43 @@ class PlaybookMasterService {
 		}
 
 		return $errors;
+	}
+
+	/**
+	 * True when an update request is "Assign" (entity reassignment only) rather than a
+	 * content edit — used to exempt Assign from usage lock (PRD variant for this asset
+	 * type) while a genuine content/status edit stays usage-locked.
+	 *
+	 * @param array<string, mixed> $params Raw request params.
+	 */
+	private function is_assign_only_payload( array $params ): bool {
+		if ( ! array_key_exists( 'entity', $params ) ) {
+			return false;
+		}
+
+		$content_keys = [
+			'name',
+			'description',
+			'objective',
+			'scenario',
+			'difficulty',
+			'risk_level',
+			'default_email_template_version_id',
+			'default_landing_page_version_id',
+			'default_sending_profile_ref_id',
+			'default_dynamic_domain_id',
+			'allowed_overrides',
+			'rules',
+			'metrics',
+			'status',
+		];
+		foreach ( $content_keys as $key ) {
+			if ( array_key_exists( $key, $params ) ) {
+				return false;
+			}
+		}
+
+		return true;
 	}
 
 	/**

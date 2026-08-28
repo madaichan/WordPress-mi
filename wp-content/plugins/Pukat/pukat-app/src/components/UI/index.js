@@ -1,6 +1,7 @@
 export { default as Button, IconButton } from './Button.jsx'
 export { default as StatCard } from './StatCard.jsx'
 export { default as TableActionButton } from './TableActionButton.jsx'
+export { default as TableActionMenu } from './TableActionMenu.jsx'
 export { default as AssignmentBadge } from './AssignmentBadge.jsx'
 export { default as AssignmentPanel } from './AssignmentPanel.jsx'
 export { default as AlertConfirmation } from './AlertConfirmation.jsx'

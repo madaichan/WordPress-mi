@@ -564,11 +564,9 @@ class GoPhishProxy extends RestController {
 			return $permission_error;
 		}
 
-		$usage_error = ( new MasterComponentService() )->enforce_gophish_sending_profile_not_used( $id );
-		if ( $usage_error ) {
-			return $this->from_wp_error( $usage_error );
-		}
-
+		// Usage lock intentionally does NOT apply to update/assign/test/clone for sending
+		// profiles — only delete is gated by it (product decision, sending profiles are
+		// exempt from the general Usage Lock edit-block that applies to other master assets).
 		$payload['id'] = $id;
 		$result        = $service->update_sending_profile( $id, $payload );
 		if ( is_wp_error( $result ) ) {
@@ -590,6 +588,8 @@ class GoPhishProxy extends RestController {
 			return $permission_error;
 		}
 
+		// Delete is the one sending-profile action usage lock still gates — see
+		// update_sending_profile()/update_sending_profile_entity() for the exemption.
 		$usage_error = ( new MasterComponentService() )->enforce_gophish_sending_profile_not_used( $id );
 		if ( $usage_error ) {
 			return $this->from_wp_error( $usage_error );
@@ -619,11 +619,7 @@ class GoPhishProxy extends RestController {
 			return $permission_error;
 		}
 
-		$usage_error = ( new MasterComponentService() )->enforce_gophish_sending_profile_not_used( $id );
-		if ( $usage_error ) {
-			return $this->from_wp_error( $usage_error );
-		}
-
+		// Assign (entity reassignment) is never blocked by usage lock — see update_sending_profile().
 		$profile['id']     = $id;
 		$profile['entity'] = $entity['value'];
 		$result            = $service->update_sending_profile( $id, $profile );
