@@ -8,6 +8,8 @@ export const ROW_ACTION_REGISTRY = {
   validate: { label: 'Validate DNS', icon: 'ti-shield-check', tone: 'blue' },
   authorize: { label: 'Authorize', icon: 'ti-circle-check', tone: 'violet' },
   view_report: { label: 'View report', icon: 'ti-report-analytics', tone: 'violet' },
+  submit_review: { label: 'Submit for review', icon: 'ti-send', tone: 'blue' },
+  approve: { label: 'Approve', icon: 'ti-shield-check', tone: 'green' },
   delete: { label: 'Delete', icon: 'ti-trash', tone: 'red' },
 }
 

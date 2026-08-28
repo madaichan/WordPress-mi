@@ -14,6 +14,7 @@ use Pukat\Repositories\Table\CampaignTableRepository;
 use Pukat\Repositories\Table\DynamicDomainTableRepository;
 use Pukat\Repositories\Table\EmailTemplateTableRepository;
 use Pukat\Repositories\Table\LandingPageTableRepository;
+use Pukat\Repositories\Table\PlaybookTableRepository;
 use Pukat\Repositories\Table\SendingProfileTableRepository;
 
 /**
@@ -27,6 +28,56 @@ use Pukat\Repositories\Table\SendingProfileTableRepository;
 class TableRegistry {
 
 	private const TABLES = [
+		'playbooks' => [
+			'title'              => 'Playbook masters',
+			'repository'         => PlaybookTableRepository::class,
+			'search_placeholder' => 'Search playbooks...',
+			'search_fields'      => [ 'name', 'description' ],
+			'sortable'           => [ 'name', 'scenario', 'difficulty', 'entity', 'created_at' ],
+			'default_sort'       => 'name',
+			'default_order'      => 'asc',
+			'default_per_page'   => 25,
+			'max_per_page'       => 100,
+			'filters'            => [
+				'scenario' => [
+					'label'   => 'Attack type',
+					'type'    => 'select',
+					'options' => [ 'BEC', 'Credential', 'Malware', 'Vishing' ],
+				],
+				'status'   => [
+					'label'   => 'Status',
+					'type'    => 'select',
+					// No 'archived' option — archived Playbook Masters are unconditionally
+					// excluded by PlaybookTableRepository, matching the legacy list endpoint.
+					'options' => [ 'draft', 'review', 'approved', 'active', 'deprecated' ],
+				],
+				'entity'   => [
+					'label' => 'Entity',
+					'type'  => 'text',
+				],
+			],
+			// `status` is overwritten with the derived 5-state lifecycle label from
+			// TableQueryService::decorate_playbook_row() (mirrors pukat-app/src/utils/
+			// masterAssetHelpers.js#playbookDisplayStatus), so it isn't sortable server-side —
+			// same reasoning as email_templates' derived status column.
+			'columns'            => [
+				[ 'key' => 'name', 'label' => 'Playbook', 'renderer' => 'text_with_subtext', 'sortable' => true ],
+				[ 'key' => 'scenario', 'label' => 'Category', 'renderer' => 'badge', 'sortable' => true ],
+				[ 'key' => 'difficulty', 'label' => 'Difficulty', 'renderer' => 'badge', 'sortable' => true ],
+				[ 'key' => 'status', 'label' => 'Status', 'renderer' => 'status_badge', 'toneMap' => [
+					'Published' => 'success',
+					'Draft'     => 'warning',
+					'Review'    => 'gray',
+					'Deprecated' => 'gray',
+					'Archived'  => 'gray',
+				], 'sortable' => false ],
+				[ 'key' => 'entity', 'label' => 'Entity', 'renderer' => 'badge', 'sortable' => true ],
+				[ 'key' => 'id', 'label' => 'Actions', 'renderer' => 'actions', 'align' => 'right', 'sortable' => false ],
+			],
+			'row_actions'        => [ 'assign', 'edit', 'duplicate', 'delete', 'submit_review', 'approve' ],
+			'bulk_actions'       => [],
+		],
+
 		'sending_profiles' => [
 			'title'              => 'Sending profiles',
 			'repository'         => SendingProfileTableRepository::class,

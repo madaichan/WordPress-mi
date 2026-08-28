@@ -7,7 +7,7 @@
  *
  * Used by:
  *  - src/pages/Admin/MasterEmailTemplates.jsx
- *  - src/pages/Admin/MasterAssetPage.jsx
+ *  - src/pages/Admin/MasterPlaybooks.jsx
  *  - src/pages/Admin/MasterLandingPages.jsx
  *  - src/pages/Admin/MasterSendingProfiles.jsx
  */

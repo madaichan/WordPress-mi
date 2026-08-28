@@ -3,6 +3,11 @@ import toast from 'react-hot-toast'
 import { playbookApi } from '../../api/index.js'
 import { queryKeys } from '../../api/queryKeys.js'
 
+function invalidatePlaybooks(qc) {
+  qc.invalidateQueries({ queryKey: queryKeys.playbooks.all })
+  qc.invalidateQueries({ queryKey: queryKeys.tables.all })
+}
+
 export function useCreatePlaybookMutation(options = {}) {
   const qc = useQueryClient()
 
@@ -10,7 +15,7 @@ export function useCreatePlaybookMutation(options = {}) {
     mutationFn: playbookApi.create,
     onSuccess: (data, variables, context) => {
       toast.success('Playbook saved.')
-      qc.invalidateQueries({ queryKey: queryKeys.playbooks.all })
+      invalidatePlaybooks(qc)
       options.onSuccess?.(data, variables, context)
     },
     onError: (err, variables, context) => {
@@ -27,7 +32,7 @@ export function useUpdatePlaybookMutation(options = {}) {
     mutationFn: ({ id, data }) => playbookApi.update(id, data),
     onSuccess: (data, variables, context) => {
       toast.success('Playbook updated.')
-      qc.invalidateQueries({ queryKey: queryKeys.playbooks.all })
+      invalidatePlaybooks(qc)
       options.onSuccess?.(data, variables, context)
     },
     onError: (err, variables, context) => {
@@ -44,7 +49,7 @@ export function useDuplicatePlaybookMutation(options = {}) {
     mutationFn: ({ id, data }) => playbookApi.duplicate(id, data),
     onSuccess: (data, variables, context) => {
       toast.success('Playbook cloned.')
-      qc.invalidateQueries({ queryKey: queryKeys.playbooks.all })
+      invalidatePlaybooks(qc)
       options.onSuccess?.(data, variables, context)
     },
     onError: (err, variables, context) => {
@@ -61,7 +66,7 @@ export function useDeletePlaybookMutation(options = {}) {
     mutationFn: playbookApi.delete,
     onSuccess: (data, variables, context) => {
       toast.success('Playbook deleted.')
-      qc.invalidateQueries({ queryKey: queryKeys.playbooks.all })
+      invalidatePlaybooks(qc)
       options.onSuccess?.(data, variables, context)
     },
     onError: (err, variables, context) => {
@@ -78,7 +83,7 @@ export function useSubmitPlaybookReviewMutation(options = {}) {
     mutationFn: playbookApi.submitReview,
     onSuccess: (data, variables, context) => {
       toast.success('Playbook submitted for review.')
-      qc.invalidateQueries({ queryKey: queryKeys.playbooks.all })
+      invalidatePlaybooks(qc)
       options.onSuccess?.(data, variables, context)
     },
     onError: (err, variables, context) => {
@@ -95,7 +100,7 @@ export function useApprovePlaybookMutation(options = {}) {
     mutationFn: playbookApi.approve,
     onSuccess: (data, variables, context) => {
       toast.success('Playbook approved.')
-      qc.invalidateQueries({ queryKey: queryKeys.playbooks.all })
+      invalidatePlaybooks(qc)
       options.onSuccess?.(data, variables, context)
     },
     onError: (err, variables, context) => {

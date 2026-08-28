@@ -4,7 +4,7 @@ const Dashboard = lazy(() => import('../pages/Dashboard/Dashboard.jsx'))
 const Users = lazy(() => import('../pages/Admin/Users.jsx'))
 const Roles = lazy(() => import('../pages/Admin/Roles.jsx'))
 const Settings = lazy(() => import('../pages/Admin/Settings.jsx'))
-const MasterAssetPage = lazy(() => import('../pages/Admin/MasterAssetPage.jsx'))
+const MasterPlaybooks = lazy(() => import('../pages/Admin/MasterPlaybooks.jsx'))
 const MasterSendingProfiles = lazy(() => import('../pages/Admin/MasterSendingProfiles.jsx'))
 const MasterEmailTemplates = lazy(() => import('../pages/Admin/MasterEmailTemplates.jsx'))
 const MasterLandingPages = lazy(() => import('../pages/Admin/MasterLandingPages.jsx'))
@@ -34,7 +34,7 @@ const Playbooks = lazy(() => import('../features/setup/playbooks/Playbooks.jsx')
 export const adminRoutes = [
   { index: true, element: <Dashboard />, permission: 'dashboard.view' },
   { path: '/dashboard', element: <Dashboard />, permission: 'dashboard.view' },
-  { path: '/master/playbooks', element: <MasterAssetPage key="playbooks" type="playbooks" />, permission: 'master_playbooks.view' },
+  { path: '/master/playbooks', element: <MasterPlaybooks />, permission: 'master_playbooks.view' },
   { path: '/master/sending-profiles', element: <MasterSendingProfiles />, permission: 'master_sending_profiles.view' },
   { path: '/master/email-templates', element: <MasterEmailTemplates />, permission: 'master_email_templates.view' },
   { path: '/master/landing-pages', element: <MasterLandingPages />, permission: 'master_landing_pages.view' },

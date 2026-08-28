@@ -140,6 +140,10 @@ class TableQueryService {
 			}
 		}
 
+		if ( 'playbooks' === $table_key ) {
+			return $this->decorate_playbook_row( $row );
+		}
+
 		if ( 'landing_pages' === $table_key ) {
 			return $this->decorate_landing_page_row( $row, $master_component_service );
 		}
@@ -166,6 +170,103 @@ class TableQueryService {
 
 		$row['row_actions'] = [];
 		return $row;
+	}
+
+	/**
+	 * @param array<string, mixed> $row Raw, narrowly-projected DB row (includes the correlated
+	 *                                  active_campaign_run_count from PlaybookTableRepository).
+	 * @return array<string, mixed>
+	 */
+	private function decorate_playbook_row( array $row ): array {
+		$active_campaign_run_count = (int) ( $row['active_campaign_run_count'] ?? 0 );
+		$status_locked = 'active' === (string) ( $row['status'] ?? '' );
+		$usage_locked   = $active_campaign_run_count > 0;
+
+		$row['edit_locked'] = $usage_locked || $status_locked;
+		// Mirrors PlaybookMasterService::prepare_playbook()'s lock reasons exactly.
+		if ( $status_locked ) {
+			$row['edit_lock_reason'] = __( 'This Playbook Master is active. Clone it or create a draft before changing it.', 'pukat' );
+		} elseif ( $usage_locked ) {
+			$row['edit_lock_reason'] = __( 'This Playbook Master is used by a Campaign Run and cannot be edited or archived until that usage is removed.', 'pukat' );
+		} else {
+			$row['edit_lock_reason'] = '';
+		}
+
+		$row['row_actions'] = $this->resolve_master_asset_row_actions(
+			$row,
+			[ 'assign', 'edit', 'delete' ],
+			[ 'duplicate' ],
+			[ 'assign' ] // Assign and Clone stay allowed while used by a Campaign Run; Edit/Delete don't.
+		);
+		$row['row_actions'] = array_merge( $row['row_actions'], $this->resolve_playbook_review_actions( $row ) );
+
+		$row['difficulty'] = $this->playbook_difficulty_label( (int) ( $row['difficulty'] ?? 3 ) );
+		// Overwritten in place, like email_templates' derived status — the raw draft/review/
+		// approved/active/deprecated/archived value is no longer needed by the frontend once
+		// row_actions above has already made every status-dependent decision server-side.
+		$row['status'] = $this->playbook_lifecycle_label( (string) ( $row['status'] ?? 'draft' ) );
+
+		unset( $row['created_by'], $row['updated_by'] );
+
+		return $row;
+	}
+
+	/**
+	 * `submit_review`/`approve` aren't fixed gated/always actions like the other master asset
+	 * tables: each action is only present at all when its status/permission/ownership condition
+	 * holds, not merely disabled (mirrors the pre-migration frontend's playbookMenuItems() logic
+	 * in pukat-app/src/pages/Admin/MasterPlaybooks.jsx, now resolved server-side instead).
+	 *
+	 * @param array<string, mixed> $row Raw, narrowly-projected DB row (status not yet overwritten).
+	 * @return array<int, array<string, mixed>>
+	 */
+	private function resolve_playbook_review_actions( array $row ): array {
+		$actions = [];
+		$status  = (string) ( $row['status'] ?? '' );
+
+		if ( 'draft' === $status && current_user_can( PermissionRegistry::capability_for( 'master_playbooks.edit' ) ) ) {
+			$locked   = (bool) ( $row['edit_locked'] ?? false );
+			$actions[] = [
+				'key'      => 'submit_review',
+				'disabled' => $locked,
+				'reason'   => $locked ? (string) ( $row['edit_lock_reason'] ?? '' ) : '',
+			];
+		}
+
+		if ( 'review' === $status && current_user_can( PermissionRegistry::capability_for( 'master_playbooks.approve' ) ) ) {
+			$current_user_id = get_current_user_id();
+			$is_own_submission = $current_user_id === (int) ( $row['created_by'] ?? 0 )
+				|| $current_user_id === (int) ( $row['updated_by'] ?? 0 );
+
+			if ( ! $is_own_submission ) {
+				$actions[] = [ 'key' => 'approve', 'disabled' => false, 'reason' => '' ];
+			}
+		}
+
+		return $actions;
+	}
+
+	private function playbook_difficulty_label( int $score ): string {
+		return match ( $score ) {
+			1       => 'Very Low',
+			2       => 'Low',
+			4       => 'High',
+			5       => 'Very High',
+			default => 'Medium',
+		};
+	}
+
+	/** Mirrors pukat-app/src/utils/masterAssetHelpers.js#playbookDisplayStatus exactly. */
+	private function playbook_lifecycle_label( string $status ): string {
+		$normalized = strtolower( $status );
+
+		return match ( $normalized ) {
+			'active', 'approved' => 'Published',
+			'review'              => 'Review',
+			'deprecated'          => 'Deprecated',
+			'archived'            => 'Archived',
+			default               => 'Draft',
+		};
 	}
 
 	/**

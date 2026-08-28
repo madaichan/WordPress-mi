@@ -37,6 +37,7 @@ class TableController extends RestController {
 	 * non-master own-asset page — see Admin/MasterSendingProfiles.jsx).
 	 */
 	private const TABLE_KEY_PERMISSIONS = [
+		'playbooks'        => 'master_playbooks.view',
 		'sending_profiles' => 'master_sending_profiles.view',
 		'landing_pages'    => 'master_landing_pages.view',
 		'email_templates'  => 'master_email_templates.view',
