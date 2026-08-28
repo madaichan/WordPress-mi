@@ -271,9 +271,15 @@ class PlaybookMasterService {
 			}
 		}
 
-		$usage_error = $this->enforce_not_used_by_active_campaign_run( $existing );
-		if ( $usage_error ) {
-			return $usage_error;
+		// Usage lock (PRD §5.8) blocks edit and delete, never archive — archive is the
+		// documented escape hatch once a Playbook Master has permanent Campaign usage
+		// (see enforce_not_used_by_active_campaign_run()'s own "Use archive instead"
+		// message). Only gate non-archive transitions (submit_review/approve) on it.
+		if ( 'archived' !== $status ) {
+			$usage_error = $this->enforce_not_used_by_active_campaign_run( $existing );
+			if ( $usage_error ) {
+				return $usage_error;
+			}
 		}
 
 		if ( 'archived' === (string) $existing['status'] && 'archived' !== $status ) {
