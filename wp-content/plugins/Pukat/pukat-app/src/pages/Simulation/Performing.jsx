@@ -1,24 +1,18 @@
+import { useState } from 'react'
+import { useSearchParams } from 'react-router-dom'
 import clsx from 'clsx'
 import toast from 'react-hot-toast'
 import PageHeader from '../../components/UI/PageHeader.jsx'
 import PageShell from '../../components/Layout/PageShell.jsx'
 import Button from '../../components/UI/Button.jsx'
+import { useCampaignGroups, useCampaignGroupReport } from '../../hooks/queries/useCampaignGroupQueries.js'
+import { useCampaignRunReport } from '../../hooks/queries/useCampaignQueries.js'
+import { campaignApi, campaignGroupApi } from '../../api/index.js'
+import { downloadBlob } from '../../utils/downloadBlob.js'
 
-const STATS = [
-  { label: 'Sent', value: '1,240', sub: 'of 1,240 targets', icon: 'ti-send', subCls: 'text-gray-500' },
-  { label: 'Opened', value: '755', sub: '61% open rate', icon: 'ti-eye', subCls: 'text-amber-600' },
-  { label: 'Link clicks', value: '252', sub: '20% click rate', icon: 'ti-pointer', subCls: 'text-red-600' },
-  { label: 'Data submitted', value: '119', sub: '47% of clickers', icon: 'ti-forms', subCls: 'text-red-600' },
-  { label: 'High-risk', value: '65', sub: 'needs coaching', icon: 'ti-alert-triangle', subCls: 'text-red-600' },
-]
-
-const FUNNEL = [
-  { label: 'Emails sent', value: '1,118', pct: 100, cls: 'bg-violet-100 text-violet-700' },
-  { label: 'Emails opened', value: '634', pct: 57, cls: 'bg-amber-200 text-amber-700' },
-  { label: 'Link clicks', value: '252', pct: 20, cls: 'bg-red-200 text-red-700' },
-  { label: 'Submit form', value: '119', pct: 10, cls: 'bg-red-400 text-white' },
-]
-
+// Static — no backend aggregation exists yet for these three sections (see
+// docs/PRD_CAMPAIGN_GROUP_MONITORING.md §4 Non-Tujuan). Kept as illustrative
+// placeholders, clearly labeled, alongside the real funnel stats above them.
 const DEPARTMENTS = [
   { dept: 'Finance', targets: 240, click: 124, rate: 52, risk: 'High', bar: 'bg-red-500', text: 'text-red-600', badge: 'bg-red-100 text-red-700' },
   { dept: 'HR', targets: 180, click: 72, rate: 40, risk: 'Med', bar: 'bg-amber-500', text: 'text-amber-600', badge: 'bg-amber-100 text-amber-700' },
@@ -30,72 +24,146 @@ const DEPARTMENTS = [
 const HOURLY = [4, 8, 18, 32, 40, 45, 38, 28, 20, 10]
 
 const LIVE_EVENTS = [
-  { icon: 'ti-pointer', tone: 'bg-red-100 text-red-600', name: 'Hendra Wijaya', event: 'Clicked phishing link — Marketing', time: 'just now', fresh: true },
+  { icon: 'ti-pointer', tone: 'bg-red-100 text-red-600', name: 'Hendra Wijaya', event: 'Clicked phishing link — Marketing', time: 'just now' },
   { icon: 'ti-pointer', tone: 'bg-red-100 text-red-600', name: 'Indah Permata', event: 'Clicked phishing link — Marketing', time: 'just now' },
-  { icon: 'ti-pointer', tone: 'bg-red-100 text-red-600', name: 'Raka Firmansyah', event: 'Clicked phishing link — Finance', time: 'just now' },
-  { icon: 'ti-forms', tone: 'bg-red-100 text-red-600', name: 'Indah Permata', event: 'Submit form — credential harvested', time: 'just now' },
+  { icon: 'ti-forms', tone: 'bg-red-100 text-red-600', name: 'Raka Firmansyah', event: 'Submit form — credential harvested', time: 'just now' },
 ]
 
-const TIMELINE = [
-  { time: '16:18', color: 'bg-violet-500', title: 'System — Batch email', meta: 'All · Batch email sent — 122 targets' },
-  { time: '14:32', color: 'bg-red-500', title: 'Budi Santoso — Submit form', meta: 'Finance · credential harvested' },
-  { time: '14:31', color: 'bg-red-500', title: 'Sari Dewi — Link clicks', meta: 'HR · landing page visited' },
-  { time: '14:29', color: 'bg-emerald-500', title: 'Rina Wijaya — Quiz completed', meta: 'Legal · passed 80%' },
-  { time: '14:25', color: 'bg-amber-500', title: 'Andi Pratama — Email opened', meta: 'Marketing · has not clicked' },
-  { time: '14:18', color: 'bg-red-500', title: 'Dewi Rahayu — Link clicks', meta: 'Finance · landing page visited' },
-  { time: '14:10', color: 'bg-amber-500', title: 'Putri Ayu — Email opened', meta: 'HR · has not clicked' },
-  { time: '13:55', color: 'bg-red-500', title: 'Raka Firmansyah — Submit form', meta: 'Finance · credential harvested' },
+const STAT_CARDS = [
+  { key: 'email_sent', label: 'Sent', icon: 'ti-send', cls: 'text-gray-500' },
+  { key: 'email_opened', label: 'Opened', icon: 'ti-eye', cls: 'text-amber-600', rateKey: 'open_rate' },
+  { key: 'clicked', label: 'Link clicks', icon: 'ti-pointer', cls: 'text-red-600', rateKey: 'click_rate' },
+  { key: 'submitted_data', label: 'Data submitted', icon: 'ti-forms', cls: 'text-red-600', rateKey: 'submit_rate' },
 ]
 
+function SampleDataBadge() {
+  return (
+    <span className="rounded-full bg-gray-100 px-2 py-0.5 text-[10px] font-semibold text-gray-400" title="Not backed by real data yet — coming soon">
+      Sample data
+    </span>
+  )
+}
+
+/**
+ * Real Monitoring: group selector + top-level funnel stats, backed by
+ * CampaignGroupService::report()/report_active() (sums each Campaign Run's
+ * already-computed metrics_json.stats). Department breakdown, hourly chart,
+ * and live event feed stay illustrative placeholders — no backend
+ * aggregation exists for those yet (docs/PRD_CAMPAIGN_GROUP_MONITORING.md §4).
+ */
 export default function Performing() {
+  const [searchParams, setSearchParams] = useSearchParams()
+  const runId = searchParams.get('run')
+
+  const [selectedGroupId, setSelectedGroupId] = useState('active') // 'active' | 'ungrouped' | group id
+  const [isExporting, setIsExporting] = useState(false)
+
+  const { data: groups = [] } = useCampaignGroups()
+  const { data: groupReport, isLoading: isGroupReportLoading } = useCampaignGroupReport(selectedGroupId, { enabled: !runId })
+  const { data: runReport, isLoading: isRunReportLoading } = useCampaignRunReport(runId, { enabled: Boolean(runId) })
+
+  const report = runId ? runReport : groupReport
+  const isLoading = runId ? isRunReportLoading : isGroupReportLoading
+
+  const stats = report?.stats
+  const campaignRuns = report?.campaign_runs || []
+  const total = stats?.total || 0
   const maxHourly = Math.max(...HOURLY)
+
+  function clearRunSelection() {
+    setSearchParams(params => {
+      params.delete('run')
+      return params
+    })
+  }
+
+  async function handleExport() {
+    setIsExporting(true)
+    try {
+      const blob = runId
+        ? await campaignApi.runReportExportPdf(runId)
+        : await campaignGroupApi.reportExportPdf(selectedGroupId)
+      const scope = runId ? `campaign-${runId}` : selectedGroupId
+      downloadBlob(blob, `pukat-monitoring-${scope}-${new Date().toISOString().slice(0, 10)}.pdf`)
+    } catch (err) {
+      toast.error(err.message || 'Failed to export monitoring report.')
+    } finally {
+      setIsExporting(false)
+    }
+  }
 
   return (
     <PageShell>
       <PageHeader
-        title="Monitoring real-time"
-        subtitle="Updates automatically every 5 seconds"
+        title="Monitoring"
+        subtitle={
+          runId
+            ? `Showing one campaign${report?.name ? ` — ${report.name}` : ''}`
+            : 'Campaign activity, filtered by the groups you set up in Manage'
+        }
         actions={
           <>
-            <div className="flex items-center gap-1.5 bg-red-50 text-red-600 rounded-full px-3 py-1 text-xs font-semibold select-none">
-              <span className="w-1.5 h-1.5 rounded-full bg-red-500 animate-pulse" />
-              <span>Live</span>
-            </div>
-            <select className="bg-white border border-gray-200 text-gray-700 text-xs font-semibold px-3 py-2 rounded-xl focus:outline-none focus:border-violet-500">
-              <option>Q2 Phishing Wave — Finance</option>
-              <option>BEC Scenario — Finance</option>
-              <option>Q1 Awareness Check</option>
-            </select>
-            <Button variant="outline" onClick={() => toast.success('CSV export is being prepared.')}>
-              Export CSV
+            {runId ? (
+              <Button variant="outline" onClick={clearRunSelection}>
+                <i className="ti ti-arrow-left text-sm" /> Back to groups
+              </Button>
+            ) : (
+              <select
+                value={selectedGroupId}
+                onChange={e => setSelectedGroupId(e.target.value)}
+                className="bg-white border border-gray-200 text-gray-700 text-xs font-semibold px-3 py-2 rounded-xl focus:outline-none focus:border-violet-500"
+              >
+                <option value="active">All active groups</option>
+                <option value="0">Ungrouped</option>
+                {groups.map(group => (
+                  <option key={group.id} value={group.id}>{group.name}</option>
+                ))}
+              </select>
+            )}
+            <Button variant="outline" onClick={handleExport} disabled={isExporting}>
+              {isExporting ? 'Exporting...' : 'Export PDF'}
             </Button>
           </>
         }
       />
 
-      <div className="grid grid-cols-1 sm:grid-cols-3 lg:grid-cols-5 gap-4">
-        {STATS.map(stat => (
-          <div key={stat.label} className="bg-white border border-gray-200 rounded-xl p-4 flex flex-col justify-between">
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+        {STAT_CARDS.map(card => (
+          <div key={card.key} className="bg-white border border-gray-200 rounded-xl p-4 flex flex-col justify-between">
             <div className="flex items-center gap-1.5 text-xs text-gray-500 font-medium">
-              <i className={clsx('ti text-sm', stat.icon)} />
-              <span>{stat.label}</span>
+              <i className={clsx('ti text-sm', card.icon)} />
+              <span>{card.label}</span>
             </div>
-            <span className="text-2xl font-bold text-gray-900 mt-2">{stat.value}</span>
-            <span className={clsx('text-xs font-semibold mt-1', stat.subCls)}>{stat.sub}</span>
+            <span className="text-2xl font-bold text-gray-900 mt-2">
+              {isLoading ? '—' : (stats?.[card.key] ?? 0).toLocaleString('en-US')}
+            </span>
+            <span className={clsx('text-xs font-semibold mt-1', card.cls)}>
+              {card.key === 'email_sent' ? `of ${total.toLocaleString('en-US')} targets` : `${stats?.[card.rateKey] ?? 0}% rate`}
+            </span>
           </div>
         ))}
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-5 gap-6">
         <div className="bg-white border border-gray-200 rounded-xl p-5 lg:col-span-3 space-y-6">
-          <h3 className="text-base font-semibold text-gray-900">Simulation funnel</h3>
+          <div>
+            <h3 className="text-base font-semibold text-gray-900">Simulation funnel</h3>
+            <p className="text-xs text-gray-500 mt-0.5">
+              {campaignRuns.length} campaign{campaignRuns.length === 1 ? '' : 's'} in this selection
+            </p>
+          </div>
           <div className="space-y-3">
-            {FUNNEL.map(row => (
+            {[
+              { label: 'Emails sent', value: stats?.email_sent ?? 0, pct: 100, cls: 'bg-violet-100 text-violet-700' },
+              { label: 'Emails opened', value: stats?.email_opened ?? 0, pct: stats?.open_rate ?? 0, cls: 'bg-amber-200 text-amber-700' },
+              { label: 'Link clicks', value: stats?.clicked ?? 0, pct: stats?.click_rate ?? 0, cls: 'bg-red-200 text-red-700' },
+              { label: 'Submit form', value: stats?.submitted_data ?? 0, pct: stats?.submit_rate ?? 0, cls: 'bg-red-400 text-white' },
+            ].map(row => (
               <div key={row.label} className="flex items-center gap-3 text-xs">
                 <span className="min-w-[100px] font-semibold text-gray-600">{row.label}</span>
                 <div className="flex-grow bg-gray-100 h-6 rounded overflow-hidden relative">
                   <div className={clsx('absolute inset-y-0 left-0 flex items-center px-3 font-bold transition-all duration-300', row.cls)} style={{ width: `${row.pct}%` }}>
-                    {row.value}
+                    {row.value.toLocaleString('en-US')}
                   </div>
                 </div>
                 <span className="font-bold text-gray-500 w-10 text-right">{row.pct}%</span>
@@ -105,7 +173,10 @@ export default function Performing() {
 
           <hr className="border-gray-100" />
 
-          <h3 className="text-base font-semibold text-gray-900">By department</h3>
+          <div className="flex items-center gap-2">
+            <h3 className="text-base font-semibold text-gray-900">By department</h3>
+            <SampleDataBadge />
+          </div>
           <div className="overflow-x-auto">
             <table className="w-full text-left border-collapse text-xs text-gray-700">
               <thead>
@@ -139,7 +210,10 @@ export default function Performing() {
 
         <div className="lg:col-span-2 space-y-6 flex flex-col">
           <div className="bg-white border border-gray-200 rounded-xl p-5">
-            <h3 className="text-sm font-semibold text-gray-900 mb-3">Activity per hour</h3>
+            <div className="flex items-center gap-2 mb-3">
+              <h3 className="text-sm font-semibold text-gray-900">Activity per hour</h3>
+              <SampleDataBadge />
+            </div>
             <div className="flex items-end gap-1 h-12 mb-2 select-none">
               {HOURLY.map((value, index) => (
                 <div
@@ -159,8 +233,10 @@ export default function Performing() {
 
           <div className="bg-white border border-gray-200 rounded-xl p-5 flex-grow">
             <div className="flex items-center justify-between mb-4">
-              <h3 className="text-sm font-semibold text-gray-900">Live event feed</h3>
-              <button className="text-xs font-semibold text-violet-500 hover:text-violet-600">All</button>
+              <div className="flex items-center gap-2">
+                <h3 className="text-sm font-semibold text-gray-900">Live event feed</h3>
+                <SampleDataBadge />
+              </div>
             </div>
             <div className="space-y-3.5">
               {LIVE_EVENTS.map((event, index) => (
@@ -170,9 +246,7 @@ export default function Performing() {
                   </div>
                   <div>
                     <p className="text-gray-800 text-xs">
-                      <strong className="font-semibold text-gray-900">{event.name}</strong>
-                      {event.fresh && <span className="bg-red-100 text-red-600 px-1.5 rounded-full text-[9px] font-semibold animate-pulse ml-1">NEW</span>}
-                      {' '}{event.event}
+                      <strong className="font-semibold text-gray-900">{event.name}</strong> {event.event}
                     </p>
                     <span className="text-gray-400 text-[10px] block mt-0.5">{event.time}</span>
                   </div>
@@ -180,44 +254,6 @@ export default function Performing() {
               ))}
             </div>
           </div>
-        </div>
-      </div>
-
-      <div className="bg-white border border-gray-200 rounded-xl p-5 space-y-4">
-        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 border-b border-gray-100 pb-3">
-          <h3 className="text-sm font-semibold text-gray-900">Today&apos;s event timeline</h3>
-          <div className="flex items-center gap-3">
-            <div className="flex gap-1.5">
-              {['All', 'Click', 'Submit', 'Open'].map((filter, index) => (
-                <button key={filter} type="button" className={clsx('px-2.5 py-0.5 rounded-full text-xs font-semibold', index === 0 ? 'bg-violet-500 text-white' : 'bg-gray-100 text-gray-600 hover:bg-gray-200')}>
-                  {filter}
-                </button>
-              ))}
-            </div>
-            <button onClick={() => toast.success('Log export is being prepared.')} className="bg-white border border-gray-200 text-gray-700 hover:bg-gray-50 px-3 py-1 text-xs font-semibold rounded-lg transition-all">
-              Export Log
-            </button>
-          </div>
-        </div>
-
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-x-8 gap-y-4">
-          {[0, 1].map(column => (
-            <div key={column} className="space-y-4">
-              {TIMELINE.filter((_, index) => index % 2 === column).map(event => (
-                <div key={`${event.time}-${event.title}`} className="flex gap-3">
-                  <span className="w-10 text-right text-gray-400 text-[11px] mt-0.5 flex-shrink-0">{event.time}</span>
-                  <div className="flex flex-col items-center flex-shrink-0 mt-1">
-                    <span className={clsx('w-[9px] h-[9px] rounded-full flex-shrink-0', event.color)} />
-                    <div className="w-px bg-gray-200 flex-grow h-10 mt-1" />
-                  </div>
-                  <div>
-                    <h4 className="text-xs font-medium text-gray-900">{event.title}</h4>
-                    <p className="text-[11px] text-gray-400 mt-0.5">{event.meta}</p>
-                  </div>
-                </div>
-              ))}
-            </div>
-          ))}
         </div>
       </div>
     </PageShell>

@@ -137,11 +137,16 @@ class PermissionRegistry {
 			'group'     => 'Simulation',
 			'view_gate' => 'shared',
 			'actions'   => [
-				'create' => 'operator',
-				'edit'   => 'operator',
-				'delete' => 'operator',
-				'launch' => 'operator',
-				'cancel' => 'operator',
+				'create'   => 'operator',
+				'edit'     => 'operator',
+				'delete'   => 'operator',
+				'launch'   => 'operator',
+				// Renamed from `cancel` — docs/PRD_CAMPAIGN_GROUP_MONITORING.md §6.4
+				// merged cancel/recall/complete into one action, always ending in
+				// `status = 'completed'`. See Activator.php's RBAC migration for
+				// the capability re-seed (existing `pukat_campaigns_cancel`
+				// grants become `pukat_campaigns_complete`).
+				'complete' => 'operator',
 			],
 		],
 		// `monitoring`/`calendar` split out of `campaigns.view` 2026-08-07 so

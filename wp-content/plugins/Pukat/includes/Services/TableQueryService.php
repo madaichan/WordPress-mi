@@ -160,6 +160,10 @@ class TableQueryService {
 			return $this->decorate_campaign_row( $row );
 		}
 
+		if ( 'campaign_runs' === $table_key ) {
+			return $this->decorate_campaign_run_row( $row );
+		}
+
 		if ( 'audit_logs' === $table_key ) {
 			return $this->decorate_audit_log_row( $row );
 		}
@@ -399,6 +403,36 @@ class TableQueryService {
 		$row['row_actions'] = [
 			[ 'key' => 'view_report', 'disabled' => false, 'reason' => '' ],
 			[ 'key' => 'delete', 'disabled' => false, 'reason' => '' ],
+		];
+
+		return $row;
+	}
+
+	/**
+	 * @param array<string, mixed> $row Raw, narrowly-projected DB row (includes computed
+	 *                                  target_count and the joined campaign_group_name).
+	 * @return array<string, mixed>
+	 */
+	private function decorate_campaign_run_row( array $row ): array {
+		$status        = (string) ( $row['status'] ?? '' );
+		$already_ended = in_array( $status, [ 'completed', 'cancelled' ], true );
+		// Mirrors CampaignRunRepository::result_sync_candidates() — the same
+		// statuses the 5-minute auto-sync cron pulls results for.
+		$syncable = in_array( $status, [ 'synced', 'scheduled', 'running' ], true );
+
+		$row['row_actions'] = [
+			[ 'key' => 'view_report', 'disabled' => false, 'reason' => '' ],
+			[
+				'key'      => 'sync',
+				'disabled' => ! $syncable,
+				'reason'   => $syncable ? '' : __( 'Campaign Run must be launched to GoPhish before results can be refreshed.', 'pukat' ),
+			],
+			[ 'key' => 'assign_group', 'disabled' => false, 'reason' => '' ],
+			[
+				'key'      => 'complete',
+				'disabled' => $already_ended,
+				'reason'   => $already_ended ? __( 'Campaign Run has already ended.', 'pukat' ) : '',
+			],
 		];
 
 		return $row;

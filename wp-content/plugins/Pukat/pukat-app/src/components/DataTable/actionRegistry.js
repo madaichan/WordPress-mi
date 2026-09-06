@@ -8,14 +8,19 @@ export const ROW_ACTION_REGISTRY = {
   validate: { label: 'Validate DNS', icon: 'ti-shield-check', tone: 'blue' },
   authorize: { label: 'Authorize', icon: 'ti-circle-check', tone: 'violet' },
   view_report: { label: 'View report', icon: 'ti-report-analytics', tone: 'violet' },
+  sync: { label: 'Sync now', icon: 'ti-refresh', tone: 'blue' },
   submit_review: { label: 'Submit for review', icon: 'ti-send', tone: 'blue' },
   approve: { label: 'Approve', icon: 'ti-shield-check', tone: 'green' },
+  assign_group: { label: 'Move to group', icon: 'ti-folder-symlink', tone: 'blue' },
+  complete: { label: 'Complete', icon: 'ti-circle-check', tone: 'green' },
   delete: { label: 'Delete', icon: 'ti-trash', tone: 'red' },
 }
 
 export const BULK_ACTION_REGISTRY = {
   delete: { label: 'Delete selected', icon: 'ti-trash', tone: 'red' },
   export: { label: 'Export selected', icon: 'ti-download', tone: 'gray' },
+  complete: { label: 'Complete selected', icon: 'ti-circle-check', tone: 'green' },
+  assign_group: { label: 'Move to group', icon: 'ti-folder-symlink', tone: 'blue' },
 }
 
 function resolveActions(registry, actions) {

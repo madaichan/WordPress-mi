@@ -14,6 +14,7 @@ const Calendar = lazy(() => import('../pages/Simulation/Calendar.jsx'))
 const Campaigns = lazy(() => import('../pages/Simulation/Campaigns.jsx'))
 const Preparation = lazy(() => import('../pages/Simulation/Preparation.jsx'))
 const Performing = lazy(() => import('../pages/Simulation/Performing.jsx'))
+const ManageCampaigns = lazy(() => import('../pages/Simulation/ManageCampaigns.jsx'))
 const Reports = lazy(() => import('../pages/Simulation/Reports.jsx'))
 const SendingProfiles = lazy(() => import('../pages/Simulation/SendingProfiles.jsx'))
 const EmailTemplates = lazy(() => import('../pages/Simulation/EmailTemplates.jsx'))
@@ -51,6 +52,7 @@ export const frontendRoutes = [
   { path: '/calendar', element: <Calendar />, permission: 'calendar.view' },
   { path: '/pre/socialization', element: <Socialization />, permission: 'campaigns.view' },
   { path: '/campaigns', element: <Campaigns />, permission: 'campaigns.view' },
+  { path: '/manage-campaigns', element: <ManageCampaigns />, permission: 'campaigns.view' },
   // These 4 pages render the same entity-filtered Master Library catalog the
   // admin panel's /master/* pages show (Playbooks.jsx/SendingProfiles.jsx/
   // EmailTemplates.jsx/LandingPages.jsx all fetch via masterAssetApi /
@@ -168,8 +170,14 @@ export const frontendNavGroups = [
     group: 'Simulation',
     items: [
       { to: '/campaigns', icon: 'ti-circle-plus', label: 'New campaign' },
-      { to: '/playbooks', icon: 'ti-book', label: 'Playbooks' },
       { to: '/monitoring', icon: 'ti-activity', label: 'Monitoring' },
+      { to: '/manage-campaigns', icon: 'ti-folder', label: 'Manage campaigns' },
+    ],
+  },
+  {
+    group: 'Master Library',
+    items: [
+      { to: '/playbooks', icon: 'ti-book', label: 'Playbooks' },
       { to: '/sending-profiles', icon: 'ti-send', label: 'Sending profiles' },
       { to: '/email-templates', icon: 'ti-mail', label: 'Email templates' },
       { to: '/landing-pages', icon: 'ti-browser', label: 'Landing pages' },
@@ -194,6 +202,7 @@ export const frontendNavGroups = [
 export const routeMeta = [
   { path: '/dashboard', title: 'Dashboard', subtitle: 'Platform overview and key metrics', breadcrumb: 'Dashboard' },
   { path: '/campaigns', title: 'Campaigns', subtitle: 'Manage all phishing simulation campaigns', breadcrumb: 'New campaign' },
+  { path: '/manage-campaigns', title: 'Manage campaigns', subtitle: 'Group, complete, and monitor campaigns', breadcrumb: 'Manage campaigns' },
   { path: '/calendar', title: 'Simulation calendar', subtitle: '', breadcrumb: 'Simulation calendar' },
   { path: '/monitoring', title: 'Monitoring', subtitle: 'Live campaign activity and risk signals', breadcrumb: 'Monitoring' },
   { path: '/sending-profiles', title: 'Sending profiles', subtitle: 'SMTP relay configuration for GoPhish delivery', breadcrumb: 'Sending profiles' },

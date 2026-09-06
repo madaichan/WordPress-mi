@@ -9,6 +9,7 @@ declare(strict_types=1);
 
 namespace Pukat\Services;
 
+use Pukat\Repositories\CampaignGroupRepository;
 use Pukat\Repositories\CampaignRunRepository;
 use WP_Error;
 
@@ -21,6 +22,9 @@ class CampaignRunService {
 
 	private const PLAYBOOK_RUNNABLE_STATUS = 'active';
 	private const COMPONENT_READY_STATUSES = [ 'approved', 'active' ];
+
+	/** Statuses complete() refuses to re-apply (docs/PRD_CAMPAIGN_GROUP_MONITORING.md §7.4 FR-10). */
+	private const TERMINAL_STATUSES = [ 'completed', 'cancelled' ];
 
 	private CampaignRunRepository $repository;
 
@@ -377,11 +381,17 @@ class CampaignRunService {
 	}
 
 	/**
-	 * Cancel or stop a Campaign Run.
+	 * Complete (end) a Campaign Run — the single manual lifecycle action that
+	 * covers both "stop it early" and "mark it done" (see
+	 * docs/PRD_CAMPAIGN_GROUP_MONITORING.md §6.4). GoPhish only exposes one
+	 * terminal action (`complete_campaign()`), so this is it; the result is
+	 * always `status = 'completed'` — this used to be a separate `cancel()`
+	 * method that set `status = 'cancelled'`, which is why `'cancelled'` still
+	 * exists as a schema value but is no longer reachable from any code path.
 	 *
 	 * @return array<string, mixed>|WP_Error
 	 */
-	public function cancel( int $id, int $user_id ): array|WP_Error {
+	public function complete( int $id, int $user_id ): array|WP_Error {
 		$run = $this->repository->find( $id );
 		if ( ! $run ) {
 			return $this->not_found_error( __( 'Campaign Run not found.', 'pukat' ) );
@@ -390,6 +400,14 @@ class CampaignRunService {
 		$permission_error = $this->enforce_existing_run_editable( $run );
 		if ( $permission_error ) {
 			return $permission_error;
+		}
+
+		if ( in_array( (string) $run['status'], self::TERMINAL_STATUSES, true ) ) {
+			return new WP_Error(
+				'campaign_run_already_ended',
+				__( 'Campaign Run has already ended.', 'pukat' ),
+				[ 'status' => 409 ]
+			);
 		}
 
 		if ( ! empty( $run['gophish_campaign_id'] ) ) {
@@ -402,13 +420,13 @@ class CampaignRunService {
 		$this->repository->update(
 			$id,
 			[
-				'status'       => 'cancelled',
+				'status'       => 'completed',
 				'completed_at' => current_time( 'mysql' ),
 			]
 		);
 
 		AuditLogService::log(
-			'campaign_run.cancelled',
+			'campaign_run.completed',
 			[
 				'campaign_run_id'     => $id,
 				'gophish_campaign_id' => (int) ( $run['gophish_campaign_id'] ?? 0 ),
@@ -419,6 +437,114 @@ class CampaignRunService {
 		);
 
 		return $this->get( $id ) ?: [];
+	}
+
+	/**
+	 * Complete many Campaign Runs at once — used for bulk actions from the
+	 * Manage Campaigns page (docs/PRD_CAMPAIGN_GROUP_MONITORING.md §7.4
+	 * FR-9/FR-10). A failure on one id never stops the rest; each result is
+	 * reported individually so a partial failure is never silently treated
+	 * as all-or-nothing.
+	 *
+	 * @param array<int, int> $ids
+	 * @return array<int, array{id: int, success: bool, error?: string}>
+	 */
+	public function bulk_complete( array $ids, int $user_id ): array {
+		$results = [];
+
+		foreach ( $ids as $id ) {
+			$id     = (int) $id;
+			$result = $this->complete( $id, $user_id );
+
+			if ( is_wp_error( $result ) ) {
+				$results[] = [ 'id' => $id, 'success' => false, 'error' => $result->get_error_message() ];
+				continue;
+			}
+
+			$results[] = [ 'id' => $id, 'success' => true ];
+		}
+
+		return $results;
+	}
+
+	/**
+	 * Assign (or clear, with $campaign_group_id = null) the Campaign Group
+	 * this Campaign Run belongs to. One group per run, folder-style
+	 * (docs/PRD_CAMPAIGN_GROUP_MONITORING.md §7.2 FR-6). Non-admins can only
+	 * assign to a group whose entity matches the run's own (source
+	 * playbook's) entity — enforced here, not just in the UI, so aggregate
+	 * group reports can never mix entities.
+	 *
+	 * @return array<string, mixed>|WP_Error
+	 */
+	public function assign_group( int $id, ?int $campaign_group_id, int $user_id ): array|WP_Error {
+		$run = $this->repository->find( $id );
+		if ( ! $run ) {
+			return $this->not_found_error( __( 'Campaign Run not found.', 'pukat' ) );
+		}
+
+		$permission_error = $this->enforce_existing_run_editable( $run );
+		if ( $permission_error ) {
+			return $permission_error;
+		}
+
+		if ( null !== $campaign_group_id ) {
+			$group = ( new CampaignGroupRepository() )->find( $campaign_group_id );
+			if ( ! $group ) {
+				return $this->not_found_error( __( 'Campaign Group not found.', 'pukat' ) );
+			}
+
+			if ( ! $this->current_user_can_admin_assets() ) {
+				$run_entity   = strtolower( $this->run_entity( $run ) );
+				$group_entity = strtolower( trim( (string) ( $group['entity'] ?? '' ) ) );
+
+				if ( $run_entity !== $group_entity ) {
+					return new WP_Error(
+						'entity_mismatch',
+						__( 'This campaign can only be assigned to a Campaign Group in the same entity.', 'pukat' ),
+						[ 'status' => 422 ]
+					);
+				}
+			}
+		}
+
+		$this->repository->update( $id, [ 'campaign_group_id' => $campaign_group_id ] );
+
+		AuditLogService::log(
+			'campaign_run.group_assigned',
+			[ 'campaign_run_id' => $id, 'campaign_group_id' => $campaign_group_id, 'user_id' => $user_id ],
+			null,
+			'campaign_run',
+			$id
+		);
+
+		return $this->get( $id ) ?: [];
+	}
+
+	/**
+	 * Bulk variant of assign_group() — same per-item result shape as
+	 * bulk_complete(), so one Campaign Run failing entity validation (or any
+	 * other reason) doesn't stop the rest of the batch from moving.
+	 *
+	 * @param int[] $ids
+	 * @return array<int, array<string, mixed>>
+	 */
+	public function bulk_assign_group( array $ids, ?int $campaign_group_id, int $user_id ): array {
+		$results = [];
+
+		foreach ( $ids as $id ) {
+			$id     = (int) $id;
+			$result = $this->assign_group( $id, $campaign_group_id, $user_id );
+
+			if ( is_wp_error( $result ) ) {
+				$results[] = [ 'id' => $id, 'success' => false, 'error' => $result->get_error_message() ];
+				continue;
+			}
+
+			$results[] = [ 'id' => $id, 'success' => true ];
+		}
+
+		return $results;
 	}
 
 	/**
@@ -1496,6 +1622,18 @@ class CampaignRunService {
 		$playbook = $this->repository->find_playbook_master( (int) ( $run['playbook_master_id'] ?? 0 ) );
 
 		return $playbook ? $this->current_user_can_access_playbook( $playbook ) : $this->current_user_can_admin_assets();
+	}
+
+	/**
+	 * The entity this Campaign Run belongs to — inherited from its source
+	 * Playbook Master, same as every other entity check in this class.
+	 *
+	 * @param array<string, mixed> $run Campaign Run row.
+	 */
+	private function run_entity( array $run ): string {
+		$playbook = $this->repository->find_playbook_master( (int) ( $run['playbook_master_id'] ?? 0 ) );
+
+		return (string) ( $playbook['entity'] ?? self::GENERAL_ENTITY );
 	}
 
 	/**

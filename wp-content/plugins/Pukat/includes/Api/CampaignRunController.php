@@ -9,6 +9,7 @@ declare(strict_types=1);
 
 namespace Pukat\Api;
 
+use Pukat\Services\CampaignReportPdfService;
 use Pukat\Services\CampaignRunService;
 use Pukat\Services\FollowUpReminderService;
 use Pukat\Services\PermissionRegistry;
@@ -23,10 +24,16 @@ class CampaignRunController extends RestController {
 
 	private CampaignRunService $campaign_runs;
 	private FollowUpReminderService $follow_up_reminders;
+	private CampaignReportPdfService $pdf;
 
-	public function __construct( ?CampaignRunService $campaign_runs = null, ?FollowUpReminderService $follow_up_reminders = null ) {
+	public function __construct(
+		?CampaignRunService $campaign_runs = null,
+		?FollowUpReminderService $follow_up_reminders = null,
+		?CampaignReportPdfService $pdf = null
+	) {
 		$this->campaign_runs       = $campaign_runs ?? new CampaignRunService();
 		$this->follow_up_reminders = $follow_up_reminders ?? new FollowUpReminderService();
+		$this->pdf                 = $pdf ?? new CampaignReportPdfService();
 	}
 
 	public function register_routes(): void {
@@ -69,10 +76,28 @@ class CampaignRunController extends RestController {
 			'permission_callback' => [ $this, 'permission_launch_campaign_run' ],
 		] );
 
-		register_rest_route( $this->namespace, '/campaign-runs/(?P<id>\d+)/cancel', [
+		register_rest_route( $this->namespace, '/campaign-runs/(?P<id>\d+)/complete', [
 			'methods'             => 'POST',
-			'callback'            => [ $this, 'cancel_campaign_run' ],
-			'permission_callback' => [ $this, 'permission_cancel_campaign_run' ],
+			'callback'            => [ $this, 'complete_campaign_run' ],
+			'permission_callback' => [ $this, 'permission_complete_campaign_run' ],
+		] );
+
+		register_rest_route( $this->namespace, '/campaign-runs/bulk-complete', [
+			'methods'             => 'POST',
+			'callback'            => [ $this, 'bulk_complete_campaign_runs' ],
+			'permission_callback' => [ $this, 'permission_complete_campaign_run' ],
+		] );
+
+		register_rest_route( $this->namespace, '/campaign-runs/(?P<id>\d+)/assign-group', [
+			'methods'             => 'POST',
+			'callback'            => [ $this, 'assign_campaign_run_group' ],
+			'permission_callback' => [ $this, 'permission_edit_campaign_run' ],
+		] );
+
+		register_rest_route( $this->namespace, '/campaign-runs/bulk-assign-group', [
+			'methods'             => 'POST',
+			'callback'            => [ $this, 'bulk_assign_campaign_run_group' ],
+			'permission_callback' => [ $this, 'permission_edit_campaign_run' ],
 		] );
 
 		register_rest_route( $this->namespace, '/campaign-runs/(?P<id>\d+)/results', [
@@ -93,6 +118,12 @@ class CampaignRunController extends RestController {
 			'permission_callback' => [ $this, 'permission_view_campaign_run' ],
 		] );
 
+		register_rest_route( $this->namespace, '/campaign-runs/(?P<id>\d+)/report/export', [
+			'methods'             => 'GET',
+			'callback'            => [ $this, 'export_report' ],
+			'permission_callback' => [ $this, 'permission_view_campaign_run' ],
+		] );
+
 		register_rest_route( $this->namespace, '/campaign-runs/(?P<id>\d+)/send-follow-up-reminder', [
 			'methods'             => 'POST',
 			'callback'            => [ $this, 'send_follow_up_reminder' ],
@@ -104,10 +135,12 @@ class CampaignRunController extends RestController {
 	 * Phase 3 of docs/IMPLEMENTATION_PLAN_RBAC.md: granular capability checks
 	 * replacing permission_read()/permission_manage(). Shares the same
 	 * campaigns.* registry keys as CampaignController — lock-snapshot, sync,
-	 * sync-results, and send-follow-up-reminder all reuse .edit (operational
-	 * state changes on an existing run, none of them a create/delete/launch/
-	 * cancel). .cancel gets its first real use here. All shared/operator-
-	 * gated in Phase 1, same population as before.
+	 * sync-results, send-follow-up-reminder, and assign-group (single + bulk) all reuse .edit
+	 * (operational state changes on an existing run, none of them a
+	 * create/delete/launch/complete). All shared/operator-gated in Phase 1,
+	 * same population as before. `campaigns.cancel` was renamed to
+	 * `campaigns.complete` per docs/PRD_CAMPAIGN_GROUP_MONITORING.md §6.4 —
+	 * see Activator.php's RBAC migration for the capability re-seed.
 	 */
 	public function permission_view_campaign_run(): bool|WP_Error {
 		return $this->require_capability( 'campaigns.view' );
@@ -125,8 +158,8 @@ class CampaignRunController extends RestController {
 		return $this->require_capability( 'campaigns.launch' );
 	}
 
-	public function permission_cancel_campaign_run(): bool|WP_Error {
-		return $this->require_capability( 'campaigns.cancel' );
+	public function permission_complete_campaign_run(): bool|WP_Error {
+		return $this->require_capability( 'campaigns.complete' );
 	}
 
 	private function require_capability( string $permission_key ): bool|WP_Error {
@@ -177,10 +210,36 @@ class CampaignRunController extends RestController {
 		return $this->result_response( $result );
 	}
 
-	public function cancel_campaign_run( WP_REST_Request $request ): WP_REST_Response {
-		$result = $this->campaign_runs->cancel( (int) $request->get_param( 'id' ), get_current_user_id() );
+	public function complete_campaign_run( WP_REST_Request $request ): WP_REST_Response {
+		$result = $this->campaign_runs->complete( (int) $request->get_param( 'id' ), get_current_user_id() );
 
 		return $this->result_response( $result );
+	}
+
+	public function bulk_complete_campaign_runs( WP_REST_Request $request ): WP_REST_Response {
+		$params = $this->request_params( $request );
+		$ids    = array_map( 'intval', (array) ( $params['ids'] ?? [] ) );
+
+		return $this->success( $this->campaign_runs->bulk_complete( $ids, get_current_user_id() ) );
+	}
+
+	public function assign_campaign_run_group( WP_REST_Request $request ): WP_REST_Response {
+		$params            = $this->request_params( $request );
+		$raw_group_id      = $params['campaign_group_id'] ?? null;
+		$campaign_group_id = ( null === $raw_group_id || '' === $raw_group_id ) ? null : (int) $raw_group_id;
+
+		$result = $this->campaign_runs->assign_group( (int) $request->get_param( 'id' ), $campaign_group_id, get_current_user_id() );
+
+		return $this->result_response( $result );
+	}
+
+	public function bulk_assign_campaign_run_group( WP_REST_Request $request ): WP_REST_Response {
+		$params            = $this->request_params( $request );
+		$ids               = array_map( 'intval', (array) ( $params['ids'] ?? [] ) );
+		$raw_group_id      = $params['campaign_group_id'] ?? null;
+		$campaign_group_id = ( null === $raw_group_id || '' === $raw_group_id ) ? null : (int) $raw_group_id;
+
+		return $this->success( $this->campaign_runs->bulk_assign_group( $ids, $campaign_group_id, get_current_user_id() ) );
 	}
 
 	public function get_results( WP_REST_Request $request ): WP_REST_Response {
@@ -199,6 +258,38 @@ class CampaignRunController extends RestController {
 		$result = $this->campaign_runs->report( (int) $request->get_param( 'id' ) );
 
 		return $this->result_response( $result );
+	}
+
+	public function export_report( WP_REST_Request $request ): WP_REST_Response {
+		$id     = (int) $request->get_param( 'id' );
+		$result = $this->campaign_runs->report( $id );
+
+		if ( is_wp_error( $result ) ) {
+			return $this->from_wp_error( $result );
+		}
+
+		$run = is_array( $result['campaign_run'] ?? null ) ? $result['campaign_run'] : [];
+
+		// CampaignReportPdfService expects the same { stats, campaign_runs,
+		// generated_at } shape CampaignGroupService::report() returns —
+		// reshape this single-run report to match rather than teaching the
+		// renderer two input shapes.
+		$report = [
+			'stats'         => $result['gophish_stats'] ?? [],
+			'campaign_runs' => [ [
+				'campaign_run_id' => $id,
+				'name'            => (string) ( $run['name'] ?? '' ),
+				'status'          => (string) ( $run['status'] ?? '' ),
+				'stats'           => $result['gophish_stats'] ?? [],
+			] ],
+			'generated_at'  => $result['generated_at'] ?? current_time( 'mysql' ),
+		];
+
+		return $this->binary_response(
+			$this->pdf->render( 'Campaign Report — ' . ( $run['name'] ?? "#{$id}" ), $report ),
+			"pukat-campaign-run-{$id}-report.pdf",
+			'application/pdf'
+		);
 	}
 
 	public function send_follow_up_reminder( WP_REST_Request $request ): WP_REST_Response {

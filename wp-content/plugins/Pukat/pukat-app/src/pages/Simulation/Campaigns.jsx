@@ -118,6 +118,7 @@ export default function Campaigns() {
   const [form, setForm] = useState(INITIAL_FORM)
   const [csvData, setCsvData] = useState([])
   const [launchStage, setLaunchStage] = useState(null)
+  const [isSavingDraft, setIsSavingDraft] = useState(false)
 
   // Queries
   const { data } = useCampaignList({ page, per_page: 10 }, {
@@ -240,6 +241,41 @@ export default function Campaigns() {
     }
   }
 
+  const handleSaveDraft = async () => {
+    if (!form.name.trim()) { toast.error('Campaign name is required.'); return }
+
+    if (form.mode !== 'playbook') {
+      createCampaignMutation.mutate(buildCampaignLaunchPayload(form, []))
+      return
+    }
+
+    const selectedPlaybook = wizardPlaybooks.find(playbook => String(playbook.id) === String(form.playbook))
+
+    if (!selectedPlaybook) {
+      toast.error('Select a Playbook Master first.')
+      return
+    }
+
+    if (String(selectedPlaybook.status || '').toLowerCase() !== 'active') {
+      toast.error('Playbook Master must be Active before saving a draft.')
+      return
+    }
+
+    try {
+      setIsSavingDraft(true)
+      // Creating a Campaign Run without importing targets or launching leaves
+      // it at status draft_run — that already is the draft, no separate
+      // "draft" endpoint/flag exists (see CampaignRunService::create()).
+      await createCampaignRunMutation.mutateAsync(buildCampaignLaunchPayload(form, wizardPlaybooks))
+      resetWizard()
+      navigate('/manage-campaigns')
+    } catch {
+      // Backend error is already surfaced via toast by the mutation's own onError handler.
+    } finally {
+      setIsSavingDraft(false)
+    }
+  }
+
   // ── New campaign wizard view ──
   if (view === 'new') {
     return (
@@ -274,8 +310,9 @@ export default function Campaigns() {
             playbooks={wizardPlaybooks}
             onBack={() => setWizardStep(2)}
             onLaunch={handleLaunch}
-            onDraft={() => { toast.success('Saved as draft.'); resetWizard(); navigate('/dashboard') }}
+            onDraft={handleSaveDraft}
             isLaunching={createCampaignMutation.isPending || createCampaignRunMutation.isPending || importTargetsMutation.isPending || launchCampaignRunMutation.isPending}
+            isSavingDraft={isSavingDraft}
             launchStage={launchStage}
           />
         )}

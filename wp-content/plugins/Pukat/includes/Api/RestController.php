@@ -80,6 +80,27 @@ abstract class RestController {
 	}
 
 	/**
+	 * Return a raw binary file download (e.g. a generated PDF) — bypasses the
+	 * `{success, data}` JSON envelope every other response in this codebase
+	 * uses, since the REST server would otherwise try to JSON-encode the
+	 * binary body. Callers are responsible for authorizing/generating
+	 * `$binary` before calling this; this only handles the HTTP response shape.
+	 */
+	protected function binary_response( string $binary, string $filename, string $content_type ): WP_REST_Response {
+		$response = new WP_REST_Response( $binary, 200 );
+		$response->header( 'Content-Type', $content_type );
+		$response->header( 'Content-Disposition', 'attachment; filename="' . $filename . '"' );
+		$response->header( 'Content-Length', (string) strlen( $binary ) );
+
+		// Every other endpoint returns structured data that WP's REST server
+		// JSON-encodes; a raw PDF/binary body must bypass that serialization
+		// entirely, so this response is only ever safe to return from a route
+		// filtered through rest_pre_serve_request (see register_routes() in
+		// CampaignGroupController/CampaignRunController for the matching filter).
+		return $response;
+	}
+
+	/**
 	 * Mark a still-supported endpoint as legacy without changing its data shape.
 	 */
 	protected function legacy_response( WP_REST_Response $response, string $successor_route, string $message ): WP_REST_Response {

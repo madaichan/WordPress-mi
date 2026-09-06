@@ -9,7 +9,7 @@ const LAUNCH_STAGE_LABELS = {
   launching: 'Launching…',
 }
 
-export default function Step3({ form, setForm, csvData, playbooks = [], onBack, onLaunch, onDraft, isLaunching, launchStage }) {
+export default function Step3({ form, setForm, csvData, playbooks = [], onBack, onLaunch, onDraft, isLaunching, isSavingDraft, launchStage }) {
   const quizEnabled = form.followUp?.quizEnabled ?? true
   const reminderEnabled = form.followUp?.forceResetPasswordReminderEnabled ?? false
 
@@ -133,10 +133,11 @@ export default function Step3({ form, setForm, csvData, playbooks = [], onBack, 
           ← Back
         </button>
         <div className="flex items-center gap-2">
-          <button onClick={onDraft} className="bg-white border border-gray-200 text-gray-700 hover:bg-gray-50 px-4 py-2 text-sm font-semibold rounded-xl transition-all">
-            Save as draft
+          <button onClick={onDraft} disabled={isSavingDraft || isLaunching}
+            className="bg-white border border-gray-200 text-gray-700 hover:bg-gray-50 disabled:opacity-50 px-4 py-2 text-sm font-semibold rounded-xl transition-all">
+            {isSavingDraft ? 'Saving…' : 'Save as draft'}
           </button>
-          <button onClick={onLaunch} disabled={isLaunching}
+          <button onClick={onLaunch} disabled={isLaunching || isSavingDraft}
             className="bg-violet-500 text-white hover:bg-violet-600 disabled:opacity-50 px-5 py-2 text-sm font-semibold rounded-xl flex items-center gap-1.5 transition-all">
             <i className="ti ti-player-play-filled text-sm" />
             {isLaunching ? (LAUNCH_STAGE_LABELS[launchStage] || 'Launching...') : 'Launch campaign'}

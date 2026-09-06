@@ -11,6 +11,7 @@ namespace Pukat\Core;
 
 use Pukat\Admin\AdminMenu;
 use Pukat\Api\CampaignController;
+use Pukat\Api\CampaignGroupController;
 use Pukat\Api\CampaignRunController;
 use Pukat\Api\GoPhishProxy;
 use Pukat\Api\MasterComponentController;
@@ -87,6 +88,21 @@ final class Plugin {
 		// Cron: register custom interval at runtime (required every request, not just on activation).
 		add_filter( 'cron_schedules', [ $this, 'register_cron_schedules' ] );
 		add_action( 'pukat_process_campaign_results', [ $this, 'process_campaign_results_cron' ] );
+		$this->ensure_campaign_results_cron_scheduled();
+	}
+
+	/**
+	 * Self-heals the recurring GoPhish results sync if it's ever missing.
+	 * Activator::schedule_cron() only runs on the WordPress activation hook,
+	 * which does NOT re-fire on a plain plugin code update — so an install
+	 * that was already active before this cron was introduced (or one where
+	 * the schedule was cleared some other way) would otherwise never get it
+	 * back. Checking on every request is cheap (single autoloaded option).
+	 */
+	private function ensure_campaign_results_cron_scheduled(): void {
+		if ( ! wp_next_scheduled( 'pukat_process_campaign_results' ) ) {
+			wp_schedule_event( time(), 'every_5_minutes', 'pukat_process_campaign_results' );
+		}
 	}
 
 	/**
@@ -245,10 +261,13 @@ final class Plugin {
 	 * Register all REST API routes.
 	 */
 	public function register_rest_routes(): void {
+		self::register_binary_response_support();
+
 		( new GoPhishProxy() )->register_routes();
 		( new MasterComponentController() )->register_routes();
 		( new PlaybookMasterController() )->register_routes();
 		( new CampaignRunController() )->register_routes();
+		( new CampaignGroupController() )->register_routes();
 		( new CampaignController() )->register_routes();
 		( new PlaybookController() )->register_routes();
 		( new SettingsController() )->register_routes();
@@ -257,6 +276,31 @@ final class Plugin {
 		( new UserController() )->register_routes();
 		( new TableController() )->register_routes();
 		( new RoleController() )->register_routes();
+	}
+
+	/**
+	 * Every Pukat REST response is JSON except the PDF export endpoints
+	 * (RestController::binary_response(), used by CampaignGroupController/
+	 * CampaignRunController for docs/PRD_CAMPAIGN_GROUP_MONITORING.md §7.5
+	 * FR-11) — those set a non-JSON Content-Type, which this filter uses as
+	 * the signal to echo the raw body instead of letting WP's REST server
+	 * JSON-encode it. Registered once here rather than per-controller so the
+	 * hook is never attached twice.
+	 */
+	private static function register_binary_response_support(): void {
+		add_filter( 'rest_pre_serve_request', function ( bool $served, \WP_REST_Response $result ): bool {
+			$content_type = $result->get_headers()['Content-Type'] ?? '';
+			if ( ! $content_type || false !== strpos( $content_type, 'json' ) ) {
+				return $served;
+			}
+
+			foreach ( $result->get_headers() as $header => $value ) {
+				header( "{$header}: {$value}" );
+			}
+			echo $result->get_data(); // phpcs:ignore -- raw binary (PDF) body, not HTML output.
+
+			return true;
+		}, 10, 2 );
 	}
 
 	/**

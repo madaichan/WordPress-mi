@@ -10,6 +10,7 @@ declare(strict_types=1);
 namespace Pukat\Services;
 
 use Pukat\Repositories\Table\AuditLogTableRepository;
+use Pukat\Repositories\Table\CampaignRunTableRepository;
 use Pukat\Repositories\Table\CampaignTableRepository;
 use Pukat\Repositories\Table\DynamicDomainTableRepository;
 use Pukat\Repositories\Table\EmailTemplateTableRepository;
@@ -330,6 +331,61 @@ class TableRegistry {
 			],
 			'row_actions'        => [ 'view_report', 'delete' ],
 			'bulk_actions'       => [],
+		],
+
+		// The Campaign Run model the Playbook-first wizard actually launches into
+		// GoPhish (unlike `campaigns` above, which the wizard no longer writes to
+		// — see docs/PRD_CAMPAIGN_WIZARD_PLAYBOOK_FIRST.md). Backs the Manage
+		// Campaigns page. See docs/PRD_CAMPAIGN_GROUP_MONITORING.md.
+		'campaign_runs' => [
+			'title'              => 'Campaign Runs',
+			'repository'         => CampaignRunTableRepository::class,
+			'search_placeholder' => 'Search campaigns...',
+			'search_fields'      => [ 'name' ],
+			'sortable'           => [ 'name', 'status', 'launched_at', 'created_at' ],
+			'default_sort'       => 'created_at',
+			'default_order'      => 'desc',
+			'default_per_page'   => 10,
+			'max_per_page'       => 100,
+			'filters'            => [
+				'status'             => [
+					'label'   => 'Status',
+					'type'    => 'select',
+					'options' => [ 'draft_run', 'ready_for_sync', 'synced', 'scheduled', 'running', 'completed', 'cancelled' ],
+				],
+				// type 'hidden' (not 'select') deliberately keeps this out of the
+				// frontend DataTable's generic auto-rendered filter dropdown — Campaign
+				// Groups are user-created and dynamic, not a fixed enum, so a static
+				// options list doesn't fit. TableQueryService::validate_filters() only
+				// checks the filter *key* is whitelisted, never the value, so the Manage
+				// Campaigns page drives this filter itself via its own group picker
+				// (populated from GET /campaign-groups). `0` means "Ungrouped".
+				'campaign_group_id' => [
+					'label'   => 'Group',
+					'type'    => 'hidden',
+					'options' => [],
+				],
+			],
+			// `target_count` is a real COUNT(*) against pukat_targets, not sortable
+			// (aggregate). `campaign_group_name` comes from a LEFT JOIN, also not sortable.
+			'columns'            => [
+				[ 'key' => 'name', 'label' => 'Campaign', 'renderer' => 'text', 'sortable' => true ],
+				[ 'key' => 'status', 'label' => 'Status', 'renderer' => 'status_badge', 'toneMap' => [
+					'draft_run'      => 'gray',
+					'ready_for_sync' => 'gray',
+					'synced'         => 'info',
+					'scheduled'      => 'info',
+					'running'        => 'info',
+					'completed'      => 'success',
+					'cancelled'      => 'warning',
+				], 'sortable' => true ],
+				[ 'key' => 'campaign_group_name', 'label' => 'Group', 'renderer' => 'text', 'sortable' => false ],
+				[ 'key' => 'target_count', 'label' => 'Target', 'renderer' => 'number', 'sortable' => false ],
+				[ 'key' => 'launched_at', 'label' => 'Launched', 'renderer' => 'date', 'sortable' => true ],
+				[ 'key' => 'id', 'label' => 'Actions', 'renderer' => 'actions', 'align' => 'right', 'sortable' => false ],
+			],
+			'row_actions'        => [ 'view_report', 'sync', 'assign_group', 'complete' ],
+			'bulk_actions'       => [ 'assign_group', 'complete' ],
 		],
 
 		'audit_logs' => [

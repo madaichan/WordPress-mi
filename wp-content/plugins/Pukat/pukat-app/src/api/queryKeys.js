@@ -9,6 +9,14 @@ export const queryKeys = {
   campaignRuns: {
     all: ['campaign-runs'],
     list: ['campaign-runs', 'list'],
+    report: (id) => ['campaign-runs', id, 'report'],
+  },
+
+  campaignGroups: {
+    all: ['campaign-groups'],
+    list: ['campaign-groups', 'list'],
+    detail: (id) => ['campaign-groups', id],
+    report: (id) => ['campaign-groups', id, 'report'],
   },
 
   gophish: {

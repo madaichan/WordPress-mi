@@ -15,6 +15,18 @@ export const campaignApi = {
   syncRun:         id  => post(`/campaign-runs/${id}/sync`),
   launchRun:       id  => post(`/campaign-runs/${id}/launch`),
   importRunTargets: (campaignRunId, targets) => post('/targets/import', { campaign_run_id: campaignRunId, targets }),
+
+  // Single "Complete" lifecycle action (cancel/recall/complete merged into
+  // one, see docs/PRD_CAMPAIGN_GROUP_MONITORING.md §6.4) — always ends in
+  // status 'completed'. Distinct from the legacy `complete` above (that one
+  // is the old pukat_campaigns table, unrelated to Campaign Run).
+  runComplete:     id            => post(`/campaign-runs/${id}/complete`),
+  runBulkComplete: ids           => post('/campaign-runs/bulk-complete', { ids }),
+  runAssignGroup:  (id, groupId)      => post(`/campaign-runs/${id}/assign-group`, { campaign_group_id: groupId }),
+  runBulkAssignGroup: (ids, groupId)  => post('/campaign-runs/bulk-assign-group', { ids, campaign_group_id: groupId }),
+  runReport:          id => get(`/campaign-runs/${id}/report`),
+  runReportExportPdf: id => get(`/campaign-runs/${id}/report/export`, { responseType: 'blob' }),
+  runSyncResults:     id => post(`/campaign-runs/${id}/sync-results`),
 }
 
 export default campaignApi

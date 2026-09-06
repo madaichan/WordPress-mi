@@ -37,7 +37,7 @@ class Activator {
 
 		// Store the version so we can handle future migrations.
 		update_option( 'pukat_version', PUKAT_VERSION );
-		update_option( 'pukat_db_version', '1.7.3' );
+		update_option( 'pukat_db_version', '1.9.0' );
 	}
 
 	/**
@@ -322,6 +322,28 @@ class Activator {
 		) $charset_collate;";
 
 		// -----------------------------------------------------------------------
+		// pukat_campaign_groups — organizational grouping for Campaign Runs
+		// (project/period, e.g. "Awareness Wave Q3 2026"), used to filter the
+		// Monitoring dashboard and bulk-complete campaigns together. `entity` is
+		// always server-assigned from the creator (never client-supplied — see
+		// CampaignGroupService::create()); `status` (Active/Selesai) is NOT a
+		// stored column — it's computed from member Campaign Run statuses, see
+		// CampaignGroupService::compute_status(). Unrelated to GoPhish's own
+		// "target group" (recipient list) concept.
+		// -----------------------------------------------------------------------
+		$sql[] = "CREATE TABLE IF NOT EXISTS {$prefix}campaign_groups (
+			id           BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
+			name         VARCHAR(255)    NOT NULL,
+			description  TEXT            DEFAULT NULL,
+			entity       VARCHAR(255)    NOT NULL,
+			created_by   BIGINT UNSIGNED NOT NULL DEFAULT 0,
+			created_at   DATETIME        NOT NULL DEFAULT CURRENT_TIMESTAMP,
+			updated_at   DATETIME        NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+			PRIMARY KEY (id),
+			KEY entity (entity)
+		) $charset_collate;";
+
+		// -----------------------------------------------------------------------
 		// pukat_quiz_questions — question bank
 		// -----------------------------------------------------------------------
 		$sql[] = "CREATE TABLE IF NOT EXISTS {$prefix}quiz_questions (
@@ -462,6 +484,7 @@ class Activator {
 		self::ensure_campaign_runs_follow_up_column();
 		self::ensure_socialization_logs_campaign_run_column();
 		self::ensure_targets_campaign_run_column();
+		self::ensure_campaign_runs_campaign_group_column();
 	}
 
 	/**
@@ -586,6 +609,37 @@ class Activator {
 		if ( version_compare( $db_version, '1.7.3', '<' ) ) {
 			self::seed_rbac_defaults();
 			update_option( 'pukat_db_version', '1.7.3' );
+			$db_version = '1.7.3';
+		}
+
+		// Campaign Groups: new pukat_campaign_groups table (name/description/entity,
+		// entity always server-assigned — see CampaignGroupService::create()) plus
+		// campaign_group_id on pukat_campaign_runs. See docs/PRD_CAMPAIGN_GROUP_MONITORING.md.
+		if ( version_compare( $db_version, '1.8.0', '<' ) ) {
+			self::create_tables();
+			self::ensure_campaign_runs_campaign_group_column();
+			update_option( 'pukat_db_version', '1.8.0' );
+			$db_version = '1.8.0';
+		}
+
+		// `campaigns.cancel` renamed to `campaigns.complete` (docs/PRD_CAMPAIGN_GROUP_MONITORING.md
+		// §6.4 — cancel/recall/complete merged into one action). seed_rbac_defaults()
+		// is additive-only (same class of migration as 1.7.2 above), so it grants the
+		// new `pukat_campaigns_complete` cap to every role the registry now lists it
+		// for, but never retroactively revokes the old cap string — that half needs
+		// the explicit remove_cap() loop, same pattern as 1.7.2's cap cleanup.
+		if ( version_compare( $db_version, '1.9.0', '<' ) ) {
+			self::seed_rbac_defaults();
+
+			foreach ( [ 'pukat_admin', 'pukat_operator', 'pukat_viewer', 'pukat_reviewer', 'administrator' ] as $role_slug ) {
+				$role = get_role( $role_slug );
+				if ( ! $role ) {
+					continue;
+				}
+				$role->remove_cap( 'pukat_campaigns_cancel' );
+			}
+
+			update_option( 'pukat_db_version', '1.9.0' );
 		}
 	}
 
@@ -694,6 +748,31 @@ class Activator {
 
 		if ( ! $column ) {
 			$wpdb->query( "ALTER TABLE {$table} ADD follow_up_json LONGTEXT DEFAULT NULL AFTER metrics_json" );
+		}
+	}
+
+	/**
+	 * Ensure Campaign Runs can be assigned to a Campaign Group (Monitoring/Manage grouping).
+	 */
+	private static function ensure_campaign_runs_campaign_group_column(): void {
+		global $wpdb;
+
+		$table = $wpdb->prefix . 'pukat_campaign_runs';
+
+		$column = $wpdb->get_var(
+			$wpdb->prepare( "SHOW COLUMNS FROM {$table} LIKE %s", 'campaign_group_id' )
+		);
+
+		if ( ! $column ) {
+			$wpdb->query( "ALTER TABLE {$table} ADD campaign_group_id BIGINT UNSIGNED DEFAULT NULL AFTER playbook_master_id" );
+		}
+
+		$index = $wpdb->get_var(
+			$wpdb->prepare( "SHOW INDEX FROM {$table} WHERE Key_name = %s", 'campaign_group_id' )
+		);
+
+		if ( ! $index ) {
+			$wpdb->query( "ALTER TABLE {$table} ADD INDEX campaign_group_id (campaign_group_id)" );
 		}
 	}
 

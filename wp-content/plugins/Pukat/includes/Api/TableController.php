@@ -43,6 +43,7 @@ class TableController extends RestController {
 		'email_templates'  => 'master_email_templates.view',
 		'dynamic_domains'  => 'domains.view',
 		'campaigns'        => 'campaigns.view',
+		'campaign_runs'    => 'campaigns.view',
 		'audit_logs'       => 'audit_logs.view',
 	];
 
