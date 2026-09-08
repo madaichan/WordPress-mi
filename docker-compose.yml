@@ -37,7 +37,7 @@ services:
       WORDPRESS_DB_USER: wordpress
       WORDPRESS_DB_PASSWORD: wordpress
       WORDPRESS_DEBUG: '1'
-      PUKAT_VITE_DEV_SERVER: http://192.168.137.250:3000
+      PUKAT_VITE_DEV_SERVER: http://localhost:3000
     volumes:
       - .:/var/www/html
       - wp_uploads:/var/www/html/wp-content/uploads
