@@ -51,7 +51,7 @@ export default function MasterSendingProfiles() {
     per_page: tableState.perPage,
     filters: tableState.filters,
   })
-  const { data: gophishProfiles = [], refetch: refetchGophish } = useGophishSmtpProfiles()
+  const { data: gophishProfiles = [], isLoading: gophishLoading, refetch: refetchGophish } = useGophishSmtpProfiles()
   const { data: usersData } = useUsers({ per_page: 100 })
 
   const users = useMemo(() => {
@@ -83,8 +83,21 @@ export default function MasterSendingProfiles() {
   // "Test Email" as the always-visible primary action, everything else (Assign/Edit/
   // Duplicate) tucked into a "More Actions" kebab menu — replaces the shared DataTable
   // action cell's default inline-buttons layout for this page only.
+  // These actions read from gophishById, which is sourced from a separate query than the
+  // row itself — disable them until that query settles so a click right after page load
+  // can't race it (loadGophishProfileForRow() would otherwise fail with a false
+  // "not linked to GoPhish" error even though the row is linked).
+  function withGophishReadyGate(resolved) {
+    if (!gophishLoading) return resolved
+    return resolved.map(action => (
+      ['test', 'edit', 'duplicate'].includes(action.key)
+        ? { ...action, disabled: true, reason: 'Loading GoPhish data…' }
+        : action
+    ))
+  }
+
   function renderActionsCell(row) {
-    const resolved = resolveRowActions(row.row_actions)
+    const resolved = withGophishReadyGate(resolveRowActions(row.row_actions))
     const testAction = resolved.find(action => action.key === 'test')
     const menuItems = resolved.filter(action => action.key !== 'test')
 
@@ -130,7 +143,7 @@ export default function MasterSendingProfiles() {
     })
     return merged
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [schema, usersById])
+  }, [schema, usersById, gophishLoading])
 
   const createMutation = useCreateSmtpProfileMutation({ onSuccess: () => closeSlideover() })
   const updateMutation = useUpdateSmtpProfileMutation({ onSuccess: () => closeSlideover() })

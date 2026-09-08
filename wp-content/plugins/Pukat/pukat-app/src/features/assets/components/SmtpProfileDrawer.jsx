@@ -85,11 +85,11 @@ export default function SmtpProfileDrawer({
           {isUpdate && (
             <Button variant="danger" onClick={onDelete} disabled={saving || locked} title={locked ? lockReason : 'Delete profile'}>
               <i className="ti ti-trash" />
-              Delete profile
+              Delete
             </Button>
           )}
           <Button variant="outline" className="ml-auto" onClick={onClose}>Cancel</Button>
-          <Button variant="primary" onClick={onSubmit} disabled={saving} title="Save profile">
+          <Button variant="primary" onClick={onSubmit} disabled={saving} title="Save">
             <i className={clsx('ti', saving ? 'ti-loader animate-spin' : 'ti-check')} />
             {saving ? 'Saving...' : isUpdate ? 'Save changes' : 'Save profile'}
           </Button>
@@ -249,7 +249,7 @@ export default function SmtpProfileDrawer({
       <Field label="Send test email to">
         <div className="flex gap-2">
           <input value={form.testTarget} onChange={event => onChange('testTarget', event.target.value)} className={inputClass()} placeholder="email@domain.com" />
-          <button type="button" onClick={onRunTest} disabled={testing} className="inline-flex items-center gap-1.5 rounded-lg border border-indigo-100 bg-indigo-50 px-4 py-2 text-xs font-semibold text-violet-500 transition-all hover:bg-violet-500 hover:text-white disabled:opacity-60">
+          <button type="button" onClick={() => onRunTest()} disabled={testing} className="inline-flex items-center gap-1.5 rounded-lg border border-indigo-100 bg-indigo-50 px-4 py-2 text-xs font-semibold text-violet-500 transition-all hover:bg-violet-500 hover:text-white disabled:opacity-60">
             <i className={clsx('ti', testing ? 'ti-loader animate-spin' : 'ti-send')} />
             Send test
           </button>
