@@ -150,7 +150,7 @@ export default function Campaigns() {
   const createCampaignMutation = useCreateCampaignMutation({
     onSuccess: () => {
       resetWizard()
-      navigate('/monitoring')
+      navigate('/manage-campaigns')
     },
   })
 
@@ -233,7 +233,7 @@ export default function Campaigns() {
       await launchCampaignRunMutation.mutateAsync(run.id)
 
       resetWizard()
-      navigate('/monitoring')
+      navigate('/manage-campaigns')
     } catch {
       // Backend error is already surfaced via toast by the mutations' own onError handlers.
     } finally {
