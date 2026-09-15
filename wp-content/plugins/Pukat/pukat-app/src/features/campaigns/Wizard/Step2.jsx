@@ -1,7 +1,32 @@
 import clsx from 'clsx'
+import Switch from '../../../components/UI/Switch.jsx'
+import { todayDateString, addDaysToDateString, minSendTimeForDate, isScheduleSendTimeInvalid } from '../../../utils/campaignLaunch.js'
 
 export default function Step2({ form, setForm, playbooks = [], playbooksLoading = false, onBack, onNext }) {
-  const canContinue = form.mode !== 'playbook' || Boolean(form.playbook)
+  const scheduleEnabled = form.scheduleEnabled ?? true
+
+  const today = todayDateString()
+  const minDateEnd = addDaysToDateString(form.dateStart || today, 1)
+  const minSendTime = minSendTimeForDate(form.dateStart)
+  const sendTimeInvalid = isScheduleSendTimeInvalid(form)
+  const canContinue = (form.mode !== 'playbook' || Boolean(form.playbook)) && !sendTimeInvalid
+
+  function handleDateStartChange(value) {
+    const clamped = value && value < today ? today : value
+    setForm(f => {
+      const minEnd = addDaysToDateString(clamped, 1)
+      return {
+        ...f,
+        dateStart: clamped,
+        dateEnd: f.dateEnd && f.dateEnd >= minEnd ? f.dateEnd : minEnd,
+      }
+    })
+  }
+
+  function handleDateEndChange(value) {
+    const minEnd = addDaysToDateString(form.dateStart, 1)
+    setForm(f => ({ ...f, dateEnd: value && value < minEnd ? minEnd : value }))
+  }
 
   return (
     <div className="space-y-6">
@@ -95,34 +120,57 @@ export default function Step2({ form, setForm, playbooks = [], playbooksLoading 
 
       {/* Card 3 — Sending schedule */}
       <div className="bg-white border border-gray-200 rounded-xl p-5 space-y-4">
-        <h3 className="text-sm font-semibold text-gray-900">Sending schedule</h3>
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+        <div className="flex items-center justify-between">
+          <h3 className="text-sm font-semibold text-gray-900">Sending schedule</h3>
+          <Switch
+            checked={scheduleEnabled}
+            onChange={value => setForm(f => ({ ...f, scheduleEnabled: value }))}
+            label={scheduleEnabled ? 'Scheduled' : 'Send immediately'}
+          />
+        </div>
+        <div className={clsx('grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4', !scheduleEnabled && 'opacity-50')}>
           <div className="space-y-1">
-            <label className="block text-xs font-semibold text-gray-600">Start date *</label>
-            <input type="date" value={form.dateStart} onChange={e => setForm(f => ({ ...f, dateStart: e.target.value }))}
-              className="w-full bg-white border border-gray-200 rounded-xl px-4 py-2 text-sm focus:outline-none focus:border-violet-500" />
+            <label className="block text-xs font-semibold text-gray-600">Start date {scheduleEnabled && '*'}</label>
+            <input type="date" disabled={!scheduleEnabled} min={today} value={form.dateStart} onChange={e => handleDateStartChange(e.target.value)}
+              className="w-full bg-white border border-gray-200 rounded-xl px-4 py-2 text-sm focus:outline-none focus:border-violet-500 disabled:bg-gray-50 disabled:cursor-not-allowed" />
           </div>
           <div className="space-y-1">
-            <label className="block text-xs font-semibold text-gray-600">Send time *</label>
-            <input type="time" value={form.sendTime || '09:00'} onChange={e => setForm(f => ({ ...f, sendTime: e.target.value }))}
-              className="w-full bg-white border border-gray-200 rounded-xl px-4 py-2 text-sm focus:outline-none focus:border-violet-500" />
+            <label className="block text-xs font-semibold text-gray-600">Send time {scheduleEnabled && '*'}</label>
+            <input
+              type="time"
+              disabled={!scheduleEnabled}
+              min={minSendTime || undefined}
+              value={form.sendTime || '09:00'}
+              onChange={e => setForm(f => ({ ...f, sendTime: e.target.value }))}
+              className={clsx(
+                'w-full bg-white border rounded-xl px-4 py-2 text-sm focus:outline-none disabled:bg-gray-50 disabled:cursor-not-allowed',
+                sendTimeInvalid ? 'border-red-400 focus:border-red-400' : 'border-gray-200 focus:border-violet-500',
+              )}
+            />
+            {sendTimeInvalid && (
+              <p className="text-[10px] font-medium text-red-500">Send time must be at least 5 minutes from now.</p>
+            )}
           </div>
           <div className="space-y-1">
-            <label className="block text-xs font-semibold text-gray-600">End date *</label>
-            <input type="date" value={form.dateEnd} onChange={e => setForm(f => ({ ...f, dateEnd: e.target.value }))}
-              className="w-full bg-white border border-gray-200 rounded-xl px-4 py-2 text-sm focus:outline-none focus:border-violet-500" />
+            <label className="block text-xs font-semibold text-gray-600">End date {scheduleEnabled && '*'}</label>
+            <input type="date" disabled={!scheduleEnabled} min={minDateEnd} value={form.dateEnd} onChange={e => handleDateEndChange(e.target.value)}
+              className="w-full bg-white border border-gray-200 rounded-xl px-4 py-2 text-sm focus:outline-none focus:border-violet-500 disabled:bg-gray-50 disabled:cursor-not-allowed" />
           </div>
           <div className="space-y-1">
             <label className="block text-xs font-semibold text-gray-600">Timezone</label>
-            <select value={form.timezone} onChange={e => setForm(f => ({ ...f, timezone: e.target.value }))}
-              className="w-full bg-white border border-gray-200 rounded-xl px-4 py-2 text-sm focus:outline-none focus:border-violet-500">
+            <select disabled={!scheduleEnabled} value={form.timezone} onChange={e => setForm(f => ({ ...f, timezone: e.target.value }))}
+              className="w-full bg-white border border-gray-200 rounded-xl px-4 py-2 text-sm focus:outline-none focus:border-violet-500 disabled:bg-gray-50 disabled:cursor-not-allowed">
               <option value="WIB">WIB (Asia/Jakarta)</option>
               <option value="WITA">WITA (Asia/Makassar)</option>
               <option value="WIT">WIT (Asia/Jayapura)</option>
             </select>
           </div>
         </div>
-        <p className="text-[10px] text-gray-500">Campaign emails start sending at this time on the start date, in the selected timezone.</p>
+        <p className="text-[10px] text-gray-500">
+          {scheduleEnabled
+            ? 'Campaign emails start sending at this time on the start date, in the selected timezone.'
+            : 'Sending schedule is off — the campaign will start sending immediately once launched.'}
+        </p>
       </div>
 
       {/* Footer */}

@@ -2,6 +2,7 @@ import clsx from 'clsx'
 import { Link } from 'react-router-dom'
 import Switch from '../../../components/UI/Switch.jsx'
 import { DEMO_TARGET_TOTAL } from './wizardData.js'
+import { isScheduleSendTimeInvalid } from '../../../utils/campaignLaunch.js'
 
 const LAUNCH_STAGE_LABELS = {
   creating: 'Creating run…',
@@ -9,7 +10,7 @@ const LAUNCH_STAGE_LABELS = {
   launching: 'Launching…',
 }
 
-export default function Step3({ form, setForm, csvData, playbooks = [], onBack, onLaunch, onDraft, isLaunching, isSavingDraft, launchStage }) {
+export default function Step3({ form, setForm, csvData, playbooks = [], onBack, onLaunch, onDraft, isLaunching, isSavingDraft, launchStage, isEditing = false }) {
   const quizEnabled = form.followUp?.quizEnabled ?? true
   const reminderEnabled = form.followUp?.forceResetPasswordReminderEnabled ?? false
 
@@ -30,6 +31,9 @@ export default function Step3({ form, setForm, csvData, playbooks = [], onBack, 
       : (readiness?.errors || []).join('; ') || 'Playbook components are not ready for launch'
     : 'Select a Playbook Master to check component readiness'
 
+  const scheduleEnabled = form.scheduleEnabled ?? true
+  const sendTimeInvalid = isScheduleSendTimeInvalid(form)
+
   const checklist = [
     {
       ok: csvData.length > 0,
@@ -39,7 +43,11 @@ export default function Step3({ form, setForm, csvData, playbooks = [], onBack, 
     },
     { ok: Boolean(selectedPlaybook) && selectedPlaybookReady, text: playbookChecklistText },
     { ok: Boolean(readiness?.ready), text: componentsReadyText },
-    { ok: !!(form.dateStart && form.dateEnd), text: form.dateStart && form.dateEnd ? `Schedule set — ${form.dateStart} to ${form.dateEnd} at ${form.sendTime || '09:00'} (${form.timezone})` : 'Set sending schedule' },
+    scheduleEnabled
+      ? sendTimeInvalid
+        ? { ok: false, text: 'Send time must be at least 5 minutes from now' }
+        : { ok: !!(form.dateStart && form.dateEnd), text: form.dateStart && form.dateEnd ? `Schedule set — ${form.dateStart} to ${form.dateEnd} at ${form.sendTime || '09:00'} (${form.timezone})` : 'Set sending schedule' }
+      : { ok: true, text: 'Send immediately upon launch' },
   ]
 
   const formatDate = (d) => {
@@ -82,9 +90,11 @@ export default function Step3({ form, setForm, csvData, playbooks = [], onBack, 
               { label: 'Total targets', value: `${targetCount.toLocaleString('en-US')} user` },
               {
                 label: 'Sending schedule',
-                value: form.dateStart && form.dateEnd
-                  ? `${formatDate(form.dateStart)} – ${formatDate(form.dateEnd)}, ${form.sendTime || '09:00'} (${form.timezone || 'WIB'})`
-                  : '—',
+                value: !scheduleEnabled
+                  ? 'Send immediately'
+                  : form.dateStart && form.dateEnd
+                    ? `${formatDate(form.dateStart)} – ${formatDate(form.dateEnd)}, ${form.sendTime || '09:00'} (${form.timezone || 'WIB'})`
+                    : '—',
               },
               { label: 'Difficulty', value: selectedPlaybook?.diff ? `${selectedPlaybook.diff}/5 (NIST)` : '—', red: true },
             ].map(({ label, value, red }) => (
@@ -133,11 +143,13 @@ export default function Step3({ form, setForm, csvData, playbooks = [], onBack, 
           ← Back
         </button>
         <div className="flex items-center gap-2">
-          <button onClick={onDraft} disabled={isSavingDraft || isLaunching}
+          <button onClick={onDraft} disabled={isSavingDraft || isLaunching || sendTimeInvalid}
+            title={sendTimeInvalid ? 'Fix the sending schedule — Send time must be at least 5 minutes from now.' : undefined}
             className="bg-white border border-gray-200 text-gray-700 hover:bg-gray-50 disabled:opacity-50 px-4 py-2 text-sm font-semibold rounded-xl transition-all">
-            {isSavingDraft ? 'Saving…' : 'Save as draft'}
+            {isSavingDraft ? 'Saving…' : isEditing ? 'Update draft' : 'Save as draft'}
           </button>
-          <button onClick={onLaunch} disabled={isLaunching || isSavingDraft}
+          <button onClick={onLaunch} disabled={isLaunching || isSavingDraft || sendTimeInvalid}
+            title={sendTimeInvalid ? 'Fix the sending schedule — Send time must be at least 5 minutes from now.' : undefined}
             className="bg-violet-500 text-white hover:bg-violet-600 disabled:opacity-50 px-5 py-2 text-sm font-semibold rounded-xl flex items-center gap-1.5 transition-all">
             <i className="ti ti-player-play-filled text-sm" />
             {isLaunching ? (LAUNCH_STAGE_LABELS[launchStage] || 'Launching...') : 'Launch campaign'}

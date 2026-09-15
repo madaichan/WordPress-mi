@@ -37,6 +37,44 @@ export function useCreateCampaignRunMutation(options = {}) {
   })
 }
 
+export function useUpdateCampaignRunMutation(options = {}) {
+  const qc = useQueryClient()
+
+  return useMutation({
+    mutationFn: ({ id, data }) => campaignApi.updateRun(id, data),
+    onSuccess: (data, variables, context) => {
+      toast.success('Campaign run updated successfully.')
+      qc.invalidateQueries({ queryKey: queryKeys.campaignRuns.all })
+      qc.invalidateQueries({ queryKey: queryKeys.campaignRuns.detail(variables.id) })
+      options.onSuccess?.(data, variables, context)
+    },
+    onError: (err, variables, context) => {
+      toast.error(err.message || 'Failed to update campaign run.')
+      options.onError?.(err, variables, context)
+    },
+  })
+}
+
+// Only `draft_run` Campaign Runs can be deleted (backend re-validates this —
+// see CampaignRunService::delete()).
+export function useDeleteCampaignRunMutation(options = {}) {
+  const qc = useQueryClient()
+
+  return useMutation({
+    mutationFn: id => campaignApi.deleteRun(id),
+    onSuccess: (data, variables, context) => {
+      toast.success('Campaign draft deleted.')
+      qc.invalidateQueries({ queryKey: queryKeys.campaignRuns.all })
+      qc.invalidateQueries({ queryKey: queryKeys.campaignGroups.all })
+      options.onSuccess?.(data, variables, context)
+    },
+    onError: (err, variables, context) => {
+      toast.error(err.message || 'Failed to delete campaign run.')
+      options.onError?.(err, variables, context)
+    },
+  })
+}
+
 export function useLaunchCampaignRunMutation(options = {}) {
   const qc = useQueryClient()
 

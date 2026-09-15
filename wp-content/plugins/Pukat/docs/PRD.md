@@ -270,7 +270,7 @@ Acceptance criteria:
 
 Sistem harus menyediakan:
 
-- Membuat landing page master.
+- MemCreate landing page master.
 - Membuat versi baru dari landing page.
 - Menyimpan HTML/content, capture setting, redirect/debrief behavior, language, category, dan owner entity.
 - Preview desktop dan mobile.

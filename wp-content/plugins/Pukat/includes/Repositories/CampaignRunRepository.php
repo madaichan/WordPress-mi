@@ -99,6 +99,17 @@ class CampaignRunRepository {
 	}
 
 	/**
+	 * Delete a Campaign Run and any targets imported against it.
+	 */
+	public function delete( int $id ): bool {
+		global $wpdb;
+
+		$wpdb->delete( $this->table( 'targets' ), [ 'campaign_run_id' => $id ] );
+
+		return false !== $wpdb->delete( $this->table( 'campaign_runs' ), [ 'id' => $id ] );
+	}
+
+	/**
 	 * Find a Playbook Master by ID.
 	 *
 	 * @return array<string, mixed>|null
@@ -126,7 +137,7 @@ class CampaignRunRepository {
 
 		$rows = $wpdb->get_results(
 			$wpdb->prepare(
-				"SELECT first_name, last_name, email, position
+				"SELECT first_name, last_name, email, position, department
 				 FROM {$this->table( 'targets' )}
 				 WHERE campaign_run_id = %d
 				 ORDER BY id ASC",
@@ -136,6 +147,62 @@ class CampaignRunRepository {
 		);
 
 		return $rows ?: [];
+	}
+
+	/**
+	 * Batched Playbook Master name lookup for a set of Campaign Runs — one
+	 * query for the whole set instead of one per row (used by
+	 * CampaignGroupService::aggregate() to enrich its per-run breakdown).
+	 *
+	 * @param array<int, int|string> $playbook_master_ids
+	 * @return array<int, string> playbook_master_id => name
+	 */
+	public function playbook_names_by_id( array $playbook_master_ids ): array {
+		global $wpdb;
+
+		$ids = array_values( array_unique( array_filter( array_map( 'intval', $playbook_master_ids ) ) ) );
+		if ( empty( $ids ) ) {
+			return [];
+		}
+
+		$placeholders = implode( ',', array_fill( 0, count( $ids ), '%d' ) );
+		$rows         = $wpdb->get_results(
+			$wpdb->prepare(
+				"SELECT id, name FROM {$this->table( 'playbook_masters' )} WHERE id IN ({$placeholders})",
+				$ids
+			),
+			ARRAY_A
+		) ?: [];
+
+		return array_map( 'strval', array_column( $rows, 'name', 'id' ) );
+	}
+
+	/**
+	 * Batched target counts for a set of Campaign Runs — one query for the
+	 * whole set instead of one per row (used by CampaignGroupService::aggregate()
+	 * to enrich its per-run breakdown).
+	 *
+	 * @param array<int, int|string> $campaign_run_ids
+	 * @return array<int, int> campaign_run_id => count
+	 */
+	public function target_counts_by_campaign_run_id( array $campaign_run_ids ): array {
+		global $wpdb;
+
+		$ids = array_values( array_unique( array_filter( array_map( 'intval', $campaign_run_ids ) ) ) );
+		if ( empty( $ids ) ) {
+			return [];
+		}
+
+		$placeholders = implode( ',', array_fill( 0, count( $ids ), '%d' ) );
+		$rows         = $wpdb->get_results(
+			$wpdb->prepare(
+				"SELECT campaign_run_id, COUNT(*) AS cnt FROM {$this->table( 'targets' )} WHERE campaign_run_id IN ({$placeholders}) GROUP BY campaign_run_id",
+				$ids
+			),
+			ARRAY_A
+		) ?: [];
+
+		return array_map( 'intval', array_column( $rows, 'cnt', 'campaign_run_id' ) );
 	}
 
 	/**

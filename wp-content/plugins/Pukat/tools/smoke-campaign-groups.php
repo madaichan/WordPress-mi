@@ -6,15 +6,15 @@
  * assign-group with entity enforcement. See docs/PRD_CAMPAIGN_GROUP_MONITORING.md
  * and docs/IMPLEMENTATION_PLAN_CAMPAIGN_GROUP_MONITORING.md.
  *
- * Every fixture Playbook Master is entity "General", which the existing
- * entity-editability rule (CampaignRunService::enforce_existing_playbook_editable())
- * restricts to admin-only edits regardless of the editor's own entity — so a
- * meaningful entity-mismatch test for assign-group needs a disposable
- * non-General Playbook Master. This script clones Playbook Master #1 (DIP,
- * active + fully configured) with entity overridden to the operator's own
- * entity ("ibaraki" in this fixture), and a second Campaign Group row
- * inserted directly with a different entity to prove cross-entity assignment
- * is rejected for non-admins. Everything created here is cleaned up at the end.
+ * Since 1.10.0, a Campaign Run's `entity` is its own stored column assigned
+ * from whoever created it (CampaignRunService::create()), not looked up via
+ * its source Playbook Master — see enforce_existing_run_editable(). This
+ * script still clones Playbook Master #1 (DIP, active + fully configured)
+ * with entity overridden to the operator's own entity ("ibaraki" in this
+ * fixture) so the resulting Campaign Run is created under that entity, and
+ * inserts a second Campaign Group row directly with a different entity to
+ * prove cross-entity assignment is rejected for non-admins. Everything
+ * created here is cleaned up at the end.
  *
  * Usage from the WordPress container:
  * php wp-content/plugins/Pukat/tools/smoke-campaign-groups.php

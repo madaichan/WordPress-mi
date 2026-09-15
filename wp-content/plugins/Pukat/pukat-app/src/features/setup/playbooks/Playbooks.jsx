@@ -23,7 +23,15 @@ import { usePlaybooks } from '../../../hooks/queries/usePlaybookQueries.js'
 import { useApprovePlaybookMutation, useCreatePlaybookMutation, useDeletePlaybookMutation, useSubmitPlaybookReviewMutation, useUpdatePlaybookMutation } from '../../../hooks/mutations/usePlaybookMutations.js'
 import { masterAssetApi } from '../../../api/index.js'
 import useAppStore from '../../../store/useAppStore.js'
-import { GENERAL_ENTITY, assetEntityForUser, canUserCreateAsset, canUserEditAsset, filterAssetsForUser } from '../../../utils/entityAssignmentHelpers.js'
+import {
+  GENERAL_ENTITY,
+  assetEntityForUser,
+  entityKey,
+  filterAssetsForUser,
+  getUserEntity,
+  isGeneralEntity,
+  normalizeAssetEntity,
+} from '../../../utils/entityAssignmentHelpers.js'
 import { masterAssetLockMessage, playbookDisplayStatus } from '../../../utils/masterAssetHelpers.js'
 import {
   EMPTY_PLAYBOOK_COMPONENT_OPTIONS,
@@ -35,6 +43,37 @@ import {
 } from '../../../utils/playbookComponentOptions.js'
 
 const CATEGORY_FILTERS = ['all', 'BEC', 'Credential', 'Malware', 'Vishing']
+
+/**
+ * Gates the Create-playbook action. Mirrors the backend's
+ * `PlaybookMasterService::enforce_write_entity()`: a full admin (WP
+ * administrator / pukat_admin — outside RBAC's role editor) bypasses
+ * everything, anyone else needs the `master_playbooks.create` RBAC
+ * capability granted via Role Settings *and* an entity on their account.
+ */
+function canCreatePlaybook(user, { isFullAdmin, hasCreateCapability }) {
+  if (isFullAdmin) return true
+  return hasCreateCapability && Boolean(getUserEntity(user))
+}
+
+/**
+ * Gates edit/duplicate/delete/submit-for-review on one playbook. Mirrors
+ * `PlaybookMasterService::enforce_existing_playbook_editable()`: full
+ * admins bypass entity scoping, everyone else needs the
+ * `master_playbooks.edit` RBAC capability *and* an entity match — General
+ * playbooks and other entities' playbooks stay admin-only.
+ */
+function canEditPlaybookAsset(playbook, user, { isFullAdmin, hasEditCapability }) {
+  if (isFullAdmin) return true
+  if (!hasEditCapability) return false
+
+  const assetEntity = normalizeAssetEntity(playbook?.entity)
+  const userEntity = getUserEntity(user)
+
+  if (!assetEntity || isGeneralEntity(assetEntity) || !userEntity) return false
+
+  return entityKey(assetEntity) === entityKey(userEntity)
+}
 
 const INITIAL_PLAYBOOKS = [
   {
@@ -1030,7 +1069,10 @@ function DetailPanel({ playbook, canManage, canSubmitReview, canApprove, onDupli
 
 export default function Playbooks() {
   const currentUser = useAppStore(state => state.user)
-  const canCreatePlaybooks = canUserCreateAsset(currentUser)
+  const isFullAdmin = useAppStore(state => state.isAdmin())
+  const hasCreateCapability = useAppStore(state => state.hasPermission('master_playbooks.create'))
+  const hasEditCapability = useAppStore(state => state.hasPermission('master_playbooks.edit'))
+  const canCreatePlaybooks = canCreatePlaybook(currentUser, { isFullAdmin, hasCreateCapability })
   const [playbooks, setPlaybooks] = useState(() => INITIAL_PLAYBOOKS.slice(0, 0))
   const [activeId, setActiveId] = useState('')
   const [category, setCategory] = useState('all')
@@ -1043,7 +1085,6 @@ export default function Playbooks() {
   const [previewPanel, setPreviewPanel] = useState(null)
   const [deletingPlaybook, setDeletingPlaybook] = useState(null)
   const [approvingPlaybook, setApprovingPlaybook] = useState(null)
-  const canSubmitReviewCapability = useAppStore(state => state.hasPermission('master_playbooks.edit'))
   const canApproveCapability = useAppStore(state => state.hasPermission('master_playbooks.approve'))
   const { data: storedPlaybooks = [], isLoading: playbooksLoading, refetch: refetchPlaybooks } = usePlaybooks({
     placeholderData: previous => previous,
@@ -1123,11 +1164,10 @@ export default function Playbooks() {
   }, [availablePlaybooks, category, query])
 
   const activePlaybook = availablePlaybooks.find(playbook => playbook.id === activeId) ?? availablePlaybooks[0]
-  const canManageActivePlaybook = canUserEditAsset(activePlaybook, currentUser)
+  const canManageActivePlaybook = canEditPlaybookAsset(activePlaybook, currentUser, { isFullAdmin, hasEditCapability })
   const canSubmitReviewActivePlaybook = Boolean(
     activePlaybook?.source === 'api'
     && canManageActivePlaybook
-    && canSubmitReviewCapability
     && activePlaybook.status === 'draft'
   )
   const canApproveActivePlaybook = Boolean(
@@ -1175,7 +1215,7 @@ export default function Playbooks() {
   function duplicateSelectedPlaybook() {
     const source = activePlaybook
     if (!source) return
-    if (!canUserEditAsset(source, currentUser)) {
+    if (!canManageActivePlaybook) {
       toast.error('Playbook General hanya bisa diduplikasi admin. Non-admin hanya bisa memakai editor sesuai entity user.')
       return
     }
@@ -1203,7 +1243,7 @@ export default function Playbooks() {
 
   function openEditPlaybook() {
     if (!activePlaybook) return
-    if (!canUserEditAsset(activePlaybook, currentUser)) {
+    if (!canManageActivePlaybook) {
       toast.error('Playbook General hanya bisa diedit admin. Non-admin hanya bisa edit playbook sesuai entity user.')
       return
     }
@@ -1265,7 +1305,7 @@ export default function Playbooks() {
       toast.error('User non-admin harus memiliki entity untuk membuat playbook.')
       return
     }
-    if (slideoverMode === 'edit' && !canUserEditAsset(activePlaybook, currentUser)) {
+    if (slideoverMode === 'edit' && !canManageActivePlaybook) {
       toast.error('Playbook ini hanya bisa diedit oleh admin atau user dengan entity yang sama.')
       return
     }
@@ -1327,7 +1367,7 @@ export default function Playbooks() {
   function deleteActivePlaybook() {
     if (slideoverMode !== 'edit') return
     if (!activePlaybook) return
-    if (!canUserEditAsset(activePlaybook, currentUser)) {
+    if (!canManageActivePlaybook) {
       toast.error('Playbook ini hanya bisa dihapus oleh admin atau user dengan entity yang sama.')
       return
     }

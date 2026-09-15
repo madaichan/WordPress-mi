@@ -1,4 +1,4 @@
-import { get, post, del } from './client.js'
+import { get, post, put, del } from './client.js'
 
 export const campaignApi = {
   list:     (params)   => get('/campaigns', { params }),
@@ -10,7 +10,10 @@ export const campaignApi = {
   results:  (id)       => get(`/campaigns/${id}/results`),
 
   runList:        ()   => get('/campaign-runs'),
+  runGet:         id   => get(`/campaign-runs/${id}`),
   createRun:      data => post('/campaign-runs', data),
+  updateRun:      (id, data) => put(`/campaign-runs/${id}`, data),
+  deleteRun:      id   => del(`/campaign-runs/${id}`),
   lockRunSnapshot: id  => post(`/campaign-runs/${id}/lock-snapshot`),
   syncRun:         id  => post(`/campaign-runs/${id}/sync`),
   launchRun:       id  => post(`/campaign-runs/${id}/launch`),

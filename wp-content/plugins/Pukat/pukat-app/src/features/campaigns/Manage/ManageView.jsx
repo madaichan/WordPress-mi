@@ -1,10 +1,12 @@
-import { useEffect, useRef, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import clsx from 'clsx'
 import toast from 'react-hot-toast'
 import { DataTable } from '../../../components/DataTable/index.js'
+import { resolveRowActions } from '../../../components/DataTable/actionRegistry.js'
 import Card from '../../../components/UI/Card.jsx'
 import Button from '../../../components/UI/Button.jsx'
+import TableActionMenu from '../../../components/UI/TableActionMenu.jsx'
 import Drawer from '../../../components/UI/Drawer.jsx'
 import Input from '../../../components/UI/Input.jsx'
 import Label from '../../../components/UI/Label.jsx'
@@ -24,6 +26,7 @@ import {
   useAssignCampaignRunGroupMutation,
   useBulkAssignCampaignRunGroupMutation,
   useSyncCampaignRunResultsMutation,
+  useDeleteCampaignRunMutation,
 } from '../../../hooks/mutations/useCampaignMutations.js'
 
 const TABLE_KEY = 'campaign_runs'
@@ -51,6 +54,7 @@ export default function ManageView() {
   const [deletingGroup, setDeletingGroup] = useState(null)
 
   const [completingRow, setCompletingRow] = useState(null)
+  const [deletingRun, setDeletingRun] = useState(null)
   const [assigningRow, setAssigningRow] = useState(null)
   const [bulkAssigningGroup, setBulkAssigningGroup] = useState(false)
   const [assignGroupValue, setAssignGroupValue] = useState('')
@@ -99,6 +103,7 @@ export default function ManageView() {
     onSuccess: () => { setBulkAssigningGroup(false); setSelectedRowIds(new Set()); refetch() },
   })
   const syncResultsMutation = useSyncCampaignRunResultsMutation({ onSuccess: () => refetch() })
+  const deleteRunMutation = useDeleteCampaignRunMutation({ onSuccess: () => { setDeletingRun(null); refetch() } })
 
   function openCreateGroup() {
     setGroupForm(EMPTY_GROUP_FORM)
@@ -134,6 +139,10 @@ export default function ManageView() {
     } else if (actionKey === 'assign_group') {
       setAssigningRow(row)
       setAssignGroupValue(row.campaign_group_id ? String(row.campaign_group_id) : '')
+    } else if (actionKey === 'edit') {
+      navigate(`/campaigns?edit=${row.id}`)
+    } else if (actionKey === 'delete') {
+      setDeletingRun(row)
     }
   }
 
@@ -161,6 +170,42 @@ export default function ManageView() {
       assignGroupMutation.mutate({ id: assigningRow.id, groupId })
     }
   }
+
+  function renderActionsCell(row) {
+    const resolved = resolveRowActions(row.row_actions)
+    const primaryAction = resolved.find(action => action.key === 'view_report')
+    const menuItems = resolved.filter(action => action.key !== 'view_report')
+
+    return (
+      <div className="inline-flex items-center justify-end gap-1.5">
+        {primaryAction && (
+          <Button
+            variant="secondary"
+            size="sm"
+            disabled={primaryAction.disabled}
+            title={primaryAction.disabled ? primaryAction.reason : 'View report'}
+            onClick={() => handleRowAction({ actionKey: 'view_report', row })}
+          >
+            <i className={clsx('ti', primaryAction.icon)} />
+            View report
+          </Button>
+        )}
+        <TableActionMenu
+          items={menuItems}
+          triggerTitle="More Actions"
+          onSelect={actionKey => handleRowAction({ actionKey, row })}
+        />
+      </div>
+    )
+  }
+
+  const columns = useMemo(() => (
+    (schema?.columns || []).map(column => (
+      'actions' === column.renderer
+        ? { ...column, renderer: 'custom', render: row => renderActionsCell(row) }
+        : column
+    ))
+  ), [schema])
 
   const selectedCount = selectedRowIds.size
   const isAssigningGroup = Boolean(assigningRow) || bulkAssigningGroup
@@ -231,7 +276,7 @@ export default function ManageView() {
         <div className="p-5">
           <DataTable
             tableKey={TABLE_KEY}
-            schema={schema}
+            schema={schema ? { ...schema, columns } : schema}
             rows={rows}
             meta={meta}
             state={tableState}
@@ -315,6 +360,20 @@ export default function ManageView() {
           isPending={completeMutation.isPending}
           onCancel={() => setCompletingRow(null)}
           onConfirm={() => completeMutation.mutate(completingRow.id)}
+        />
+      )}
+
+      {deletingRun && (
+        <AlertConfirmation
+          title="Delete this draft?"
+          message={`"${deletingRun.name}" will be permanently deleted. This cannot be undone.`}
+          icon="ti-trash"
+          tone="danger"
+          confirmLabel="Delete"
+          pendingLabel="Deleting..."
+          isPending={deleteRunMutation.isPending}
+          onCancel={() => setDeletingRun(null)}
+          onConfirm={() => deleteRunMutation.mutate(deletingRun.id)}
         />
       )}
 

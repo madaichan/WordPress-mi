@@ -300,7 +300,7 @@ Search harus server-side.
 Requirement:
 
 - Input search memakai debounce 300-500 ms.
-- Request lama dibatalkan atau diabaikan ketika query baru muncul.
+- Request lama diCancelkan atau diabaikan ketika query baru muncul.
 - Search mengubah page kembali ke 1.
 - Search placeholder dapat berasal dari schema.
 
@@ -529,7 +529,7 @@ Requirement:
 
 - Query key mencakup `tableKey`, `page`, `per_page`, `search`, `filters`, `sort`, dan `order`.
 - Search input memakai debounce.
-- Stale request harus dibatalkan atau hasilnya diabaikan.
+- Stale request harus diCancelkan atau hasilnya diabaikan.
 - Schema dapat dicache lebih lama dibanding row data.
 - Row data dapat memakai placeholder data agar page transition lebih halus.
 - Mutation row/bulk action harus invalidate query key table yang terdampak.

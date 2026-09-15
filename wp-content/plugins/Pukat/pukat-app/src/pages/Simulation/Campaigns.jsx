@@ -1,11 +1,18 @@
 import { useEffect, useMemo, useState } from 'react'
-import { useNavigate } from 'react-router-dom'
+import { useNavigate, useSearchParams } from 'react-router-dom'
 import toast from 'react-hot-toast'
-import { useCampaignList } from '../../hooks/queries/useCampaignQueries.js'
+import { useCampaignList, useCampaignRun } from '../../hooks/queries/useCampaignQueries.js'
 import { useTableRows, useTableSchema } from '../../hooks/queries/useTableQueries.js'
 import { usePlaybooks } from '../../hooks/queries/usePlaybookQueries.js'
-import { useCreateCampaignMutation, useCreateCampaignRunMutation, useImportCampaignRunTargetsMutation, useLaunchCampaignRunMutation, useDeleteCampaignMutation } from '../../hooks/mutations/useCampaignMutations.js'
-import { buildCampaignLaunchPayload, buildTargetImportPayload } from '../../utils/campaignLaunch.js'
+import {
+  useCreateCampaignMutation,
+  useCreateCampaignRunMutation,
+  useUpdateCampaignRunMutation,
+  useImportCampaignRunTargetsMutation,
+  useLaunchCampaignRunMutation,
+  useDeleteCampaignMutation,
+} from '../../hooks/mutations/useCampaignMutations.js'
+import { buildCampaignLaunchPayload, buildTargetImportPayload, regionForTimezone, localDateAndTimeFromScheduleAt, todayDateString, addDaysToDateString, minSendTimeForDate, isScheduleSendTimeInvalid } from '../../utils/campaignLaunch.js'
 import WizardStepper from '../../features/campaigns/WizardStepper.jsx'
 import DeleteModal from '../../features/campaigns/DeleteModal.jsx'
 import WorkspaceHeader from '../../features/campaigns/WorkspaceHeader.jsx'
@@ -29,19 +36,24 @@ const STATIC_CAMPAIGNS = [
   { id: 3, name: 'Q1 awareness check', status: 'completed', difficulty: 2, target_count: 800, launched_at: '2025-03-10T00:00:00Z' },
 ]
 
-const INITIAL_FORM = {
-  name: 'Q2 Phishing Wave — Finance',
-  desc: '',
-  mode: 'playbook',
-  playbook: '',
-  dateStart: '2025-06-28',
-  dateEnd: '2025-07-05',
-  sendTime: '09:00',
-  timezone: 'WIB',
-  followUp: {
-    quizEnabled: true,
-    forceResetPasswordReminderEnabled: false,
-  },
+function makeInitialForm() {
+  const today = todayDateString()
+
+  return {
+    name: '',
+    desc: '',
+    mode: 'playbook',
+    playbook: '',
+    scheduleEnabled: true,
+    dateStart: today,
+    dateEnd: addDaysToDateString(today, 1),
+    sendTime: minSendTimeForDate(today),
+    timezone: 'WIB',
+    followUp: {
+      quizEnabled: true,
+      forceResetPasswordReminderEnabled: false,
+    },
+  }
 }
 
 const PLAYBOOK_TYPE_COLORS = {
@@ -103,6 +115,7 @@ const DEFAULT_TABLE_STATE = { search: '', sort: 'created_at', order: 'desc', pag
 
 export default function Campaigns() {
   const navigate = useNavigate()
+  const [searchParams] = useSearchParams()
 
   // View state: 'overview' | 'calendar' | 'monitoring' | 'report' | 'assets' | 'new'
   const [view, setView] = useState('new')
@@ -115,15 +128,25 @@ export default function Campaigns() {
 
   // Wizard state
   const [wizardStep, setWizardStep] = useState(1)
-  const [form, setForm] = useState(INITIAL_FORM)
+  const [form, setForm] = useState(makeInitialForm)
   const [csvData, setCsvData] = useState([])
   const [launchStage, setLaunchStage] = useState(null)
   const [isSavingDraft, setIsSavingDraft] = useState(false)
+
+  // Resuming an existing `draft_run` via the "Edit" row action on Manage
+  // Campaigns (/campaigns?edit=<id>) — editingRunId is only set once that
+  // draft has actually loaded and prefilled the form below, so save/launch
+  // know to update the existing run instead of creating a new one.
+  const editRunIdParam = searchParams.get('edit')
+  const editRunId = editRunIdParam ? Number(editRunIdParam) : null
+  const [editingRunId, setEditingRunId] = useState(null)
 
   // Queries
   const { data } = useCampaignList({ page, per_page: 10 }, {
     placeholderData: prev => prev,
   })
+
+  const { data: editRunData, isError: isEditRunError } = useCampaignRun(editRunId)
 
   const { data: schema } = useTableSchema(TABLE_KEY)
   const { data: rowsData, isLoading: isLoadingRows, isFetching: isFetchingRows, refetch: refetchRows } = useTableRows(TABLE_KEY, {
@@ -155,6 +178,7 @@ export default function Campaigns() {
   })
 
   const createCampaignRunMutation = useCreateCampaignRunMutation()
+  const updateCampaignRunMutation = useUpdateCampaignRunMutation()
   const importTargetsMutation = useImportCampaignRunTargetsMutation()
   const launchCampaignRunMutation = useLaunchCampaignRunMutation()
 
@@ -191,14 +215,57 @@ export default function Campaigns() {
     })
   }, [wizardPlaybooks])
 
+  useEffect(() => {
+    if (!editRunId) return
+
+    if (isEditRunError) {
+      toast.error('Failed to load this draft.')
+      navigate('/manage-campaigns')
+      return
+    }
+
+    if (!editRunData || editingRunId === editRunId) return
+
+    if (editRunData.status !== 'draft_run') {
+      toast.error('This campaign is no longer a draft and cannot be edited here.')
+      navigate('/manage-campaigns')
+      return
+    }
+
+    const timezone = editRunData.timezone || 'Asia/Jakarta'
+    const { date, time } = localDateAndTimeFromScheduleAt(editRunData.schedule_at, timezone)
+    const playbookId = editRunData.source_playbook?.id ?? editRunData.playbook_master_id
+
+    setForm(f => ({
+      ...f,
+      name: editRunData.name || '',
+      playbook: playbookId ? String(playbookId) : '',
+      scheduleEnabled: Boolean(editRunData.schedule_at),
+      dateStart: date,
+      dateEnd: date,
+      sendTime: time,
+      timezone: regionForTimezone(timezone),
+      followUp: {
+        quizEnabled: editRunData.follow_up?.quiz_enabled ?? true,
+        forceResetPasswordReminderEnabled: editRunData.follow_up?.force_reset_password_reminder_enabled ?? false,
+      },
+    }))
+    setCsvData(Array.isArray(editRunData.targets) ? editRunData.targets : [])
+    setWizardStep(1)
+    setView('new')
+    setEditingRunId(editRunId)
+  }, [editRunId, editRunData, isEditRunError, editingRunId, navigate])
+
   const resetWizard = () => {
     setWizardStep(1)
-    setForm(INITIAL_FORM)
+    setForm(makeInitialForm())
     setCsvData([])
+    setEditingRunId(null)
   }
 
   const handleLaunch = async () => {
     if (!form.name.trim()) { toast.error('Campaign name is required.'); return }
+    if (isScheduleSendTimeInvalid(form)) { toast.error('Send time must be at least 5 minutes from now.'); return }
 
     if (form.mode !== 'playbook') {
       createCampaignMutation.mutate(buildCampaignLaunchPayload(form, []))
@@ -224,7 +291,9 @@ export default function Campaigns() {
 
     try {
       setLaunchStage('creating')
-      const run = await createCampaignRunMutation.mutateAsync(buildCampaignLaunchPayload(form, wizardPlaybooks))
+      const run = editingRunId
+        ? await updateCampaignRunMutation.mutateAsync({ id: editingRunId, data: buildCampaignLaunchPayload(form, wizardPlaybooks) })
+        : await createCampaignRunMutation.mutateAsync(buildCampaignLaunchPayload(form, wizardPlaybooks))
 
       setLaunchStage('importing-targets')
       await importTargetsMutation.mutateAsync({ campaignRunId: run.id, targets: buildTargetImportPayload(csvData) })
@@ -243,6 +312,7 @@ export default function Campaigns() {
 
   const handleSaveDraft = async () => {
     if (!form.name.trim()) { toast.error('Campaign name is required.'); return }
+    if (isScheduleSendTimeInvalid(form)) { toast.error('Send time must be at least 5 minutes from now.'); return }
 
     if (form.mode !== 'playbook') {
       createCampaignMutation.mutate(buildCampaignLaunchPayload(form, []))
@@ -263,10 +333,23 @@ export default function Campaigns() {
 
     try {
       setIsSavingDraft(true)
-      // Creating a Campaign Run without importing targets or launching leaves
-      // it at status draft_run — that already is the draft, no separate
-      // "draft" endpoint/flag exists (see CampaignRunService::create()).
-      await createCampaignRunMutation.mutateAsync(buildCampaignLaunchPayload(form, wizardPlaybooks))
+      let run
+      if (editingRunId) {
+        run = await updateCampaignRunMutation.mutateAsync({ id: editingRunId, data: buildCampaignLaunchPayload(form, wizardPlaybooks) })
+      } else {
+        // Creating a Campaign Run without launching leaves it at status
+        // draft_run — that already is the draft, no separate "draft"
+        // endpoint/flag exists (see CampaignRunService::create()).
+        run = await createCampaignRunMutation.mutateAsync(buildCampaignLaunchPayload(form, wizardPlaybooks))
+      }
+
+      // Targets typed/imported in Step1 only exist in local component state
+      // until they're persisted here — without this, they're silently lost
+      // the moment the wizard unmounts (e.g. re-opening this draft via Edit).
+      if (csvData.length > 0) {
+        await importTargetsMutation.mutateAsync({ campaignRunId: run.id, targets: buildTargetImportPayload(csvData) })
+      }
+
       resetWizard()
       navigate('/manage-campaigns')
     } catch {
@@ -278,10 +361,27 @@ export default function Campaigns() {
 
   // ── New campaign wizard view ──
   if (view === 'new') {
+    // editRunId is set but the draft hasn't finished loading (or prefilling)
+    // yet — hold off rendering the wizard so it never briefly shows the
+    // blank/demo makeInitialForm() values before the real draft data lands.
+    if (editRunId && editingRunId !== editRunId) {
+      return (
+        <PageShell>
+          <PageHeader title="Edit draft campaign" subtitle="Simulation / Edit campaign" />
+          <div className="rounded-xl border border-gray-200 bg-white p-8 text-center text-sm text-gray-500">
+            Loading draft…
+          </div>
+        </PageShell>
+      )
+    }
+
     return (
       <PageShell>
         {/* Header */}
-        <PageHeader title="New campaign" subtitle="Simulation / New campaign" />
+        <PageHeader
+          title={editingRunId ? 'Edit draft campaign' : 'New campaign'}
+          subtitle={editingRunId ? 'Simulation / Edit campaign' : 'Simulation / New campaign'}
+        />
 
         {/* Stepper */}
         <WizardStepper step={wizardStep} onStepChange={setWizardStep} />
@@ -291,7 +391,7 @@ export default function Campaigns() {
           <Step1
             form={form} setForm={setForm}
             csvData={csvData} setCsvData={setCsvData}
-            onCancel={() => { resetWizard(); navigate('/dashboard') }}
+            onCancel={() => { const wasEditing = Boolean(editingRunId); resetWizard(); navigate(wasEditing ? '/manage-campaigns' : '/dashboard') }}
             onNext={() => setWizardStep(2)}
           />
         )}
@@ -311,9 +411,10 @@ export default function Campaigns() {
             onBack={() => setWizardStep(2)}
             onLaunch={handleLaunch}
             onDraft={handleSaveDraft}
-            isLaunching={createCampaignMutation.isPending || createCampaignRunMutation.isPending || importTargetsMutation.isPending || launchCampaignRunMutation.isPending}
+            isLaunching={createCampaignMutation.isPending || createCampaignRunMutation.isPending || updateCampaignRunMutation.isPending || importTargetsMutation.isPending || launchCampaignRunMutation.isPending}
             isSavingDraft={isSavingDraft}
             launchStage={launchStage}
+            isEditing={Boolean(editingRunId)}
           />
         )}
       </PageShell>

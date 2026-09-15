@@ -931,7 +931,11 @@ class GoPhishProxy extends RestController {
 	 */
 	private function current_user_entity(): string {
 		$user_id = get_current_user_id();
-		$entity  = (string) get_user_meta( $user_id, 'entity', true );
+		$entity  = (string) get_user_meta( $user_id, 'meta_entity', true );
+
+		if ( '' === trim( $entity ) ) {
+			$entity = (string) get_user_meta( $user_id, 'entity', true );
+		}
 
 		if ( '' === trim( $entity ) ) {
 			$entity = (string) get_user_meta( $user_id, 'pukat_entity', true );

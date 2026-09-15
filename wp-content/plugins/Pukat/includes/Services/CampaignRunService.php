@@ -26,6 +26,17 @@ class CampaignRunService {
 	/** Statuses complete() refuses to re-apply (docs/PRD_CAMPAIGN_GROUP_MONITORING.md §7.4 FR-10). */
 	private const TERMINAL_STATUSES = [ 'completed', 'cancelled' ];
 
+	/**
+	 * Cap on how many timeline events recent_events() keeps in metrics_json —
+	 * enough for the Monitoring page's live feed without the row growing
+	 * unbounded on a large campaign.
+	 */
+	private const RECENT_EVENTS_LIMIT = 30;
+
+	/** GoPhish timeline event types worth surfacing in the live feed — "Email
+	 * Sent"/"Email Opened" are too high-volume to be a useful feed. */
+	private const FEED_EVENT_TYPES = [ 'Clicked Link', 'Submitted Data', 'Email Reported' ];
+
 	private CampaignRunRepository $repository;
 
 	public function __construct( ?CampaignRunRepository $repository = null ) {
@@ -51,7 +62,7 @@ class CampaignRunService {
 			return null;
 		}
 
-		return $this->prepare_run( $run );
+		return $this->prepare_run( $run, true );
 	}
 
 	/**
@@ -87,6 +98,11 @@ class CampaignRunService {
 		$data = [
 			'playbook_master_id' => $playbook_id,
 			'playbook_version'   => (int) ( $playbook['version'] ?? 1 ) ?: 1,
+			// Assigned from whoever is creating the run, never from the source
+			// Playbook Master — a Campaign Run belongs to its creator's entity
+			// even when built from a shared "General" Playbook Master (see
+			// enforce_existing_run_editable()).
+			'entity'             => $this->current_user_entity() ?: self::GENERAL_ENTITY,
 			'name'               => sanitize_text_field( (string) ( $params['name'] ?? $playbook['name'] ?? '' ) ),
 			'target_segment_id'  => (int) ( $params['target_segment_id'] ?? 0 ) ?: null,
 			'target_group_name'  => sanitize_text_field( (string) ( $params['target_group_name'] ?? '' ) ),
@@ -127,6 +143,138 @@ class CampaignRunService {
 		);
 
 		return $this->get( $id ) ?: [];
+	}
+
+	/**
+	 * Update a draft Campaign Run in place — only `draft_run` rows are
+	 * editable (a snapshot hasn't been locked yet, see lock_snapshot()), so
+	 * the "Edit" row action on the Manage Campaigns page can resume the
+	 * wizard against an existing draft instead of always creating a new run.
+	 *
+	 * @param array<string, mixed> $params Raw request parameters — same shape as create().
+	 * @return array<string, mixed>|WP_Error
+	 */
+	public function update( int $id, array $params, int $user_id ): array|WP_Error {
+		$run = $this->repository->find( $id );
+		if ( ! $run ) {
+			return $this->not_found_error( __( 'Campaign Run not found.', 'pukat' ) );
+		}
+
+		$permission_error = $this->enforce_existing_run_editable( $run );
+		if ( $permission_error ) {
+			return $permission_error;
+		}
+
+		if ( 'draft_run' !== (string) $run['status'] ) {
+			return new WP_Error(
+				'campaign_run_not_draft',
+				__( 'Only draft Campaign Runs can be edited.', 'pukat' ),
+				[ 'status' => 409 ]
+			);
+		}
+
+		$playbook_id = (int) ( $params['playbook_master_id'] ?? $params['playbook_id'] ?? 0 );
+		if ( ! $playbook_id ) {
+			return $this->validation_error( __( 'playbook_master_id is required.', 'pukat' ) );
+		}
+
+		$playbook = $this->repository->find_playbook_master( $playbook_id );
+		if ( ! $playbook || ! $this->current_user_can_access_playbook( $playbook ) ) {
+			return $this->not_found_error( __( 'Playbook Master not found.', 'pukat' ) );
+		}
+
+		if ( self::PLAYBOOK_RUNNABLE_STATUS !== (string) $playbook['status'] ) {
+			return new WP_Error(
+				'playbook_not_active',
+				__( 'Campaign Runs can only be created from an active Playbook Master.', 'pukat' ),
+				[ 'status' => 422 ]
+			);
+		}
+
+		$readiness_error = $this->validate_playbook_ready( $playbook );
+		if ( $readiness_error ) {
+			return $readiness_error;
+		}
+
+		$run_timezone = $this->sanitize_timezone( (string) ( $params['timezone'] ?? $run['timezone'] ?? 'UTC' ) );
+
+		$data = [
+			'playbook_master_id' => $playbook_id,
+			'playbook_version'   => (int) ( $playbook['version'] ?? 1 ) ?: 1,
+			'name'               => sanitize_text_field( (string) ( $params['name'] ?? $run['name'] ?? '' ) ),
+			'target_segment_id'  => (int) ( $params['target_segment_id'] ?? 0 ) ?: null,
+			'target_group_name'  => sanitize_text_field( (string) ( $params['target_group_name'] ?? $run['target_group_name'] ?? '' ) ),
+			'schedule_at'        => $this->sanitize_datetime( (string) ( $params['schedule_at'] ?? $params['scheduled_at'] ?? '' ), $run_timezone ),
+			'timezone'           => $run_timezone,
+			'follow_up_json'     => $this->sanitize_follow_up( (array) ( $params['follow_up'] ?? [] ) ),
+		];
+
+		if ( '' === trim( $data['name'] ) ) {
+			return $this->validation_error( __( 'Campaign Run name is required.', 'pukat' ) );
+		}
+
+		if ( ! $this->repository->update( $id, $data ) ) {
+			return $this->db_error( __( 'Failed to update Campaign Run.', 'pukat' ) );
+		}
+
+		AuditLogService::log(
+			'campaign_run.updated',
+			[
+				'campaign_run_id'    => $id,
+				'playbook_master_id' => $playbook_id,
+				'name'               => $data['name'],
+			],
+			null,
+			'campaign_run',
+			$id
+		);
+
+		return $this->get( $id ) ?: [];
+	}
+
+	/**
+	 * Permanently delete a draft Campaign Run. Only `draft_run` rows qualify —
+	 * once a snapshot is locked or the run has touched GoPhish, deleting it
+	 * would orphan external state, so completion/cancellation is the only
+	 * path out at that point.
+	 *
+	 * @return true|WP_Error
+	 */
+	public function delete( int $id, int $user_id ): bool|WP_Error {
+		$run = $this->repository->find( $id );
+		if ( ! $run ) {
+			return $this->not_found_error( __( 'Campaign Run not found.', 'pukat' ) );
+		}
+
+		$permission_error = $this->enforce_existing_run_editable( $run );
+		if ( $permission_error ) {
+			return $permission_error;
+		}
+
+		if ( 'draft_run' !== (string) $run['status'] ) {
+			return new WP_Error(
+				'campaign_run_not_draft',
+				__( 'Only draft Campaign Runs can be deleted.', 'pukat' ),
+				[ 'status' => 409 ]
+			);
+		}
+
+		if ( ! $this->repository->delete( $id ) ) {
+			return $this->db_error( __( 'Failed to delete Campaign Run.', 'pukat' ) );
+		}
+
+		AuditLogService::log(
+			'campaign_run.deleted',
+			[
+				'campaign_run_id' => $id,
+				'name'             => (string) ( $run['name'] ?? '' ),
+			],
+			null,
+			'campaign_run',
+			$id
+		);
+
+		return true;
 	}
 
 	/**
@@ -730,17 +878,268 @@ class CampaignRunService {
 	 * @return array<string, mixed>
 	 */
 	private function build_result_metrics( array $run, array $results ): array {
-		$stats = $this->aggregate_result_stats( $results );
+		$stats       = $this->aggregate_result_stats( $results );
+		$target_info = $this->target_info_by_email( (int) ( $run['id'] ?? 0 ) );
 
 		return [
-			'source'              => 'gophish',
-			'synced_at'           => current_time( 'mysql' ),
-			'gophish_campaign_id' => (int) $run['gophish_campaign_id'],
-			'gophish_status'      => sanitize_text_field( (string) ( $results['status'] ?? '' ) ),
-			'stats'               => $stats,
-			'status_counts'       => $stats['status_counts'],
-			'timeline_counts'     => $stats['timeline_counts'],
+			'source'                => 'gophish',
+			'synced_at'             => current_time( 'mysql' ),
+			'gophish_campaign_id'   => (int) $run['gophish_campaign_id'],
+			'gophish_status'        => sanitize_text_field( (string) ( $results['status'] ?? '' ) ),
+			'stats'                 => $stats,
+			'status_counts'         => $stats['status_counts'],
+			'timeline_counts'       => $stats['timeline_counts'],
+			// Real data behind the Monitoring page's "By department" /
+			// "Activity per hour" / "Live event feed" sections (previously
+			// static placeholders — see docs/PRD_CAMPAIGN_GROUP_MONITORING.md §4).
+			'department_breakdown' => $this->department_breakdown( $results, $target_info ),
+			'hourly_activity'      => $this->hourly_activity( $results ),
+			'recent_events'        => $this->recent_events( $results, $target_info ),
+			'target_details'       => $this->target_details( $results, $target_info ),
 		];
+	}
+
+	/**
+	 * Email => { name, department } for every imported target of a Campaign
+	 * Run — used to enrich GoPhish's per-target results (which only carry
+	 * email/first_name/last_name, no department) with the real department
+	 * data pukat_targets already stores.
+	 *
+	 * @return array<string, array{name: string, department: string}>
+	 */
+	private function target_info_by_email( int $campaign_run_id ): array {
+		$map = [];
+
+		foreach ( $this->repository->find_targets( $campaign_run_id ) as $target ) {
+			$email = strtolower( trim( (string) ( $target['email'] ?? '' ) ) );
+			if ( '' === $email ) {
+				continue;
+			}
+
+			$name = trim( (string) ( $target['first_name'] ?? '' ) . ' ' . (string) ( $target['last_name'] ?? '' ) );
+
+			$map[ $email ] = [
+				'name'       => '' !== $name ? $name : $email,
+				'department' => (string) ( $target['department'] ?? '' ) ?: 'Unassigned',
+			];
+		}
+
+		return $map;
+	}
+
+	/**
+	 * Per-department target/click/submit counts and click rate, for the
+	 * Monitoring page's "By department" table.
+	 *
+	 * @param array<string, mixed>                                     $results     GoPhish campaign results.
+	 * @param array<string, array{name: string, department: string}>   $target_info From target_info_by_email().
+	 * @return array<int, array<string, mixed>>
+	 */
+	private function department_breakdown( array $results, array $target_info ): array {
+		$by_department = [];
+
+		foreach ( $this->result_targets( $results ) as $target ) {
+			$email      = strtolower( trim( (string) ( $target['email'] ?? '' ) ) );
+			$department = $target_info[ $email ]['department'] ?? 'Unassigned';
+
+			if ( ! isset( $by_department[ $department ] ) ) {
+				$by_department[ $department ] = [ 'total' => 0, 'clicked' => 0, 'submitted' => 0 ];
+			}
+
+			++$by_department[ $department ]['total'];
+
+			$clicked   = false;
+			$submitted = false;
+			foreach ( (array) ( $target['timeline'] ?? [] ) as $event ) {
+				$message = (string) ( $event['message'] ?? '' );
+				if ( 'Clicked Link' === $message ) {
+					$clicked = true;
+				} elseif ( 'Submitted Data' === $message ) {
+					$submitted = true;
+				}
+			}
+
+			if ( $clicked ) {
+				++$by_department[ $department ]['clicked'];
+			}
+			if ( $submitted ) {
+				++$by_department[ $department ]['submitted'];
+			}
+		}
+
+		$rows = [];
+		foreach ( $by_department as $department => $counts ) {
+			$rate = $counts['total'] > 0 ? round( ( $counts['clicked'] / $counts['total'] ) * 100, 1 ) : 0.0;
+
+			$rows[] = [
+				'department' => $department,
+				'total'      => $counts['total'],
+				'clicked'    => $counts['clicked'],
+				'submitted'  => $counts['submitted'],
+				'click_rate' => $rate,
+				'risk_level' => $this->department_risk_level( $rate ),
+			];
+		}
+
+		usort( $rows, static fn( array $a, array $b ): int => $b['clicked'] <=> $a['clicked'] );
+
+		return $rows;
+	}
+
+	private function department_risk_level( float $click_rate ): string {
+		if ( $click_rate >= 40 ) {
+			return 'High';
+		}
+
+		if ( $click_rate >= 15 ) {
+			return 'Med';
+		}
+
+		return 'Low';
+	}
+
+	/**
+	 * "Clicked Link" events bucketed by hour-of-day (0-23) across the whole
+	 * campaign run — powers the Monitoring page's "Activity per hour" chart.
+	 *
+	 * @param array<string, mixed> $results GoPhish campaign results.
+	 * @return array<int, int> Exactly 24 entries, index = hour.
+	 */
+	private function hourly_activity( array $results ): array {
+		$buckets = array_fill( 0, 24, 0 );
+
+		foreach ( $this->result_targets( $results ) as $target ) {
+			foreach ( (array) ( $target['timeline'] ?? [] ) as $event ) {
+				if ( 'Clicked Link' !== (string) ( $event['message'] ?? '' ) ) {
+					continue;
+				}
+
+				$timestamp = strtotime( (string) ( $event['time'] ?? '' ) );
+				if ( false === $timestamp ) {
+					continue;
+				}
+
+				++$buckets[ (int) gmdate( 'G', $timestamp ) ];
+			}
+		}
+
+		return array_values( $buckets );
+	}
+
+	/**
+	 * Most recent GoPhish timeline events across every target, newest first —
+	 * powers the Monitoring page's "Live event feed".
+	 *
+	 * @param array<string, mixed>                                   $results     GoPhish campaign results.
+	 * @param array<string, array{name: string, department: string}> $target_info From target_info_by_email().
+	 * @return array<int, array<string, mixed>>
+	 */
+	private function recent_events( array $results, array $target_info ): array {
+		$events = [];
+
+		foreach ( $this->result_targets( $results ) as $target ) {
+			$email = strtolower( trim( (string) ( $target['email'] ?? '' ) ) );
+			$info  = $target_info[ $email ] ?? [
+				'name'       => $email,
+				'department' => 'Unassigned',
+			];
+
+			foreach ( (array) ( $target['timeline'] ?? [] ) as $event ) {
+				$message = (string) ( $event['message'] ?? '' );
+				if ( ! in_array( $message, self::FEED_EVENT_TYPES, true ) ) {
+					continue;
+				}
+
+				$timestamp = strtotime( (string) ( $event['time'] ?? '' ) );
+				if ( false === $timestamp ) {
+					continue;
+				}
+
+				$events[] = [
+					'name'       => $info['name'],
+					'department' => $info['department'],
+					'message'    => $message,
+					'time'       => gmdate( 'c', $timestamp ),
+					'_ts'        => $timestamp,
+				];
+			}
+		}
+
+		usort( $events, static fn( array $a, array $b ): int => $b['_ts'] <=> $a['_ts'] );
+
+		return array_values( array_map(
+			static function ( array $event ): array {
+				unset( $event['_ts'] );
+				return $event;
+			},
+			array_slice( $events, 0, self::RECENT_EVENTS_LIMIT )
+		) );
+	}
+
+	/**
+	 * Per-target row — name/email/department plus each funnel stage's
+	 * timestamp — powers the Monitoring page's "Target details" table.
+	 *
+	 * @param array<string, mixed>                                   $results     GoPhish campaign results.
+	 * @param array<string, array{name: string, department: string}> $target_info From target_info_by_email().
+	 * @return array<int, array<string, mixed>>
+	 */
+	private function target_details( array $results, array $target_info ): array {
+		$rows = [];
+
+		foreach ( $this->result_targets( $results ) as $target ) {
+			$email = strtolower( trim( (string) ( $target['email'] ?? '' ) ) );
+			$info  = $target_info[ $email ] ?? [
+				'name'       => $email,
+				'department' => 'Unassigned',
+			];
+
+			$stage_at = [
+				'sent_at'      => null,
+				'opened_at'    => null,
+				'clicked_at'   => null,
+				'submitted_at' => null,
+				'reported_at'  => null,
+			];
+			$stage_by_message = [
+				'Email Sent'     => 'sent_at',
+				'Email Opened'   => 'opened_at',
+				'Clicked Link'   => 'clicked_at',
+				'Submitted Data' => 'submitted_at',
+				'Email Reported' => 'reported_at',
+			];
+
+			foreach ( (array) ( $target['timeline'] ?? [] ) as $event ) {
+				if ( ! is_array( $event ) ) {
+					continue;
+				}
+
+				$message = (string) ( $event['message'] ?? '' );
+				$stage   = $stage_by_message[ $message ] ?? null;
+				if ( null === $stage ) {
+					continue;
+				}
+
+				$timestamp = strtotime( (string) ( $event['time'] ?? '' ) );
+				if ( false !== $timestamp ) {
+					$stage_at[ $stage ] = gmdate( 'c', $timestamp );
+				}
+			}
+
+			$rows[] = array_merge(
+				[
+					'email'      => (string) ( $target['email'] ?? '' ),
+					'name'       => $info['name'],
+					'department' => $info['department'],
+					'status'     => sanitize_text_field( (string) ( $target['status'] ?? 'Unknown' ) ),
+				],
+				$stage_at
+			);
+		}
+
+		usort( $rows, static fn( array $a, array $b ): int => strcasecmp( $a['name'], $b['name'] ) );
+
+		return $rows;
 	}
 
 	/**
@@ -1335,10 +1734,15 @@ class CampaignRunService {
 	}
 
 	/**
-	 * @param array<string, mixed> $run DB row.
+	 * @param array<string, mixed> $run             DB row.
+	 * @param bool                 $include_targets Whether to attach the run's actually-imported
+	 *                                               targets (a real query against `pukat_targets`,
+	 *                                               not the locked snapshot) — only get() needs
+	 *                                               this (to resume the wizard on Edit), list()
+	 *                                               skips it to avoid an N+1 query per row.
 	 * @return array<string, mixed>
 	 */
-	private function prepare_run( array $run ): array {
+	private function prepare_run( array $run, bool $include_targets = false ): array {
 		$playbook = $this->repository->find_playbook_master( (int) $run['playbook_master_id'] );
 
 		$run = $this->decode_json_fields(
@@ -1352,14 +1756,24 @@ class CampaignRunService {
 		);
 
 		$run['source_playbook'] = $playbook ? [
-			'id'       => (int) $playbook['id'],
-			'name'     => (string) $playbook['name'],
-			'version'  => (int) $playbook['version'],
-			'status'   => (string) $playbook['status'],
-			'entity'   => (string) $playbook['entity'],
+			'id'          => (int) $playbook['id'],
+			'name'        => (string) $playbook['name'],
+			'version'     => (int) $playbook['version'],
+			'status'      => (string) $playbook['status'],
+			'entity'      => (string) $playbook['entity'],
+			// Descriptive fields for the Monitoring page's per-campaign info
+			// card — not used by any permission/lifecycle decision, just display.
+			'scenario'    => (string) ( $playbook['scenario'] ?? '' ),
+			'difficulty'  => (int) ( $playbook['difficulty'] ?? 1 ),
+			'objective'   => (string) ( $playbook['objective'] ?? '' ),
+			'description' => (string) ( $playbook['description'] ?? '' ),
 		] : null;
 
 		$run['snapshot_locked'] = ! empty( $run['snapshot_json'] );
+
+		if ( $include_targets ) {
+			$run['targets'] = $this->repository->find_targets( (int) ( $run['id'] ?? 0 ) );
+		}
 
 		return $run;
 	}
@@ -1619,47 +2033,32 @@ class CampaignRunService {
 	 * @param array<string, mixed> $run Campaign Run row.
 	 */
 	private function current_user_can_access_run( array $run ): bool {
-		$playbook = $this->repository->find_playbook_master( (int) ( $run['playbook_master_id'] ?? 0 ) );
-
-		return $playbook ? $this->current_user_can_access_playbook( $playbook ) : $this->current_user_can_admin_assets();
+		return $this->current_user_can_access_entity( (string) ( $run['entity'] ?? '' ) );
 	}
 
 	/**
-	 * The entity this Campaign Run belongs to — inherited from its source
-	 * Playbook Master, same as every other entity check in this class.
+	 * The entity this Campaign Run belongs to — its own stored column,
+	 * assigned from whoever created it (see create()'s 'entity' field), not
+	 * derived from its source Playbook Master.
 	 *
 	 * @param array<string, mixed> $run Campaign Run row.
 	 */
 	private function run_entity( array $run ): string {
-		$playbook = $this->repository->find_playbook_master( (int) ( $run['playbook_master_id'] ?? 0 ) );
-
-		return (string) ( $playbook['entity'] ?? self::GENERAL_ENTITY );
+		return (string) ( $run['entity'] ?? self::GENERAL_ENTITY );
 	}
 
 	/**
 	 * @param array<string, mixed> $run Campaign Run row.
 	 */
 	private function enforce_existing_run_editable( array $run ): ?WP_Error {
-		$playbook = $this->repository->find_playbook_master( (int) ( $run['playbook_master_id'] ?? 0 ) );
-		if ( ! $playbook ) {
-			return $this->not_found_error( __( 'Source Playbook Master not found.', 'pukat' ) );
-		}
-
-		return $this->enforce_existing_playbook_editable( $playbook );
-	}
-
-	/**
-	 * @param array<string, mixed> $playbook Playbook Master row.
-	 */
-	private function enforce_existing_playbook_editable( array $playbook ): ?WP_Error {
 		if ( $this->current_user_can_admin_assets() ) {
 			return null;
 		}
 
-		$user_entity     = strtolower( $this->current_user_entity() );
-		$playbook_entity = strtolower( trim( (string) ( $playbook['entity'] ?? '' ) ) );
+		$user_entity = strtolower( $this->current_user_entity() );
+		$run_entity  = strtolower( trim( (string) ( $run['entity'] ?? '' ) ) );
 
-		if ( '' !== $user_entity && '' !== $playbook_entity && strtolower( self::GENERAL_ENTITY ) !== $playbook_entity && $playbook_entity === $user_entity ) {
+		if ( '' !== $user_entity && '' !== $run_entity && strtolower( self::GENERAL_ENTITY ) !== $run_entity && $run_entity === $user_entity ) {
 			return null;
 		}
 
@@ -1667,21 +2066,34 @@ class CampaignRunService {
 	}
 
 	/**
-	 * @param array<string, mixed> $playbook Playbook Master row.
+	 * Whether the current user may use/see something that belongs to the
+	 * given entity — admin sees/uses everything, "General" is open to
+	 * everyone, otherwise only a matching entity. Shared by
+	 * current_user_can_access_playbook() (a Playbook Master's own entity —
+	 * eligibility to build a new Campaign Run from it) and
+	 * current_user_can_access_run() (a Campaign Run's own entity, since
+	 * 1.10.0 — see run_entity()).
 	 */
-	private function current_user_can_access_playbook( array $playbook ): bool {
+	private function current_user_can_access_entity( string $entity ): bool {
 		if ( $this->current_user_can_admin_assets() ) {
 			return true;
 		}
 
-		$playbook_entity = strtolower( trim( (string) ( $playbook['entity'] ?? '' ) ) );
-		if ( strtolower( self::GENERAL_ENTITY ) === $playbook_entity ) {
+		$entity = strtolower( trim( $entity ) );
+		if ( strtolower( self::GENERAL_ENTITY ) === $entity ) {
 			return true;
 		}
 
 		$user_entity = strtolower( $this->current_user_entity() );
 
-		return '' !== $user_entity && $playbook_entity === $user_entity;
+		return '' !== $user_entity && $entity === $user_entity;
+	}
+
+	/**
+	 * @param array<string, mixed> $playbook Playbook Master row.
+	 */
+	private function current_user_can_access_playbook( array $playbook ): bool {
+		return $this->current_user_can_access_entity( (string) ( $playbook['entity'] ?? '' ) );
 	}
 
 	/**

@@ -414,7 +414,21 @@ class TableQueryService {
 	 * @return array<string, mixed>
 	 */
 	private function decorate_campaign_run_row( array $row ): array {
-		$status        = (string) ( $row['status'] ?? '' );
+		$status = (string) ( $row['status'] ?? '' );
+
+		// A draft hasn't locked a snapshot or touched GoPhish yet, so it's still
+		// freely editable/deletable in place — none of the operational actions
+		// below (sync/complete/move) apply until it's past that point. See
+		// CampaignRunService::update()/delete().
+		if ( 'draft_run' === $status ) {
+			$row['row_actions'] = [
+				[ 'key' => 'edit', 'disabled' => false, 'reason' => '' ],
+				[ 'key' => 'delete', 'disabled' => false, 'reason' => '' ],
+			];
+
+			return $row;
+		}
+
 		$already_ended = in_array( $status, [ 'completed', 'cancelled' ], true );
 		// Mirrors CampaignRunRepository::result_sync_candidates() — the same
 		// statuses the 5-minute auto-sync cron pulls results for.

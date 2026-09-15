@@ -9,6 +9,7 @@ export const queryKeys = {
   campaignRuns: {
     all: ['campaign-runs'],
     list: ['campaign-runs', 'list'],
+    detail: (id) => ['campaign-runs', id],
     report: (id) => ['campaign-runs', id, 'report'],
   },
 

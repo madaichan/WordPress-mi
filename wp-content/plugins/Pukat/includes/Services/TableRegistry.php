@@ -384,7 +384,9 @@ class TableRegistry {
 				[ 'key' => 'launched_at', 'label' => 'Launched', 'renderer' => 'date', 'sortable' => true ],
 				[ 'key' => 'id', 'label' => 'Actions', 'renderer' => 'actions', 'align' => 'right', 'sortable' => false ],
 			],
-			'row_actions'        => [ 'view_report', 'sync', 'assign_group', 'complete' ],
+			// 'edit'/'delete' only ever appear for `draft_run` rows, the rest only for
+			// everything past it — see TableQueryService::decorate_campaign_run_row().
+			'row_actions'        => [ 'view_report', 'sync', 'assign_group', 'complete', 'edit', 'delete' ],
 			'bulk_actions'       => [ 'assign_group', 'complete' ],
 		],
 

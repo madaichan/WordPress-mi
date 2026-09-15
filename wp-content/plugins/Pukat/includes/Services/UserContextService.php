@@ -43,9 +43,22 @@ class UserContextService {
 
 	/**
 	 * Resolve the current user's entity code from WordPress user meta.
+	 *
+	 * `meta_entity` is the canonical key — every other entity-aware backend
+	 * service (PlaybookMasterService, PlaybookService, CampaignRunService,
+	 * CampaignGroupService, UserController) resolves it in this same
+	 * `meta_entity` -> `entity` -> `pukat_entity` order. This was the one
+	 * place still skipping `meta_entity`, so the frontend (`window.PukatData
+	 * .user.entity`, read via `getUserEntity()`) saw an empty entity for any
+	 * user whose entity actually lives under `meta_entity` — hiding
+	 * entity-scoped Create/Edit actions the backend would otherwise allow.
 	 */
 	private function user_entity( int $user_id ): string {
-		$entity = (string) get_user_meta( $user_id, 'entity', true );
+		$entity = (string) get_user_meta( $user_id, 'meta_entity', true );
+
+		if ( '' === trim( $entity ) ) {
+			$entity = (string) get_user_meta( $user_id, 'entity', true );
+		}
 
 		if ( '' === trim( $entity ) ) {
 			$entity = (string) get_user_meta( $user_id, 'pukat_entity', true );

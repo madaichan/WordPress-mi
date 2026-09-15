@@ -312,7 +312,7 @@ Contract:
 
 ```jsx
 <AssetCreateCard
-  label="Buat landing page baru"
+  label="Create landing page"
   icon="ti-plus"
   onClick={handleCreate}
 />

@@ -16,11 +16,12 @@ namespace Pukat\Repositories\Table;
  *
  * Entity visibility is scoped via `viewer_entity` (same mechanism
  * TableQueryService::viewer_entity_scope() already provides to every table —
- * see PlaybookTableRepository for the pattern this mirrors), joined through
- * the run's source Playbook Master since Campaign Run itself has no entity
- * column of its own. `campaign_group_id` accepts `0` (or empty string) to
- * mean the "Ungrouped" bucket (`campaign_group_id IS NULL`), since that
- * can't be expressed as a plain `= value` match.
+ * see PlaybookTableRepository for the pattern this mirrors) against the run's
+ * own `entity` column (assigned from whoever created it — see
+ * CampaignRunService::create() — not looked up via its source Playbook
+ * Master). `campaign_group_id` accepts `0` (or empty string) to mean the
+ * "Ungrouped" bucket (`campaign_group_id IS NULL`), since that can't be
+ * expressed as a plain `= value` match.
  *
  * Callers (TableQueryService) MUST validate `sort` and every `filters` key
  * against TableRegistry before calling count()/rows() — same contract as
@@ -49,12 +50,6 @@ class CampaignRunTableRepository {
 		return $wpdb->prefix . 'pukat_campaign_groups';
 	}
 
-	private function playbook_masters_table(): string {
-		global $wpdb;
-
-		return $wpdb->prefix . 'pukat_playbook_masters';
-	}
-
 	/**
 	 * @param array<string, mixed> $args Validated query args from TableQueryService.
 	 */
@@ -63,7 +58,6 @@ class CampaignRunTableRepository {
 
 		[ $where_sql, $params ] = $this->where( $args );
 		$sql = "SELECT COUNT(*) FROM {$this->table()} c
-			LEFT JOIN {$this->playbook_masters_table()} pm ON pm.id = c.playbook_master_id
 			{$where_sql}";
 
 		if ( empty( $params ) ) {
@@ -94,7 +88,6 @@ class CampaignRunTableRepository {
 			(SELECT COUNT(*) FROM {$targets} t WHERE t.campaign_run_id = c.id) AS target_count,
 			g.name AS campaign_group_name
 			FROM {$this->table()} c
-			LEFT JOIN {$this->playbook_masters_table()} pm ON pm.id = c.playbook_master_id
 			LEFT JOIN {$groups} g ON g.id = c.campaign_group_id
 			{$where_sql}
 			ORDER BY c.{$sort} {$order}
@@ -111,7 +104,7 @@ class CampaignRunTableRepository {
 	/**
 	 * Build a shared WHERE clause + prepare() params for count() and rows().
 	 * `count()` doesn't join `pukat_campaign_groups`, so conditions here must
-	 * only ever reference `c.` / `pm.`, never `g.`.
+	 * only ever reference `c.`, never `g.`.
 	 *
 	 * @param array<string, mixed> $args
 	 * @return array{0: string, 1: array<int, mixed>}
@@ -153,7 +146,7 @@ class CampaignRunTableRepository {
 
 		$viewer_entity = $args['viewer_entity'] ?? null;
 		if ( null !== $viewer_entity ) {
-			$conditions[] = '(pm.entity = %s OR pm.entity = %s)';
+			$conditions[] = '(c.entity = %s OR c.entity = %s)';
 			$params[]     = 'General';
 			$params[]     = $viewer_entity;
 		}

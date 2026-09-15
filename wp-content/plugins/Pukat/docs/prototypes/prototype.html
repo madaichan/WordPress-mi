@@ -937,7 +937,7 @@
                         <a href="#"
                             class="inline-flex items-center gap-1 text-xs font-semibold text-violet-500 hover:text-violet-600">
                             <i class="ti ti-external-link"></i>
-                            <span>Buat template baru di GoPhish</span>
+                            <span>Create template di GoPhish</span>
                         </a>
                     </div>
 
@@ -1004,7 +1004,7 @@
                     <div class="flex items-center justify-between pt-4 border-t border-gray-100">
                         <button type="button" onclick="navigateTo('dashboard')"
                             class="bg-white border border-gray-200 text-gray-700 hover:bg-gray-50 px-4 py-2 text-sm font-semibold rounded-xl">
-                            Batal
+                            Cancel
                         </button>
                         <button type="button" onclick="gotoStep(2)"
                             class="bg-violet-500 text-white hover:bg-violet-600 px-5 py-2 text-sm font-semibold rounded-xl">
@@ -2821,7 +2821,7 @@
                 <div class="flex flex-col md:flex-row md:items-center justify-between gap-4">
                     <div>
                         <h1 class="text-2xl font-bold text-gray-900">Email templates</h1>
-                        <p class="text-sm text-gray-500 mt-0.5">Kelola template email phishing simulasi</p>
+                        <p class="text-sm text-gray-500 mt-0.5">Manage simulation phishing email templates</p>
                     </div>
                     <div class="flex flex-wrap items-center gap-3">
                         <!-- Search bar -->
@@ -2844,7 +2844,7 @@
                         <button onclick="createNewEmailTemplate()"
                             class="bg-violet-500 text-white hover:bg-violet-600 px-4 py-2 text-sm font-semibold rounded-xl flex items-center gap-1.5 transition-all">
                             <i class="ti ti-plus text-base"></i>
-                            <span>Buat email template</span>
+                            <span>Create email templates</span>
                         </button>
                     </div>
                 </div>
@@ -2855,7 +2855,7 @@
                         <button onclick="switchEmailTab('list', this)"
                             class="email-tab-btn flex items-center gap-2 py-3 px-1 border-b-2 border-violet-500 text-violet-500 font-semibold text-sm transition-all focus:outline-none select-none">
                             <i class="ti ti-list text-base"></i>
-                            <span>Daftar template</span>
+                            <span>Template List</span>
                         </button>
                         <button id="email-editor-btn" onclick="switchEmailTab('editor', this)"
                             class="email-tab-btn flex items-center gap-2 py-3 px-1 border-b-2 border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300 font-semibold text-sm transition-all focus:outline-none select-none">
@@ -2910,7 +2910,8 @@
                                         <div class="flex items-center gap-2">
                                             <div
                                                 class="w-7 h-7 rounded-full bg-red-500/20 flex items-center justify-center text-red-500 text-xs font-bold">
-                                                <i class="ti ti-mail-opened"></i></div>
+                                                <i class="ti ti-mail-opened"></i>
+                                            </div>
                                             <div class="space-y-1">
                                                 <div class="h-2 bg-gray-500/80 w-16 rounded"></div>
                                                 <div class="h-1.5 bg-gray-600/60 w-24 rounded"></div>
@@ -2956,7 +2957,8 @@
                                         <div class="flex items-center gap-2">
                                             <div
                                                 class="w-7 h-7 rounded-full bg-blue-500/20 flex items-center justify-center text-blue-500 text-xs font-bold">
-                                                <i class="ti ti-shield"></i></div>
+                                                <i class="ti ti-shield"></i>
+                                            </div>
                                             <div class="space-y-1">
                                                 <div class="h-2 bg-gray-500/80 w-20 rounded"></div>
                                                 <div class="h-1.5 bg-gray-600/60 w-28 rounded"></div>
@@ -2999,7 +3001,8 @@
                                         <div class="flex items-center gap-2">
                                             <div
                                                 class="w-7 h-7 rounded-full bg-emerald-500/20 flex items-center justify-center text-emerald-500 text-xs font-bold">
-                                                <i class="ti ti-receipt"></i></div>
+                                                <i class="ti ti-receipt"></i>
+                                            </div>
                                             <div class="space-y-1">
                                                 <div class="h-2 bg-gray-500/80 w-16 rounded"></div>
                                             </div>
@@ -3041,7 +3044,8 @@
                                         <div class="flex items-center gap-2">
                                             <div
                                                 class="w-7 h-7 rounded-full bg-yellow-500/20 flex items-center justify-center text-yellow-500 text-xs font-bold">
-                                                <i class="ti ti-alert-triangle"></i></div>
+                                                <i class="ti ti-alert-triangle"></i>
+                                            </div>
                                             <div class="space-y-1">
                                                 <div class="h-2 bg-gray-500/80 w-24 rounded"></div>
                                             </div>
@@ -3074,7 +3078,7 @@
                             <div onclick="createNewEmailTemplate()"
                                 class="border border-dashed border-gray-200 hover:border-gray-300 rounded-xl p-5 flex flex-col items-center justify-center gap-2 cursor-pointer h-80 transition-all select-none text-gray-400 hover:text-gray-600 bg-white">
                                 <i class="ti ti-plus text-3xl"></i>
-                                <span class="text-sm font-semibold">Buat template baru</span>
+                                <span class="text-sm font-semibold">Create template</span>
                             </div>
 
                         </div>
@@ -3084,7 +3088,8 @@
                     <div id="email-pane-editor" class="email-tab-pane hidden space-y-6">
                         <div class="flex items-center justify-between">
                             <div>
-                                <h2 class="text-lg font-bold text-gray-900" id="email-editor-title">Buat email template
+                                <h2 class="text-lg font-bold text-gray-900" id="email-editor-title">Create email
+                                    templates
                                 </h2>
                                 <p class="text-xs text-gray-500 mt-0.5">Konfigurasi envelope header dan kode HTML email
                                     phishing</p>
@@ -3092,11 +3097,11 @@
                             <div class="flex items-center gap-3">
                                 <button onclick="switchEmailTab('list')"
                                     class="bg-white border border-gray-200 text-gray-700 hover:bg-gray-50 px-4 py-2 text-sm font-semibold rounded-xl transition-all">
-                                    Batal
+                                    Cancel
                                 </button>
                                 <button onclick="saveEmailTemplate()"
                                     class="bg-violet-500 text-white hover:bg-violet-600 px-4 py-2 text-sm font-semibold rounded-xl transition-all">
-                                    Simpan template
+                                    Save template
                                 </button>
                             </div>
                         </div>
@@ -3412,7 +3417,7 @@
                         <button onclick="createNewLandingPage()"
                             class="bg-violet-500 text-white hover:bg-violet-600 px-4 py-2 text-sm font-semibold rounded-xl flex items-center gap-1.5 transition-all">
                             <i class="ti ti-plus text-base"></i>
-                            <span>Buat landing page</span>
+                            <span>Create landing page</span>
                         </button>
                     </div>
                 </div>
@@ -3423,7 +3428,7 @@
                         <button onclick="switchLandingTab('list', this)"
                             class="landing-tab-btn flex items-center gap-2 py-3 px-1 border-b-2 border-violet-500 text-violet-500 font-semibold text-sm transition-all focus:outline-none select-none">
                             <i class="ti ti-list text-base"></i>
-                            <span>Daftar landing page</span>
+                            <span>List of Landing Page</span>
                         </button>
                         <button id="landing-editor-btn" onclick="switchLandingTab('editor', this)"
                             class="landing-tab-btn flex items-center gap-2 py-3 px-1 border-b-2 border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300 font-semibold text-sm transition-all focus:outline-none select-none">
@@ -3699,7 +3704,7 @@
                             <div onclick="createNewLandingPage()"
                                 class="border border-dashed border-gray-200 hover:border-gray-300 rounded-xl p-5 flex flex-col items-center justify-center gap-2 cursor-pointer h-80 transition-all select-none text-gray-400 hover:text-gray-600 bg-white">
                                 <i class="ti ti-plus text-3xl"></i>
-                                <span class="text-sm font-semibold">Buat landing page baru</span>
+                                <span class="text-sm font-semibold">Create landing page</span>
                             </div>
 
                         </div>
@@ -3709,7 +3714,7 @@
                     <div id="landing-pane-editor" class="landing-tab-pane hidden space-y-6">
                         <div class="flex items-center justify-between">
                             <div>
-                                <h2 class="text-lg font-bold text-gray-900" id="editor-page-title">Buat landing page
+                                <h2 class="text-lg font-bold text-gray-900" id="editor-page-title">Create landing page
                                 </h2>
                                 <p class="text-xs text-gray-500 mt-0.5">Konfigurasi template HTML untuk menangkap input
                                     kredensial simulasi</p>
@@ -3717,11 +3722,11 @@
                             <div class="flex items-center gap-3">
                                 <button onclick="switchLandingTab('list')"
                                     class="bg-white border border-gray-200 text-gray-700 hover:bg-gray-50 px-4 py-2 text-sm font-semibold rounded-xl transition-all">
-                                    Batal
+                                    Cancel
                                 </button>
                                 <button onclick="saveLandingPage()"
                                     class="bg-violet-500 text-white hover:bg-violet-600 px-4 py-2 text-sm font-semibold rounded-xl transition-all">
-                                    Simpan template
+                                    Save template
                                 </button>
                             </div>
                         </div>
@@ -3921,7 +3926,8 @@
                                 <div class="text-center space-y-1 select-none">
                                     <div
                                         class="w-10 h-10 rounded bg-blue-50 text-blue-600 flex items-center justify-center mx-auto text-lg">
-                                        <i class="ti ti-key"></i></div>
+                                        <i class="ti ti-key"></i>
+                                    </div>
                                     <h3 class="text-sm font-bold text-gray-900">VPN Portal Gateway</h3>
                                     <p class="text-xs text-gray-500">Autentikasi Ulang Koneksi VPN Korporat</p>
                                 </div>
@@ -5234,7 +5240,7 @@
                 <button type="button" id="edit-pb-delete-btn" onclick="deletePlaybook()" class="btn btn-danger"><i
                         class="ti ti-trash" aria-hidden="true"></i> Hapus</button>
                 <button type="button" onclick="closePlaybookSlideover()" class="btn"
-                    style="margin-left:auto">Batal</button>
+                    style="margin-left:auto">Cancel</button>
                 <button type="button" onclick="submitPlaybookSlideover()" class="btn btn-primary"><i class="ti ti-check"
                         aria-hidden="true"></i> Simpan perubahan</button>
             </div>
@@ -5444,7 +5450,8 @@
                 style="padding:12px 16px;border-top:0.5px solid var(--border,#E5E7EB);display:flex;gap:7px;align-items:center;flex-shrink:0">
                 <button type="button" id="smtp-delete-btn" class="btn btn-danger" onclick="deleteSmtpProfile()"><i
                         class="ti ti-trash" aria-hidden="true"></i> Hapus profil</button>
-                <button type="button" class="btn" style="margin-left:auto" onclick="closeSmtpSlideover()">Batal</button>
+                <button type="button" class="btn" style="margin-left:auto"
+                    onclick="closeSmtpSlideover()">Cancel</button>
                 <button type="button" id="smtp-save-btn" class="btn btn-primary" onclick="submitSmtpProfile()"><i
                         class="ti ti-check" aria-hidden="true"></i> Simpan profil</button>
             </div>
@@ -7207,7 +7214,7 @@
         // Navigate to create page
         function createNewLandingPage() {
             switchLandingTab('editor', document.getElementById('landing-editor-btn'));
-            document.getElementById('editor-page-title').textContent = "Buat landing page baru";
+            document.getElementById('editor-page-title').textContent = "Create landing page";
             document.getElementById('editor-name-input').value = "";
             document.getElementById('editor-redirect-input').value = "";
             document.getElementById('editor-capture-data').checked = true;
@@ -7352,7 +7359,7 @@
         // Navigate to create email template page
         function createNewEmailTemplate() {
             switchEmailTab('editor', document.getElementById('email-editor-btn'));
-            document.getElementById('email-editor-title').textContent = "Buat email template baru";
+            document.getElementById('email-editor-title').textContent = "Create email templates baru";
             document.getElementById('email-editor-name').value = "";
             document.getElementById('email-editor-sender').value = "";
             document.getElementById('email-editor-subject').value = "";
@@ -8023,7 +8030,7 @@
                 <div class="pt-4 border-t border-gray-100 flex items-center justify-end gap-3 flex-shrink-0">
                     <button type="button" onclick="closePlaybookModal()"
                         class="bg-white border border-gray-200 text-gray-700 hover:bg-gray-50 px-4 py-2 text-sm font-semibold rounded-lg">
-                        Batal
+                        Cancel
                     </button>
                     <button type="submit"
                         class="bg-violet-500 text-white hover:bg-violet-600 px-5 py-2 text-sm font-semibold rounded-lg">

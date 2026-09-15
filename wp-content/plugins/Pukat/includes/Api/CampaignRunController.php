@@ -56,6 +56,16 @@ class CampaignRunController extends RestController {
 				'callback'            => [ $this, 'get_campaign_run' ],
 				'permission_callback' => [ $this, 'permission_view_campaign_run' ],
 			],
+			[
+				'methods'             => 'PUT',
+				'callback'            => [ $this, 'update_campaign_run' ],
+				'permission_callback' => [ $this, 'permission_edit_campaign_run' ],
+			],
+			[
+				'methods'             => 'DELETE',
+				'callback'            => [ $this, 'delete_campaign_run' ],
+				'permission_callback' => [ $this, 'permission_delete_campaign_run' ],
+			],
 		] );
 
 		register_rest_route( $this->namespace, '/campaign-runs/(?P<id>\d+)/lock-snapshot', [
@@ -162,6 +172,10 @@ class CampaignRunController extends RestController {
 		return $this->require_capability( 'campaigns.complete' );
 	}
 
+	public function permission_delete_campaign_run(): bool|WP_Error {
+		return $this->require_capability( 'campaigns.delete' );
+	}
+
 	private function require_capability( string $permission_key ): bool|WP_Error {
 		if ( ! is_user_logged_in() ) {
 			return new WP_Error( 'rest_forbidden', __( 'Authentication required.', 'pukat' ), [ 'status' => 401 ] );
@@ -190,6 +204,18 @@ class CampaignRunController extends RestController {
 		$result = $this->campaign_runs->create( $this->request_params( $request ), get_current_user_id() );
 
 		return $this->result_response( $result, 201 );
+	}
+
+	public function update_campaign_run( WP_REST_Request $request ): WP_REST_Response {
+		$result = $this->campaign_runs->update( (int) $request->get_param( 'id' ), $this->request_params( $request ), get_current_user_id() );
+
+		return $this->result_response( $result );
+	}
+
+	public function delete_campaign_run( WP_REST_Request $request ): WP_REST_Response {
+		$result = $this->campaign_runs->delete( (int) $request->get_param( 'id' ), get_current_user_id() );
+
+		return $this->result_response( $result );
 	}
 
 	public function lock_snapshot( WP_REST_Request $request ): WP_REST_Response {

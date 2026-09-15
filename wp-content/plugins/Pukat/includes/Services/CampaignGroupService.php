@@ -201,6 +201,9 @@ class CampaignGroupService {
 		return array_merge( [ 'campaign_group_id' => null ], $this->aggregate( $active_run_rows ) );
 	}
 
+	/** Recent-events cap for an aggregate (multi-run) report — mirrors CampaignRunService::RECENT_EVENTS_LIMIT. */
+	private const RECENT_EVENTS_LIMIT = 30;
+
 	/**
 	 * @param array<int, array<string, mixed>> $runs
 	 * @return array<string, mixed>
@@ -214,7 +217,15 @@ class CampaignGroupService {
 			'submitted_data' => 0,
 			'email_reported' => 0,
 		];
-		$breakdown = [];
+		$breakdown          = [];
+		$department_totals  = [];
+		$hourly_totals      = array_fill( 0, 24, 0 );
+		$all_events         = [];
+
+		// Batched once for the whole set — avoids a playbook-name / target-count
+		// query per run in the loop below (same N+1 avoidance as $stats above).
+		$playbook_names = $this->campaign_runs->playbook_names_by_id( array_column( $runs, 'playbook_master_id' ) );
+		$target_counts  = $this->campaign_runs->target_counts_by_campaign_run_id( array_column( $runs, 'id' ) );
 
 		foreach ( $runs as $run ) {
 			$metrics = $this->decode_json_value( $run['metrics_json'] ?? null ) ?: [];
@@ -229,21 +240,95 @@ class CampaignGroupService {
 				'name'            => (string) $run['name'],
 				'status'          => (string) $run['status'],
 				'stats'           => $stats,
+				// Descriptive fields for the Monitoring page's "campaigns in
+				// this selection" list — not used by any aggregation above,
+				// just display (see Performing.jsx).
+				'playbook_name'   => $playbook_names[ (int) ( $run['playbook_master_id'] ?? 0 ) ] ?? null,
+				'launched_at'     => $run['launched_at'] ?? null,
+				'schedule_at'     => $run['schedule_at'] ?? null,
+				'target_count'    => $target_counts[ (int) $run['id'] ] ?? 0,
+				// When this run's stats/department/hourly/events were last pulled
+				// from GoPhish (CampaignRunService::build_result_metrics()) — null
+				// if it's never been synced. Monitoring isn't live: it only ever
+				// reads this cached snapshot, refreshed by the 5-minute cron or
+				// a manual "Sync now".
+				'synced_at'       => $metrics['synced_at'] ?? null,
 			];
+
+			// department_breakdown/hourly_activity/recent_events are each
+			// computed once per run by CampaignRunService::build_result_metrics()
+			// at sync time — merged here across every member run rather than
+			// recomputed, same "sum what's already stored" pattern as $stats above.
+			foreach ( (array) ( $metrics['department_breakdown'] ?? [] ) as $row ) {
+				$department = (string) ( $row['department'] ?? 'Unassigned' );
+				if ( ! isset( $department_totals[ $department ] ) ) {
+					$department_totals[ $department ] = [ 'total' => 0, 'clicked' => 0, 'submitted' => 0 ];
+				}
+
+				$department_totals[ $department ]['total']     += (int) ( $row['total'] ?? 0 );
+				$department_totals[ $department ]['clicked']   += (int) ( $row['clicked'] ?? 0 );
+				$department_totals[ $department ]['submitted'] += (int) ( $row['submitted'] ?? 0 );
+			}
+
+			foreach ( (array) ( $metrics['hourly_activity'] ?? [] ) as $hour => $count ) {
+				$hour = (int) $hour;
+				if ( $hour >= 0 && $hour < 24 ) {
+					$hourly_totals[ $hour ] += (int) $count;
+				}
+			}
+
+			array_push( $all_events, ...( (array) ( $metrics['recent_events'] ?? [] ) ) );
 		}
 
 		$total = $totals['total'];
 
+		$department_breakdown = [];
+		foreach ( $department_totals as $department => $counts ) {
+			$rate = $counts['total'] > 0 ? round( ( $counts['clicked'] / $counts['total'] ) * 100, 1 ) : 0.0;
+
+			$department_breakdown[] = [
+				'department' => $department,
+				'total'      => $counts['total'],
+				'clicked'    => $counts['clicked'],
+				'submitted'  => $counts['submitted'],
+				'click_rate' => $rate,
+				'risk_level' => $this->department_risk_level( $rate ),
+			];
+		}
+		usort( $department_breakdown, static fn( array $a, array $b ): int => $b['clicked'] <=> $a['clicked'] );
+
+		usort(
+			$all_events,
+			static fn( array $a, array $b ): int => strtotime( (string) ( $b['time'] ?? '' ) ) <=> strtotime( (string) ( $a['time'] ?? '' ) )
+		);
+
 		return [
-			'stats'         => array_merge( $totals, [
+			'stats'                 => array_merge( $totals, [
 				'open_rate'   => $total > 0 ? round( ( $totals['email_opened'] / $total ) * 100, 1 ) : 0,
 				'click_rate'  => $total > 0 ? round( ( $totals['clicked'] / $total ) * 100, 1 ) : 0,
 				'submit_rate' => $total > 0 ? round( ( $totals['submitted_data'] / $total ) * 100, 1 ) : 0,
 				'report_rate' => $total > 0 ? round( ( $totals['email_reported'] / $total ) * 100, 1 ) : 0,
 			] ),
-			'campaign_runs' => $breakdown,
-			'generated_at'  => current_time( 'mysql' ),
+			'campaign_runs'         => $breakdown,
+			'department_breakdown'  => $department_breakdown,
+			'hourly_activity'       => array_values( $hourly_totals ),
+			'recent_events'         => array_slice( $all_events, 0, self::RECENT_EVENTS_LIMIT ),
+			'generated_at'          => current_time( 'mysql' ),
 		];
+	}
+
+	/** Same thresholds as CampaignRunService::department_risk_level() — kept
+	 * local rather than shared, same reasoning as user_entity() below. */
+	private function department_risk_level( float $click_rate ): string {
+		if ( $click_rate >= 40 ) {
+			return 'High';
+		}
+
+		if ( $click_rate >= 15 ) {
+			return 'Med';
+		}
+
+		return 'Low';
 	}
 
 	/**
@@ -298,9 +383,10 @@ class CampaignGroupService {
 	}
 
 	/**
-	 * Runs the current user is allowed to see. One batched query for every
-	 * distinct source Playbook Master's entity (not one query per run) —
-	 * same N+1 avoidance as report_active(), see docs/PRD_CAMPAIGN_GROUP_MONITORING.md §10.
+	 * Runs the current user is allowed to see, scoped by each run's own
+	 * `entity` column (assigned from whoever created it — see
+	 * CampaignRunService::create() — not its source Playbook Master's
+	 * entity, since 1.10.0).
 	 *
 	 * @param array<int, array<string, mixed>> $allRuns
 	 * @return array<int, array<string, mixed>>
@@ -310,31 +396,10 @@ class CampaignGroupService {
 			return $allRuns;
 		}
 
-		if ( empty( $allRuns ) ) {
-			return [];
-		}
+		$user_entity = strtolower( $this->user_entity( get_current_user_id() ) );
 
-		global $wpdb;
-
-		$playbook_ids = array_values( array_unique( array_map(
-			static fn ( array $run ): int => (int) ( $run['playbook_master_id'] ?? 0 ),
-			$allRuns
-		) ) );
-
-		$placeholders    = implode( ',', array_fill( 0, count( $playbook_ids ), '%d' ) );
-		$playbook_rows   = $wpdb->get_results(
-			$wpdb->prepare(
-				"SELECT id, entity FROM {$wpdb->prefix}pukat_playbook_masters WHERE id IN ({$placeholders})",
-				$playbook_ids
-			),
-			ARRAY_A
-		) ?: [];
-		$entity_by_id = array_column( $playbook_rows, 'entity', 'id' );
-		$user_entity  = strtolower( $this->user_entity( get_current_user_id() ) );
-
-		return array_values( array_filter( $allRuns, static function ( array $run ) use ( $entity_by_id, $user_entity ): bool {
-			$playbook_id = (int) ( $run['playbook_master_id'] ?? 0 );
-			$run_entity  = strtolower( trim( (string) ( $entity_by_id[ $playbook_id ] ?? 'general' ) ) );
+		return array_values( array_filter( $allRuns, static function ( array $run ) use ( $user_entity ): bool {
+			$run_entity = strtolower( trim( (string) ( $run['entity'] ?? 'general' ) ) );
 
 			return 'general' === $run_entity || $run_entity === $user_entity;
 		} ) );

@@ -228,11 +228,19 @@ class PlaybookMasterService {
 	 * @return array<string, mixed>|WP_Error
 	 */
 	public function approve( int $id, int $user_id ): array|WP_Error {
+		// Targets 'active' directly rather than the intermediate 'approved'
+		// value in STATUS_VALUES — a reviewer approving is the only way a
+		// Playbook Master becomes usable by a Campaign Run (CampaignRunService
+		// requires exactly PLAYBOOK_RUNNABLE_STATUS = 'active'), and there is
+		// no separate "Activate" action anywhere in the app. 'approved'
+		// remains a legal status value (e.g. reachable via a direct API
+		// write) but the UI's Approve action no longer produces it.
 		return $this->transition_status(
 			$id,
-			'approved',
+			'active',
 			$user_id,
 			'playbook_master.approved',
+			true,
 			true
 		);
 	}
@@ -253,7 +261,7 @@ class PlaybookMasterService {
 	/**
 	 * @return array<string, mixed>|WP_Error
 	 */
-	private function transition_status( int $id, string $status, int $user_id, string $audit_action, bool $requires_ready ): array|WP_Error {
+	private function transition_status( int $id, string $status, int $user_id, string $audit_action, bool $requires_ready, bool $is_approval = false ): array|WP_Error {
 		$existing = $this->repository->find( $id );
 		if ( ! $existing ) {
 			return $this->not_found_error( __( 'Playbook Master not found.', 'pukat' ) );
@@ -268,9 +276,11 @@ class PlaybookMasterService {
 		// of docs/IMPLEMENTATION_PLAN_RBAC.md) has no entity of its own and no
 		// create/edit rights, so it must be able to approve drafts regardless
 		// of which entity owns them; that's the entire point of an
-		// independent reviewer. Only applies to the 'approved' transition —
-		// submit-review/archive still require ownership as before.
-		$is_reviewer_approval = 'approved' === $status && current_user_can( PermissionRegistry::capability_for( 'master_playbooks.approve' ) );
+		// independent reviewer. `$is_approval` (not the target status string —
+		// approve() targets 'active' directly, same as any other status this
+		// method could in principle transition to) is what identifies that
+		// case; submit-review/archive still require ownership as before.
+		$is_reviewer_approval = $is_approval && current_user_can( PermissionRegistry::capability_for( 'master_playbooks.approve' ) );
 
 		if ( ! $is_reviewer_approval ) {
 			$permission_error = $this->enforce_existing_playbook_editable( $existing );
@@ -309,7 +319,7 @@ class PlaybookMasterService {
 			'updated_by' => $user_id,
 		];
 
-		if ( 'approved' === $status ) {
+		if ( $is_approval ) {
 			$data['approved_by'] = $user_id;
 			$data['approved_at'] = current_time( 'mysql' );
 		}

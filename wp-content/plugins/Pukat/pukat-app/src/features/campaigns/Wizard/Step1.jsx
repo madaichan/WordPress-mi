@@ -57,7 +57,7 @@ export default function Step1({ form, setForm, csvData, setCsvData, onCancel, on
               type="text"
               value={form.name}
               onChange={e => setForm(f => ({ ...f, name: e.target.value }))}
-              placeholder="Q2 Phishing Wave — Finance"
+              placeholder="Campaign Name"
               className="w-full bg-white border border-gray-200 rounded-xl px-4 py-2 text-sm focus:outline-none focus:border-violet-500"
             />
           </div>

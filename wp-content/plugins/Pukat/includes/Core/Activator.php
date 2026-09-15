@@ -485,6 +485,7 @@ class Activator {
 		self::ensure_socialization_logs_campaign_run_column();
 		self::ensure_targets_campaign_run_column();
 		self::ensure_campaign_runs_campaign_group_column();
+		self::ensure_campaign_runs_entity_column();
 	}
 
 	/**
@@ -641,6 +642,17 @@ class Activator {
 
 			update_option( 'pukat_db_version', '1.9.0' );
 		}
+
+		// Campaign Run `entity` is now its own stored column, assigned from
+		// whoever created the run — see ensure_campaign_runs_entity_column()'s
+		// doc comment for why (an operator couldn't edit/delete their own
+		// draft when its Playbook Master happened to be "General"). Backfills
+		// every pre-existing row from its creator's entity meta.
+		if ( version_compare( $db_version, '1.10.0', '<' ) ) {
+			self::ensure_campaign_runs_entity_column();
+			self::backfill_campaign_runs_entity();
+			update_option( 'pukat_db_version', '1.10.0' );
+		}
 	}
 
 	/**
@@ -774,6 +786,79 @@ class Activator {
 		if ( ! $index ) {
 			$wpdb->query( "ALTER TABLE {$table} ADD INDEX campaign_group_id (campaign_group_id)" );
 		}
+	}
+
+	/**
+	 * Ensure Campaign Runs store their own `entity`, assigned from whoever
+	 * created them (CampaignRunService::create()) — independent of their
+	 * source Playbook Master's entity. Before this column existed, a Campaign
+	 * Run's entity was derived by joining its Playbook Master, which meant an
+	 * operator couldn't edit/delete/complete/move a run they themselves
+	 * created if it happened to come from a "General" Playbook Master (see
+	 * enforce_existing_run_editable()). Feedback from real usage: a Campaign
+	 * Run should always belong to whoever ran/saved it, never to "General".
+	 */
+	private static function ensure_campaign_runs_entity_column(): void {
+		global $wpdb;
+
+		$table = $wpdb->prefix . 'pukat_campaign_runs';
+
+		$column = $wpdb->get_var(
+			$wpdb->prepare( "SHOW COLUMNS FROM {$table} LIKE %s", 'entity' )
+		);
+
+		if ( ! $column ) {
+			$wpdb->query( "ALTER TABLE {$table} ADD entity VARCHAR(255) NOT NULL DEFAULT 'General' AFTER playbook_version" );
+		}
+
+		$index = $wpdb->get_var(
+			$wpdb->prepare( "SHOW INDEX FROM {$table} WHERE Key_name = %s", 'entity' )
+		);
+
+		if ( ! $index ) {
+			$wpdb->query( "ALTER TABLE {$table} ADD INDEX entity (entity)" );
+		}
+	}
+
+	/**
+	 * One-time backfill for Campaign Runs that existed before the `entity`
+	 * column did — assigns each one its own creator's current entity meta
+	 * (same 3-key fallback chain as CampaignRunService::current_user_entity(),
+	 * duplicated here since Activator has no access to that instance method),
+	 * falling back to 'General' when the creator has none set. New rows never
+	 * need this: CampaignRunService::create() always sets entity explicitly
+	 * at creation time.
+	 */
+	private static function backfill_campaign_runs_entity(): void {
+		global $wpdb;
+
+		$table = $wpdb->prefix . 'pukat_campaign_runs';
+		$rows  = $wpdb->get_results( "SELECT id, created_by FROM {$table}", ARRAY_A ) ?: [];
+
+		foreach ( $rows as $row ) {
+			$user_id = (int) ( $row['created_by'] ?? 0 );
+			$entity  = $user_id ? self::user_entity_for_backfill( $user_id ) : '';
+
+			$wpdb->update(
+				$table,
+				[ 'entity' => '' !== $entity ? $entity : 'General' ],
+				[ 'id' => (int) $row['id'] ]
+			);
+		}
+	}
+
+	private static function user_entity_for_backfill( int $user_id ): string {
+		$entity = (string) get_user_meta( $user_id, 'meta_entity', true );
+
+		if ( '' === trim( $entity ) ) {
+			$entity = (string) get_user_meta( $user_id, 'entity', true );
+		}
+
+		if ( '' === trim( $entity ) ) {
+			$entity = (string) get_user_meta( $user_id, 'pukat_entity', true );
+		}
+
+		return sanitize_text_field( $entity );
 	}
 
 	/**

@@ -171,7 +171,7 @@ function EditorPane({
   onBack,
   onSave
 }) {
-  const title = editingName ? `Edit: ${editingName}` : 'Buat landing page'
+  const title = editingName ? `Edit: ${editingName}` : 'Create landing page'
 
   return (
     <div className="space-y-6 animate-fade-in">
@@ -179,7 +179,7 @@ function EditorPane({
         <div>
           <h2 className="text-lg font-bold text-gray-900">{title}</h2>
           <p className="text-xs text-gray-500 mt-0.5">
-            Konfigurasi template HTML untuk menangkap input kredensial simulasi
+            HTML template configuration to capture simulated credential input
           </p>
         </div>
         <div className="flex items-center gap-3">
@@ -187,14 +187,14 @@ function EditorPane({
             onClick={onBack}
             className="bg-white border border-gray-200 text-gray-700 hover:bg-gray-50 px-4 py-2 text-sm font-semibold rounded-xl transition-all"
           >
-            Batal
+            Cancel
           </button>
           <button
             onClick={() => onSave(name, htmlCode)}
             disabled={saving}
             className="bg-violet-500 text-white hover:bg-violet-600 px-4 py-2 text-sm font-semibold rounded-xl transition-all disabled:opacity-60"
           >
-            {saving ? 'Menyimpan...' : 'Simpan template'}
+            {saving ? 'Menyimpan...' : 'Save template'}
           </button>
         </div>
       </div>
@@ -547,7 +547,7 @@ export default function LandingPages() {
       {/* ── Header ── */}
       <PageHeader
         title="Landing pages"
-        subtitle="Dikelola dari master database"
+        subtitle="Managed from a master database"
         actions={
           <>
             {/* Search bar */}
@@ -572,7 +572,7 @@ export default function LandingPages() {
             {canCreateAssets && (
               <Button variant="primary" onClick={handleCreate}>
                 <i className="ti ti-plus text-base" />
-                <span>Buat landing page</span>
+                <span>Create landing page</span>
               </Button>
             )}
           </>
@@ -584,7 +584,7 @@ export default function LandingPages() {
         <nav className="flex gap-6 -mb-px" aria-label="Landing page subtabs">
           <button onClick={() => switchTab('list')} className={tabBtnClass('list')}>
             <i className="ti ti-list text-base" />
-            <span>Daftar landing page</span>
+            <span>List of Landing Page</span>
           </button>
           {activeTab === 'editor' && (
             <button onClick={() => switchTab('list')} className={tabBtnClass('editor')}>
@@ -642,7 +642,7 @@ export default function LandingPages() {
                   onApprove={handleApprove}
                 />
               ))}
-              {canCreateAssets && <AssetCreateCard label="Buat landing page baru" onClick={handleCreate} />}
+              {canCreateAssets && <AssetCreateCard label="Create landing page" onClick={handleCreate} />}
             </div>
           </div>
         )}
