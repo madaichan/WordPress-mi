@@ -2,6 +2,7 @@ import { useCallback, useEffect, useMemo, useState } from 'react'
 import toast from 'react-hot-toast'
 import clsx from 'clsx'
 import { FALLBACK_USERS } from '../../data/fallbacks.js'
+import { masterAssetApi } from '../../api/masterAssetApi.js'
 import { AssetEditorLayout, BrowserPreview } from '../../features/assets/components/index.js'
 import { DataTable } from '../../components/DataTable/index.js'
 import { resolveRowActions } from '../../components/DataTable/actionRegistry.js'
@@ -105,6 +106,7 @@ export default function MasterLandingPages() {
   const [assignmentPageId, setAssignmentPageId] = useState(null)
   const [deletingPageId, setDeletingPageId] = useState(null)
   const [approvingPageId, setApprovingPageId] = useState(null)
+  const [previewingId, setPreviewingId] = useState(null)
   const canApproveLandingPages = useAppStore(state => state.hasPermission('master_landing_pages.approve'))
   const currentUser = useAppStore(state => state.user)
 
@@ -140,6 +142,7 @@ export default function MasterLandingPages() {
     const resolved = resolveRowActions(row.row_actions)
     const previewAction = resolved.find(action => action.key === 'preview')
     const menuItems = resolved.filter(action => action.key !== 'preview')
+    const previewLoading = previewingId === row.id
 
     return (
       <div className="inline-flex items-center justify-end gap-1.5">
@@ -147,11 +150,11 @@ export default function MasterLandingPages() {
           <Button
             variant="secondary"
             size="sm"
-            disabled={previewAction.disabled}
+            disabled={previewAction.disabled || previewLoading}
             title={previewAction.disabled ? previewAction.reason : 'Preview'}
             onClick={() => handleRowAction({ actionKey: 'preview', row })}
           >
-            <i className={clsx('ti', previewAction.icon)} />
+            <i className={clsx('ti', previewLoading ? 'ti-loader-2 animate-spin' : previewAction.icon)} />
             Preview
           </Button>
         )}
@@ -285,19 +288,26 @@ export default function MasterLandingPages() {
     setActiveTab('editor')
   }, [pages])
 
-  const handlePreview = useCallback((id) => {
-    const page = pages.find(item => item.id === id)
-    if (!page) return
-    setEditingId(page.id)
-    setEditingName(page.name)
-    setEditingHtml(page.html || '')
-    setEditingEntity(page.entity || '')
-    setEditingRedirectUrl(page.redirectUrl || 'https://portal.office.com')
-    setEditingCaptureData(page.badges?.includes('Data') ?? true)
-    setEditingCapturePass(page.badges?.includes('Pass') ?? true)
-    setPreviewTitle(page.name)
-    setActiveTab('preview')
-  }, [pages])
+  const handlePreview = useCallback(async (id) => {
+    setPreviewingId(id)
+    try {
+      const master = await masterAssetApi.landingPage(id)
+      const page = applyAssignmentFromEntity(masterLandingPageToUiPage(master), users)
+      setEditingId(page.id)
+      setEditingName(page.name)
+      setEditingHtml(page.html || '')
+      setEditingEntity(page.entity || '')
+      setEditingRedirectUrl(page.redirectUrl || 'https://portal.office.com')
+      setEditingCaptureData(page.badges?.includes('Data') ?? true)
+      setEditingCapturePass(page.badges?.includes('Pass') ?? true)
+      setPreviewTitle(page.name)
+      setActiveTab('preview')
+    } catch (error) {
+      toast.error(error.message || 'Failed to load landing page preview.')
+    } finally {
+      setPreviewingId(null)
+    }
+  }, [users])
 
   const handleAssign = useCallback((id) => {
     // Assign is never blocked by Campaign/Playbook usage.

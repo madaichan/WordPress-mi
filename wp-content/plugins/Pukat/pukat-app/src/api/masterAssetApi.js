@@ -12,6 +12,7 @@ export const masterAssetApi = {
   approveEmailTemplateVersion: (id) => post(`/master/email-template-versions/${id}/approve`),
 
   landingPages: () => get('/master/landing-pages'),
+  landingPage: (id) => get(`/master/landing-pages/${id}`),
   createLandingPage: (data) => post('/master/landing-pages', data),
   updateLandingPage: (id, data) => put(`/master/landing-pages/${id}`, data),
   duplicateLandingPage: (id, data = {}) => post(`/master/landing-pages/${id}/duplicate`, data),
