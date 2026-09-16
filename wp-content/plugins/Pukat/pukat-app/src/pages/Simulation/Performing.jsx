@@ -6,6 +6,7 @@ import PageHeader from '../../components/UI/PageHeader.jsx'
 import PageShell from '../../components/Layout/PageShell.jsx'
 import Button from '../../components/UI/Button.jsx'
 import { DataTable } from '../../components/DataTable/index.js'
+import { PlaybookPreviewModal } from '../../components/playbooks/PlaybookFormControls.jsx'
 import { useCampaignGroups, useCampaignGroupReport } from '../../hooks/queries/useCampaignGroupQueries.js'
 import { useCampaignRun, useCampaignRunReport } from '../../hooks/queries/useCampaignQueries.js'
 import { useSyncCampaignRunResultsMutation } from '../../hooks/mutations/useCampaignMutations.js'
@@ -171,6 +172,7 @@ export default function Performing() {
   const [isExporting, setIsExporting] = useState(false)
   const [funnelCampaignSearch, setFunnelCampaignSearch] = useState('')
   const [targetTableState, setTargetTableState] = useState(TARGET_DETAILS_DEFAULT_STATE)
+  const [preview, setPreview] = useState(null)
 
   const { data: groups = [] } = useCampaignGroups()
   const { data: groupReport, isLoading: isGroupReportLoading } = useCampaignGroupReport(selectedGroupId, { enabled: !runId })
@@ -243,6 +245,36 @@ export default function Performing() {
   const runGroupName = runDetail?.campaign_group_id
     ? groups.find(group => String(group.id) === String(runDetail.campaign_group_id))?.name || `Group #${runDetail.campaign_group_id}`
     : 'Ungrouped'
+
+  // Frozen at launch (CampaignRunService::build_snapshot()) — a locked run's
+  // snapshot already carries the full template/landing page HTML, so no
+  // extra fetch is needed to preview what targets actually saw.
+  const emailTemplate = runDetail?.snapshot?.email_template
+  const landingPage = runDetail?.snapshot?.landing_page
+
+  function viewEmailTemplate() {
+    if (!emailTemplate) return
+    const label = emailTemplate.name || emailTemplate.subject || `Template #${emailTemplate.master_id}`
+    setPreview({
+      type: 'email',
+      value: label,
+      label,
+      subject: emailTemplate.subject,
+      html: emailTemplate.html_body,
+    })
+  }
+
+  function viewLandingPage() {
+    if (!landingPage) return
+    const label = landingPage.name || `Landing page #${landingPage.master_id}`
+    setPreview({
+      type: 'landing',
+      value: label,
+      label,
+      html: landingPage.html_body,
+      redirectUrl: landingPage.redirect_settings?.redirect_url || '',
+    })
+  }
 
   function clearRunSelection() {
     setSearchParams(params => {
@@ -343,8 +375,64 @@ export default function Performing() {
               value={runDetail.metrics?.synced_at ? formatEventTime(runDetail.metrics.synced_at) : 'Never synced'}
             />
           </div>
+
+          <div className="mt-4 grid grid-cols-1 gap-3 border-t border-gray-100 pt-4 sm:grid-cols-2">
+            <div className="flex items-center justify-between gap-3 rounded-lg border border-gray-100 px-3 py-2.5">
+              <div className="min-w-0">
+                <span className="block text-[10px] font-semibold uppercase tracking-wide text-gray-400">Email template used</span>
+                {emailTemplate ? (
+                  <>
+                    <span className="mt-0.5 block truncate text-xs font-semibold text-gray-800">
+                      {emailTemplate.name || emailTemplate.subject || `Template #${emailTemplate.master_id}`}
+                    </span>
+                    <span className="block truncate text-[10px] text-gray-400">v{emailTemplate.version} · {emailTemplate.subject || 'No subject'}</span>
+                  </>
+                ) : (
+                  <span className="mt-0.5 block text-xs text-gray-400">Not available until launch</span>
+                )}
+              </div>
+              {emailTemplate && (
+                <button
+                  type="button"
+                  onClick={viewEmailTemplate}
+                  className="inline-flex shrink-0 items-center gap-1 rounded-lg border border-gray-200 px-2 py-1 text-[10px] font-semibold text-gray-600 hover:border-violet-300 hover:text-violet-600"
+                >
+                  <i className="ti ti-eye text-xs" /> View
+                </button>
+              )}
+            </div>
+
+            <div className="flex items-center justify-between gap-3 rounded-lg border border-gray-100 px-3 py-2.5">
+              <div className="min-w-0">
+                <span className="block text-[10px] font-semibold uppercase tracking-wide text-gray-400">Landing page used</span>
+                {landingPage ? (
+                  <>
+                    <span className="mt-0.5 block truncate text-xs font-semibold text-gray-800">
+                      {landingPage.name || `Landing page #${landingPage.master_id}`}
+                    </span>
+                    <span className="block truncate text-[10px] text-gray-400">
+                      v{landingPage.version}{landingPage.redirect_settings?.redirect_url ? ` · redirects to ${landingPage.redirect_settings.redirect_url}` : ''}
+                    </span>
+                  </>
+                ) : (
+                  <span className="mt-0.5 block text-xs text-gray-400">Not available until launch</span>
+                )}
+              </div>
+              {landingPage && (
+                <button
+                  type="button"
+                  onClick={viewLandingPage}
+                  className="inline-flex shrink-0 items-center gap-1 rounded-lg border border-gray-200 px-2 py-1 text-[10px] font-semibold text-gray-600 hover:border-violet-300 hover:text-violet-600"
+                >
+                  <i className="ti ti-eye text-xs" /> View
+                </button>
+              )}
+            </div>
+          </div>
         </div>
       )}
+
+      <PlaybookPreviewModal preview={preview} onClose={() => setPreview(null)} />
 
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
         {STAT_CARDS.map(card => (

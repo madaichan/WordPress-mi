@@ -1787,6 +1787,12 @@ class CampaignRunService {
 		$email   = $this->repository->find_component( 'email_template_versions', (int) $playbook['default_email_template_version_id'] );
 		$landing = $this->repository->find_component( 'landing_page_versions', (int) $playbook['default_landing_page_version_id'] );
 		$sending = $this->repository->find_component( 'sending_profile_refs', (int) $playbook['default_sending_profile_ref_id'] );
+
+		// Master name isn't stored on the version row — look it up once here so
+		// the Monitoring page's "template/landing page used" display doesn't
+		// need a separate master-list fetch just to label the snapshot.
+		$email_master   = $email ? $this->repository->find_component( 'email_template_masters', (int) $email['template_master_id'] ) : null;
+		$landing_master = $landing ? $this->repository->find_component( 'landing_page_masters', (int) $landing['landing_page_master_id'] ) : null;
 		$domain  = ! empty( $playbook['default_dynamic_domain_id'] )
 			? $this->repository->find_component( 'dynamic_domains', (int) $playbook['default_dynamic_domain_id'] )
 			: null;
@@ -1817,6 +1823,7 @@ class CampaignRunService {
 			'email_template' => $email ? $this->decode_json_fields(
 				[
 					'master_id'  => (int) $email['template_master_id'],
+					'name'       => (string) ( $email_master['name'] ?? '' ),
 					'version_id' => (int) $email['id'],
 					'version'    => (int) $email['version'],
 					'subject'    => (string) $email['subject'],
@@ -1831,6 +1838,7 @@ class CampaignRunService {
 			'landing_page' => $landing ? $this->decode_json_fields(
 				[
 					'master_id'  => (int) $landing['landing_page_master_id'],
+					'name'       => (string) ( $landing_master['name'] ?? '' ),
 					'version_id' => (int) $landing['id'],
 					'version'    => (int) $landing['version'],
 					'html_body'  => (string) $landing['html_body'],
