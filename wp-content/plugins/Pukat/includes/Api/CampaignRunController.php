@@ -294,26 +294,27 @@ class CampaignRunController extends RestController {
 			return $this->from_wp_error( $result );
 		}
 
-		$run = is_array( $result['campaign_run'] ?? null ) ? $result['campaign_run'] : [];
+		$run     = is_array( $result['campaign_run'] ?? null ) ? $result['campaign_run'] : [];
+		$metrics = is_array( $result['metrics'] ?? null ) ? $result['metrics'] : [];
 
-		// CampaignReportPdfService expects the same { stats, campaign_runs,
-		// generated_at } shape CampaignGroupService::report() returns —
-		// reshape this single-run report to match rather than teaching the
-		// renderer two input shapes.
-		$report = [
-			'stats'         => $result['gophish_stats'] ?? [],
-			'campaign_runs' => [ [
-				'campaign_run_id' => $id,
-				'name'            => (string) ( $run['name'] ?? '' ),
-				'status'          => (string) ( $run['status'] ?? '' ),
-				'stats'           => $result['gophish_stats'] ?? [],
-			] ],
-			'generated_at'  => $result['generated_at'] ?? current_time( 'mysql' ),
+		// The single-run template uses the complete report breakdown.
+		$context = [
+			'run'                   => $run,
+			'stats'                 => $result['gophish_stats'] ?? [],
+			'department_breakdown'  => $metrics['department_breakdown'] ?? [],
+			'target_details'        => $metrics['target_details'] ?? [],
+			'synced'                => ! empty( $metrics['synced_at'] ),
+			'generated_at'          => $result['generated_at'] ?? current_time( 'mysql' ),
 		];
 
+		$pdf = $this->pdf->render_campaign_run( $context );
+		if ( is_wp_error( $pdf ) ) {
+			return $this->from_wp_error( $pdf );
+		}
+
 		return $this->binary_response(
-			$this->pdf->render( 'Campaign Report — ' . ( $run['name'] ?? "#{$id}" ), $report ),
-			"pukat-campaign-run-{$id}-report.pdf",
+			$pdf,
+			"pukat-campaign-run-{$id}-audit-report.pdf",
 			'application/pdf'
 		);
 	}

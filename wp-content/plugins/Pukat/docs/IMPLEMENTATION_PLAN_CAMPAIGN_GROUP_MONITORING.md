@@ -150,6 +150,10 @@ Phase 1 dan Phase 2 independen satu sama lain (file berbeda, tidak saling bergan
 
 ## 10. Phase 7: PDF Export
 
+Update 2026-09-16: single Campaign Run exports now use the approved HTML design
+with Chromium/Playwright. Group exports retain the Dompdf implementation below.
+See [PDF_EXPORT.md](PDF_EXPORT.md) for active templates, runtime setup and checks.
+
 **Tujuan:** PRD §7.5 FR-11 — PDF asli dari backend.
 
 **Pekerjaan:**
