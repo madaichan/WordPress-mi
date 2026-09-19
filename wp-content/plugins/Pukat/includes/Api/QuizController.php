@@ -172,7 +172,7 @@ class QuizController extends RestController {
 			'score'           => $score,
 			'passed'          => $passed ? 1 : 0,
 			'answers'         => wp_json_encode( $answers ),
-			'completed_at'    => current_time( 'mysql' ),
+			'completed_at'    => current_time( 'mysql', true ),
 		] );
 
 		if ( ! $passed ) {

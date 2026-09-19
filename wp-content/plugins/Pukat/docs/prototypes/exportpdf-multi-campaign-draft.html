@@ -1,0 +1,1260 @@
+<!DOCTYPE html>
+<html lang="en-GB">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Pukat — Multi-Campaign Monitoring Report · Design Draft</title>
+<style>
+/* Design adapted from docs/prototypes/new-export-campaign.html. */
+
+        :root {
+            --ink: #172033;
+            --muted: #687386;
+            --soft: #eef1f5;
+            --line: #d9dee7;
+            --paper: #ffffff;
+            --navy: #17365d;
+            --blue: #2e5d8a;
+            --red: #a83434;
+            --amber: #9a6b16;
+            --green: #2f6b4f;
+        }
+
+        * {
+            box-sizing: border-box
+        }
+
+        html,
+        body {
+            margin: 0;
+            padding: 0;
+            background: #e7ebf0;
+            color: var(--ink);
+            font-family: Arial, Helvetica, sans-serif;
+            -webkit-print-color-adjust: exact;
+            print-color-adjust: exact;
+        }
+
+        body {
+            padding: 26px 0
+        }
+
+        .page {
+            width: 210mm;
+            min-height: 297mm;
+            margin: 0 auto 26px;
+            padding: 17mm 18mm 15mm;
+            background: var(--paper);
+            box-shadow: 0 5px 24px rgba(22, 32, 51, .10);
+            display: flex;
+            flex-direction: column;
+        }
+
+        .content {
+            flex: 1
+        }
+
+        /* Header */
+        .masthead {
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-end;
+            padding-bottom: 8px;
+            border-bottom: 1px solid #8f99a8;
+        }
+
+        .brand {
+            font-size: 18px;
+            font-weight: 700;
+            letter-spacing: -.3px;
+            color: var(--navy);
+        }
+
+        .brand small {
+            display: block;
+            margin-top: 2px;
+            font-size: 7.5px;
+            font-weight: 400;
+            color: var(--muted);
+            letter-spacing: .7px;
+            text-transform: uppercase;
+        }
+
+        .doc-ref {
+            text-align: right;
+            font-size: 7.5px;
+            line-height: 1.45;
+            color: var(--muted);
+            text-transform: uppercase;
+            letter-spacing: .45px;
+        }
+
+        /* Report title */
+        .title-block {
+            padding: 20px 0 13px;
+        }
+
+        .kicker {
+            font-size: 8px;
+            font-weight: 700;
+            color: var(--blue);
+            text-transform: uppercase;
+            letter-spacing: 1.2px;
+            margin-bottom: 7px;
+        }
+
+        h1 {
+            margin: 0;
+            font-family: Georgia, "Times New Roman", serif;
+            font-size: 25px;
+            line-height: 1.15;
+            font-weight: 600;
+            color: #13223a;
+        }
+
+        .subtitle {
+            margin-top: 8px;
+            font-size: 10px;
+            color: var(--muted);
+        }
+
+        /* Sections */
+        .section {
+            margin-top: 18px;
+            break-inside: avoid;
+        }
+
+        .section-head {
+            display: flex;
+            align-items: baseline;
+            gap: 9px;
+            margin-bottom: 9px;
+        }
+
+        .section-no {
+            font-size: 8px;
+            font-weight: 700;
+            color: var(--blue);
+            letter-spacing: .8px;
+        }
+
+        .section-title {
+            margin: 0;
+            font-family: Georgia, "Times New Roman", serif;
+            font-size: 14px;
+            font-weight: 600;
+            color: #18304e;
+        }
+
+        .section-rule {
+            flex: 1;
+            height: 1px;
+            background: var(--line);
+            margin-left: 7px;
+        }
+
+        /* Campaign facts */
+        .facts {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            border-top: 1px solid var(--line);
+            border-bottom: 1px solid var(--line);
+        }
+
+        .fact {
+            padding: 10px 12px 10px 0;
+        }
+
+        .fact:nth-child(n+4) {
+            border-top: 1px solid var(--soft);
+        }
+
+        .fact-label {
+            font-size: 7.5px;
+            color: var(--muted);
+            text-transform: uppercase;
+            letter-spacing: .55px;
+            margin-bottom: 4px;
+        }
+
+        .fact-value {
+            font-size: 9.5px;
+            font-weight: 600;
+            line-height: 1.35;
+            color: var(--ink);
+        }
+
+        /* Executive summary */
+        .summary-layout {
+            display: grid;
+            grid-template-columns: 1fr 42mm;
+            gap: 18px;
+            align-items: start;
+        }
+
+        .summary-copy {
+            font-family: Georgia, "Times New Roman", serif;
+            font-size: 10.5px;
+            line-height: 1.62;
+            color: #344054;
+        }
+
+        .summary-copy p {
+            margin: 0 0 8px;
+        }
+
+        .summary-copy p:last-child {
+            margin-bottom: 0
+        }
+
+        .assessment {
+            border-left: 3px solid var(--amber);
+            padding-left: 11px;
+            padding-top: 1px;
+        }
+
+        .assessment-label {
+            font-size: 7.5px;
+            text-transform: uppercase;
+            letter-spacing: .7px;
+            color: var(--muted);
+        }
+
+        .assessment-value {
+            margin-top: 5px;
+            font-family: Georgia, "Times New Roman", serif;
+            font-size: 20px;
+            color: var(--amber);
+            font-weight: 600;
+        }
+
+        .assessment-note {
+            margin-top: 5px;
+            font-size: 8px;
+            line-height: 1.45;
+            color: var(--muted);
+        }
+
+        /* Metrics */
+        .metrics {
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            border-top: 1px solid var(--line);
+            border-bottom: 1px solid var(--line);
+        }
+
+        .metric {
+            padding: 11px 12px 10px 0;
+            position: relative;
+        }
+
+        .metric:not(:last-child)::after {
+            content: "";
+            position: absolute;
+            right: 10px;
+            top: 11px;
+            bottom: 11px;
+            width: 1px;
+            background: var(--line);
+        }
+
+        .metric-label {
+            font-size: 7.5px;
+            color: var(--muted);
+            text-transform: uppercase;
+            letter-spacing: .5px;
+        }
+
+        .metric-value {
+            margin-top: 4px;
+            font-family: Georgia, "Times New Roman", serif;
+            font-size: 23px;
+            color: var(--navy);
+            font-weight: 600;
+        }
+
+        .metric-note {
+            margin-top: 4px;
+            font-size: 7.5px;
+            color: var(--muted);
+        }
+
+        .metric.risk .metric-value {
+            color: var(--red)
+        }
+
+        .metric.good .metric-value {
+            color: var(--green)
+        }
+
+        /* Editorial notes */
+        .notes {
+            margin-top: 10px;
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 14px;
+        }
+
+        .note {
+            font-size: 8px;
+            line-height: 1.45;
+            color: var(--muted);
+        }
+
+        .note strong {
+            display: block;
+            margin-bottom: 3px;
+            color: var(--ink);
+            font-size: 8.5px;
+        }
+
+        /* Analysis */
+        .analysis-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 22px;
+        }
+
+        .analysis-block {
+            break-inside: avoid;
+        }
+
+        .analysis-title {
+            font-size: 8px;
+            text-transform: uppercase;
+            letter-spacing: .55px;
+            color: var(--muted);
+            margin-bottom: 9px;
+        }
+
+        .response-row {
+            margin-bottom: 9px;
+        }
+
+        .response-meta {
+            display: flex;
+            justify-content: space-between;
+            gap: 10px;
+            font-size: 8px;
+            margin-bottom: 4px;
+        }
+
+        .response-meta span:first-child {
+            color: #435064
+        }
+
+        .response-meta strong {
+            color: var(--ink)
+        }
+
+        .track {
+            height: 5px;
+            background: #edf0f3;
+            overflow: hidden;
+        }
+
+        .fill {
+            height: 100%;
+            background: var(--blue);
+        }
+
+        .fill.red {
+            background: var(--red)
+        }
+
+        .fill.green {
+            background: var(--green)
+        }
+
+        .fill.gray {
+            background: #9fa8b5
+        }
+
+        .distribution-list {
+            border-top: 1px solid var(--line);
+        }
+
+        .distribution-item {
+            display: grid;
+            grid-template-columns: 1fr auto;
+            gap: 12px;
+            padding: 8px 0;
+            border-bottom: 1px solid var(--soft);
+        }
+
+        .distribution-item .label {
+            font-size: 8.5px;
+            color: #435064;
+        }
+
+        .distribution-item .value {
+            text-align: right;
+        }
+
+        .distribution-item .value strong {
+            display: block;
+            font-family: Georgia, "Times New Roman", serif;
+            font-size: 15px;
+            font-weight: 600;
+            color: var(--ink);
+        }
+
+        .distribution-item .value span {
+            display: block;
+            margin-top: 1px;
+            font-size: 7px;
+            color: var(--muted);
+        }
+
+        /* Tables */
+        .table-wrap {
+            break-inside: avoid;
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+        }
+
+        th {
+            padding: 7px 7px;
+            border-top: 1px solid #9aa4b2;
+            border-bottom: 1px solid #9aa4b2;
+            text-align: left;
+            font-size: 7px;
+            font-weight: 700;
+            color: #586579;
+            text-transform: uppercase;
+            letter-spacing: .35px;
+        }
+
+        td {
+            padding: 6px 7px;
+            border-bottom: 1px solid #e6e9ee;
+            font-size: 7.7px;
+            line-height: 1.3;
+            color: #364152;
+            vertical-align: middle;
+        }
+
+        tbody tr:last-child td {
+            border-bottom: 1px solid #9aa4b2;
+        }
+
+        .center {
+            text-align: center
+        }
+
+        .total td {
+            font-weight: 700;
+            color: var(--ink);
+            background: #fafbfc;
+        }
+
+        /* Humanized risk notation */
+        .risk-text {
+            font-size: 7.2px;
+            font-weight: 700;
+            letter-spacing: .4px;
+        }
+
+        .risk-low {
+            color: var(--green)
+        }
+
+        .risk-medium {
+            color: var(--amber)
+        }
+
+        .risk-high {
+            color: var(--red)
+        }
+
+        /* Observations */
+        .observations {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 14px;
+            margin-top: 2px;
+        }
+
+        .observation {
+            padding-top: 7px;
+            border-top: 2px solid #b5bdc8;
+        }
+
+        .observation.red {
+            border-top-color: var(--red)
+        }
+
+        .observation.green {
+            border-top-color: var(--green)
+        }
+
+        .observation-title {
+            font-size: 8.5px;
+            font-weight: 700;
+            color: var(--ink);
+            margin-bottom: 4px;
+        }
+
+        .observation p {
+            margin: 0;
+            font-size: 7.8px;
+            line-height: 1.45;
+            color: var(--muted);
+        }
+
+        /* Findings */
+        .finding {
+            display: grid;
+            grid-template-columns: 14mm 1fr 23mm;
+            gap: 10px;
+            padding: 10px 0;
+            border-top: 1px solid var(--line);
+            break-inside: avoid;
+        }
+
+        .finding:last-child {
+            border-bottom: 1px solid var(--line);
+        }
+
+        .finding-index {
+            font-family: Georgia, "Times New Roman", serif;
+            font-size: 20px;
+            color: #a7b0bd;
+        }
+
+        .finding-title {
+            font-size: 9.5px;
+            font-weight: 700;
+            color: var(--ink);
+            margin-bottom: 4px;
+        }
+
+        .finding-desc {
+            font-family: Georgia, "Times New Roman", serif;
+            font-size: 9px;
+            line-height: 1.5;
+            color: #4c586a;
+        }
+
+        .finding-risk {
+            text-align: right;
+            font-size: 7px;
+            text-transform: uppercase;
+            letter-spacing: .45px;
+            font-weight: 700;
+        }
+
+        /* Risk table */
+        .risk-table td {
+            padding-top: 8px;
+            padding-bottom: 8px;
+        }
+
+        /* Recommendations */
+        .recommendation {
+            display: grid;
+            grid-template-columns: 14mm 1fr 22mm;
+            gap: 10px;
+            padding: 10px 0;
+            border-top: 1px solid var(--line);
+            break-inside: avoid;
+        }
+
+        .recommendation:last-child {
+            border-bottom: 1px solid var(--line);
+        }
+
+        .recommendation-no {
+            font-family: Georgia, "Times New Roman", serif;
+            font-size: 18px;
+            color: #a7b0bd;
+        }
+
+        .recommendation-title {
+            font-size: 9.5px;
+            font-weight: 700;
+            color: var(--ink);
+        }
+
+        .recommendation-desc {
+            margin-top: 4px;
+            font-family: Georgia, "Times New Roman", serif;
+            font-size: 8.8px;
+            line-height: 1.5;
+            color: #4c586a;
+        }
+
+        .priority {
+            text-align: right;
+            font-size: 7px;
+            color: var(--muted);
+            text-transform: uppercase;
+            letter-spacing: .4px;
+        }
+
+        /* Signatures */
+        .approval {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 28mm;
+            margin-top: 24px;
+        }
+
+        .sign {
+            font-size: 7.5px;
+            color: var(--muted);
+        }
+
+        .sign-space {
+            height: 35px
+        }
+
+        .sign-line {
+            border-top: 1px solid #8f99a8;
+            padding-top: 5px;
+            font-size: 8px;
+            color: var(--ink);
+            font-weight: 600;
+        }
+
+        /* Footer */
+        .footer {
+            margin-top: 16px;
+            padding-top: 7px;
+            border-top: 1px solid var(--line);
+            display: flex;
+            justify-content: space-between;
+            font-size: 7px;
+            color: #8a94a3;
+        }
+
+        .footer strong {
+            color: #667286;
+            font-weight: 600;
+        }
+
+
+        /* Response user appendix */
+        .appendix-intro {
+            margin-top: 4px;
+            margin-bottom: 10px;
+            font-family: Georgia, "Times New Roman", serif;
+            font-size: 9px;
+            line-height: 1.5;
+            color: #4c586a;
+        }
+
+        .response-user-table th {
+            font-size: 6.5px;
+            padding: 5px 5px;
+        }
+
+        .response-user-table td {
+            font-size: 6.8px;
+            padding: 4.5px 5px;
+            line-height: 1.2;
+        }
+
+        .response-user-table .email {
+            color: #5d6878;
+        }
+
+        .response-type {
+            font-size: 6.5px;
+            font-weight: 700;
+            letter-spacing: .2px;
+            white-space: nowrap;
+        }
+
+        .response-click {
+            color: var(--red)
+        }
+
+        .response-report {
+            color: var(--green)
+        }
+
+        .response-open {
+            color: var(--blue)
+        }
+
+        .appendix-summary {
+            margin-top: 10px;
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 14px;
+            border-top: 1px solid var(--line);
+            padding-top: 9px;
+        }
+
+        .appendix-summary div {
+            font-size: 7.5px;
+            line-height: 1.4;
+            color: var(--muted);
+        }
+
+        .appendix-summary strong {
+            display: block;
+            margin-bottom: 2px;
+            font-family: Georgia, "Times New Roman", serif;
+            font-size: 14px;
+            color: var(--ink);
+        }
+
+
+        /* Page 1 compact balance after moving response analysis */
+        .page-one-analysis .analysis-grid {
+            gap: 18px;
+        }
+
+        .page-one-analysis .analysis-title {
+            margin-bottom: 7px;
+        }
+
+        .page-one-analysis .response-row {
+            margin-bottom: 7px;
+        }
+
+        .page-one-analysis .distribution-item {
+            padding: 6px 0;
+        }
+
+        .page-one-analysis .distribution-item .value strong {
+            font-size: 14px;
+        }
+
+
+        /* Section 04 — Response analysis */
+        .response-analysis-layout {
+            display: grid;
+            grid-template-columns: 0.92fr 1.08fr;
+            gap: 20px;
+            align-items: start;
+        }
+
+        .response-chart-area {
+            display: grid;
+            grid-template-columns: 108px 1fr;
+            gap: 15px;
+            align-items: center;
+        }
+
+        .response-donut {
+            width: 108px;
+            height: 108px;
+            border-radius: 50%;
+            position: relative;
+            background:
+                conic-gradient(#aeb7c4 0 51%,
+                    var(--red) 51% 69.5%,
+                    var(--green) 69.5% 100%);
+        }
+
+        .response-donut::after {
+            content: "";
+            position: absolute;
+            inset: 21px;
+            border-radius: 50%;
+            background: var(--paper);
+        }
+
+        .response-donut-center {
+            position: absolute;
+            inset: 0;
+            z-index: 1;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            text-align: center;
+        }
+
+        .response-donut-center strong {
+            display: block;
+            font-family: Georgia, "Times New Roman", serif;
+            font-size: 20px;
+            line-height: 1;
+            font-weight: 600;
+            color: var(--ink);
+        }
+
+        .response-donut-center span {
+            display: block;
+            margin-top: 3px;
+            font-size: 6.7px;
+            line-height: 1.2;
+            color: var(--muted);
+            text-transform: uppercase;
+            letter-spacing: .45px;
+        }
+
+        .response-legend {
+            border-top: 1px solid var(--line);
+        }
+
+        .response-legend-row {
+            display: grid;
+            grid-template-columns: 7px 1fr auto;
+            gap: 7px;
+            align-items: center;
+            padding: 6px 0;
+            border-bottom: 1px solid var(--soft);
+        }
+
+        .response-legend-dot {
+            width: 7px;
+            height: 7px;
+            border-radius: 50%;
+        }
+
+        .response-legend-name {
+            font-size: 7.6px;
+            line-height: 1.25;
+            color: #465267;
+        }
+
+        .response-legend-value {
+            text-align: right;
+        }
+
+        .response-legend-value strong {
+            display: block;
+            font-family: Georgia, "Times New Roman", serif;
+            font-size: 12px;
+            line-height: 1;
+            color: var(--ink);
+        }
+
+        .response-legend-value span {
+            display: block;
+            margin-top: 2px;
+            font-size: 6.5px;
+            color: var(--muted);
+        }
+
+        .response-rankings {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 16px;
+        }
+
+        .ranking-group-title {
+            margin-bottom: 5px;
+            padding-bottom: 5px;
+            border-bottom: 1px solid var(--line);
+            font-size: 7px;
+            line-height: 1.3;
+            color: var(--muted);
+            text-transform: uppercase;
+            letter-spacing: .55px;
+        }
+
+        .ranking-row {
+            display: grid;
+            grid-template-columns: 16px 1fr auto;
+            gap: 6px;
+            align-items: start;
+            padding: 6px 0;
+            border-bottom: 1px solid var(--soft);
+        }
+
+        .ranking-number {
+            font-family: Georgia, "Times New Roman", serif;
+            font-size: 11px;
+            color: #a4adba;
+        }
+
+        .ranking-name {
+            font-size: 7.6px;
+            line-height: 1.25;
+            font-weight: 600;
+            color: var(--ink);
+        }
+
+        .ranking-detail {
+            display: block;
+            margin-top: 2px;
+            font-size: 6.5px;
+            line-height: 1.25;
+            font-weight: 400;
+            color: var(--muted);
+        }
+
+        .ranking-value {
+            font-family: Georgia, "Times New Roman", serif;
+            font-size: 12px;
+            line-height: 1;
+            color: var(--navy);
+            text-align: right;
+            white-space: nowrap;
+        }
+
+        .position-placeholder .ranking-value {
+            color: #8b95a3;
+        }
+
+        .position-placeholder .ranking-detail {
+            font-style: italic;
+        }
+
+        .response-summary {
+            margin-top: 10px;
+            padding-top: 8px;
+            border-top: 1px solid var(--line);
+            display: grid;
+            grid-template-columns: 17mm 1fr;
+            gap: 9px;
+        }
+
+        .response-summary-label {
+            font-size: 7px;
+            font-weight: 700;
+            color: var(--blue);
+            text-transform: uppercase;
+            letter-spacing: .6px;
+        }
+
+        .response-summary-text {
+            margin: 0;
+            font-family: Georgia, "Times New Roman", serif;
+            font-size: 8.4px;
+            line-height: 1.48;
+            color: #4c586a;
+        }
+
+        .data-note {
+            margin-top: 5px;
+            font-size: 6.3px;
+            line-height: 1.35;
+            color: #8a94a3;
+        }
+
+        @page {
+            size: A4;
+            margin: 0;
+        }
+
+        @media print {
+
+            html,
+            body {
+                background: #fff
+            }
+
+            body {
+                padding: 0
+            }
+
+            .page {
+                width: 210mm;
+                height: 297mm;
+                min-height: 297mm;
+                margin: 0;
+                box-shadow: none;
+                page-break-after: always;
+                break-after: page;
+            }
+
+            .page:last-child {
+                page-break-after: auto;
+                break-after: auto;
+            }
+
+            .section,
+            .finding,
+            .recommendation,
+            .table-wrap,
+            .analysis-block {
+                break-inside: avoid;
+                page-break-inside: avoid;
+            }
+        }
+
+/* Active PDF: Chromium owns margins and repeating page chrome. */
+html, body { overflow-wrap: anywhere; }
+.empty-state { padding: 12px 0; font-size: 8px; line-height: 1.5; color: var(--muted); }
+.assessment.risk-high { border-color: var(--red); }
+.assessment.risk-high .assessment-value { color: var(--red); }
+.assessment.risk-low { border-color: var(--green); }
+.assessment.risk-low .assessment-value { color: var(--green); }
+.assessment.unavailable { border-color: var(--line); }
+.assessment.unavailable .assessment-value { color: var(--muted); }
+.response-user-table, .department-table, .risk-table { table-layout: fixed; }
+td { overflow-wrap: anywhere; }
+.response-donut { background: var(--donut-fill, #edf0f3); }
+.response-user-table .response-type { white-space: normal; }
+.response-user-table time { display: block; }
+.table-wrap, .section { break-inside: auto; }
+.section-head { break-inside: avoid; break-after: avoid; }
+.approval, .facts, .metrics, .notes, .observations, .response-analysis-layout, .response-summary, .appendix-summary { break-inside: avoid; }
+thead { display: table-header-group; }
+tr { break-inside: avoid; }
+@media screen and (max-width: 850px) {
+ body { padding: 12px; }
+ .page { width: 100%; min-height: auto; padding: 24px; }
+ .facts { grid-template-columns: repeat(2, 1fr); }
+ .response-analysis-layout { grid-template-columns: 1fr; }
+}
+@media print {
+ @page { size: A4; margin: 25mm 18mm 20mm; }
+ .page { width: auto; height: auto; min-height: 0; padding: 0; margin: 0; display: block; box-shadow: none; break-after: page; }
+ .page:last-child { break-after: auto; }
+ .page .section, .page .table-wrap { break-inside: auto; page-break-inside: auto; }
+ .page .content { display: block; }
+ .masthead, .footer { display: none; }
+}
+
+</style>
+<style>
+/* Portfolio additions to the approved single-campaign visual language. */
+.draft-toolbar { max-width:210mm; margin:0 auto 22px; padding:0 12px; display:flex; align-items:center; justify-content:space-between; gap:18px; font-size:12px; }
+.draft-toolbar strong { color:var(--navy); }
+.draft-toolbar p { margin:5px 0 0; color:var(--muted); font-size:11px; }
+.draft-controls { display:flex; gap:8px; align-items:center; }
+.draft-controls select, .draft-controls button { font:inherit; padding:10px 12px; border:1px solid #c4ccd7; border-radius:5px; background:white; color:var(--ink); }
+.draft-controls button { background:var(--navy); color:white; border-color:var(--navy); cursor:pointer; }
+.draft-controls select:focus-visible, .draft-controls button:focus-visible { outline:3px solid var(--blue); outline-offset:3px; }
+.masthead { margin-bottom:12px; }
+.footer { margin-top:28px; }
+.draft-line { margin-top:7px; font-size:8px; letter-spacing:.6px; color:var(--amber); font-weight:700; text-transform:uppercase; }
+.assessment-provisional { font-size:8px; color:var(--muted); margin:5px 0 8px; }
+.portfolio-metrics { grid-template-columns:repeat(3,minmax(0,1fr)); row-gap:18px; }
+.portfolio-metrics .metric:nth-child(4) { border-left:0; padding-left:0; }
+.portfolio-metrics .metric-value { font-size:27px; }
+.compact-note { font-size:8px; line-height:1.55; color:var(--muted); margin:10px 0 0; }
+.comparison-signals { display:grid; grid-template-columns:1fr 1fr; gap:24px; }
+.signal-label { display:flex; justify-content:space-between; gap:12px; font-size:9px; margin-bottom:7px; }
+.signal-track { height:6px; background:var(--soft); }
+.signal-track span { display:block; height:100%; background:var(--red); }
+.signal-track.good span { background:var(--green); }
+.signal-caption { font-size:8px; line-height:1.5; color:var(--muted); margin-top:7px; }
+table { table-layout:fixed; }
+.campaign-table th, .campaign-table td { font-size:8px; padding:10px 6px; }
+.campaign-table th { font-size:6.8px; }
+.campaign-name { display:block; font-weight:600; color:var(--ink); }
+.cell-detail { display:block; font-size:7px; color:var(--muted); line-height:1.5; margin-top:3px; }
+.status { font-size:6.8px; font-weight:600; text-transform:uppercase; color:var(--blue); }
+.status.completed { color:var(--green); }
+.status.scheduled { color:var(--amber); }
+.snapshot-table th, .snapshot-table td { font-size:7.8px; padding:9px 6px; }
+.snapshot-table th { font-size:6.8px; }
+.coverage-note { padding:12px 14px; border-left:2px solid var(--amber); background:#fbf9f4; font-size:9px; line-height:1.6; }
+.coverage-note strong { color:var(--ink); }
+.hourly-chart { display:flex; gap:4px; height:95px; align-items:flex-end; border-bottom:1px solid var(--line); padding:0 4px; margin-top:20px; }
+.hourly-bar { flex:1; min-width:0; background:#c6d0dc; position:relative; }
+.hourly-bar.peak { background:var(--blue); }
+.hourly-axis { display:flex; justify-content:space-between; margin-top:6px; font-size:7px; color:var(--muted); }
+.two-notes { display:grid; grid-template-columns:1fr 1fr; gap:24px; margin-top:22px; }
+.two-notes h3 { font-size:10px; margin:0 0 7px; color:var(--navy); }
+.two-notes p { font-size:9px; line-height:1.6; margin:0; color:var(--muted); }
+.risk-table th, .risk-table td { font-size:9px; }
+.finding-desc { line-height:1.65; }
+.action-card { padding:16px 0; border-top:1px solid var(--line); break-inside:avoid; }
+.action-top { display:grid; grid-template-columns:30px 1fr auto; gap:14px; align-items:baseline; }
+.action-top h3 { font-size:11px; margin:0 0 8px; }
+.action-number { font-family:Georgia,serif; font-size:20px; color:#9eabbc; }
+.action-body { font-family:Georgia,serif; font-size:10px; line-height:1.6; margin:0; }
+.action-meta { display:grid; grid-template-columns:1fr 1fr; gap:18px; margin:12px 0 0 44px; font-size:8px; line-height:1.55; }
+.action-meta span { display:block; color:var(--muted); font-size:6.8px; font-weight:600; text-transform:uppercase; letter-spacing:.4px; margin-bottom:3px; }
+.approval { margin-top:18px; }
+.event-table th, .event-table td { font-size:8px; padding:9px 6px; }
+.event-table th { font-size:7px; }
+.event-reported { color:var(--green); }
+.event-risk { color:var(--red); }
+.definitions { display:grid; grid-template-columns:1fr 1fr; gap:14px 24px; }
+.definition h3 { font-size:9px; margin:0 0 5px; color:var(--navy); }
+.definition p { font-size:8px; line-height:1.65; color:var(--muted); margin:0; }
+.method-banner { margin-top:16px; padding-top:12px; border-top:1px solid var(--line); font-family:Georgia,serif; font-size:10px; line-height:1.6; }
+.screen-reader-only { position:absolute; width:1px; height:1px; padding:0; margin:-1px; overflow:hidden; clip:rect(0,0,0,0); white-space:nowrap; border:0; }
+@media screen and (max-width:850px) { .draft-toolbar { flex-wrap:wrap; } .draft-controls { flex-wrap:wrap; } .page { width:calc(100% - 24px); padding:24px; } .facts { grid-template-columns:repeat(2,minmax(0,1fr)); } .summary-layout { grid-template-columns:1fr; } .table-wrap { overflow-x:auto; } .campaign-table, .snapshot-table { min-width:600px; } }
+@media screen and (max-width:500px) { .portfolio-metrics, .comparison-signals, .two-notes, .definitions { grid-template-columns:1fr; } .metric, .portfolio-metrics .metric { border-left:0; padding-left:0; } .action-meta { grid-template-columns:1fr; } }
+@media print {
+  .draft-toolbar { display:none; }
+  .page .masthead, .page .footer { display:flex; }
+  .renderer-document .page .masthead, .renderer-document .page .footer { display:none; }
+  .page, .content, .section, .table-wrap { break-inside:auto; }
+  .section-head { break-after:avoid; }
+  .assessment, .metrics, .comparison-signals, .hourly-chart, .finding, .action-card, .approval, .definition { break-inside:avoid; }
+  .page { width:auto; min-height:0; padding:0; margin:0; display:block; }
+}
+</style>
+</head>
+<body>
+<div class="draft-toolbar" id="draft-toolbar">
+  <div><strong>Pukat · Multi-Campaign Report</strong><p>Design draft · Illustrative data · C2 English</p></div>
+  <div class="draft-controls"><label class="screen-reader-only" for="scope">Report selection</label><select id="scope"><option value="active">All active groups</option><option value="q3">Q3 Awareness Exercise</option><option value="executive">Executive Targeting Exercise</option></select><button type="button" id="print-draft">Print draft</button></div>
+</div>
+<noscript><p style="max-width:210mm;margin:auto;padding:24px;background:white;">Enable JavaScript to view this illustrative report draft.</p></noscript>
+<main id="report" aria-live="polite">
+<article class="page">
+<div class="content">
+  <div class="title-block"><div class="kicker">Consolidated Campaign Evaluation</div><h1>Multi-Campaign<br>Monitoring Report</h1><div class="subtitle" data-text="selection"></div><div class="draft-line">Design draft · Illustrative data</div></div>
+  <section class="section"><div class="section-head"><span class="section-no">01</span><h2 class="section-title">Reporting Scope & Coverage</h2><span class="section-rule"></span></div><div class="facts" id="scope-facts"></div></section>
+  <section class="section"><div class="section-head"><span class="section-no">02</span><h2 class="section-title">Executive Summary</h2><span class="section-rule"></span></div>
+    <div class="summary-layout"><div class="summary-copy" id="executive-summary"></div><aside class="assessment risk-high"><div class="assessment-label">Overall Assessment</div><div class="assessment-value" data-text="overall"></div><div class="assessment-provisional" data-text="provisional"></div><div class="assessment-note">Exposure and reporting inform the rating. Campaign coverage is assessed independently.</div></aside></div>
+  </section>
+  <section class="section"><div class="section-head"><span class="section-no">03</span><h2 class="section-title">Consolidated Performance Metrics</h2><span class="section-rule"></span></div><div class="metrics portfolio-metrics" id="portfolio-metrics"></div><p class="compact-note">Recipient records are counted within each campaign and then aggregated. The same person may contribute to more than one campaign. Stage counts may overlap and must not be added together.</p></section>
+  <section class="section"><div class="section-head"><span class="section-no">04</span><h2 class="section-title">Exposure & Reporting Signals</h2><span class="section-rule"></span></div><div class="comparison-signals" id="comparison-signals"></div></section>
+</div></article>
+<article class="page"><div class="content">
+  <section class="section"><div class="section-head"><span class="section-no">05</span><h2 class="section-title">Campaign Performance Comparison</h2><span class="section-rule"></span></div>
+    <div class="table-wrap"><table class="campaign-table"><colgroup><col style="width:30%"><col style="width:11%"><col style="width:11%"><col style="width:12%"><col style="width:12%"><col style="width:12%"><col style="width:12%"></colgroup><thead><tr><th>Campaign / Group</th><th class="center">Status</th><th class="center">Records</th><th class="center">Opened</th><th class="center">Clicked</th><th class="center">Submitted</th><th class="center">Reported</th></tr></thead><tbody id="campaign-comparison"></tbody></table></div>
+    <p class="compact-note">Each campaign rate uses its own recorded recipient total. The consolidated rate is recalculated from summed counts; it is not an average of campaign percentages. A dash denotes unavailable results.</p>
+  </section>
+  <section class="section"><div class="section-head"><span class="section-no">06</span><h2 class="section-title">Campaign Snapshot Register</h2><span class="section-rule"></span></div>
+    <div class="table-wrap"><table class="snapshot-table"><colgroup><col style="width:33%"><col style="width:12%"><col style="width:27%"><col style="width:28%"></colgroup><thead><tr><th>Campaign / Playbook</th><th class="center">Planned<br>Records</th><th>Launch / Schedule</th><th>Last Result Sync</th></tr></thead><tbody id="snapshot-register"></tbody></table></div>
+    <div class="coverage-note" id="coverage-note"></div>
+    <p class="compact-note" data-text="scope-rule"></p>
+  </section>
+</div></article>
+<article class="page"><div class="content">
+  <section class="section"><div class="section-head"><span class="section-no">07</span><h2 class="section-title">Departmental Response Distribution</h2><span class="section-rule"></span></div>
+    <div class="table-wrap"><table><colgroup><col style="width:36%"><col style="width:13%"><col style="width:13%"><col style="width:13%"><col style="width:13%"><col style="width:12%"></colgroup><thead><tr><th>Department</th><th class="center">Records</th><th class="center">Clicked</th><th class="center">Submitted</th><th class="center">Click Rate</th><th class="center">Risk</th></tr></thead><tbody id="department-table"></tbody></table></div>
+    <p class="compact-note">Departmental risk follows the existing click-rate thresholds: &lt;15% LOW, 15–&lt;40% MEDIUM, ≥40% HIGH. Clicks and submissions remain separate metrics.</p>
+    <div class="two-notes" id="department-observations"></div>
+  </section>
+  <section class="section"><div class="section-head"><span class="section-no">08</span><h2 class="section-title">Recorded Click Activity by Hour</h2><span class="section-rule"></span></div>
+    <div class="hourly-chart" id="hourly-chart" role="img" aria-label="Recorded click events grouped by UTC hour"></div><div class="hourly-axis"><span>00:00</span><span>06:00</span><span>12:00</span><span>18:00</span><span>23:00 UTC</span></div>
+    <p class="compact-note">Hour buckets use UTC and combine events across all recorded dates. Repeated clicks contribute additional events; these totals may exceed the number of recipient records with a click.</p>
+    <div class="two-notes" id="activity-observations"></div>
+  </section>
+</div></article>
+<article class="page"><div class="content">
+  <section class="section"><div class="section-head"><span class="section-no">09</span><h2 class="section-title">Consolidated Risk Assessment</h2><span class="section-rule"></span></div>
+    <div class="table-wrap"><table class="risk-table"><colgroup><col style="width:24%"><col style="width:16%"><col style="width:60%"></colgroup><thead><tr><th>Assessment Area</th><th class="center">Rating</th><th>Rationale</th></tr></thead><tbody id="risk-matrix"></tbody></table></div>
+    <p class="compact-note">This draft applies Pukat's existing exposure and reporting criteria to the recorded selection. Overall Assessment adopts the higher of those two ratings. Snapshot completeness qualifies the conclusion; it does not lower the observed exposure rating.</p>
+  </section>
+  <section class="section"><div class="section-head"><span class="section-no">10</span><h2 class="section-title">Principal Findings</h2><span class="section-rule"></span></div><div id="principal-findings"></div></section>
+  <div class="method-banner">Campaigns should be interpreted in the context of their scenarios, audiences and timing. Differences in response rates identify areas for investigation; they do not, by themselves, establish changes in behaviour or campaign effectiveness.</div>
+</div></article>
+<article class="page"><div class="content">
+  <section class="section"><div class="section-head"><span class="section-no">11</span><h2 class="section-title">Recommendations & Remediation Plan</h2><span class="section-rule"></span></div><p class="compact-note">The following actions and ownership arrangements are proposed for management review.</p><div id="action-plan"></div></section>
+  <section class="section"><div class="section-head"><span class="section-no">12</span><h2 class="section-title">Review & Approval</h2><span class="section-rule"></span></div><div class="approval"><div class="sign">Prepared by<div class="sign-space"></div><div class="sign-line">IT Auditor / Security Awareness Team</div></div><div class="sign">Reviewed and approved by<div class="sign-space"></div><div class="sign-line">CISO / Head of IT Security</div></div></div><p class="compact-note">Approval date: ____________________ &nbsp; Review reference: ____________________</p></section>
+</div></article>
+<article class="page"><div class="content">
+  <section class="section"><div class="section-head"><span class="section-no">13</span><h2 class="section-title">Recent Activity Register</h2><span class="section-rule"></span></div><p class="compact-note">A selection of the most recent clicks, submissions and reports, ordered from newest to oldest. This register is a recent-activity extract, not an exhaustive event history.</p>
+    <div class="table-wrap"><table class="event-table"><colgroup><col style="width:6%"><col style="width:24%"><col style="width:29%"><col style="width:20%"><col style="width:21%"></colgroup><thead><tr><th>No.</th><th>Participant</th><th>Department</th><th>Activity</th><th>Timestamp<br>Asia/Jakarta</th></tr></thead><tbody id="event-register"></tbody></table></div>
+  </section>
+  <section class="section"><div class="section-head"><span class="section-no">14</span><h2 class="section-title">Reporting Conventions & Interpretation</h2><span class="section-rule"></span></div><div class="definitions">
+    <div class="definition"><h3>Counting basis</h3><p>Recipient records are summed across campaigns. They do not constitute a deduplicated count of people. Unique participants cannot be established from the consolidated metrics alone.</p></div>
+    <div class="definition"><h3>Rates and denominators</h3><p>Rates use recorded recipients as the denominator, including records without a sent email. Consolidated percentages are weighted by record counts, preserving the dashboard's counting basis.</p></div>
+    <div class="definition"><h3>Stage overlap</h3><p>A recipient may open, click, submit data and report within the same campaign. These stage counts are not mutually exclusive. No combined exposure total is inferred from their sum.</p></div>
+    <div class="definition"><h3>Snapshot completeness</h3><p>Metrics reflect cached campaign results at each campaign's latest synchronisation. Unsynchronised campaigns remain in the scope register, with results marked unavailable.</p></div>
+    <div class="definition"><h3>Activity timestamps</h3><p>Event timestamps are displayed in Asia/Jakarta. The hourly chart retains UTC buckets. The recent-activity extract is limited to the latest records returned by Monitoring, currently up to 30.</p></div>
+    <div class="definition"><h3>Comparison limits</h3><p>Scenario difficulty, cohort composition and campaign duration may differ. Comparisons describe the recorded selection and should inform targeted review before conclusions about broader trends are drawn.</p></div>
+  </div></section>
+</div></article>
+</main>
+<script>
+'use strict';
+// All values below are illustrative. This draft makes no application/API requests.
+const groups = { q3:'Q3 Awareness Exercise', executive:'Executive Targeting Exercise' };
+const departmentNames = ['IT & Security','Finance & Accounting','Human Capital (HR)','Operations & Logistics','Leadership','Legal & Compliance'];
+function departments(rows) { return rows.map((r,i) => ({department:departmentNames[i],total:r[0],clicked:r[1],submitted:r[2]})); }
+function hours(count) {
+  const weights = [0,0,2,3,5,7,10,16,22,18,12,9,6,3,2,1,0,0,0,0,0,0,0,0];
+  const sum = weights.reduce((a,b)=>a+b,0);
+  const result = weights.map(w=>Math.floor(w/sum*count));
+  result[2] = Math.max(1,result[2]);
+  result[8] += count-result.reduce((a,b)=>a+b,0);
+  return result;
+}
+function events(rows) { return rows.map(r=>({name:r[0],department:departmentNames[r[1]],message:r[2],time:'2026-09-18T'+r[3]+':00Z'})); }
+const campaigns = [
+  {campaign_run_id:101,group:'q3',name:'HR Policy Update',playbook_name:'Internal Policy Notice',status:'completed',target_count:300,launched_at:'2026-09-15T01:00:00Z',synced_at:'2026-09-18T02:40:00Z',stats:{total:300,email_sent:300,email_opened:210,clicked:54,submitted_data:12,email_reported:90},department_breakdown:departments([[40,4,0],[60,18,7],[100,20,3],[60,8,2],[10,1,0],[30,3,0]]),hourly_activity:hours(62),recent_events:events([['Example Participant A',2,'Email Reported','02:38'],['Example Participant B',1,'Submitted Data','02:36']])},
+  {campaign_run_id:102,group:'q3',name:'Invoice Verification',playbook_name:'Supplier Invoice Request',status:'running',target_count:250,launched_at:'2026-09-16T02:00:00Z',synced_at:'2026-09-18T02:59:00Z',stats:{total:250,email_sent:240,email_opened:160,clicked:70,submitted_data:15,email_reported:45},department_breakdown:departments([[20,2,1],[100,42,10],[30,12,2],[50,11,1],[10,1,1],[40,2,0]]),hourly_activity:hours(80),recent_events:events([['Example Participant C',1,'Clicked Link','02:55'],['Example Participant D',3,'Email Reported','02:50']])},
+  {campaign_run_id:103,group:'q3',name:'Shared Document Access',playbook_name:'Document Collaboration Invite',status:'completed',target_count:200,launched_at:'2026-09-17T01:30:00Z',synced_at:'2026-09-18T02:35:00Z',stats:{total:200,email_sent:200,email_opened:130,clicked:20,submitted_data:0,email_reported:110},department_breakdown:departments([[30,3,0],[40,4,0],[50,4,0],[50,4,0],[10,1,0],[20,4,0]]),hourly_activity:hours(23),recent_events:events([['Example Participant E',0,'Email Reported','02:30'],['Example Participant F',5,'Clicked Link','02:25']])},
+  {campaign_run_id:104,group:'executive',name:'Executive Calendar Invitation',playbook_name:'Leadership Meeting Invitation',status:'running',target_count:150,launched_at:'2026-09-17T03:00:00Z',synced_at:'2026-09-18T02:57:00Z',stats:{total:150,email_sent:150,email_opened:105,clicked:12,submitted_data:1,email_reported:60},department_breakdown:departments([[10,1,0],[20,2,1],[20,0,0],[20,4,0],[70,5,0],[10,0,0]]),hourly_activity:hours(15),recent_events:events([['Example Participant G',4,'Email Reported','02:54'],['Example Participant H',1,'Submitted Data','02:52']])},
+  {campaign_run_id:105,group:'executive',name:'Leadership Security Briefing',playbook_name:'Security Briefing Notice',status:'scheduled',target_count:100,schedule_at:'2026-09-19T02:00:00Z',synced_at:null,stats:null,department_breakdown:[],hourly_activity:Array(24).fill(0),recent_events:[]}
+];
+const number = n => n.toLocaleString('en-GB');
+const percentage = (n,total) => (total ? n/total*100 : 0).toFixed(1)+'%';
+const escape = s => String(s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+const datetime = value => value ? new Intl.DateTimeFormat('en-GB',{timeZone:'Asia/Jakarta',day:'numeric',month:'short',year:'numeric',hour:'2-digit',minute:'2-digit',hourCycle:'h23'}).format(new Date(value)) : 'Not yet synchronised';
+const departmentRisk = (n,total) => n/total*100>=40 ? 'High' : n/total*100>=15 ? 'Medium' : 'Low';
+const riskMarkup = rating => '<span class="risk-text risk-'+rating.toLowerCase()+'">'+escape(rating.toUpperCase())+'</span>';
+const html = (id,value) => { document.getElementById(id).innerHTML=value; };
+let currentScope='active';
+let currentModel;
+function model(scope) {
+  const runs=campaigns.filter(c=>scope==='active'||c.group===scope);
+  const recorded=runs.filter(c=>c.synced_at&&c.stats);
+  const stats={total:0,email_sent:0,email_opened:0,clicked:0,submitted_data:0,email_reported:0};
+  const dept=new Map(),hourly=Array(24).fill(0),recent=[];
+  recorded.forEach(c=>{
+    Object.keys(stats).forEach(k=>stats[k]+=c.stats[k]);
+    c.department_breakdown.forEach(row=>{
+      const acc=dept.get(row.department)||{department:row.department,total:0,clicked:0,submitted:0};
+      ['total','clicked','submitted'].forEach(k=>acc[k]+=row[k]);dept.set(row.department,acc);
+    });
+    c.hourly_activity.forEach((v,i)=>hourly[i]+=v);recent.push(...c.recent_events);
+  });
+  const reporting=stats.email_reported/stats.total*100;
+  const exposure=stats.submitted_data>0?'High':stats.clicked>0?'Medium':'Low';
+  const reportingRisk=reporting>=50?'Low':reporting>=10?'Medium':'High';
+  const severity={Low:0,Medium:1,High:2};
+  return {runs,recorded,stats,departments:[...dept.values()].sort((a,b)=>b.clicked-a.clicked||a.department.localeCompare(b.department)),hourly,recent:recent.sort((a,b)=>Date.parse(b.time)-Date.parse(a.time)).slice(0,30),exposure,reportingRisk,overall:severity[exposure]>=severity[reportingRisk]?exposure:reportingRisk,planned:runs.reduce((sum,c)=>sum+c.target_count,0),groupCount:new Set(runs.map(c=>c.group)).size,selection:scope==='active'?'All active campaign groups':groups[scope]};
+}
+function render(scope) {
+  currentScope=scope;
+  const m=model(scope),s=m.stats,total=s.total,pending=m.runs.filter(c=>!c.synced_at),coverage=m.recorded.length+'/'+m.runs.length;
+  currentModel=m;
+  const text={selection:m.selection+' · 18 Sep 2026 · Monitoring',overall:m.overall,provisional:pending.length?'Provisional · '+coverage+' campaigns synchronised':'Recorded selection fully synchronised','scope-rule':scope==='active'?'This selection includes all member campaigns of active groups, including completed campaigns within those groups. Ungrouped campaigns and wholly completed groups are outside this scope.':'This selection includes all campaigns belonging to the named group, regardless of individual campaign status.'};
+  Object.entries(text).forEach(([key,value])=>document.querySelectorAll('[data-text="'+key+'"]').forEach(e=>e.textContent=value));
+  document.querySelector('.assessment').className='assessment risk-'+m.overall.toLowerCase();
+  const facts=[['Report Reference','MON-2026-Q3'],['Selection',m.selection],['Source','Pukat · Monitoring'],['Prepared At','18 Sep 2026, 10:00 · Asia/Jakarta'],['Campaigns / Groups',m.runs.length+' campaigns · '+m.groupCount+' group'+(m.groupCount===1?'':'s')],['Result Coverage',m.recorded.length+' of '+m.runs.length+' campaigns synchronised']];
+  html('scope-facts',facts.map(([label,value])=>'<div class="fact"><div class="fact-label">'+escape(label)+'</div><div class="fact-value">'+escape(value)+'</div></div>').join(''));
+  html('executive-summary','<p>The selected portfolio comprises <strong>'+m.runs.length+' campaigns</strong> across <strong>'+m.groupCount+' campaign group'+(m.groupCount===1?'':'s')+'</strong>. Synchronised results account for <strong>'+number(total)+' recipient records</strong>; these are campaign-level records rather than a deduplicated count of people.</p><p>Recorded responses include <strong>'+number(s.clicked)+' clicks ('+percentage(s.clicked,total)+')</strong>, <strong>'+number(s.submitted_data)+' data submissions ('+percentage(s.submitted_data,total)+')</strong> and <strong>'+number(s.email_reported)+' reports ('+percentage(s.email_reported,total)+')</strong>. The exposure and reporting measures may overlap.</p><p>Overall risk is assessed as <strong>'+m.overall+'</strong>. '+(pending.length?'The conclusion remains provisional pending results for '+pending.length+' scheduled campaign.':'The assessment reflects the complete recorded selection.')+' Individual follow-up and reinforcement of active reporting should guide remediation.</p>');
+  const metrics=[['Recipient Records','total','',false],['Emails Sent','email_sent','',true],['Emails Opened','email_opened','',true],['Link Clicks','clicked','risk',true],['Data Submitted','submitted_data','risk',true],['Email Reported','email_reported','good',true]];
+  html('portfolio-metrics',metrics.map(([label,key,cls,rate])=>'<div class="metric '+cls+'"><div class="metric-label">'+label+'</div><div class="metric-value">'+number(s[key])+'</div><div class="metric-note">'+(rate?percentage(s[key],total)+' of recorded recipients':'Across '+m.recorded.length+' synchronised campaigns')+'</div></div>').join(''));
+  html('comparison-signals',[['Link click rate',s.clicked,'','Observed interaction requiring contextual review.'],['Reporting rate',s.email_reported,'good','Active escalation to the security function.']].map(([label,count,cls,note])=>'<div><div class="signal-label"><strong>'+label+'</strong><strong>'+percentage(count,total)+'</strong></div><div class="signal-track '+cls+'"><span style="width:'+percentage(count,total)+'"></span></div><div class="signal-caption">'+note+'</div></div>').join(''));
+  function stage(count,denominator) { return number(count)+'<span class="cell-detail">'+percentage(count,denominator)+'</span>'; }
+  html('campaign-comparison',m.runs.map(c=>'<tr><td><span class="campaign-name">'+escape(c.name)+'</span><span class="cell-detail">#'+c.campaign_run_id+' · '+escape(groups[c.group])+'</span></td><td class="center"><span class="status '+c.status+'">'+escape(c.status)+'</span></td><td class="center">'+(c.stats?number(c.stats.total):'—')+'</td>'+['email_opened','clicked','submitted_data','email_reported'].map(k=>'<td class="center">'+(c.stats?stage(c.stats[k],c.stats.total):'—')+'</td>').join('')+'</tr>').join('')+'<tr class="total"><td>RECORDED TOTAL</td><td class="center">'+coverage+'</td><td class="center">'+number(total)+'</td>'+['email_opened','clicked','submitted_data','email_reported'].map(k=>'<td class="center">'+stage(s[k],total)+'</td>').join('')+'</tr>');
+  html('snapshot-register',m.runs.map(c=>'<tr><td><span class="campaign-name">'+escape(c.name)+'</span><span class="cell-detail">'+escape(c.playbook_name)+'</span></td><td class="center">'+number(c.target_count)+'</td><td>'+escape(datetime(c.launched_at||c.schedule_at))+'<span class="cell-detail">'+(c.launched_at?'Launched':'Scheduled')+'</span></td><td>'+escape(datetime(c.synced_at))+'</td></tr>').join(''));
+  html('coverage-note','<strong>'+m.recorded.length+' of '+m.runs.length+' campaigns have synchronised results.</strong> '+(pending.length?'The scheduled campaign, '+escape(pending[0].name)+', accounts for '+number(pending[0].target_count)+' planned recipient records. Its unavailable results are excluded from the recorded denominator, rather than presented as zero-response outcomes.':'All campaigns in this selection contribute to the recorded denominator.')+' Planned scope totals '+number(m.planned)+' recipient records.');
+  html('department-table',m.departments.map(d=>'<tr><td>'+escape(d.department)+'</td><td class="center">'+number(d.total)+'</td><td class="center">'+number(d.clicked)+'</td><td class="center">'+number(d.submitted)+'</td><td class="center">'+percentage(d.clicked,d.total)+'</td><td class="center">'+riskMarkup(departmentRisk(d.clicked,d.total))+'</td></tr>').join('')+'<tr class="total"><td>TOTAL</td><td class="center">'+number(total)+'</td><td class="center">'+number(s.clicked)+'</td><td class="center">'+number(s.submitted_data)+'</td><td class="center">'+percentage(s.clicked,total)+'</td><td class="center">—</td></tr>');
+  const focus=[...m.departments].sort((a,b)=>b.submitted-a.submitted||b.clicked-a.clicked)[0];
+  html('department-observations','<div><h3>Priority for targeted follow-up</h3><p>'+escape(focus.department)+' accounts for '+number(focus.submitted)+' data submissions and '+number(focus.clicked)+' clicks. Its click rate is '+percentage(focus.clicked,focus.total)+'. Follow-up should address the observed scenario and audience.</p></div><div><h3>Coverage and counting basis</h3><p>Department totals combine recipient records across campaigns. They identify the distribution of recorded responses; they do not establish the number of distinct employees affected.</p></div>');
+  const peak=Math.max(...m.hourly,1),peakHour=m.hourly.indexOf(peak),clickEvents=m.hourly.reduce((a,b)=>a+b,0);
+  html('hourly-chart',m.hourly.map((v,h)=>'<div class="hourly-bar '+(v===peak?'peak':'')+'" style="height:'+v/peak*100+'%" title="'+String(h).padStart(2,'0')+':00 UTC · '+v+' click events"></div>').join(''));
+  document.getElementById('hourly-chart').setAttribute('aria-label',number(clickEvents)+' recorded click events grouped by UTC hour. Highest bucket: '+String(peakHour).padStart(2,'0')+':00 UTC, '+peak+' events.');
+  html('activity-observations','<div><h3>Recorded event volume</h3><p>'+number(clickEvents)+' click events are represented in the hourly extract, compared with '+number(s.clicked)+' campaign recipient records with a click. Repeated activity explains why these measures need not coincide.</p></div><div><h3>Highest activity bucket</h3><p>'+String(peakHour).padStart(2,'0')+':00–'+String(peakHour).padStart(2,'0')+':59 UTC contains '+peak+' recorded click events. This is an aggregate across dates, not evidence of a single peak on the reporting date.</p></div>');
+  const matrix=[['User Exposure',m.exposure,number(s.submitted_data)+' data submissions and '+number(s.clicked)+' link clicks are recorded across the synchronised selection.'],['Reporting Behaviour',m.reportingRisk,number(s.email_reported)+' reports represent '+percentage(s.email_reported,total)+' of recorded recipients. Active reporting remains a minority response.'],['Snapshot Completeness',pending.length?'Pending':'Complete',m.recorded.length+' of '+m.runs.length+' campaigns have synchronised results. '+(pending.length?'The scheduled campaign remains outside the recorded metric denominator.':'No unsynchronised campaigns remain in the selected scope.')]];
+  html('risk-matrix',matrix.map(([area,rating,body])=>'<tr><td><strong>'+area+'</strong></td><td class="center">'+(rating==='Pending'||rating==='Complete'?'<span class="risk-text '+(rating==='Pending'?'risk-medium':'risk-low')+'">'+rating.toUpperCase()+'</span>':riskMarkup(rating))+'</td><td>'+escape(body)+'</td></tr>').join(''));
+  const submissionRuns=m.recorded.filter(c=>c.stats.submitted_data>0);
+  const clickFocus=[...m.recorded].sort((a,b)=>b.stats.clicked/b.stats.total-a.stats.clicked/a.stats.total)[0];
+  const reportingFocus=[...m.recorded].sort((a,b)=>b.stats.email_reported/b.stats.total-a.stats.email_reported/a.stats.total)[0];
+  const findings=[['Data Submission Warrants Individual Follow-up',number(s.submitted_data)+' submissions are recorded across '+submissionRuns.length+' synchronised campaign'+(submissionRuns.length===1?'':'s')+'. Review the affected recipient records and the scenarios that prompted disclosure.','High'],['Response Patterns Differ Across Campaigns',clickFocus.name+' records the highest click rate ('+percentage(clickFocus.stats.clicked,clickFocus.stats.total)+'). '+reportingFocus.name+' records the highest reporting rate ('+percentage(reportingFocus.stats.email_reported,reportingFocus.stats.total)+'). Differences warrant contextual review before trend conclusions are drawn.','Medium'],[pending.length?'An Incomplete Snapshot Qualifies the Conclusion':'The Recorded Selection Is Fully Synchronised',pending.length?pending.length+' scheduled campaign has no recorded results. Retain it in the scope register and revisit the assessment after synchronisation.':'All selected campaigns have recorded results. Preserve the snapshot reference when circulating the report for review.',pending.length?'Pending':'Complete']];
+  html('principal-findings',findings.map(([title,body,rating],i)=>'<div class="finding"><div class="finding-index">'+String(i+1).padStart(2,'0')+'</div><div><div class="finding-title">'+escape(title)+'</div><div class="finding-desc">'+escape(body)+'</div></div><div class="finding-risk '+(rating==='Pending'?'risk-medium':rating==='Complete'?'risk-low':'risk-'+rating.toLowerCase())+'">'+rating+'</div></div>').join(''));
+  const actions=[['Targeted Follow-up & Coaching','Review campaign recipient records with data submissions or link clicks, then provide individual guidance on the specific cues missed during the simulation.','Security Awareness Team / Department Leads','Within 10 working days of campaign closure',1],['Reinforce Active Phishing Reporting','Provide practical guidance on the Report Phishing feature and the escalation process. Use examples from the selected scenarios to reinforce timely reporting.','Security Operations / Awareness Team','Before the next simulation wave',1],[pending.length?'Complete the Campaign Result Snapshot':'Preserve the Reviewed Result Snapshot',pending.length?'Synchronise the scheduled campaign once results become available and refresh the consolidated assessment before final management sign-off.':'Preserve the synchronised report reference and confirm that management reviews the same recorded selection.','Campaign Owner / Report Preparer',pending.length?'Before final report approval':'At final report approval',pending.length?1:2],['Establish Comparable Follow-up Exercises','Plan subsequent exercises with documented scenario difficulty, audience composition and observation windows so that future comparisons support a more defensible assessment.','Security Awareness Analyst','At planning for the next simulation cycle',2]];
+  html('action-plan',actions.map(([title,body,owner,due,priority],i)=>'<div class="action-card"><div class="action-top"><span class="action-number">'+String(i+1).padStart(2,'0')+'</span><div><h3>'+title+'</h3><p class="action-body">'+body+'</p></div><span class="priority">Priority '+priority+'</span></div><div class="action-meta"><div><span>Proposed Owner</span>'+owner+'</div><div><span>Recommended Completion</span>'+due+'</div></div></div>').join(''));
+  html('event-register',m.recent.map((e,i)=>'<tr><td>'+String(i+1).padStart(2,'0')+'</td><td>'+escape(e.name)+'</td><td>'+escape(e.department)+'</td><td class="'+(e.message==='Email Reported'?'event-reported':'event-risk')+'">'+escape(e.message)+'</td><td>'+escape(datetime(e.time))+'</td></tr>').join(''));
+  document.querySelectorAll('.page').forEach((page,i)=>{
+    let header=page.querySelector('.masthead'),footer=page.querySelector('.footer');
+    if(!header){header=document.createElement('header');header.className='masthead';page.prepend(header);}
+    if(!footer){footer=document.createElement('footer');footer.className='footer';page.append(footer);}
+    header.innerHTML='<div class="brand">pukat<small>Phishing Simulation Platform</small></div><div class="doc-ref">Multi-Campaign Monitoring Report<br>MON-2026-Q3 · Draft · Illustrative data</div>';
+    footer.innerHTML='<span><strong>PUKAT MONITORING</strong> · 18 Sep 2026 · Draft · Illustrative data · Confidential</span><span>'+(i+1)+' / 6</span>';
+  });
+}
+document.getElementById('scope').addEventListener('change',e=>render(e.target.value));
+document.getElementById('print-draft').addEventListener('click',()=>window.print());
+render('active');
+// Prepare a script-free document for the existing private PDF renderer during review.
+window.pukatReportDraft = {
+  get model(){return currentModel;},
+  select(scope){if(!['active','q3','executive'].includes(scope))throw new Error('Unknown draft scope');document.getElementById('scope').value=scope;render(scope);},
+  document(){
+    const clone=document.documentElement.cloneNode(true);
+    clone.querySelectorAll('script,noscript,#draft-toolbar,.masthead,.footer').forEach(e=>e.remove());
+    clone.querySelector('body').classList.add('renderer-document');
+    const header='<div style="width:100%;margin:0 18mm;padding-bottom:8px;border-bottom:1px solid #8f99a8;font-family:Arial,Helvetica,sans-serif;display:flex;justify-content:space-between;align-items:flex-end;gap:16px;"><div style="font-size:18px;font-weight:700;color:#17365d;">pukat<span style="display:block;font-size:7.5px;letter-spacing:.7px;font-weight:400;text-transform:uppercase;margin-top:2px;color:#687386;">Phishing Simulation Platform</span></div><div style="text-align:right;font-size:7.5px;line-height:1.45;color:#687386;text-transform:uppercase;letter-spacing:.45px;">Multi-Campaign Monitoring Report<br>MON-2026-Q3 · Draft · Illustrative data</div></div>';
+    const footer='<div style="width:100%;margin:0 18mm;padding-top:7px;border-top:1px solid #d9dee7;font-family:Arial,Helvetica,sans-serif;font-size:7px;color:#8a94a3;display:flex;justify-content:space-between;"><span><strong>PUKAT MONITORING</strong> · 18 Sep 2026 · Draft · Illustrative data · Confidential</span><span><span class="pageNumber"></span> / <span class="totalPages"></span></span></div>';
+    return {html:'<!DOCTYPE html>'+clone.outerHTML,header,footer};
+  }
+};
+</script>
+</body>
+</html>

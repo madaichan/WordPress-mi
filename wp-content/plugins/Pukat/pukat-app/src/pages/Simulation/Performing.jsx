@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import { useNavigate, useSearchParams } from 'react-router-dom'
 import clsx from 'clsx'
 import toast from 'react-hot-toast'
@@ -9,15 +9,16 @@ import { DataTable } from '../../components/DataTable/index.js'
 import { PlaybookPreviewModal } from '../../components/playbooks/PlaybookFormControls.jsx'
 import { useCampaignGroups, useCampaignGroupReport } from '../../hooks/queries/useCampaignGroupQueries.js'
 import { useCampaignRun, useCampaignRunReport } from '../../hooks/queries/useCampaignQueries.js'
-import { useSyncCampaignRunResultsMutation } from '../../hooks/mutations/useCampaignMutations.js'
+import { useSyncCampaignRunResultsMutation, useBulkSyncCampaignRunResultsMutation } from '../../hooks/mutations/useCampaignMutations.js'
 import { campaignApi, campaignGroupApi } from '../../api/index.js'
 import { downloadBlob } from '../../utils/downloadBlob.js'
+import { parseServerDate } from '../../utils/serverDate.js'
 
 // Report is a live-ish dashboard, not a one-time snapshot — poll for updates
 // so a PIC watching this page sees GoPhish activity without pressing Refresh.
 // This only re-reads the already-synced metrics_json (cheap DB read); it does
 // not call GoPhish itself — that still only happens via the Refresh button or
-// the 5-minute cron (see useSyncCampaignRunResultsMutation).
+// the 1-minute cron (see useSyncCampaignRunResultsMutation).
 const REPORT_REFRESH_INTERVAL_MS = 30000
 
 // Styling per department risk_level, as computed server-side by
@@ -87,9 +88,8 @@ const STATUS_META = {
 }
 
 function formatDateTime(value) {
-  if (!value) return '—'
-  const date = new Date(value.includes(' ') ? value.replace(' ', 'T') : value)
-  if (Number.isNaN(date.getTime())) return '—'
+  const date = parseServerDate(value)
+  if (!date) return '—'
   return date.toLocaleString('en-US', { day: 'numeric', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' })
 }
 
@@ -103,9 +103,8 @@ function InfoField({ label, value }) {
 }
 
 function formatEventTime(value) {
-  if (!value) return '—'
-  const date = new Date(value)
-  if (Number.isNaN(date.getTime())) return '—'
+  const date = parseServerDate(value)
+  if (!date) return '—'
 
   const diffMinutes = Math.round((Date.now() - date.getTime()) / 60000)
   if (diffMinutes < 1) return 'just now'
@@ -170,9 +169,22 @@ export default function Performing() {
 
   const [selectedGroupId, setSelectedGroupId] = useState('active') // 'active' | 'ungrouped' | group id
   const [isExporting, setIsExporting] = useState(false)
+  const [isExportingData, setIsExportingData] = useState(false)
+  const [showExportDataMenu, setShowExportDataMenu] = useState(false)
+  const exportDataMenuRef = useRef(null)
   const [funnelCampaignSearch, setFunnelCampaignSearch] = useState('')
   const [targetTableState, setTargetTableState] = useState(TARGET_DETAILS_DEFAULT_STATE)
   const [preview, setPreview] = useState(null)
+
+  useEffect(() => {
+    if (!showExportDataMenu) return
+
+    function handlePointerDown(event) {
+      if (!exportDataMenuRef.current?.contains(event.target)) setShowExportDataMenu(false)
+    }
+    document.addEventListener('mousedown', handlePointerDown)
+    return () => document.removeEventListener('mousedown', handlePointerDown)
+  }, [showExportDataMenu])
 
   const { data: groups = [] } = useCampaignGroups()
   const { data: groupReport, isLoading: isGroupReportLoading } = useCampaignGroupReport(selectedGroupId, { enabled: !runId })
@@ -184,6 +196,7 @@ export default function Performing() {
   } = useCampaignRunReport(runId, { enabled: Boolean(runId), refetchInterval: runId ? REPORT_REFRESH_INTERVAL_MS : false })
   const { data: runDetail } = useCampaignRun(runId, { refetchInterval: runId ? REPORT_REFRESH_INTERVAL_MS : false })
   const syncResultsMutation = useSyncCampaignRunResultsMutation()
+  const bulkSyncResultsMutation = useBulkSyncCampaignRunResultsMutation()
 
   const report = runId ? runReport : groupReport
   const isLoading = runId ? isRunReportLoading : isGroupReportLoading
@@ -216,7 +229,7 @@ export default function Performing() {
 
     const sortKey = targetTableState.sort || 'name'
     const sortDir = targetTableState.order === 'desc' ? -1 : 1
-    rows = [ ...rows ].sort((a, b) => {
+    rows = [...rows].sort((a, b) => {
       const aValue = a[sortKey] ?? ''
       const bValue = b[sortKey] ?? ''
       if (aValue < bValue) return -1 * sortDir
@@ -225,7 +238,7 @@ export default function Performing() {
     })
 
     return rows
-  }, [ targetDetails, targetSearchQuery, targetTableState.sort, targetTableState.order ])
+  }, [targetDetails, targetSearchQuery, targetTableState.sort, targetTableState.order])
 
   const targetPerPage = targetTableState.perPage || 25
   const targetTotalPages = Math.max(1, Math.ceil(sortedFilteredTargets.length / targetPerPage))
@@ -240,6 +253,19 @@ export default function Performing() {
   const funnelCampaignRuns = funnelCampaignQuery
     ? campaignRuns.filter(run => run.name.toLowerCase().includes(funnelCampaignQuery))
     : campaignRuns
+
+  // Most recent per-run synced_at across the current group selection — each
+  // run's own timestamp comes from CampaignRunService::build_result_metrics()
+  // at its last GoPhish pull, so this is the oldest-data bound a PIC is
+  // looking at, not a report-generation timestamp (report generation just
+  // re-reads whatever's already cached).
+  const lastSyncedAt = useMemo(() => {
+    return campaignRuns.reduce((latest, run) => {
+      if (!run.synced_at) return latest
+      if (!latest || parseServerDate(run.synced_at) > parseServerDate(latest)) return run.synced_at
+      return latest
+    }, null)
+  }, [campaignRuns])
 
   const statusMeta = runDetail ? (STATUS_META[runDetail.status] || { label: runDetail.status, cls: 'bg-gray-100 text-gray-600' }) : null
   const runGroupName = runDetail?.campaign_group_id
@@ -287,6 +313,12 @@ export default function Performing() {
     syncResultsMutation.mutate(runId)
   }
 
+  function handleSyncGroup() {
+    const ids = campaignRuns.map(run => run.campaign_run_id)
+    if (ids.length === 0) return
+    bulkSyncResultsMutation.mutate(ids)
+  }
+
   async function handleExport() {
     setIsExporting(true)
     try {
@@ -299,6 +331,25 @@ export default function Performing() {
       toast.error(err.message || 'Failed to export monitoring report.')
     } finally {
       setIsExporting(false)
+    }
+  }
+
+  // "Download data" (CSV/XLSX) — docs/PRD_MONITORING_DATA_EXPORT.md. Mirrors
+  // handleExport() above but targets the raw-data endpoints (Target details
+  // per Campaign Run, or the Campaign funnel summary per group/all-active).
+  async function handleExportData(format) {
+    setShowExportDataMenu(false)
+    setIsExportingData(true)
+    try {
+      const blob = runId
+        ? await campaignApi.runReportExportData(runId, format)
+        : await campaignGroupApi.reportExportData(selectedGroupId, format)
+      const scope = runId ? `campaign-${runId}` : selectedGroupId
+      downloadBlob(blob, `pukat-monitoring-${scope}-${new Date().toISOString().slice(0, 10)}.${format}`)
+    } catch (err) {
+      toast.error(err.message || 'Failed to download monitoring data.')
+    } finally {
+      setIsExportingData(false)
     }
   }
 
@@ -324,21 +375,73 @@ export default function Performing() {
                 </Button>
               </>
             ) : (
-              <select
-                value={selectedGroupId}
-                onChange={e => setSelectedGroupId(e.target.value)}
-                className="bg-white border border-gray-200 text-gray-700 text-xs font-semibold px-3 py-2 rounded-xl focus:outline-none focus:border-violet-500"
-              >
-                <option value="active">All active groups</option>
-                <option value="0">Ungrouped</option>
-                {groups.map(group => (
-                  <option key={group.id} value={group.id}>{group.name}</option>
-                ))}
-              </select>
+              <>
+                <select
+                  value={selectedGroupId}
+                  onChange={e => setSelectedGroupId(e.target.value)}
+                  className="bg-white border border-gray-200 text-gray-700 text-xs font-semibold px-3 py-2 rounded-xl focus:outline-none focus:border-violet-500"
+                >
+                  <option value="active">All active groups</option>
+                  <option value="0">Ungrouped</option>
+                  {groups.map(group => (
+                    <option key={group.id} value={group.id}>{group.name}</option>
+                  ))}
+                </select>
+                <span
+                  className="text-[10px] italic text-gray-400"
+                  title="Oldest data point across the campaigns in this selection — each is only as fresh as its own last GoPhish pull"
+                >
+                  {lastSyncedAt ? `Last synced ${formatEventTime(lastSyncedAt)}` : 'Never synced'}
+                </span>
+                <Button
+                  variant="outline"
+                  onClick={handleSyncGroup}
+                  disabled={bulkSyncResultsMutation.isPending || campaignRuns.length === 0}
+                  title="Pull the latest results from GoPhish for every campaign in this selection"
+                >
+                  <i className={clsx('ti ti-refresh text-sm', bulkSyncResultsMutation.isPending && 'animate-spin')} />
+                  {bulkSyncResultsMutation.isPending ? 'Syncing...' : 'Sync'}
+                </Button>
+              </>
             )}
             <Button variant="outline" onClick={handleExport} disabled={isExporting}>
               {isExporting ? 'Exporting...' : 'Export PDF'}
             </Button>
+            <div className="relative" ref={exportDataMenuRef}>
+              <Button
+                variant="outline"
+                onClick={() => setShowExportDataMenu(open => !open)}
+                disabled={isExportingData}
+                aria-haspopup="menu"
+                aria-expanded={showExportDataMenu}
+              >
+                <i className={clsx('ti text-sm', isExportingData ? 'ti-loader-2 animate-spin' : 'ti-download')} />
+                {isExportingData ? 'Downloading...' : 'Download data'}
+              </Button>
+              {showExportDataMenu && (
+                <div
+                  role="menu"
+                  className="absolute right-0 top-full z-20 mt-1 min-w-[160px] overflow-hidden rounded-xl border border-gray-200 bg-white py-1 shadow-lg"
+                >
+                  <button
+                    type="button"
+                    role="menuitem"
+                    onClick={() => handleExportData('csv')}
+                    className="flex w-full items-center gap-2 px-3 py-2 text-left text-xs font-medium text-gray-700 hover:bg-gray-50"
+                  >
+                    <i className="ti ti-file-type-csv text-sm" /> CSV
+                  </button>
+                  <button
+                    type="button"
+                    role="menuitem"
+                    onClick={() => handleExportData('xlsx')}
+                    className="flex w-full items-center gap-2 px-3 py-2 text-left text-xs font-medium text-gray-700 hover:bg-gray-50"
+                  >
+                    <i className="ti ti-file-type-xls text-sm" /> Excel (.xlsx)
+                  </button>
+                </div>
+              )}
+            </div>
           </>
         }
       />
@@ -462,7 +565,7 @@ export default function Performing() {
               { label: 'Emails sent', value: stats?.email_sent ?? 0, pct: 100, cls: 'bg-violet-100 text-violet-700' },
               { label: 'Emails opened', value: stats?.email_opened ?? 0, pct: stats?.open_rate ?? 0, cls: 'bg-amber-200 text-amber-700' },
               { label: 'Link clicks', value: stats?.clicked ?? 0, pct: stats?.click_rate ?? 0, cls: 'bg-red-200 text-red-700' },
-              { label: 'Submit form', value: stats?.submitted_data ?? 0, pct: stats?.submit_rate ?? 0, cls: 'bg-red-400 text-white' },
+              { label: 'Data Submitted', value: stats?.submitted_data ?? 0, pct: stats?.submit_rate ?? 0, cls: 'bg-red-400 text-white' },
             ].map(row => (
               <div key={row.label} className="flex items-center gap-3 text-xs">
                 <span className="min-w-[100px] font-semibold text-gray-600">{row.label}</span>
@@ -482,37 +585,39 @@ export default function Performing() {
           {departmentBreakdown.length === 0 ? (
             <EmptySection>No results synced yet — department breakdown appears once GoPhish results are pulled in.</EmptySection>
           ) : (
-            <div className="overflow-x-auto">
-              <table className="w-full text-left border-collapse text-xs text-gray-700">
-                <thead>
-                  <tr className="bg-gray-50 border-b border-gray-200 text-[10px] font-bold text-gray-500 uppercase tracking-wider">
-                    <th className="py-2 px-4">Dept</th>
-                    <th className="py-2 px-4">Target</th>
-                    <th className="py-2 px-4">Click</th>
-                    <th className="py-2 px-4">Rate</th>
-                    <th className="py-2 px-4">Risk</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {departmentBreakdown.map(row => {
-                    const style = RISK_STYLE[row.risk_level] || RISK_STYLE.Low
-                    return (
-                      <tr key={row.department} className="border-b border-gray-100 last:border-0">
-                        <td className="py-2.5 px-4 font-semibold text-gray-900">{row.department}</td>
-                        <td className="py-2.5 px-4">{row.total}</td>
-                        <td className="py-2.5 px-4">{row.clicked}</td>
-                        <td className="py-2.5 px-4">
-                          <div className={clsx('h-1.5 rounded-full inline-block mr-1', style.bar)} style={{ width: `${row.click_rate}px` }} />
-                          <span className={clsx('font-semibold align-middle', style.text)}>{row.click_rate}%</span>
-                        </td>
-                        <td className="py-2.5 px-4">
-                          <span className={clsx('rounded-full text-[10px] font-semibold px-2 py-0.5', style.badge)}>{row.risk_level}</span>
-                        </td>
-                      </tr>
-                    )
-                  })}
-                </tbody>
-              </table>
+            <div className="overflow-hidden rounded-2xl border border-gray-200 bg-white shadow-sm">
+              <div className="overflow-x-auto">
+                <table className="w-full border-collapse text-left text-xs">
+                  <thead>
+                    <tr className="border-b border-gray-100 bg-gray-50 text-[10px] font-semibold uppercase tracking-wider text-gray-500">
+                      <th className="p-4">Dept</th>
+                      <th className="p-4">Target</th>
+                      <th className="p-4">Click</th>
+                      <th className="p-4">Rate</th>
+                      <th className="p-4">Risk</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-gray-100">
+                    {departmentBreakdown.map(row => {
+                      const style = RISK_STYLE[row.risk_level] || RISK_STYLE.Low
+                      return (
+                        <tr key={row.department} className="transition-colors hover:bg-gray-50/70">
+                          <td className="p-4 font-semibold text-gray-900">{row.department}</td>
+                          <td className="p-4 text-gray-700">{row.total}</td>
+                          <td className="p-4 text-gray-700">{row.clicked}</td>
+                          <td className="p-4">
+                            <div className={clsx('h-1.5 rounded-full inline-block mr-1', style.bar)} style={{ width: `${row.click_rate}px` }} />
+                            <span className={clsx('font-semibold align-middle', style.text)}>{row.click_rate}%</span>
+                          </td>
+                          <td className="p-4">
+                            <span className={clsx('rounded-full text-[10px] font-semibold px-2 py-0.5', style.badge)}>{row.risk_level}</span>
+                          </td>
+                        </tr>
+                      )
+                    })}
+                  </tbody>
+                </table>
+              </div>
             </div>
           )}
         </div>
@@ -579,7 +684,7 @@ export default function Performing() {
             {recentEvents.length === 0 ? (
               <EmptySection>No clicks, submissions, or reports yet.</EmptySection>
             ) : (
-              <div className="space-y-3.5">
+              <div className="space-y-3.5 max-h-[280px] overflow-y-auto pr-1">
                 {recentEvents.map((event, index) => {
                   const meta = EVENT_META[event.message] || { icon: 'ti-activity', tone: 'bg-gray-100 text-gray-600', label: event.message }
                   return (

@@ -1912,7 +1912,7 @@ class MasterComponentService {
 			[
 				'status'      => 'approved',
 				'approved_by' => $user_id,
-				'approved_at' => current_time( 'mysql' ),
+				'approved_at' => current_time( 'mysql', true ),
 			]
 		);
 

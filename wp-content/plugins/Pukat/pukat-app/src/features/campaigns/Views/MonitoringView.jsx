@@ -129,7 +129,7 @@ export default function MonitoringView({ campaigns }) {
               <h3 className="text-sm font-semibold text-gray-900">Live event feed</h3>
               <button className="text-xs font-semibold text-violet-500 hover:text-violet-600">All</button>
             </div>
-            <div className="space-y-3.5">
+            <div className="space-y-3.5 max-h-[280px] overflow-y-auto pr-1">
               {ACTIVITY_FEED.map((item, index) => (
                 <div key={`${item.title}-${index}`} className={clsx('flex gap-3 text-sm pb-2', index < ACTIVITY_FEED.length - 1 && 'border-b border-gray-50')}>
                   <div className={clsx('w-6 h-6 rounded-full flex items-center justify-center flex-shrink-0 mt-0.5', item.color)}>

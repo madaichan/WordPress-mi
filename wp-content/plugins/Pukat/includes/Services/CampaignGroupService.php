@@ -221,6 +221,7 @@ class CampaignGroupService {
 		$department_totals  = [];
 		$hourly_totals      = array_fill( 0, 24, 0 );
 		$all_events         = [];
+		$responders         = [];
 
 		// Batched once for the whole set — avoids a playbook-name / target-count
 		// query per run in the loop below (same N+1 avoidance as $stats above).
@@ -236,10 +237,11 @@ class CampaignGroupService {
 			}
 
 			$breakdown[] = [
-				'campaign_run_id' => (int) $run['id'],
-				'name'            => (string) $run['name'],
-				'status'          => (string) $run['status'],
-				'stats'           => $stats,
+				'campaign_run_id'   => (int) $run['id'],
+				'campaign_group_id' => (int) ( $run['campaign_group_id'] ?? 0 ),
+				'name'              => (string) $run['name'],
+				'status'            => (string) $run['status'],
+				'stats'             => $stats,
 				// Descriptive fields for the Monitoring page's "campaigns in
 				// this selection" list — not used by any aggregation above,
 				// just display (see Performing.jsx).
@@ -250,7 +252,7 @@ class CampaignGroupService {
 				// When this run's stats/department/hourly/events were last pulled
 				// from GoPhish (CampaignRunService::build_result_metrics()) — null
 				// if it's never been synced. Monitoring isn't live: it only ever
-				// reads this cached snapshot, refreshed by the 5-minute cron or
+				// reads this cached snapshot, refreshed by the 1-minute cron or
 				// a manual "Sync now".
 				'synced_at'       => $metrics['synced_at'] ?? null,
 			];
@@ -278,6 +280,26 @@ class CampaignGroupService {
 			}
 
 			array_push( $all_events, ...( (array) ( $metrics['recent_events'] ?? [] ) ) );
+
+			// Per-user responder list for the Monitoring "Download data" export
+			// (docs/PRD_MONITORING_DATA_EXPORT.md §7.8) — every target with at
+			// least one recorded event (opened/clicked/submitted/reported),
+			// tagged with which campaign (and its group) it came from. Reuses
+			// the same already-decoded target_details this loop already reads
+			// for department_breakdown/hourly_activity above — no extra query.
+			foreach ( (array) ( $metrics['target_details'] ?? [] ) as $target ) {
+				$has_response = ! empty( $target['opened_at'] ) || ! empty( $target['clicked_at'] )
+					|| ! empty( $target['submitted_at'] ) || ! empty( $target['reported_at'] );
+				if ( ! $has_response ) {
+					continue;
+				}
+
+				$responders[] = array_merge( $target, [
+					'campaign_run_id'   => (int) $run['id'],
+					'campaign_name'     => (string) $run['name'],
+					'campaign_group_id' => (int) ( $run['campaign_group_id'] ?? 0 ),
+				] );
+			}
 		}
 
 		$total = $totals['total'];
@@ -313,7 +335,8 @@ class CampaignGroupService {
 			'department_breakdown'  => $department_breakdown,
 			'hourly_activity'       => array_values( $hourly_totals ),
 			'recent_events'         => array_slice( $all_events, 0, self::RECENT_EVENTS_LIMIT ),
-			'generated_at'          => current_time( 'mysql' ),
+			'responder_details'     => $responders,
+			'generated_at'          => current_time( 'mysql', true ),
 		];
 	}
 

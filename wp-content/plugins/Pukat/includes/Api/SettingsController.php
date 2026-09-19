@@ -9,6 +9,7 @@ declare(strict_types=1);
 
 namespace Pukat\Api;
 
+use Pukat\Core\Plugin;
 use Pukat\Services\AuditLogService;
 use Pukat\Services\EncryptionService;
 use Pukat\Services\GoPhishService;
@@ -37,6 +38,7 @@ class SettingsController extends RestController {
 		'pukat_risk_thresholds',
 		'pukat_blackout_dates',
 		'pukat_gophish_url',
+		'pukat_sync_interval_minutes',
 	];
 
 	public function register_routes(): void {
@@ -86,6 +88,10 @@ class SettingsController extends RestController {
 		foreach ( self::PUBLIC_SETTINGS as $key ) {
 			$settings[ $key ] = get_option( $key, '' );
 		}
+		// Numeric — the generic string default above would otherwise round-trip as ''.
+		$settings['pukat_sync_interval_minutes'] = Plugin::sync_interval_minutes();
+		// Lets the frontend render the interval picker from one source of truth.
+		$settings['sync_interval_choices'] = Plugin::SYNC_INTERVAL_CHOICES_MINUTES;
 		// Indicate whether API key is set (without revealing it).
 		$encrypted_key             = (string) get_option( 'pukat_gophish_api_key', '' );
 		$settings['has_api_key']   = ! empty( $encrypted_key );
@@ -107,16 +113,23 @@ class SettingsController extends RestController {
 			'pukat_quiz_pass_score',
 			'pukat_risk_thresholds',
 			'pukat_blackout_dates',
+			'pukat_sync_interval_minutes',
 		];
 
 		foreach ( $plain_keys as $key ) {
 			if ( array_key_exists( $key, $params ) ) {
 				$value = match ( $key ) {
-					'pukat_quiz_pass_score' => min( max( (int) $params[ $key ], 0 ), 100 ),
-					'pukat_gophish_url'     => GoPhishService::normalize_base_url( sanitize_url( (string) $params[ $key ] ) ),
+					'pukat_quiz_pass_score'       => min( max( (int) $params[ $key ], 0 ), 100 ),
+					'pukat_gophish_url'           => GoPhishService::normalize_base_url( sanitize_url( (string) $params[ $key ] ) ),
+					// Whitelisted, not clamped — an out-of-range value (e.g. a
+					// tampered request) falls back to the default rather than
+					// silently rounding to the nearest allowed interval.
+					'pukat_sync_interval_minutes' => in_array( (int) $params[ $key ], Plugin::SYNC_INTERVAL_CHOICES_MINUTES, true )
+						? (int) $params[ $key ]
+						: Plugin::DEFAULT_SYNC_INTERVAL_MINUTES,
 					'pukat_risk_thresholds',
-					'pukat_blackout_dates'  => wp_json_encode( $params[ $key ] ),
-					default                 => sanitize_text_field( (string) $params[ $key ] ),
+					'pukat_blackout_dates'        => wp_json_encode( $params[ $key ] ),
+					default                       => sanitize_text_field( (string) $params[ $key ] ),
 				};
 				update_option( $key, $value );
 				$updated[] = $key;

@@ -9,6 +9,8 @@
  *  - src/pages/Simulation/Campaigns.jsx
  */
 
+import { parseServerDate } from './serverDate.js'
+
 /**
  * Returns a display label and Tailwind badge class for a campaign status string.
  *
@@ -46,6 +48,7 @@ export function dotColor(status) {
  * @returns {string|null} Formatted date string, or null if date is falsy
  */
 export function formatDate(date, options = { day: 'numeric', month: 'short', year: 'numeric' }) {
-  if (!date) return null
-  return new Date(date).toLocaleDateString('en-US', options)
+  const parsed = parseServerDate(date)
+  if (!parsed) return null
+  return parsed.toLocaleDateString('en-US', options)
 }

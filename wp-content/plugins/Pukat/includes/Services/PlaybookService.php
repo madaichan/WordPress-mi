@@ -182,7 +182,7 @@ class PlaybookService {
 				'gophish_page_id'                => (int) ( $legacy['gophish_page_id'] ?? 0 ) ?: null,
 				'gophish_smtp_id'                => (int) ( $legacy['gophish_smtp_id'] ?? 0 ) ?: null,
 				'migration_status'               => 'requires_master_component_mapping',
-				'migrated_at'                    => current_time( 'mysql' ),
+				'migrated_at'                    => current_time( 'mysql', true ),
 			],
 		];
 

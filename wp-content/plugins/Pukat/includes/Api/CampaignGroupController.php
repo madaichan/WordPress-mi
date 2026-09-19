@@ -9,6 +9,7 @@ declare(strict_types=1);
 
 namespace Pukat\Api;
 
+use Pukat\Services\CampaignDataExportService;
 use Pukat\Services\CampaignGroupService;
 use Pukat\Services\CampaignReportPdfService;
 use Pukat\Services\PermissionRegistry;
@@ -27,10 +28,16 @@ class CampaignGroupController extends RestController {
 
 	private CampaignGroupService $campaign_groups;
 	private CampaignReportPdfService $pdf;
+	private CampaignDataExportService $data_export;
 
-	public function __construct( ?CampaignGroupService $campaign_groups = null, ?CampaignReportPdfService $pdf = null ) {
+	public function __construct(
+		?CampaignGroupService $campaign_groups = null,
+		?CampaignReportPdfService $pdf = null,
+		?CampaignDataExportService $data_export = null
+	) {
 		$this->campaign_groups = $campaign_groups ?? new CampaignGroupService();
 		$this->pdf             = $pdf ?? new CampaignReportPdfService();
+		$this->data_export     = $data_export ?? new CampaignDataExportService();
 	}
 
 	public function register_routes(): void {
@@ -64,6 +71,12 @@ class CampaignGroupController extends RestController {
 			'permission_callback' => [ $this, 'permission_view_campaign_group' ],
 		] );
 
+		register_rest_route( $this->namespace, '/campaign-groups/active/report/export-data', [
+			'methods'             => 'GET',
+			'callback'            => [ $this, 'export_active_report_data' ],
+			'permission_callback' => [ $this, 'permission_view_campaign_group' ],
+		] );
+
 		register_rest_route( $this->namespace, '/campaign-groups/(?P<id>\d+)', [
 			[
 				'methods'             => 'GET',
@@ -91,6 +104,12 @@ class CampaignGroupController extends RestController {
 		register_rest_route( $this->namespace, '/campaign-groups/(?P<id>\d+)/report/export', [
 			'methods'             => 'GET',
 			'callback'            => [ $this, 'export_report' ],
+			'permission_callback' => [ $this, 'permission_view_campaign_group' ],
+		] );
+
+		register_rest_route( $this->namespace, '/campaign-groups/(?P<id>\d+)/report/export-data', [
+			'methods'             => 'GET',
+			'callback'            => [ $this, 'export_report_data' ],
 			'permission_callback' => [ $this, 'permission_view_campaign_group' ],
 		] );
 	}
@@ -172,23 +191,126 @@ class CampaignGroupController extends RestController {
 		}
 
 		$group = $this->campaign_groups->get( $id );
-		$title = 'Campaign Group Report — ' . ( $group['name'] ?? "#{$id}" );
 
-		return $this->binary_response(
-			$this->pdf->render( $title, $report ),
-			"pukat-campaign-group-{$id}-report.pdf",
-			'application/pdf'
-		);
+		$pdf = $this->pdf->render_campaign_group( [
+			'report'             => $report,
+			'campaign_group_id'  => $id,
+			'group_name'         => $group['name'] ?? null,
+			'groups_by_id'       => $this->groups_by_id(),
+		] );
+
+		if ( is_wp_error( $pdf ) ) {
+			return $this->from_wp_error( $pdf );
+		}
+
+		return $this->binary_response( $pdf, "pukat-campaign-group-{$id}-report.pdf", 'application/pdf' );
 	}
 
 	public function export_active_report( WP_REST_Request $request ): WP_REST_Response {
 		$report = $this->campaign_groups->report_active();
 
-		return $this->binary_response(
-			$this->pdf->render( 'Active Campaign Groups Report', $report ),
-			'pukat-campaign-groups-active-report.pdf',
-			'application/pdf'
+		$pdf = $this->pdf->render_campaign_group( [
+			'report'             => $report,
+			'campaign_group_id'  => null,
+			'group_name'         => null,
+			'groups_by_id'       => $this->groups_by_id(),
+		] );
+
+		if ( is_wp_error( $pdf ) ) {
+			return $this->from_wp_error( $pdf );
+		}
+
+		return $this->binary_response( $pdf, 'pukat-campaign-groups-active-report.pdf', 'application/pdf' );
+	}
+
+	/**
+	 * "Download data" (CSV/XLSX) for the Monitoring page, scoped to one
+	 * Campaign Group — docs/PRD_MONITORING_DATA_EXPORT.md FR-6/7/8/§7.8. Two
+	 * tables in one file: the "Campaign funnel" summary, and every
+	 * responding user tagged with their campaign and group. Reuses report()
+	 * (same entity-scoped access guard as export_report()/get_report()
+	 * above) and groups_by_id() (same group-name resolution as the PDF
+	 * export).
+	 */
+	public function export_report_data( WP_REST_Request $request ): WP_REST_Response {
+		$id = (int) $request->get_param( 'id' );
+
+		return $this->export_data_response(
+			$request,
+			$this->campaign_groups->report( $id ),
+			$id,
+			"pukat-monitoring-campaign-summary-{$id}"
 		);
+	}
+
+	/**
+	 * Same as export_report_data() above, for the "all active groups"
+	 * selection (no single group id).
+	 */
+	public function export_active_report_data( WP_REST_Request $request ): WP_REST_Response {
+		return $this->export_data_response(
+			$request,
+			$this->campaign_groups->report_active(),
+			null,
+			'pukat-monitoring-campaign-summary-active'
+		);
+	}
+
+	/**
+	 * @param array<string, mixed>|WP_Error $report
+	 */
+	private function export_data_response( WP_REST_Request $request, $report, ?int $group_id, string $filename_prefix ): WP_REST_Response {
+		$format = $this->data_export->resolve_format( (string) $request->get_param( 'format' ) );
+		if ( is_wp_error( $format ) ) {
+			return $this->from_wp_error( $format );
+		}
+
+		if ( is_wp_error( $report ) ) {
+			return $this->from_wp_error( $report );
+		}
+
+		$group_name = null;
+		if ( null !== $group_id ) {
+			$group      = $this->campaign_groups->get( $group_id );
+			$group_name = $group['name'] ?? null;
+		}
+
+		$groups_by_id = $this->groups_by_id();
+		$sections     = [
+			[ 'title' => 'Campaign Summary', 'table' => $this->data_export->campaign_summary_table( $report, $groups_by_id, $group_id, $group_name ) ],
+			[ 'title' => 'Responders', 'table' => $this->data_export->responder_details_table( $report, $groups_by_id, $group_id, $group_name ) ],
+		];
+
+		$binary = CampaignDataExportService::FORMAT_XLSX === $format
+			? $this->data_export->to_xlsx_sections( $sections )
+			: $this->data_export->to_csv_sections( $sections );
+
+		if ( is_wp_error( $binary ) ) {
+			return $this->from_wp_error( $binary );
+		}
+
+		return $this->binary_response(
+			$binary,
+			"{$filename_prefix}-" . gmdate( 'Ymd' ) . ".{$format}",
+			$this->data_export->content_type_for( $format )
+		);
+	}
+
+	/**
+	 * Authorised id => name map for every group the current user can see —
+	 * used by the multi-campaign report to label each campaign's group in
+	 * the "active groups" selection, where campaign_runs.campaign_group_id
+	 * isn't otherwise resolved to a name (see the report/export data prep
+	 * in CampaignReportPdfService::campaign_group_report_data()).
+	 *
+	 * @return array<int, string>
+	 */
+	private function groups_by_id(): array {
+		$map = [];
+		foreach ( $this->campaign_groups->list() as $group ) {
+			$map[ (int) $group['id'] ] = (string) $group['name'];
+		}
+		return $map;
 	}
 
 	/**

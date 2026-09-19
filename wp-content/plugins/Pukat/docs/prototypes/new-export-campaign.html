@@ -1,0 +1,2146 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Phishing Simulation Campaign Evaluation — Pukat</title>
+
+    <style>
+        :root {
+            --ink: #172033;
+            --muted: #687386;
+            --soft: #eef1f5;
+            --line: #d9dee7;
+            --paper: #ffffff;
+            --navy: #17365d;
+            --blue: #2e5d8a;
+            --red: #a83434;
+            --amber: #9a6b16;
+            --green: #2f6b4f;
+        }
+
+        * {
+            box-sizing: border-box
+        }
+
+        html,
+        body {
+            margin: 0;
+            padding: 0;
+            background: #e7ebf0;
+            color: var(--ink);
+            font-family: Arial, Helvetica, sans-serif;
+            -webkit-print-color-adjust: exact;
+            print-color-adjust: exact;
+        }
+
+        body {
+            padding: 26px 0
+        }
+
+        .page {
+            width: 210mm;
+            min-height: 297mm;
+            margin: 0 auto 26px;
+            padding: 17mm 18mm 15mm;
+            background: var(--paper);
+            box-shadow: 0 5px 24px rgba(22, 32, 51, .10);
+            display: flex;
+            flex-direction: column;
+        }
+
+        .content {
+            flex: 1
+        }
+
+        /* Header */
+        .masthead {
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-end;
+            padding-bottom: 8px;
+            border-bottom: 1px solid #8f99a8;
+        }
+
+        .brand {
+            font-size: 18px;
+            font-weight: 700;
+            letter-spacing: -.3px;
+            color: var(--navy);
+        }
+
+        .brand small {
+            display: block;
+            margin-top: 2px;
+            font-size: 7.5px;
+            font-weight: 400;
+            color: var(--muted);
+            letter-spacing: .7px;
+            text-transform: uppercase;
+        }
+
+        .doc-ref {
+            text-align: right;
+            font-size: 7.5px;
+            line-height: 1.45;
+            color: var(--muted);
+            text-transform: uppercase;
+            letter-spacing: .45px;
+        }
+
+        /* Report title */
+        .title-block {
+            padding: 20px 0 13px;
+        }
+
+        .kicker {
+            font-size: 8px;
+            font-weight: 700;
+            color: var(--blue);
+            text-transform: uppercase;
+            letter-spacing: 1.2px;
+            margin-bottom: 7px;
+        }
+
+        h1 {
+            margin: 0;
+            font-family: Georgia, "Times New Roman", serif;
+            font-size: 25px;
+            line-height: 1.15;
+            font-weight: 600;
+            color: #13223a;
+        }
+
+        .subtitle {
+            margin-top: 8px;
+            font-size: 10px;
+            color: var(--muted);
+        }
+
+        /* Sections */
+        .section {
+            margin-top: 18px;
+            break-inside: avoid;
+        }
+
+        .section-head {
+            display: flex;
+            align-items: baseline;
+            gap: 9px;
+            margin-bottom: 9px;
+        }
+
+        .section-no {
+            font-size: 8px;
+            font-weight: 700;
+            color: var(--blue);
+            letter-spacing: .8px;
+        }
+
+        .section-title {
+            margin: 0;
+            font-family: Georgia, "Times New Roman", serif;
+            font-size: 14px;
+            font-weight: 600;
+            color: #18304e;
+        }
+
+        .section-rule {
+            flex: 1;
+            height: 1px;
+            background: var(--line);
+            margin-left: 7px;
+        }
+
+        /* Campaign facts */
+        .facts {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            border-top: 1px solid var(--line);
+            border-bottom: 1px solid var(--line);
+        }
+
+        .fact {
+            padding: 10px 12px 10px 0;
+        }
+
+        .fact:nth-child(n+4) {
+            border-top: 1px solid var(--soft);
+        }
+
+        .fact-label {
+            font-size: 7.5px;
+            color: var(--muted);
+            text-transform: uppercase;
+            letter-spacing: .55px;
+            margin-bottom: 4px;
+        }
+
+        .fact-value {
+            font-size: 9.5px;
+            font-weight: 600;
+            line-height: 1.35;
+            color: var(--ink);
+        }
+
+        /* Executive summary */
+        .summary-layout {
+            display: grid;
+            grid-template-columns: 1fr 42mm;
+            gap: 18px;
+            align-items: start;
+        }
+
+        .summary-copy {
+            font-family: Georgia, "Times New Roman", serif;
+            font-size: 10.5px;
+            line-height: 1.62;
+            color: #344054;
+        }
+
+        .summary-copy p {
+            margin: 0 0 8px;
+        }
+
+        .summary-copy p:last-child {
+            margin-bottom: 0
+        }
+
+        .assessment {
+            border-left: 3px solid var(--amber);
+            padding-left: 11px;
+            padding-top: 1px;
+        }
+
+        .assessment-label {
+            font-size: 7.5px;
+            text-transform: uppercase;
+            letter-spacing: .7px;
+            color: var(--muted);
+        }
+
+        .assessment-value {
+            margin-top: 5px;
+            font-family: Georgia, "Times New Roman", serif;
+            font-size: 20px;
+            color: var(--amber);
+            font-weight: 600;
+        }
+
+        .assessment-note {
+            margin-top: 5px;
+            font-size: 8px;
+            line-height: 1.45;
+            color: var(--muted);
+        }
+
+        /* Metrics */
+        .metrics {
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            border-top: 1px solid var(--line);
+            border-bottom: 1px solid var(--line);
+        }
+
+        .metric {
+            padding: 11px 12px 10px 0;
+            position: relative;
+        }
+
+        .metric:not(:last-child)::after {
+            content: "";
+            position: absolute;
+            right: 10px;
+            top: 11px;
+            bottom: 11px;
+            width: 1px;
+            background: var(--line);
+        }
+
+        .metric-label {
+            font-size: 7.5px;
+            color: var(--muted);
+            text-transform: uppercase;
+            letter-spacing: .5px;
+        }
+
+        .metric-value {
+            margin-top: 4px;
+            font-family: Georgia, "Times New Roman", serif;
+            font-size: 23px;
+            color: var(--navy);
+            font-weight: 600;
+        }
+
+        .metric-note {
+            margin-top: 4px;
+            font-size: 7.5px;
+            color: var(--muted);
+        }
+
+        .metric.risk .metric-value {
+            color: var(--red)
+        }
+
+        .metric.good .metric-value {
+            color: var(--green)
+        }
+
+        /* Editorial notes */
+        .notes {
+            margin-top: 10px;
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 14px;
+        }
+
+        .note {
+            font-size: 8px;
+            line-height: 1.45;
+            color: var(--muted);
+        }
+
+        .note strong {
+            display: block;
+            margin-bottom: 3px;
+            color: var(--ink);
+            font-size: 8.5px;
+        }
+
+        /* Analysis */
+        .analysis-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 22px;
+        }
+
+        .analysis-block {
+            break-inside: avoid;
+        }
+
+        .analysis-title {
+            font-size: 8px;
+            text-transform: uppercase;
+            letter-spacing: .55px;
+            color: var(--muted);
+            margin-bottom: 9px;
+        }
+
+        .response-row {
+            margin-bottom: 9px;
+        }
+
+        .response-meta {
+            display: flex;
+            justify-content: space-between;
+            gap: 10px;
+            font-size: 8px;
+            margin-bottom: 4px;
+        }
+
+        .response-meta span:first-child {
+            color: #435064
+        }
+
+        .response-meta strong {
+            color: var(--ink)
+        }
+
+        .track {
+            height: 5px;
+            background: #edf0f3;
+            overflow: hidden;
+        }
+
+        .fill {
+            height: 100%;
+            background: var(--blue);
+        }
+
+        .fill.red {
+            background: var(--red)
+        }
+
+        .fill.green {
+            background: var(--green)
+        }
+
+        .fill.gray {
+            background: #9fa8b5
+        }
+
+        .distribution-list {
+            border-top: 1px solid var(--line);
+        }
+
+        .distribution-item {
+            display: grid;
+            grid-template-columns: 1fr auto;
+            gap: 12px;
+            padding: 8px 0;
+            border-bottom: 1px solid var(--soft);
+        }
+
+        .distribution-item .label {
+            font-size: 8.5px;
+            color: #435064;
+        }
+
+        .distribution-item .value {
+            text-align: right;
+        }
+
+        .distribution-item .value strong {
+            display: block;
+            font-family: Georgia, "Times New Roman", serif;
+            font-size: 15px;
+            font-weight: 600;
+            color: var(--ink);
+        }
+
+        .distribution-item .value span {
+            display: block;
+            margin-top: 1px;
+            font-size: 7px;
+            color: var(--muted);
+        }
+
+        /* Tables */
+        .table-wrap {
+            break-inside: avoid;
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+        }
+
+        th {
+            padding: 7px 7px;
+            border-top: 1px solid #9aa4b2;
+            border-bottom: 1px solid #9aa4b2;
+            text-align: left;
+            font-size: 7px;
+            font-weight: 700;
+            color: #586579;
+            text-transform: uppercase;
+            letter-spacing: .35px;
+        }
+
+        td {
+            padding: 6px 7px;
+            border-bottom: 1px solid #e6e9ee;
+            font-size: 7.7px;
+            line-height: 1.3;
+            color: #364152;
+            vertical-align: middle;
+        }
+
+        tbody tr:last-child td {
+            border-bottom: 1px solid #9aa4b2;
+        }
+
+        .center {
+            text-align: center
+        }
+
+        .total td {
+            font-weight: 700;
+            color: var(--ink);
+            background: #fafbfc;
+        }
+
+        /* Humanized risk notation */
+        .risk-text {
+            font-size: 7.2px;
+            font-weight: 700;
+            letter-spacing: .4px;
+        }
+
+        .risk-low {
+            color: var(--green)
+        }
+
+        .risk-medium {
+            color: var(--amber)
+        }
+
+        .risk-high {
+            color: var(--red)
+        }
+
+        /* Observations */
+        .observations {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 14px;
+            margin-top: 2px;
+        }
+
+        .observation {
+            padding-top: 7px;
+            border-top: 2px solid #b5bdc8;
+        }
+
+        .observation.red {
+            border-top-color: var(--red)
+        }
+
+        .observation.green {
+            border-top-color: var(--green)
+        }
+
+        .observation-title {
+            font-size: 8.5px;
+            font-weight: 700;
+            color: var(--ink);
+            margin-bottom: 4px;
+        }
+
+        .observation p {
+            margin: 0;
+            font-size: 7.8px;
+            line-height: 1.45;
+            color: var(--muted);
+        }
+
+        /* Findings */
+        .finding {
+            display: grid;
+            grid-template-columns: 14mm 1fr 23mm;
+            gap: 10px;
+            padding: 10px 0;
+            border-top: 1px solid var(--line);
+            break-inside: avoid;
+        }
+
+        .finding:last-child {
+            border-bottom: 1px solid var(--line);
+        }
+
+        .finding-index {
+            font-family: Georgia, "Times New Roman", serif;
+            font-size: 20px;
+            color: #a7b0bd;
+        }
+
+        .finding-title {
+            font-size: 9.5px;
+            font-weight: 700;
+            color: var(--ink);
+            margin-bottom: 4px;
+        }
+
+        .finding-desc {
+            font-family: Georgia, "Times New Roman", serif;
+            font-size: 9px;
+            line-height: 1.5;
+            color: #4c586a;
+        }
+
+        .finding-risk {
+            text-align: right;
+            font-size: 7px;
+            text-transform: uppercase;
+            letter-spacing: .45px;
+            font-weight: 700;
+        }
+
+        /* Risk table */
+        .risk-table td {
+            padding-top: 8px;
+            padding-bottom: 8px;
+        }
+
+        /* Recommendations */
+        .recommendation {
+            display: grid;
+            grid-template-columns: 14mm 1fr 22mm;
+            gap: 10px;
+            padding: 10px 0;
+            border-top: 1px solid var(--line);
+            break-inside: avoid;
+        }
+
+        .recommendation:last-child {
+            border-bottom: 1px solid var(--line);
+        }
+
+        .recommendation-no {
+            font-family: Georgia, "Times New Roman", serif;
+            font-size: 18px;
+            color: #a7b0bd;
+        }
+
+        .recommendation-title {
+            font-size: 9.5px;
+            font-weight: 700;
+            color: var(--ink);
+        }
+
+        .recommendation-desc {
+            margin-top: 4px;
+            font-family: Georgia, "Times New Roman", serif;
+            font-size: 8.8px;
+            line-height: 1.5;
+            color: #4c586a;
+        }
+
+        .priority {
+            text-align: right;
+            font-size: 7px;
+            color: var(--muted);
+            text-transform: uppercase;
+            letter-spacing: .4px;
+        }
+
+        /* Signatures */
+        .approval {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 28mm;
+            margin-top: 24px;
+        }
+
+        .sign {
+            font-size: 7.5px;
+            color: var(--muted);
+        }
+
+        .sign-space {
+            height: 35px
+        }
+
+        .sign-line {
+            border-top: 1px solid #8f99a8;
+            padding-top: 5px;
+            font-size: 8px;
+            color: var(--ink);
+            font-weight: 600;
+        }
+
+        /* Footer */
+        .footer {
+            margin-top: 16px;
+            padding-top: 7px;
+            border-top: 1px solid var(--line);
+            display: flex;
+            justify-content: space-between;
+            font-size: 7px;
+            color: #8a94a3;
+        }
+
+        .footer strong {
+            color: #667286;
+            font-weight: 600;
+        }
+
+
+        /* Responsee user appendix */
+        .appendix-intro {
+            margin-top: 4px;
+            margin-bottom: 10px;
+            font-family: Georgia, "Times New Roman", serif;
+            font-size: 9px;
+            line-height: 1.5;
+            color: #4c586a;
+        }
+
+        .response-user-table th {
+            font-size: 6.5px;
+            padding: 5px 5px;
+        }
+
+        .response-user-table td {
+            font-size: 6.8px;
+            padding: 4.5px 5px;
+            line-height: 1.2;
+        }
+
+        .response-user-table .email {
+            color: #5d6878;
+        }
+
+        .response-type {
+            font-size: 6.5px;
+            font-weight: 700;
+            letter-spacing: .2px;
+            white-space: nowrap;
+        }
+
+        .response-click {
+            color: var(--red)
+        }
+
+        .response-report {
+            color: var(--green)
+        }
+
+        .response-open {
+            color: var(--blue)
+        }
+
+        .appendix-summary {
+            margin-top: 10px;
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 14px;
+            border-top: 1px solid var(--line);
+            padding-top: 9px;
+        }
+
+        .appendix-summary div {
+            font-size: 7.5px;
+            line-height: 1.4;
+            color: var(--muted);
+        }
+
+        .appendix-summary strong {
+            display: block;
+            margin-bottom: 2px;
+            font-family: Georgia, "Times New Roman", serif;
+            font-size: 14px;
+            color: var(--ink);
+        }
+
+
+        /* Page 1 compact balance after moving response analysis */
+        .page-one-analysis .analysis-grid {
+            gap: 18px;
+        }
+
+        .page-one-analysis .analysis-title {
+            margin-bottom: 7px;
+        }
+
+        .page-one-analysis .response-row {
+            margin-bottom: 7px;
+        }
+
+        .page-one-analysis .distribution-item {
+            padding: 6px 0;
+        }
+
+        .page-one-analysis .distribution-item .value strong {
+            font-size: 14px;
+        }
+
+
+        /* Section 04 — Responsee analysis */
+        .response-analysis-layout {
+            display: grid;
+            grid-template-columns: 0.92fr 1.08fr;
+            gap: 20px;
+            align-items: start;
+        }
+
+        .response-chart-area {
+            display: grid;
+            grid-template-columns: 108px 1fr;
+            gap: 15px;
+            align-items: center;
+        }
+
+        .response-donut {
+            width: 108px;
+            height: 108px;
+            border-radius: 50%;
+            position: relative;
+            background:
+                conic-gradient(#aeb7c4 0 51%,
+                    var(--red) 51% 69.5%,
+                    var(--green) 69.5% 100%);
+        }
+
+        .response-donut::after {
+            content: "";
+            position: absolute;
+            inset: 21px;
+            border-radius: 50%;
+            background: var(--paper);
+        }
+
+        .response-donut-center {
+            position: absolute;
+            inset: 0;
+            z-index: 1;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            text-align: center;
+        }
+
+        .response-donut-center strong {
+            display: block;
+            font-family: Georgia, "Times New Roman", serif;
+            font-size: 20px;
+            line-height: 1;
+            font-weight: 600;
+            color: var(--ink);
+        }
+
+        .response-donut-center span {
+            display: block;
+            margin-top: 3px;
+            font-size: 6.7px;
+            line-height: 1.2;
+            color: var(--muted);
+            text-transform: uppercase;
+            letter-spacing: .45px;
+        }
+
+        .response-legend {
+            border-top: 1px solid var(--line);
+        }
+
+        .response-legend-row {
+            display: grid;
+            grid-template-columns: 7px 1fr auto;
+            gap: 7px;
+            align-items: center;
+            padding: 6px 0;
+            border-bottom: 1px solid var(--soft);
+        }
+
+        .response-legend-dot {
+            width: 7px;
+            height: 7px;
+            border-radius: 50%;
+        }
+
+        .response-legend-name {
+            font-size: 7.6px;
+            line-height: 1.25;
+            color: #465267;
+        }
+
+        .response-legend-value {
+            text-align: right;
+        }
+
+        .response-legend-value strong {
+            display: block;
+            font-family: Georgia, "Times New Roman", serif;
+            font-size: 12px;
+            line-height: 1;
+            color: var(--ink);
+        }
+
+        .response-legend-value span {
+            display: block;
+            margin-top: 2px;
+            font-size: 6.5px;
+            color: var(--muted);
+        }
+
+        .response-rankings {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 16px;
+        }
+
+        .ranking-group-title {
+            margin-bottom: 5px;
+            padding-bottom: 5px;
+            border-bottom: 1px solid var(--line);
+            font-size: 7px;
+            line-height: 1.3;
+            color: var(--muted);
+            text-transform: uppercase;
+            letter-spacing: .55px;
+        }
+
+        .ranking-row {
+            display: grid;
+            grid-template-columns: 16px 1fr auto;
+            gap: 6px;
+            align-items: start;
+            padding: 6px 0;
+            border-bottom: 1px solid var(--soft);
+        }
+
+        .ranking-number {
+            font-family: Georgia, "Times New Roman", serif;
+            font-size: 11px;
+            color: #a4adba;
+        }
+
+        .ranking-name {
+            font-size: 7.6px;
+            line-height: 1.25;
+            font-weight: 600;
+            color: var(--ink);
+        }
+
+        .ranking-detail {
+            display: block;
+            margin-top: 2px;
+            font-size: 6.5px;
+            line-height: 1.25;
+            font-weight: 400;
+            color: var(--muted);
+        }
+
+        .ranking-value {
+            font-family: Georgia, "Times New Roman", serif;
+            font-size: 12px;
+            line-height: 1;
+            color: var(--navy);
+            text-align: right;
+            white-space: nowrap;
+        }
+
+        .position-placeholder .ranking-value {
+            color: #8b95a3;
+        }
+
+        .position-placeholder .ranking-detail {
+            font-style: italic;
+        }
+
+        .response-summary {
+            margin-top: 10px;
+            padding-top: 8px;
+            border-top: 1px solid var(--line);
+            display: grid;
+            grid-template-columns: 17mm 1fr;
+            gap: 9px;
+        }
+
+        .response-summary-label {
+            font-size: 7px;
+            font-weight: 700;
+            color: var(--blue);
+            text-transform: uppercase;
+            letter-spacing: .6px;
+        }
+
+        .response-summary-text {
+            margin: 0;
+            font-family: Georgia, "Times New Roman", serif;
+            font-size: 8.4px;
+            line-height: 1.48;
+            color: #4c586a;
+        }
+
+        .data-note {
+            margin-top: 5px;
+            font-size: 6.3px;
+            line-height: 1.35;
+            color: #8a94a3;
+        }
+
+        @page {
+            size: A4;
+            margin: 0;
+        }
+
+        @media print {
+
+            html,
+            body {
+                background: #fff
+            }
+
+            body {
+                padding: 0
+            }
+
+            .page {
+                width: 210mm;
+                height: 297mm;
+                min-height: 297mm;
+                margin: 0;
+                box-shadow: none;
+                page-break-after: always;
+                break-after: page;
+            }
+
+            .page:last-child {
+                page-break-after: auto;
+                break-after: auto;
+            }
+
+            .section,
+            .finding,
+            .recommendation,
+            .table-wrap,
+            .analysis-block {
+                break-inside: avoid;
+                page-break-inside: avoid;
+            }
+        }
+    </style>
+</head>
+
+<body>
+
+    <!-- PAGE 1 -->
+    <section class="page">
+        <div class="content">
+
+            <div class="masthead">
+                <div class="brand">
+                    pukat
+                    <small>Phishing Simulation Platform</small>
+                </div>
+                <div class="doc-ref">
+                    Security Awareness Campaign Report<br>
+                    CAM-005 · Confidential
+                </div>
+            </div>
+
+            <div class="title-block">
+                <div class="kicker">Campaign Evaluation</div>
+                <h1>Phishing Simulation<br>Campaign Evaluation</h1>
+                <div class="subtitle">Test Callybn · Campaign #5 · 15 September 2026</div>
+            </div>
+
+            <section class="section">
+                <div class="section-head">
+                    <span class="section-no">01</span>
+                    <h2 class="section-title">Campaign Overview & Scenario</h2>
+                    <span class="section-rule"></span>
+                </div>
+
+                <div class="facts" contenteditable="true">
+                    <div class="fact">
+                        <div class="fact-label">Campaign ID</div>
+                        <div class="fact-value">Test Callybn (#5)</div>
+                    </div>
+                    <div class="fact">
+                        <div class="fact-label">Attack Vector</div>
+                        <div class="fact-value">Malware / Social Engineering</div>
+                    </div>
+                    <div class="fact">
+                        <div class="fact-label">Scenario Difficulty</div>
+                        <div class="fact-value">3 / 5 · Moderate</div>
+                    </div>
+
+                    <div class="fact">
+                        <div class="fact-label">Platform</div>
+                        <div class="fact-value">Pukat · GoPhish</div>
+                    </div>
+                    <div class="fact">
+                        <div class="fact-label">Launch Date & Time</div>
+                        <div class="fact-value">15 Sep 2026 · 08:01 WIB</div>
+                    </div>
+                    <div class="fact">
+                        <div class="fact-label">Campaign Coverage</div>
+                        <div class="fact-value">200 user · 10 departemen</div>
+                    </div>
+                </div>
+            </section>
+
+            <section class="section">
+                <div class="section-head">
+                    <span class="section-no">02</span>
+                    <h2 class="section-title">Executive Summary</h2>
+                    <span class="section-rule"></span>
+                </div>
+
+                <div class="summary-layout">
+                    <div class="summary-copy" contenteditable="true">
+                        <p>
+                            The phishing simulation campaign was conducted across <strong>200 users</strong>
+                            spanning 10 departments to evaluate how employees respond to email-based social
+                            engineering designed to emulate a malware-delivery scenario.
+                        </p>
+                        <p>
+                            Of the total population, <strong>37 users (18.5%)</strong> performed a click or
+                            other interaction classified as risk-bearing. By contrast,
+                            <strong>61 users (30.5%)</strong> actively reported the simulated email to the
+                            security function.
+                        </p>
+                        <p>
+                            The results indicate that a baseline level of security awareness is evident
+                            across part of the population; however, reporting discipline and resistance
+                            to phishing remain inconsistent across several business units and warrant
+                            targeted reinforcement.
+                        </p>
+                    </div>
+
+                    <aside class="assessment">
+                        <div class="assessment-label">Overall Assessment</div>
+                        <div class="assessment-value">Medium</div>
+                        <div class="assessment-note">
+                            Meaningful user susceptibility remains evident, while active reporting behaviour is not yet
+                            consistently embedded across the population.
+                        </div>
+                    </aside>
+                </div>
+            </section>
+
+            <section class="section">
+                <div class="section-head">
+                    <span class="section-no">03</span>
+                    <h2 class="section-title">Campaign Performance Metrics</h2>
+                    <span class="section-rule"></span>
+                </div>
+
+                <div class="metrics">
+                    <div class="metric">
+                        <div class="metric-label">Emails Delivered</div>
+                        <div class="metric-value">200</div>
+                        <div class="metric-note">100% of target population</div>
+                    </div>
+
+                    <div class="metric">
+                        <div class="metric-label">Emails Opened</div>
+                        <div class="metric-value">82.5%</div>
+                        <div class="metric-note">165 of 200 users</div>
+                    </div>
+
+                    <div class="metric risk">
+                        <div class="metric-label">Click / Data Interaction</div>
+                        <div class="metric-value">18.5%</div>
+                        <div class="metric-note">37 of 200 users</div>
+                    </div>
+
+                    <div class="metric good">
+                        <div class="metric-label">Reported</div>
+                        <div class="metric-value">30.5%</div>
+                        <div class="metric-note">61 of 200 users</div>
+                    </div>
+                </div>
+
+                <div class="notes">
+                    <div class="note">
+                        <strong>35 users did not open the email</strong>
+                        No subsequent interaction was recorded within this cohort.
+                    </div>
+                    <div class="note">
+                        <strong>37 users demonstrated measurable susceptibility</strong>
+                        This cohort should form a primary focus for targeted awareness intervention.
+                    </div>
+                    <div class="note">
+                        <strong>61 users actively reported the simulation</strong>
+                        Reporting behaviour is present, but it has not yet become the prevailing response.
+                    </div>
+                </div>
+            </section>
+
+            <section class="section page-one-analysis" style="margin-top:14px;">
+                <div class="section-head">
+                    <span class="section-no">04</span>
+                    <h2 class="section-title">User Responsee Analysis</h2>
+                    <span class="section-rule"></span>
+                </div>
+
+                <div class="response-analysis-layout">
+
+                    <!-- DISTRIBUSI RESPONS -->
+                    <div>
+                        <div class="analysis-title">Responsee Distribution</div>
+
+                        <div class="response-chart-area">
+                            <div class="response-donut" aria-label="Distribusi respons pengguna">
+                                <div class="response-donut-center">
+                                    <div>
+                                        <strong>200</strong>
+                                        <span>Total Targets</span>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div class="response-legend">
+                                <div class="response-legend-row">
+                                    <span class="response-legend-dot" style="background:#aeb7c4"></span>
+                                    <span class="response-legend-name">No Click and No Report</span>
+                                    <span class="response-legend-value">
+                                        <strong>102</strong>
+                                        <span>51.0%</span>
+                                    </span>
+                                </div>
+
+                                <div class="response-legend-row">
+                                    <span class="response-legend-dot" style="background:#a83434"></span>
+                                    <span class="response-legend-name">Risk-Bearing Interaction</span>
+                                    <span class="response-legend-value">
+                                        <strong style="color:#a83434">37</strong>
+                                        <span>18.5%</span>
+                                    </span>
+                                </div>
+
+                                <div class="response-legend-row">
+                                    <span class="response-legend-dot" style="background:#2f6b4f"></span>
+                                    <span class="response-legend-name">Reported ke fungsi keamanan</span>
+                                    <span class="response-legend-value">
+                                        <strong style="color:#2f6b4f">61</strong>
+                                        <span>30.5%</span>
+                                    </span>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- TOP 3 DEPARTMENT & POSITION LEVEL -->
+                    <div class="response-rankings">
+
+                        <div class="ranking-group">
+                            <div class="ranking-group-title">Top 3 Departments by Recorded Responsee Activity</div>
+
+                            <div class="ranking-row">
+                                <span class="ranking-number">01</span>
+                                <span class="ranking-name">
+                                    IT &amp; Security
+                                    <span class="ranking-detail">1 risk interaction · 12 reports</span>
+                                </span>
+                                <span class="ranking-value">13</span>
+                            </div>
+
+                            <div class="ranking-row">
+                                <span class="ranking-number">02</span>
+                                <span class="ranking-name">
+                                    Sales &amp; Marketing
+                                    <span class="ranking-detail">9 risk interactions · 3 reports</span>
+                                </span>
+                                <span class="ranking-value">12</span>
+                            </div>
+
+                            <div class="ranking-row">
+                                <span class="ranking-number">03</span>
+                                <span class="ranking-name">
+                                    Finance &amp; Accounting
+                                    <span class="ranking-detail">5 risk interactions · 6 reports · tied with HR</span>
+                                </span>
+                                <span class="ranking-value">11</span>
+                            </div>
+                        </div>
+
+                        <div class="ranking-group position-placeholder">
+                            <div class="ranking-group-title">Top 3 Position Levels by Recorded Responsee Activity</div>
+
+                            <div class="ranking-row">
+                                <span class="ranking-number">01</span>
+                                <span class="ranking-name">
+                                    Staff
+                                    <span class="ranking-detail">Position-level data pending</span>
+                                </span>
+                                <span class="ranking-value">—</span>
+                            </div>
+
+                            <div class="ranking-row">
+                                <span class="ranking-number">02</span>
+                                <span class="ranking-name">
+                                    Supervisor
+                                    <span class="ranking-detail">Position-level data pending</span>
+                                </span>
+                                <span class="ranking-value">—</span>
+                            </div>
+
+                            <div class="ranking-row">
+                                <span class="ranking-number">03</span>
+                                <span class="ranking-name">
+                                    Manager
+                                    <span class="ranking-detail">Position-level data pending</span>
+                                </span>
+                                <span class="ranking-value">—</span>
+                            </div>
+
+                            <div class="data-note">
+                                * Position-level data is not yet available in the current sample dataset.
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="response-summary">
+                    <div class="response-summary-label">Summary</div>
+                    <p class="response-summary-text">
+                        Across the 200-user population, <strong>102 users (51.0%)</strong> neither
+                        clicked nor reported the simulated email. A further
+                        <strong>37 users (18.5%)</strong> performed an interaction classified as
+                        risk-bearing, while <strong>61 users (30.5%)</strong> reported the message
+                        to the security function. The distribution suggests that active reporting
+                        behaviour has begun to take hold, yet it remains insufficiently pervasive;
+                        at the same time, the proportion of risk-bearing interactions remains material
+                        enough to justify continued, targeted awareness measures.
+                    </p>
+                </div>
+            </section>
+
+        </div>
+
+        <div class="footer">
+            <div><strong>PUKAT CAMPAIGN #5</strong> · 17 Sep 2026 · Confidential</div>
+            <div>01 / 05</div>
+        </div>
+    </section>
+
+
+    <!-- PAGE 2 -->
+    <section class="page">
+        <div class="content">
+
+            <div class="masthead">
+                <div class="brand">
+                    pukat
+                    <small>Phishing Simulation Platform</small>
+                </div>
+                <div class="doc-ref">
+                    Campaign Analysis<br>
+                    Test Callybn · #5
+                </div>
+            </div>
+
+
+
+            <section class="section">
+                <div class="section-head">
+                    <span class="section-no">05</span>
+                    <h2 class="section-title">Responsee Distribution per Departemen</h2>
+                    <span class="section-rule"></span>
+                </div>
+
+                <div class="table-wrap">
+                    <table contenteditable="true">
+                        <thead>
+                            <tr>
+                                <th>Department</th>
+                                <th class="center">Targets</th>
+                                <th class="center">Opened</th>
+                                <th class="center">Click / Data Interaction</th>
+                                <th class="center">Reported</th>
+                                <th class="center">Risk</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <tr>
+                                <td>IT & Security</td>
+                                <td class="center">20</td>
+                                <td class="center">15</td>
+                                <td class="center">1</td>
+                                <td class="center">12</td>
+                                <td class="center"><span class="risk-text risk-low">LOW</span></td>
+                            </tr>
+                            <tr>
+                                <td>Finance & Accounting</td>
+                                <td class="center">25</td>
+                                <td class="center">20</td>
+                                <td class="center">5</td>
+                                <td class="center">6</td>
+                                <td class="center"><span class="risk-text risk-medium">MEDIUM</span></td>
+                            </tr>
+                            <tr>
+                                <td>Human Capital (HR)</td>
+                                <td class="center">20</td>
+                                <td class="center">18</td>
+                                <td class="center">4</td>
+                                <td class="center">7</td>
+                                <td class="center"><span class="risk-text risk-medium">MEDIUM</span></td>
+                            </tr>
+                            <tr>
+                                <td>Procurement & Supply Chain</td>
+                                <td class="center">25</td>
+                                <td class="center">22</td>
+                                <td class="center">6</td>
+                                <td class="center">4</td>
+                                <td class="center"><span class="risk-text risk-high">HIGH</span></td>
+                            </tr>
+                            <tr>
+                                <td>Sales & Marketing</td>
+                                <td class="center">30</td>
+                                <td class="center">26</td>
+                                <td class="center">9</td>
+                                <td class="center">3</td>
+                                <td class="center"><span class="risk-text risk-high">HIGH</span></td>
+                            </tr>
+                            <tr>
+                                <td>Operations & Logistics</td>
+                                <td class="center">25</td>
+                                <td class="center">19</td>
+                                <td class="center">7</td>
+                                <td class="center">2</td>
+                                <td class="center"><span class="risk-text risk-high">HIGH</span></td>
+                            </tr>
+                            <tr>
+                                <td>Legal & Compliance</td>
+                                <td class="center">10</td>
+                                <td class="center">8</td>
+                                <td class="center">0</td>
+                                <td class="center">8</td>
+                                <td class="center"><span class="risk-text risk-low">LOW</span></td>
+                            </tr>
+                            <tr>
+                                <td>Research & Development</td>
+                                <td class="center">15</td>
+                                <td class="center">12</td>
+                                <td class="center">2</td>
+                                <td class="center">5</td>
+                                <td class="center"><span class="risk-text risk-low">LOW</span></td>
+                            </tr>
+                            <tr>
+                                <td>Internal Audit</td>
+                                <td class="center">10</td>
+                                <td class="center">9</td>
+                                <td class="center">0</td>
+                                <td class="center">8</td>
+                                <td class="center"><span class="risk-text risk-low">LOW</span></td>
+                            </tr>
+                            <tr>
+                                <td>Corporate Secretary</td>
+                                <td class="center">20</td>
+                                <td class="center">16</td>
+                                <td class="center">3</td>
+                                <td class="center">5</td>
+                                <td class="center"><span class="risk-text risk-medium">MEDIUM</span></td>
+                            </tr>
+                            <tr class="total">
+                                <td>TOTAL</td>
+                                <td class="center">200</td>
+                                <td class="center">165</td>
+                                <td class="center">37</td>
+                                <td class="center">61</td>
+                                <td class="center">—</td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+            </section>
+
+            <section class="section">
+                <div class="section-head">
+                    <span class="section-no">06</span>
+                    <h2 class="section-title">Key Observations</h2>
+                    <span class="section-rule"></span>
+                </div>
+
+                <div class="observations">
+                    <div class="observation red">
+                        <div class="observation-title">Sales & Marketing</div>
+                        <p>Recorded the highest volume of risk-bearing interactions, with 9 of 30 users engaging with
+                            the simulated phishing content.</p>
+                    </div>
+
+                    <div class="observation red">
+                        <div class="observation-title">Operations & Logistics</div>
+                        <p>Recorded 7 risk-bearing interactions, while only 2 users reported the simulated message to
+                            the security function.</p>
+                    </div>
+
+                    <div class="observation green">
+                        <div class="observation-title">Legal & Internal Audit</div>
+                        <p>Recorded no click or data-submission activity and demonstrated a comparatively strong
+                            reporting rate.</p>
+                    </div>
+                </div>
+            </section>
+
+            <section class="section" style="margin-top:16px;">
+                <div class="section-head">
+                    <span class="section-no">07</span>
+                    <h2 class="section-title">Key Findings</h2>
+                    <span class="section-rule"></span>
+                </div>
+
+                <div class="finding">
+                    <div class="finding-index">01</div>
+                    <div>
+                        <div class="finding-title">Risk-Bearing User Interaction Remains Material</div>
+                        <div class="finding-desc">
+                            A total of 37 users (18.5%) performed a click or other interaction classified as
+                            risk-bearing. The highest concentration of user susceptibility was observed in
+                            Sales & Marketing, Operations & Logistics, and Procurement & Supply Chain.
+                        </div>
+                    </div>
+                    <div class="finding-risk risk-high">High</div>
+                </div>
+
+                <div class="finding">
+                    <div class="finding-index">02</div>
+                    <div>
+                        <div class="finding-title">Active Reporting Has Not Yet Become the Predominant Response</div>
+                        <div class="finding-desc">
+                            Hanya 61 of 200 users (30.5%) yang melaporkan email simulasi kepada fungsi
+                            keamanan. Hal ini menunjukkan bahwa awareness untuk melakukan reporting masih
+                            perlu diperkuat.
+                        </div>
+                    </div>
+                    <div class="finding-risk risk-medium">Medium</div>
+                </div>
+
+                <div class="finding">
+                    <div class="finding-index">03</div>
+                    <div>
+                        <div class="finding-title">Several Business Units Demonstrated Stronger Defensive Behaviour
+                        </div>
+                        <div class="finding-desc">
+                            Legal & Compliance and Internal Audit recorded no click or data-submission activity
+                            and demonstrated comparatively strong reporting behaviour during the simulation.
+                        </div>
+                    </div>
+                    <div class="finding-risk risk-low">Low</div>
+                </div>
+            </section>
+
+        </div>
+
+        <div class="footer">
+            <div><strong>PUKAT CAMPAIGN #5</strong> · Campaign Analysis</div>
+            <div>02 / 05</div>
+        </div>
+    </section>
+
+
+    <!-- PAGE 3 -->
+    <section class="page">
+        <div class="content">
+
+            <div class="masthead">
+                <div class="brand">
+                    pukat
+                    <small>Phishing Simulation Platform</small>
+                </div>
+                <div class="doc-ref">
+                    Findings & Follow-up<br>
+                    Test Callybn · #5
+                </div>
+            </div>
+
+
+
+            <section class="section">
+                <div class="section-head">
+                    <span class="section-no">08</span>
+                    <h2 class="section-title">Risk Assessment Matrix</h2>
+                    <span class="section-rule"></span>
+                </div>
+
+                <div class="table-wrap">
+                    <table class="risk-table" contenteditable="true">
+                        <thead>
+                            <tr>
+                                <th style="width:27%">Assessment Area</th>
+                                <th style="width:14%" class="center">Risiko</th>
+                                <th>Assessment Rationale</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <tr>
+                                <td><strong>User Exposure</strong></td>
+                                <td class="center"><span class="risk-text risk-high">HIGH</span></td>
+                                <td>37 users performed a click or other risk-bearing interaction during the campaign.
+                                </td>
+                            </tr>
+                            <tr>
+                                <td><strong>Reporting Behaviour</strong></td>
+                                <td class="center"><span class="risk-text risk-medium">MEDIUM</span></td>
+                                <td>Active reporting was recorded for 61 users, representing 30.5% of the target
+                                    population.</td>
+                            </tr>
+                            <tr>
+                                <td><strong>Campaign Coverage</strong></td>
+                                <td class="center"><span class="risk-text risk-low">LOW</span></td>
+                                <td>The campaign covered 200 users across 10 departments, providing a sufficient basis
+                                    for comparative analysis across business units.</td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+            </section>
+
+            <section class="section">
+                <div class="section-head">
+                    <span class="section-no">09</span>
+                    <h2 class="section-title">Recommendations & Follow-up Actions</h2>
+                    <span class="section-rule"></span>
+                </div>
+
+                <div class="recommendation">
+                    <div class="recommendation-no">01</div>
+                    <div>
+                        <div class="recommendation-title">Targeted Awareness for Higher-Susceptibility Business Units
+                        </div>
+                        <div class="recommendation-desc">
+                            Deliver targeted awareness interventions to business units with the highest rate of
+                            risk-bearing interaction, using scenarios that closely reflect their day-to-day
+                            operational context and likely threat exposure.
+                        </div>
+                    </div>
+                    <div class="priority">Priority 1</div>
+                </div>
+
+                <div class="recommendation">
+                    <div class="recommendation-no">02</div>
+                    <div>
+                        <div class="recommendation-title">Embed Phishing Reporting as a Routine Security Behaviour</div>
+                        <div class="recommendation-desc">
+                            Reinforce the designated phishing-reporting channel and measure both the speed and
+                            consistency of user reporting in subsequent campaigns.
+                        </div>
+                    </div>
+                    <div class="priority">Priority 1</div>
+                </div>
+
+                <div class="recommendation">
+                    <div class="recommendation-no">03</div>
+                    <div>
+                        <div class="recommendation-title">Establish Recurring Simulation and Trend Monitoring</div>
+                        <div class="recommendation-desc">
+                            Track click rates, reporting rates, and departmental response patterns across successive
+                            campaign cycles to identify sustained improvement, regression, or emerging areas
+                            of concern.
+                        </div>
+                    </div>
+                    <div class="priority">Priority 2</div>
+                </div>
+            </section>
+
+            <section class="section">
+                <div class="section-head">
+                    <span class="section-no">10</span>
+                    <h2 class="section-title">Approval</h2>
+                    <span class="section-rule"></span>
+                </div>
+
+                <div class="approval">
+                    <div class="sign">
+                        Prepared by,
+                        <div class="sign-space"></div>
+                        <div class="sign-line">IT Auditor / Security Awareness Team</div>
+                    </div>
+
+                    <div class="sign">
+                        Approved by,
+                        <div class="sign-space"></div>
+                        <div class="sign-line">CISO / Head of IT Security</div>
+                    </div>
+                </div>
+            </section>
+
+        </div>
+
+        <div class="footer">
+            <div><strong>PUKAT PHISHING SIMULATION PLATFORM</strong> · 17 Sep 2026</div>
+            <div>03 / 05</div>
+        </div>
+    </section>
+
+
+    <!-- PAGE 4 -->
+    <section class="page">
+        <div class="content">
+
+            <div class="masthead">
+                <div class="brand">
+                    pukat
+                    <small>Phishing Simulation Platform</small>
+                </div>
+                <div class="doc-ref">
+                    User Responsee Detail<br>
+                    Test Callybn · #5
+                </div>
+            </div>
+
+            <section class="section" style="margin-top:20px;">
+                <div class="section-head">
+                    <span class="section-no">11</span>
+                    <h2 class="section-title">Users with Recorded Campaign Responsees</h2>
+                    <span class="section-rule"></span>
+                </div>
+
+                <div class="appendix-intro">
+                    The following register lists users for whom a response event was recorded during the
+                    campaign. Names and email addresses in this design version remain
+                    <strong>placeholders</strong> and should be replaced with production data from the
+                    Pukat/GoPhish platform.
+                </div>
+
+                <div class="table-wrap">
+                    <table class="response-user-table">
+                        <thead>
+                            <tr>
+                                <th style="width:6%" class="center">No.</th>
+                                <th style="width:18%">User Name</th>
+                                <th style="width:24%">Email</th>
+                                <th style="width:24%">Departemen</th>
+                                <th style="width:13%">Response</th>
+                                <th style="width:15%" class="center">Timestamp</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <tr>
+                                <td class="center">1</td>
+                                <td>User 001</td>
+                                <td class="email">user001@company.co.id</td>
+                                <td>IT & Security</td>
+                                <td><span class="response-type response-report">Reported</span></td>
+                                <td class="center">15 Sep 2026<br>08:07</td>
+                            </tr>
+                            <tr>
+                                <td class="center">2</td>
+                                <td>User 002</td>
+                                <td class="email">user002@company.co.id</td>
+                                <td>Finance & Accounting</td>
+                                <td><span class="response-type response-click">Clicked</span></td>
+                                <td class="center">15 Sep 2026<br>08:14</td>
+                            </tr>
+                            <tr>
+                                <td class="center">3</td>
+                                <td>User 003</td>
+                                <td class="email">user003@company.co.id</td>
+                                <td>Human Capital (HR)</td>
+                                <td><span class="response-type response-open">Opened</span></td>
+                                <td class="center">15 Sep 2026<br>08:21</td>
+                            </tr>
+                            <tr>
+                                <td class="center">4</td>
+                                <td>User 004</td>
+                                <td class="email">user004@company.co.id</td>
+                                <td>Procurement & Supply Chain</td>
+                                <td><span class="response-type response-report">Reported</span></td>
+                                <td class="center">15 Sep 2026<br>08:28</td>
+                            </tr>
+                            <tr>
+                                <td class="center">5</td>
+                                <td>User 005</td>
+                                <td class="email">user005@company.co.id</td>
+                                <td>Sales & Marketing</td>
+                                <td><span class="response-type response-open">Opened</span></td>
+                                <td class="center">15 Sep 2026<br>08:35</td>
+                            </tr>
+                            <tr>
+                                <td class="center">6</td>
+                                <td>User 006</td>
+                                <td class="email">user006@company.co.id</td>
+                                <td>Operations & Logistics</td>
+                                <td><span class="response-type response-report">Reported</span></td>
+                                <td class="center">15 Sep 2026<br>08:42</td>
+                            </tr>
+                            <tr>
+                                <td class="center">7</td>
+                                <td>User 007</td>
+                                <td class="email">user007@company.co.id</td>
+                                <td>Legal & Compliance</td>
+                                <td><span class="response-type response-click">Clicked</span></td>
+                                <td class="center">15 Sep 2026<br>09:49</td>
+                            </tr>
+                            <tr>
+                                <td class="center">8</td>
+                                <td>User 008</td>
+                                <td class="email">user008@company.co.id</td>
+                                <td>Research & Development</td>
+                                <td><span class="response-type response-open">Opened</span></td>
+                                <td class="center">15 Sep 2026<br>09:56</td>
+                            </tr>
+                            <tr>
+                                <td class="center">9</td>
+                                <td>User 009</td>
+                                <td class="email">user009@company.co.id</td>
+                                <td>Internal Audit</td>
+                                <td><span class="response-type response-report">Reported</span></td>
+                                <td class="center">15 Sep 2026<br>09:03</td>
+                            </tr>
+                            <tr>
+                                <td class="center">10</td>
+                                <td>User 010</td>
+                                <td class="email">user010@company.co.id</td>
+                                <td>Corporate Secretary</td>
+                                <td><span class="response-type response-open">Opened</span></td>
+                                <td class="center">15 Sep 2026<br>09:10</td>
+                            </tr>
+                            <tr>
+                                <td class="center">11</td>
+                                <td>User 011</td>
+                                <td class="email">user011@company.co.id</td>
+                                <td>IT & Security</td>
+                                <td><span class="response-type response-report">Reported</span></td>
+                                <td class="center">15 Sep 2026<br>09:17</td>
+                            </tr>
+                            <tr>
+                                <td class="center">12</td>
+                                <td>User 012</td>
+                                <td class="email">user012@company.co.id</td>
+                                <td>Finance & Accounting</td>
+                                <td><span class="response-type response-click">Clicked</span></td>
+                                <td class="center">15 Sep 2026<br>09:24</td>
+                            </tr>
+                            <tr>
+                                <td class="center">13</td>
+                                <td>User 013</td>
+                                <td class="email">user013@company.co.id</td>
+                                <td>Human Capital (HR)</td>
+                                <td><span class="response-type response-open">Opened</span></td>
+                                <td class="center">15 Sep 2026<br>10:31</td>
+                            </tr>
+                            <tr>
+                                <td class="center">14</td>
+                                <td>User 014</td>
+                                <td class="email">user014@company.co.id</td>
+                                <td>Procurement & Supply Chain</td>
+                                <td><span class="response-type response-report">Reported</span></td>
+                                <td class="center">15 Sep 2026<br>10:38</td>
+                            </tr>
+                            <tr>
+                                <td class="center">15</td>
+                                <td>User 015</td>
+                                <td class="email">user015@company.co.id</td>
+                                <td>Sales & Marketing</td>
+                                <td><span class="response-type response-open">Opened</span></td>
+                                <td class="center">15 Sep 2026<br>10:45</td>
+                            </tr>
+                            <tr>
+                                <td class="center">16</td>
+                                <td>User 016</td>
+                                <td class="email">user016@company.co.id</td>
+                                <td>Operations & Logistics</td>
+                                <td><span class="response-type response-report">Reported</span></td>
+                                <td class="center">15 Sep 2026<br>10:52</td>
+                            </tr>
+                            <tr>
+                                <td class="center">17</td>
+                                <td>User 017</td>
+                                <td class="email">user017@company.co.id</td>
+                                <td>Legal & Compliance</td>
+                                <td><span class="response-type response-click">Clicked</span></td>
+                                <td class="center">15 Sep 2026<br>10:59</td>
+                            </tr>
+                            <tr>
+                                <td class="center">18</td>
+                                <td>User 018</td>
+                                <td class="email">user018@company.co.id</td>
+                                <td>Research & Development</td>
+                                <td><span class="response-type response-open">Opened</span></td>
+                                <td class="center">15 Sep 2026<br>10:06</td>
+                            </tr>
+                            <tr>
+                                <td class="center">19</td>
+                                <td>User 019</td>
+                                <td class="email">user019@company.co.id</td>
+                                <td>Internal Audit</td>
+                                <td><span class="response-type response-report">Reported</span></td>
+                                <td class="center">15 Sep 2026<br>11:13</td>
+                            </tr>
+                            <tr>
+                                <td class="center">20</td>
+                                <td>User 020</td>
+                                <td class="email">user020@company.co.id</td>
+                                <td>Corporate Secretary</td>
+                                <td><span class="response-type response-open">Opened</span></td>
+                                <td class="center">15 Sep 2026<br>11:20</td>
+                            </tr>
+                            <tr>
+                                <td class="center">21</td>
+                                <td>User 021</td>
+                                <td class="email">user021@company.co.id</td>
+                                <td>IT & Security</td>
+                                <td><span class="response-type response-report">Reported</span></td>
+                                <td class="center">15 Sep 2026<br>11:27</td>
+                            </tr>
+                            <tr>
+                                <td class="center">22</td>
+                                <td>User 022</td>
+                                <td class="email">user022@company.co.id</td>
+                                <td>Finance & Accounting</td>
+                                <td><span class="response-type response-click">Clicked</span></td>
+                                <td class="center">15 Sep 2026<br>11:34</td>
+                            </tr>
+                            <tr>
+                                <td class="center">23</td>
+                                <td>User 023</td>
+                                <td class="email">user023@company.co.id</td>
+                                <td>Human Capital (HR)</td>
+                                <td><span class="response-type response-open">Opened</span></td>
+                                <td class="center">15 Sep 2026<br>11:41</td>
+                            </tr>
+                            <tr>
+                                <td class="center">24</td>
+                                <td>User 024</td>
+                                <td class="email">user024@company.co.id</td>
+                                <td>Procurement & Supply Chain</td>
+                                <td><span class="response-type response-report">Reported</span></td>
+                                <td class="center">15 Sep 2026<br>11:48</td>
+                            </tr>
+                            <tr>
+                                <td class="center">25</td>
+                                <td>User 025</td>
+                                <td class="email">user025@company.co.id</td>
+                                <td>Sales & Marketing</td>
+                                <td><span class="response-type response-open">Opened</span></td>
+                                <td class="center">15 Sep 2026<br>12:55</td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+
+                <div class="appendix-summary">
+                    <div><strong>25</strong>Users shown on this page</div>
+                    <div><strong>50</strong>Total users in the response register</div>
+                    <div><strong>1–25</strong>Records displayed on this page</div>
+                </div>
+            </section>
+
+        </div>
+
+        <div class="footer">
+            <div><strong>PUKAT CAMPAIGN #5</strong> · User Responsee Detail</div>
+            <div>04 / 05</div>
+        </div>
+    </section>
+
+    <!-- PAGE 5 -->
+    <section class="page">
+        <div class="content">
+
+            <div class="masthead">
+                <div class="brand">
+                    pukat
+                    <small>Phishing Simulation Platform</small>
+                </div>
+                <div class="doc-ref">
+                    User Responsee Detail<br>
+                    Test Callybn · #5
+                </div>
+            </div>
+
+            <section class="section" style="margin-top:20px;">
+                <div class="section-head">
+                    <span class="section-no">12</span>
+                    <h2 class="section-title">Users with Recorded Campaign Responsees</h2>
+                    <span class="section-rule"></span>
+                </div>
+
+                <div class="appendix-intro">
+                    The following register lists users for whom a response event was recorded during the
+                    campaign. Names and email addresses in this design version remain
+                    <strong>placeholders</strong> and should be replaced with production data from the
+                    Pukat/GoPhish platform.
+                </div>
+
+                <div class="table-wrap">
+                    <table class="response-user-table">
+                        <thead>
+                            <tr>
+                                <th style="width:6%" class="center">No.</th>
+                                <th style="width:18%">User Name</th>
+                                <th style="width:24%">Email</th>
+                                <th style="width:24%">Departemen</th>
+                                <th style="width:13%">Response</th>
+                                <th style="width:15%" class="center">Timestamp</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <tr>
+                                <td class="center">26</td>
+                                <td>User 026</td>
+                                <td class="email">user026@company.co.id</td>
+                                <td>Operations & Logistics</td>
+                                <td><span class="response-type response-report">Reported</span></td>
+                                <td class="center">15 Sep 2026<br>12:02</td>
+                            </tr>
+                            <tr>
+                                <td class="center">27</td>
+                                <td>User 027</td>
+                                <td class="email">user027@company.co.id</td>
+                                <td>Legal & Compliance</td>
+                                <td><span class="response-type response-click">Clicked</span></td>
+                                <td class="center">15 Sep 2026<br>12:09</td>
+                            </tr>
+                            <tr>
+                                <td class="center">28</td>
+                                <td>User 028</td>
+                                <td class="email">user028@company.co.id</td>
+                                <td>Research & Development</td>
+                                <td><span class="response-type response-open">Opened</span></td>
+                                <td class="center">15 Sep 2026<br>12:16</td>
+                            </tr>
+                            <tr>
+                                <td class="center">29</td>
+                                <td>User 029</td>
+                                <td class="email">user029@company.co.id</td>
+                                <td>Internal Audit</td>
+                                <td><span class="response-type response-report">Reported</span></td>
+                                <td class="center">15 Sep 2026<br>12:23</td>
+                            </tr>
+                            <tr>
+                                <td class="center">30</td>
+                                <td>User 030</td>
+                                <td class="email">user030@company.co.id</td>
+                                <td>Corporate Secretary</td>
+                                <td><span class="response-type response-open">Opened</span></td>
+                                <td class="center">15 Sep 2026<br>12:30</td>
+                            </tr>
+                            <tr>
+                                <td class="center">31</td>
+                                <td>User 031</td>
+                                <td class="email">user031@company.co.id</td>
+                                <td>IT & Security</td>
+                                <td><span class="response-type response-report">Reported</span></td>
+                                <td class="center">15 Sep 2026<br>13:37</td>
+                            </tr>
+                            <tr>
+                                <td class="center">32</td>
+                                <td>User 032</td>
+                                <td class="email">user032@company.co.id</td>
+                                <td>Finance & Accounting</td>
+                                <td><span class="response-type response-click">Clicked</span></td>
+                                <td class="center">15 Sep 2026<br>13:44</td>
+                            </tr>
+                            <tr>
+                                <td class="center">33</td>
+                                <td>User 033</td>
+                                <td class="email">user033@company.co.id</td>
+                                <td>Human Capital (HR)</td>
+                                <td><span class="response-type response-open">Opened</span></td>
+                                <td class="center">15 Sep 2026<br>13:51</td>
+                            </tr>
+                            <tr>
+                                <td class="center">34</td>
+                                <td>User 034</td>
+                                <td class="email">user034@company.co.id</td>
+                                <td>Procurement & Supply Chain</td>
+                                <td><span class="response-type response-report">Reported</span></td>
+                                <td class="center">15 Sep 2026<br>13:58</td>
+                            </tr>
+                            <tr>
+                                <td class="center">35</td>
+                                <td>User 035</td>
+                                <td class="email">user035@company.co.id</td>
+                                <td>Sales & Marketing</td>
+                                <td><span class="response-type response-open">Opened</span></td>
+                                <td class="center">15 Sep 2026<br>13:05</td>
+                            </tr>
+                            <tr>
+                                <td class="center">36</td>
+                                <td>User 036</td>
+                                <td class="email">user036@company.co.id</td>
+                                <td>Operations & Logistics</td>
+                                <td><span class="response-type response-report">Reported</span></td>
+                                <td class="center">15 Sep 2026<br>13:12</td>
+                            </tr>
+                            <tr>
+                                <td class="center">37</td>
+                                <td>User 037</td>
+                                <td class="email">user037@company.co.id</td>
+                                <td>Legal & Compliance</td>
+                                <td><span class="response-type response-click">Clicked</span></td>
+                                <td class="center">15 Sep 2026<br>14:19</td>
+                            </tr>
+                            <tr>
+                                <td class="center">38</td>
+                                <td>User 038</td>
+                                <td class="email">user038@company.co.id</td>
+                                <td>Research & Development</td>
+                                <td><span class="response-type response-open">Opened</span></td>
+                                <td class="center">15 Sep 2026<br>14:26</td>
+                            </tr>
+                            <tr>
+                                <td class="center">39</td>
+                                <td>User 039</td>
+                                <td class="email">user039@company.co.id</td>
+                                <td>Internal Audit</td>
+                                <td><span class="response-type response-report">Reported</span></td>
+                                <td class="center">15 Sep 2026<br>14:33</td>
+                            </tr>
+                            <tr>
+                                <td class="center">40</td>
+                                <td>User 040</td>
+                                <td class="email">user040@company.co.id</td>
+                                <td>Corporate Secretary</td>
+                                <td><span class="response-type response-open">Opened</span></td>
+                                <td class="center">15 Sep 2026<br>14:40</td>
+                            </tr>
+                            <tr>
+                                <td class="center">41</td>
+                                <td>User 041</td>
+                                <td class="email">user041@company.co.id</td>
+                                <td>IT & Security</td>
+                                <td><span class="response-type response-report">Reported</span></td>
+                                <td class="center">15 Sep 2026<br>14:47</td>
+                            </tr>
+                            <tr>
+                                <td class="center">42</td>
+                                <td>User 042</td>
+                                <td class="email">user042@company.co.id</td>
+                                <td>Finance & Accounting</td>
+                                <td><span class="response-type response-click">Clicked</span></td>
+                                <td class="center">15 Sep 2026<br>14:54</td>
+                            </tr>
+                            <tr>
+                                <td class="center">43</td>
+                                <td>User 043</td>
+                                <td class="email">user043@company.co.id</td>
+                                <td>Human Capital (HR)</td>
+                                <td><span class="response-type response-open">Opened</span></td>
+                                <td class="center">15 Sep 2026<br>15:01</td>
+                            </tr>
+                            <tr>
+                                <td class="center">44</td>
+                                <td>User 044</td>
+                                <td class="email">user044@company.co.id</td>
+                                <td>Procurement & Supply Chain</td>
+                                <td><span class="response-type response-report">Reported</span></td>
+                                <td class="center">15 Sep 2026<br>15:08</td>
+                            </tr>
+                            <tr>
+                                <td class="center">45</td>
+                                <td>User 045</td>
+                                <td class="email">user045@company.co.id</td>
+                                <td>Sales & Marketing</td>
+                                <td><span class="response-type response-open">Opened</span></td>
+                                <td class="center">15 Sep 2026<br>15:15</td>
+                            </tr>
+                            <tr>
+                                <td class="center">46</td>
+                                <td>User 046</td>
+                                <td class="email">user046@company.co.id</td>
+                                <td>Operations & Logistics</td>
+                                <td><span class="response-type response-report">Reported</span></td>
+                                <td class="center">15 Sep 2026<br>15:22</td>
+                            </tr>
+                            <tr>
+                                <td class="center">47</td>
+                                <td>User 047</td>
+                                <td class="email">user047@company.co.id</td>
+                                <td>Legal & Compliance</td>
+                                <td><span class="response-type response-click">Clicked</span></td>
+                                <td class="center">15 Sep 2026<br>15:29</td>
+                            </tr>
+                            <tr>
+                                <td class="center">48</td>
+                                <td>User 048</td>
+                                <td class="email">user048@company.co.id</td>
+                                <td>Research & Development</td>
+                                <td><span class="response-type response-open">Opened</span></td>
+                                <td class="center">15 Sep 2026<br>15:36</td>
+                            </tr>
+                            <tr>
+                                <td class="center">49</td>
+                                <td>User 049</td>
+                                <td class="email">user049@company.co.id</td>
+                                <td>Internal Audit</td>
+                                <td><span class="response-type response-report">Reported</span></td>
+                                <td class="center">15 Sep 2026<br>16:43</td>
+                            </tr>
+                            <tr>
+                                <td class="center">50</td>
+                                <td>User 050</td>
+                                <td class="email">user050@company.co.id</td>
+                                <td>Corporate Secretary</td>
+                                <td><span class="response-type response-open">Opened</span></td>
+                                <td class="center">15 Sep 2026<br>16:50</td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+
+                <div class="appendix-summary">
+                    <div><strong>25</strong>Users shown on this page</div>
+                    <div><strong>50</strong>Total users in the response register</div>
+                    <div><strong>26–50</strong>Records displayed on this page</div>
+                </div>
+            </section>
+
+        </div>
+
+        <div class="footer">
+            <div><strong>PUKAT CAMPAIGN #5</strong> · User Responsee Detail</div>
+            <div>05 / 05</div>
+        </div>
+    </section>
+
+</body>
+
+</html>

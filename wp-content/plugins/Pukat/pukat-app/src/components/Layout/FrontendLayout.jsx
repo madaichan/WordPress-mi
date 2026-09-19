@@ -37,7 +37,7 @@ export default function FrontendLayout({ children }) {
         <SidebarNav groups={navGroups} defaultEnd groupGapClassName="space-y-1" />
 
         <div className="p-4 border-t border-gray-800/80 bg-navy-light/10 text-xs">
-          <GoPhishStatus />
+          {permissions.includes('settings.view') && <GoPhishStatus />}
           <div className="mt-1 text-[10px] text-gray-600">v0.12.0 • plugin v1.0</div>
         </div>
       </aside>

@@ -1,0 +1,72 @@
+/* Portfolio additions to the approved single-campaign visual language (campaign-run.css).
+   Loaded on top of campaign-run.css — see CampaignReportPdfService::campaign_group_document(). */
+
+.masthead { margin-bottom: 12px; }
+.footer { margin-top: 28px; }
+
+.assessment-provisional { font-size: 8px; color: var(--muted); margin: 5px 0 8px; }
+
+.portfolio-metrics { grid-template-columns: repeat(3, minmax(0, 1fr)); row-gap: 18px; }
+.portfolio-metrics .metric:nth-child(3n) { border-left: 0; padding-left: 0; }
+.portfolio-metrics .metric-value { font-size: 27px; }
+
+.compact-note { font-size: 8px; line-height: 1.55; color: var(--muted); margin: 10px 0 0; }
+
+.comparison-signals { display: grid; grid-template-columns: 1fr 1fr; gap: 24px; }
+.signal-label { display: flex; justify-content: space-between; gap: 12px; font-size: 9px; margin-bottom: 7px; }
+.signal-track { height: 6px; background: var(--soft); }
+.signal-track span { display: block; height: 100%; background: var(--red); }
+.signal-track.good span { background: var(--green); }
+.signal-caption { font-size: 8px; line-height: 1.5; color: var(--muted); margin-top: 7px; }
+
+.campaign-table, .snapshot-table, .event-table { table-layout: fixed; }
+.campaign-table th, .campaign-table td { font-size: 8px; padding: 10px 6px; }
+.campaign-table th { font-size: 6.8px; }
+.campaign-name { display: block; font-weight: 600; color: var(--ink); }
+.cell-detail { display: block; font-size: 7px; color: var(--muted); line-height: 1.5; margin-top: 3px; }
+.status { font-size: 6.8px; font-weight: 600; text-transform: uppercase; color: var(--blue); }
+.status.completed { color: var(--green); }
+.status.scheduled { color: var(--amber); }
+.status.cancelled { color: var(--muted); }
+
+.snapshot-table th, .snapshot-table td { font-size: 7.8px; padding: 9px 6px; }
+.snapshot-table th { font-size: 6.8px; }
+
+.coverage-note { padding: 12px 14px; border-left: 2px solid var(--amber); background: #fbf9f4; font-size: 9px; line-height: 1.6; }
+.coverage-note strong { color: var(--ink); }
+
+.hourly-chart { display: flex; gap: 4px; height: 95px; align-items: flex-end; border-bottom: 1px solid var(--line); padding: 0 4px; margin-top: 20px; }
+.hourly-bar { flex: 1; min-width: 0; background: #c6d0dc; position: relative; }
+.hourly-bar.peak { background: var(--blue); }
+.hourly-axis { display: flex; justify-content: space-between; margin-top: 6px; font-size: 7px; color: var(--muted); }
+
+.two-notes { display: grid; grid-template-columns: 1fr 1fr; gap: 24px; margin-top: 22px; }
+.two-notes h3 { font-size: 10px; margin: 0 0 7px; color: var(--navy); }
+.two-notes p { font-size: 9px; line-height: 1.6; margin: 0; color: var(--muted); }
+
+.action-card { padding: 16px 0; border-top: 1px solid var(--line); break-inside: avoid; }
+.action-top { display: grid; grid-template-columns: 30px 1fr auto; gap: 14px; align-items: baseline; }
+.action-top h3 { font-size: 11px; margin: 0 0 8px; }
+.action-number { font-family: Georgia, serif; font-size: 20px; color: #9eabbc; }
+.action-body { font-family: Georgia, serif; font-size: 10px; line-height: 1.6; margin: 0; }
+.action-meta { display: grid; grid-template-columns: 1fr 1fr; gap: 18px; margin: 12px 0 0 44px; font-size: 8px; line-height: 1.55; }
+.action-meta span { display: block; color: var(--muted); font-size: 6.8px; font-weight: 600; text-transform: uppercase; letter-spacing: .4px; margin-bottom: 3px; }
+
+.event-table th, .event-table td { font-size: 8px; padding: 9px 6px; }
+.event-table th { font-size: 7px; }
+.event-reported { color: var(--green); }
+.event-risk { color: var(--red); }
+
+.definitions { display: grid; grid-template-columns: 1fr 1fr; gap: 14px 24px; }
+.definition h3 { font-size: 9px; margin: 0 0 5px; color: var(--navy); }
+.definition p { font-size: 8px; line-height: 1.65; color: var(--muted); margin: 0; }
+
+.method-banner { margin-top: 16px; padding-top: 12px; border-top: 1px solid var(--line); font-family: Georgia, serif; font-size: 10px; line-height: 1.6; }
+
+@media screen and (max-width: 850px) {
+  .portfolio-metrics, .comparison-signals, .two-notes, .definitions { grid-template-columns: 1fr; }
+  .campaign-table, .snapshot-table, .event-table { min-width: 600px; }
+}
+@media print {
+  .comparison-signals, .hourly-chart, .action-card, .definition { break-inside: avoid; }
+}

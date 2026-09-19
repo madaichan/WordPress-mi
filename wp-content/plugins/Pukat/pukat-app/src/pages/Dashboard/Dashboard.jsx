@@ -1,6 +1,6 @@
 import { Link, useNavigate } from 'react-router-dom'
 import clsx from 'clsx'
-import { statusLabel, dotColor } from '../../utils/campaignHelpers.js'
+import { statusLabel, dotColor, formatDate } from '../../utils/campaignHelpers.js'
 import StatCard from '../../components/UI/StatCard.jsx'
 import PageHeader from '../../components/UI/PageHeader.jsx'
 import PageShell from '../../components/Layout/PageShell.jsx'
@@ -57,9 +57,7 @@ export default function Dashboard() {
   const campaignRows = items.length > 0
     ? items.slice(0, 4).map(c => ({
       name: c.name,
-      date: c.launched_at
-        ? new Date(c.launched_at).toLocaleDateString('en-US', { day: 'numeric', month: 'short', year: 'numeric' })
-        : '—',
+      date: formatDate(c.launched_at) || '—',
       status: c.status,
     }))
     : STATIC_CAMPAIGNS

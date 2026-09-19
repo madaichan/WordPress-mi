@@ -406,7 +406,7 @@ class CampaignRunService {
 		}
 
 		$sync_state = $this->sync_state( $run, 'syncing' );
-		$sync_state['started_at'] = current_time( 'mysql' );
+		$sync_state['started_at'] = current_time( 'mysql', true );
 		$this->repository->update(
 			$id,
 			[
@@ -454,7 +454,7 @@ class CampaignRunService {
 		}
 
 		$sync_state                 = $this->sync_state( $this->repository->find( $id ) ?: $run, 'synced' );
-		$sync_state['completed_at'] = current_time( 'mysql' );
+		$sync_state['completed_at'] = current_time( 'mysql', true );
 		unset( $sync_state['error'] );
 
 		$this->repository->update(
@@ -509,7 +509,7 @@ class CampaignRunService {
 			[
 				'status'      => $status,
 				'launched_by' => $user_id,
-				'launched_at' => current_time( 'mysql' ),
+				'launched_at' => current_time( 'mysql', true ),
 			]
 		);
 
@@ -569,7 +569,7 @@ class CampaignRunService {
 			$id,
 			[
 				'status'       => 'completed',
-				'completed_at' => current_time( 'mysql' ),
+				'completed_at' => current_time( 'mysql', true ),
 			]
 		);
 
@@ -747,6 +747,35 @@ class CampaignRunService {
 	}
 
 	/**
+	 * Bulk variant of sync_results() — same per-item result shape as
+	 * bulk_complete(), so one Campaign Run failing (not yet synced to
+	 * GoPhish, entity mismatch, GoPhish request error, etc.) doesn't stop
+	 * the rest of the batch from refreshing. Used by the Monitoring page's
+	 * "Sync" button to refresh every run currently in view, reusing the same
+	 * per-run permission/entity checks as the single sync_results() action.
+	 *
+	 * @param int[] $ids
+	 * @return array<int, array<string, mixed>>
+	 */
+	public function bulk_sync_results( array $ids, int $user_id ): array {
+		$results = [];
+
+		foreach ( $ids as $id ) {
+			$id     = (int) $id;
+			$result = $this->sync_results( $id, $user_id );
+
+			if ( is_wp_error( $result ) ) {
+				$results[] = [ 'id' => $id, 'success' => false, 'error' => $result->get_error_message() ];
+				continue;
+			}
+
+			$results[] = [ 'id' => $id, 'success' => true ];
+		}
+
+		return $results;
+	}
+
+	/**
 	 * Pull result metrics for all active Campaign Runs.
 	 *
 	 * @return array<string, mixed>
@@ -806,7 +835,7 @@ class CampaignRunService {
 			'gophish_stats' => $stats,
 			'risk_summary'  => $risk_summary,
 			'metrics'       => $metrics,
-			'generated_at'  => current_time( 'mysql' ),
+			'generated_at'  => current_time( 'mysql', true ),
 		];
 	}
 
@@ -851,7 +880,7 @@ class CampaignRunService {
 		];
 
 		if ( 'completed' === $status && empty( $run['completed_at'] ) ) {
-			$update['completed_at'] = current_time( 'mysql' );
+			$update['completed_at'] = current_time( 'mysql', true );
 		}
 
 		$this->repository->update( $id, $update );
@@ -883,7 +912,7 @@ class CampaignRunService {
 
 		return [
 			'source'                => 'gophish',
-			'synced_at'             => current_time( 'mysql' ),
+			'synced_at'             => current_time( 'mysql', true ),
 			'gophish_campaign_id'   => (int) $run['gophish_campaign_id'],
 			'gophish_status'        => sanitize_text_field( (string) ( $results['status'] ?? '' ) ),
 			'stats'                 => $stats,
@@ -948,8 +977,8 @@ class CampaignRunService {
 
 			++$by_department[ $department ]['total'];
 
-			$clicked   = false;
-			$submitted = false;
+			$clicked   = in_array( $target['status'] ?? '', [ 'Clicked Link', 'Submitted Data' ], true );
+			$submitted = 'Submitted Data' === ( $target['status'] ?? '' );
 			foreach ( (array) ( $target['timeline'] ?? [] ) as $event ) {
 				$message = (string) ( $event['message'] ?? '' );
 				if ( 'Clicked Link' === $message ) {
@@ -959,7 +988,7 @@ class CampaignRunService {
 				}
 			}
 
-			if ( $clicked ) {
+			if ( $clicked || $submitted ) {
 				++$by_department[ $department ]['clicked'];
 			}
 			if ( $submitted ) {
@@ -1161,11 +1190,11 @@ class CampaignRunService {
 			$status = sanitize_text_field( (string) ( $target['status'] ?? 'Unknown' ) );
 			$status_counts[ $status ] = ( $status_counts[ $status ] ?? 0 ) + 1;
 
-			$target_sent      = 'Unknown' !== $status;
-			$target_opened    = false;
-			$target_clicked   = false;
-			$target_submitted = false;
-			$target_reported  = false;
+			$target_sent      = in_array( $status, [ 'Email Sent', 'Email Opened', 'Clicked Link', 'Submitted Data', 'Email Reported' ], true );
+			$target_opened    = in_array( $status, [ 'Email Opened', 'Clicked Link', 'Submitted Data' ], true );
+			$target_clicked   = in_array( $status, [ 'Clicked Link', 'Submitted Data' ], true );
+			$target_submitted = 'Submitted Data' === $status;
+			$target_reported  = ! empty( $target['reported'] ) || 'Email Reported' === $status;
 
 			foreach ( (array) ( $target['timeline'] ?? [] ) as $event ) {
 				if ( ! is_array( $event ) ) {
@@ -1191,6 +1220,11 @@ class CampaignRunService {
 					$target_reported = true;
 				}
 			}
+
+			// Match GoPhish's cumulative funnel, counting each recipient once.
+			$target_clicked = $target_clicked || $target_submitted;
+			$target_opened  = $target_opened || $target_clicked;
+			$target_sent    = $target_sent || $target_opened || $target_reported;
 
 			$sent      += $target_sent ? 1 : 0;
 			$opened    += $target_opened ? 1 : 0;
@@ -1221,8 +1255,36 @@ class CampaignRunService {
 	 */
 	private function result_targets( array $results ): array {
 		$targets = $results['results'] ?? [];
+		$targets = is_array( $targets ) ? array_values( array_filter( $targets, 'is_array' ) ) : [];
 
-		return is_array( $targets ) ? array_values( array_filter( $targets, 'is_array' ) ) : [];
+		// GoPhish returns campaign-level events keyed by recipient email.
+		// Index once; campaign-created/unmatched events are not target events.
+		$by_email = [];
+		foreach ( (array) ( $results['timeline'] ?? [] ) as $event ) {
+			if ( ! is_array( $event ) ) {
+				continue;
+			}
+			$email = strtolower( trim( (string) ( $event['email'] ?? '' ) ) );
+			if ( '' !== $email ) {
+				$by_email[ $email ][] = $event;
+			}
+		}
+
+		foreach ( $targets as &$target ) {
+			$email = strtolower( trim( (string) ( $target['email'] ?? '' ) ) );
+			// Keep compatibility with older adapters using nested timelines.
+			$events = $by_email[ $email ] ?? (array) ( $target['timeline'] ?? [] );
+			$target['timeline'] = [];
+			foreach ( $events as $event ) {
+				if ( is_array( $event ) ) {
+					// Never propagate submitted payloads, IPs, or other raw details.
+					$target['timeline'][] = array_intersect_key( $event, array_flip( [ 'message', 'time' ] ) );
+				}
+			}
+		}
+		unset( $target );
+
+		return $targets;
 	}
 
 	/**
@@ -1275,7 +1337,7 @@ class CampaignRunService {
 		$metrics['result_sync']   = [
 			'status'    => 'failed',
 			'message'   => $message,
-			'failed_at' => current_time( 'mysql' ),
+			'failed_at' => current_time( 'mysql', true ),
 		];
 
 		$this->repository->update( $id, [ 'metrics_json' => wp_json_encode( $metrics ) ] );
@@ -1595,7 +1657,7 @@ class CampaignRunService {
 		$state['steps'][ $step ] = array_merge(
 			[
 				'status'     => 'completed',
-				'updated_at' => current_time( 'mysql' ),
+				'updated_at' => current_time( 'mysql', true ),
 			],
 			$data
 		);
@@ -1618,7 +1680,7 @@ class CampaignRunService {
 		$current = $this->repository->find( $id ) ?: $run;
 		$state   = $this->sync_state( $current, 'failed' );
 
-		$state['failed_at'] = current_time( 'mysql' );
+		$state['failed_at'] = current_time( 'mysql', true );
 		$state['error']     = [
 			'step'    => $step,
 			'message' => $message,
@@ -1626,7 +1688,7 @@ class CampaignRunService {
 		$state['steps'][ $step ] = [
 			'status'     => 'failed',
 			'message'    => $message,
-			'updated_at' => current_time( 'mysql' ),
+			'updated_at' => current_time( 'mysql', true ),
 		];
 
 		$this->repository->update(
@@ -1798,7 +1860,7 @@ class CampaignRunService {
 			: null;
 
 		return [
-			'locked_at' => current_time( 'mysql' ),
+			'locked_at' => current_time( 'mysql', true ),
 			'playbook' => $this->decode_json_fields(
 				[
 					'id'                 => (int) $playbook['id'],

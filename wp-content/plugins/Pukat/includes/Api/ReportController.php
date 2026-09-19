@@ -146,7 +146,7 @@ class ReportController extends RestController {
 				'current_click_rate'  => $gp_stats['click_rate'],
 				'improvement'         => $prev_click_rate - $gp_stats['click_rate'],
 			],
-			'generated_at'    => current_time( 'mysql' ),
+			'generated_at'    => current_time( 'mysql', true ),
 		] );
 	}
 

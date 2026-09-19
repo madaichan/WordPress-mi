@@ -431,7 +431,7 @@ class TableQueryService {
 
 		$already_ended = in_array( $status, [ 'completed', 'cancelled' ], true );
 		// Mirrors CampaignRunRepository::result_sync_candidates() — the same
-		// statuses the 5-minute auto-sync cron pulls results for.
+		// statuses the 1-minute auto-sync cron pulls results for.
 		$syncable = in_array( $status, [ 'synced', 'scheduled', 'running' ], true );
 
 		$row['row_actions'] = [

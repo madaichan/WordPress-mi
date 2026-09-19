@@ -73,6 +73,10 @@ export default function ManageView() {
       ...tableState.filters,
       ...(selectedGroupId !== '' ? { campaign_group_id: selectedGroupId } : {}),
     },
+  }, {
+    // Mirrors how fresh the underlying data can be: results only change when
+    // the 1-minute GoPhish sync cron (or a manual Sync) writes new metrics_json.
+    refetchInterval: 60000,
   })
 
   const rows = rowsData?.rows || []
@@ -261,6 +265,7 @@ export default function ManageView() {
           <div>
             <h3 className="text-base font-semibold text-gray-900">All campaigns</h3>
             <p className="mt-0.5 text-xs text-gray-500">Complete campaigns one at a time or in bulk, and move them between groups.</p>
+            <p className="mt-0.5 text-xs text-gray-400">Data refreshes automatically every minute.</p>
           </div>
           {selectedCount > 0 && (
             <div className="flex items-center gap-2">

@@ -92,7 +92,7 @@ class PlaybookMasterService {
 		$data['created_by'] = $user_id;
 		if ( in_array( $data['status'], self::READY_STATUSES, true ) ) {
 			$data['approved_by'] = $user_id;
-			$data['approved_at'] = current_time( 'mysql' );
+			$data['approved_at'] = current_time( 'mysql', true );
 		}
 
 		$id = $this->repository->create( $data );
@@ -321,7 +321,7 @@ class PlaybookMasterService {
 
 		if ( $is_approval ) {
 			$data['approved_by'] = $user_id;
-			$data['approved_at'] = current_time( 'mysql' );
+			$data['approved_at'] = current_time( 'mysql', true );
 		}
 
 		$this->repository->update( $id, $data );

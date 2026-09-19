@@ -41,6 +41,30 @@ final class Plugin {
 	public string $version = PUKAT_VERSION;
 
 	/**
+	 * Allowed values for the admin-configurable GoPhish results sync interval
+	 * (Settings page, `pukat_sync_interval_minutes` option). WP-Cron schedules
+	 * a named interval rather than an arbitrary number of minutes, and a
+	 * whitelist keeps an admin from accidentally hammering the GoPhish API
+	 * with a too-aggressive value.
+	 */
+	public const SYNC_INTERVAL_CHOICES_MINUTES = [ 1, 5, 15, 30, 60 ];
+
+	/** Default sync interval for installs that haven't configured one. */
+	public const DEFAULT_SYNC_INTERVAL_MINUTES = 1;
+
+	/**
+	 * The configured GoPhish results sync interval, in minutes — clamped to
+	 * SYNC_INTERVAL_CHOICES_MINUTES so a stray/invalid stored value can never
+	 * schedule something outside the allowed range.
+	 */
+	public static function sync_interval_minutes(): int {
+		$minutes = (int) get_option( 'pukat_sync_interval_minutes', self::DEFAULT_SYNC_INTERVAL_MINUTES );
+		return in_array( $minutes, self::SYNC_INTERVAL_CHOICES_MINUTES, true )
+			? $minutes
+			: self::DEFAULT_SYNC_INTERVAL_MINUTES;
+	}
+
+	/**
 	 * Private constructor — use ::instance().
 	 */
 	private function __construct() {
@@ -89,35 +113,56 @@ final class Plugin {
 		add_filter( 'cron_schedules', [ $this, 'register_cron_schedules' ] );
 		add_action( 'pukat_process_campaign_results', [ $this, 'process_campaign_results_cron' ] );
 		$this->ensure_campaign_results_cron_scheduled();
+
+		// Reschedule immediately when the Settings page saves a new sync
+		// interval, rather than waiting for the next unrelated request to
+		// self-heal it (see ensure_campaign_results_cron_scheduled()).
+		add_action( 'update_option_pukat_sync_interval_minutes', [ $this, 'ensure_campaign_results_cron_scheduled' ] );
+		add_action( 'add_option_pukat_sync_interval_minutes', [ $this, 'ensure_campaign_results_cron_scheduled' ] );
 	}
 
 	/**
-	 * Self-heals the recurring GoPhish results sync if it's ever missing.
-	 * Activator::schedule_cron() only runs on the WordPress activation hook,
-	 * which does NOT re-fire on a plain plugin code update — so an install
-	 * that was already active before this cron was introduced (or one where
-	 * the schedule was cleared some other way) would otherwise never get it
-	 * back. Checking on every request is cheap (single autoloaded option).
+	 * Self-heals the recurring GoPhish results sync if it's ever missing, and
+	 * migrates an already-scheduled event onto the currently configured
+	 * interval — WP-Cron keeps whatever schedule was passed to
+	 * wp_schedule_event() at the time it was scheduled, so a stored option
+	 * change alone doesn't move an event that's already running. Checking on
+	 * every request is cheap (single autoloaded option); also invoked
+	 * directly when the option changes (see init_hooks()).
 	 */
-	private function ensure_campaign_results_cron_scheduled(): void {
-		if ( ! wp_next_scheduled( 'pukat_process_campaign_results' ) ) {
-			wp_schedule_event( time(), 'every_5_minutes', 'pukat_process_campaign_results' );
+	public function ensure_campaign_results_cron_scheduled(): void {
+		$next_run        = wp_next_scheduled( 'pukat_process_campaign_results' );
+		$desired_interval = self::sync_interval_minutes() * MINUTE_IN_SECONDS;
+
+		if ( ! $next_run ) {
+			wp_schedule_event( time(), 'pukat_sync_interval', 'pukat_process_campaign_results' );
+			return;
+		}
+
+		$event = wp_get_scheduled_event( 'pukat_process_campaign_results' );
+		if ( $event && ( 'pukat_sync_interval' !== $event->schedule || (int) $event->interval !== $desired_interval ) ) {
+			wp_unschedule_event( $next_run, 'pukat_process_campaign_results' );
+			wp_schedule_event( time(), 'pukat_sync_interval', 'pukat_process_campaign_results' );
 		}
 	}
 
 	/**
-	 * Register the custom cron interval so WP recognises it at runtime.
+	 * Register the custom cron interval so WP recognises it at runtime. The
+	 * interval is computed from the admin-configured option on every request
+	 * (WP-Cron doesn't cache this filter's result across requests), so
+	 * ensure_campaign_results_cron_scheduled() is what actually detects and
+	 * applies a changed value onto the live scheduled event.
 	 *
 	 * @param array $schedules Existing schedules.
 	 * @return array
 	 */
 	public function register_cron_schedules( array $schedules ): array {
-		if ( ! isset( $schedules['every_5_minutes'] ) ) {
-			$schedules['every_5_minutes'] = [
-				'interval' => 5 * MINUTE_IN_SECONDS,
-				'display'  => __( 'Every 5 Minutes', 'pukat' ),
-			];
-		}
+		$minutes = self::sync_interval_minutes();
+		$schedules['pukat_sync_interval'] = [
+			'interval' => $minutes * MINUTE_IN_SECONDS,
+			/* translators: %d: sync interval in minutes. */
+			'display'  => sprintf( _n( 'Every %d Minute (Pukat sync)', 'Every %d Minutes (Pukat sync)', $minutes, 'pukat' ), $minutes ),
+		];
 		return $schedules;
 	}
 

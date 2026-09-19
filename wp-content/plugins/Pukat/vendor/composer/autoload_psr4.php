@@ -11,6 +11,7 @@ return array(
     'Pukat\\Tests\\' => array($baseDir . '/tests'),
     'Pukat\\' => array($baseDir . '/includes'),
     'PhpParser\\' => array($vendorDir . '/nikic/php-parser/lib/PhpParser'),
+    'OpenSpout\\' => array($vendorDir . '/openspout/openspout/src'),
     'Mockery\\' => array($vendorDir . '/mockery/mockery/library/Mockery'),
     'Masterminds\\' => array($vendorDir . '/masterminds/html5/src'),
     'FontLib\\' => array($vendorDir . '/dompdf/php-font-lib/src/FontLib'),

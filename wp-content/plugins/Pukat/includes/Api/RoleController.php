@@ -163,8 +163,8 @@ class RoleController extends RestController {
 				'description'    => $description,
 				'is_system_role' => 0,
 				'created_by'     => get_current_user_id(),
-				'created_at'     => current_time( 'mysql' ),
-				'updated_at'     => current_time( 'mysql' ),
+				'created_at'     => current_time( 'mysql', true ),
+				'updated_at'     => current_time( 'mysql', true ),
 			],
 			[ '%s', '%s', '%s', '%d', '%d', '%s', '%s' ]
 		);
@@ -194,7 +194,7 @@ class RoleController extends RestController {
 		}
 
 		$table  = $wpdb->prefix . 'pukat_role_meta';
-		$update = [ 'updated_by' => get_current_user_id(), 'updated_at' => current_time( 'mysql' ) ];
+		$update = [ 'updated_by' => get_current_user_id(), 'updated_at' => current_time( 'mysql', true ) ];
 
 		if ( null !== $request->get_param( 'display_name' ) ) {
 			$display_name = sanitize_text_field( (string) $request->get_param( 'display_name' ) );

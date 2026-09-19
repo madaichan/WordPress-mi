@@ -287,7 +287,7 @@ class CampaignController extends RestController {
 			[
 				'status'      => 'active',
 				'gophish_id'  => $gophish_id,
-				'launched_at' => current_time( 'mysql' ),
+				'launched_at' => current_time( 'mysql', true ),
 			],
 			[ 'id' => $id ]
 		);
@@ -324,7 +324,7 @@ class CampaignController extends RestController {
 
 		$wpdb->update(
 			$wpdb->prefix . 'pukat_campaigns',
-			[ 'status' => 'completed', 'completed_at' => current_time( 'mysql' ) ],
+			[ 'status' => 'completed', 'completed_at' => current_time( 'mysql', true ) ],
 			[ 'id' => $id ]
 		);
 

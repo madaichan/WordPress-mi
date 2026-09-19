@@ -126,7 +126,7 @@ class FollowUpReminderService {
 				'type'            => self::REMINDER_TYPE,
 				'subject'         => __( 'Security reminder: please update your password', 'pukat' ),
 				'status'          => $status,
-				'sent_at'         => current_time( 'mysql' ),
+				'sent_at'         => current_time( 'mysql', true ),
 			]
 		);
 	}

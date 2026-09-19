@@ -1,3 +1,5 @@
+import { parseServerDate } from '../../utils/serverDate.js'
+
 const KNOWN_RENDERERS = new Set([
   'text',
   'text_with_subtext',
@@ -17,8 +19,8 @@ export function isKnownRenderer(renderer) {
 export function formatDateValue(value) {
   if (!value) return ''
 
-  const date = new Date(value)
-  if (Number.isNaN(date.getTime())) return String(value)
+  const date = parseServerDate(value)
+  if (!date) return String(value)
 
   return date.toLocaleDateString(undefined, { year: 'numeric', month: 'short', day: 'numeric' })
 }
@@ -27,8 +29,8 @@ export function formatDateValue(value) {
 export function formatDateTimeValue(value) {
   if (!value) return ''
 
-  const date = new Date(value)
-  if (Number.isNaN(date.getTime())) return String(value)
+  const date = parseServerDate(value)
+  if (!date) return String(value)
 
   return date.toLocaleString(undefined, { dateStyle: 'medium', timeStyle: 'short' })
 }

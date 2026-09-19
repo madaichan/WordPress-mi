@@ -187,7 +187,7 @@ export function useBulkCompleteCampaignRunMutation(options = {}) {
   })
 }
 
-// Manual on-demand refresh of GoPhish results — the same pull the 5-minute
+// Manual on-demand refresh of GoPhish results — the same pull the 1-minute
 // cron does automatically, exposed here so a PIC doesn't have to wait for it.
 export function useSyncCampaignRunResultsMutation(options = {}) {
   const qc = useQueryClient()
@@ -198,6 +198,33 @@ export function useSyncCampaignRunResultsMutation(options = {}) {
       toast.success('Campaign results refreshed from GoPhish.')
       qc.invalidateQueries({ queryKey: queryKeys.campaignRuns.all })
       qc.invalidateQueries({ queryKey: queryKeys.campaignRuns.report(variables) })
+      qc.invalidateQueries({ queryKey: queryKeys.campaignGroups.all })
+      options.onSuccess?.(data, variables, context)
+    },
+    onError: (err, variables, context) => {
+      toast.error(err.message || 'Failed to refresh campaign results.')
+      options.onError?.(err, variables, context)
+    },
+  })
+}
+
+// ids: number[]. Same per-item partial-failure shape as bulk-complete — a run
+// that isn't synced to GoPhish yet (or otherwise fails) doesn't block the
+// rest of the batch from refreshing. Used by the Monitoring page's "Sync"
+// button to refresh every campaign run currently in view.
+export function useBulkSyncCampaignRunResultsMutation(options = {}) {
+  const qc = useQueryClient()
+
+  return useMutation({
+    mutationFn: ids => campaignApi.runBulkSyncResults(ids),
+    onSuccess: (data, variables, context) => {
+      const failed = (data || []).filter(row => !row.success)
+      if (failed.length > 0) {
+        toast.error(`${failed.length} of ${data.length} campaign(s) could not be refreshed.`)
+      } else {
+        toast.success(`${data.length} campaign(s) refreshed from GoPhish.`)
+      }
+      qc.invalidateQueries({ queryKey: queryKeys.campaignRuns.all })
       qc.invalidateQueries({ queryKey: queryKeys.campaignGroups.all })
       options.onSuccess?.(data, variables, context)
     },

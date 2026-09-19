@@ -26,7 +26,7 @@ export async function renderPdf(browser, { html, header, footer }) {
       displayHeaderFooter: true,
       headerTemplate: header,
       footerTemplate: footer,
-      margin: { top: '25mm', right: '17mm', bottom: '20mm', left: '17mm' },
+      margin: { top: '25mm', right: '18mm', bottom: '20mm', left: '18mm' },
       tagged: true,
     })
   } finally {

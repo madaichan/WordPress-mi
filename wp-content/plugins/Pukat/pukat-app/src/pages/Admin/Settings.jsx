@@ -14,11 +14,12 @@ export default function Settings() {
   const { data: settings, isLoading } = useSettingsQuery()
 
   const [form, setForm] = useState({
-    pukat_org_name:        '',
-    pukat_gophish_url:     '',
-    pukat_gophish_api_key: '',
-    pukat_timezone:        'UTC',
-    pukat_quiz_pass_score: 70,
+    pukat_org_name:              '',
+    pukat_gophish_url:           '',
+    pukat_gophish_api_key:       '',
+    pukat_timezone:              'UTC',
+    pukat_quiz_pass_score:       70,
+    pukat_sync_interval_minutes: 1,
   })
 
   const [testResult, setTestResult] = useState(null) // null | 'success' | 'error'
@@ -27,10 +28,11 @@ export default function Settings() {
     if (settings) {
       setForm(prev => ({
         ...prev,
-        pukat_org_name:        settings.pukat_org_name        || '',
-        pukat_gophish_url:     settings.pukat_gophish_url     || '',
-        pukat_timezone:        settings.pukat_timezone        || 'UTC',
-        pukat_quiz_pass_score: settings.pukat_quiz_pass_score || 70,
+        pukat_org_name:              settings.pukat_org_name              || '',
+        pukat_gophish_url:           settings.pukat_gophish_url           || '',
+        pukat_timezone:              settings.pukat_timezone              || 'UTC',
+        pukat_quiz_pass_score:       settings.pukat_quiz_pass_score       || 70,
+        pukat_sync_interval_minutes: settings.pukat_sync_interval_minutes || 1,
       }))
     }
   }, [settings])
@@ -201,6 +203,28 @@ export default function Settings() {
               </>
             )}
           </Button>
+        </div>
+      </Card>
+
+      {/* Automation */}
+      <Card>
+        <h2 className="text-sm font-semibold text-gray-900 mb-1">Automation</h2>
+        <p className="text-xs text-gray-500 mb-4">Control how often Pukat pulls fresh results from GoPhish.</p>
+
+        <div>
+          <Label>Sync GoPhish results every</Label>
+          <Select
+            id="sync-interval"
+            value={form.pukat_sync_interval_minutes}
+            onChange={e => update('pukat_sync_interval_minutes', Number(e.target.value))}
+          >
+            {(settings?.sync_interval_choices || [1, 5, 15, 30, 60]).map(minutes => (
+              <option key={minutes} value={minutes}>{minutes === 1 ? 'minute' : `${minutes} minutes`}</option>
+            ))}
+          </Select>
+          <p className="text-xs text-gray-400 mt-1">
+            A shorter interval means fresher data on the Monitoring dashboard, but more frequent calls to your GoPhish server.
+          </p>
         </div>
       </Card>
 

@@ -384,7 +384,7 @@ class GoPhishService {
 
 	/**
 	 * Pull results for active legacy campaigns and Campaign Runs from GoPhish.
-	 * Called by WP-Cron every 5 minutes.
+	 * Called by WP-Cron every minute.
 	 */
 	public function sync_all_active_campaigns(): void {
 		global $wpdb;

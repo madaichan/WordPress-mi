@@ -29,7 +29,10 @@ export const campaignApi = {
   runBulkAssignGroup: (ids, groupId)  => post('/campaign-runs/bulk-assign-group', { ids, campaign_group_id: groupId }),
   runReport:          id => get(`/campaign-runs/${id}/report`),
   runReportExportPdf: id => get(`/campaign-runs/${id}/report/export`, { responseType: 'blob' }),
+  // "Download data" (CSV/XLSX of Target details) — docs/PRD_MONITORING_DATA_EXPORT.md.
+  runReportExportData: (id, format) => get(`/campaign-runs/${id}/report/export-data`, { params: { format }, responseType: 'blob' }),
   runSyncResults:     id => post(`/campaign-runs/${id}/sync-results`),
+  runBulkSyncResults: ids => post('/campaign-runs/bulk-sync-results', { ids }),
 }
 
 export default campaignApi

@@ -49,7 +49,7 @@ export default function Sidebar() {
           <i className="ti ti-external-link text-sm flex-shrink-0" />
           {!collapsed && <span>Open App (/pukat)</span>}
         </a>
-        <GoPhishStatus collapsed={collapsed} />
+        {permissions.includes('settings.view') && <GoPhishStatus collapsed={collapsed} />}
       </div>
     </aside>
   )

@@ -1,8 +1,8 @@
 <?php
-/** Chromium footer; pageNumber and totalPages are populated by the browser. */
+/** Chromium fills pageNumber/totalPages, including table continuation pages. */
 defined( 'ABSPATH' ) || exit;
 ?>
-<div style="width:100%;margin:0 17mm;font-family:Arial,sans-serif;font-size:8px;color:#718194;border-top:1px solid #dce5eb;padding-top:10px;display:flex;justify-content:space-between;">
-    <span>Pukat Phishing Simulation Platform</span>
-    <span><?php echo $report_date; ?> · <span class="pageNumber"></span> / <span class="totalPages"></span></span>
+<div style="width:100%;margin:0 18mm;padding-top:7px;border-top:1px solid #d9dee7;font-family:Arial,Helvetica,sans-serif;font-size:7px;color:#8a94a3;display:flex;justify-content:space-between;">
+    <span><strong style="color:#667286;font-weight:600;">PUKAT CAMPAIGN #<?php echo $data['campaign_id']; ?></strong> · <?php echo esc_html( $data['report_date'] ); ?> · Confidential</span>
+    <span><span class="pageNumber"></span> / <span class="totalPages"></span></span>
 </div>

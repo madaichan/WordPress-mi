@@ -653,6 +653,18 @@ class Activator {
 			self::backfill_campaign_runs_entity();
 			update_option( 'pukat_db_version', '1.10.0' );
 		}
+
+		// GoPhish results sync interval is now admin-configurable from the
+		// Settings page instead of a hardcoded cron interval — seed the
+		// default for installs that activated before this option existed.
+		// Plugin::ensure_campaign_results_cron_scheduled() handles moving the
+		// actual WP-Cron event off whatever interval it was already using.
+		if ( version_compare( $db_version, '1.11.0', '<' ) ) {
+			if ( false === get_option( 'pukat_sync_interval_minutes' ) ) {
+				add_option( 'pukat_sync_interval_minutes', 1 );
+			}
+			update_option( 'pukat_db_version', '1.11.0' );
+		}
 	}
 
 	/**
@@ -929,6 +941,9 @@ class Activator {
 				'critical' => [ 'min' => 80, 'max' => 100 ],
 			] ),
 			'pukat_blackout_dates'  => wp_json_encode( [] ),
+			// How often WP-Cron pulls fresh results from GoPhish — see
+			// Plugin::SYNC_INTERVAL_CHOICES_MINUTES for the allowed values.
+			'pukat_sync_interval_minutes' => 1,
 		];
 
 		foreach ( $defaults as $key => $value ) {
@@ -1043,8 +1058,8 @@ class Activator {
 					'description'    => $description,
 					'is_system_role' => 1,
 					'created_by'     => 0,
-					'created_at'     => current_time( 'mysql' ),
-					'updated_at'     => current_time( 'mysql' ),
+					'created_at'     => current_time( 'mysql', true ),
+					'updated_at'     => current_time( 'mysql', true ),
 				],
 				[ '%s', '%s', '%s', '%d', '%d', '%s', '%s' ]
 			);
@@ -1130,7 +1145,7 @@ class Activator {
 	 */
 	private static function schedule_cron(): void {
 		if ( ! wp_next_scheduled( 'pukat_process_campaign_results' ) ) {
-			wp_schedule_event( time(), 'every_5_minutes', 'pukat_process_campaign_results' );
+			wp_schedule_event( time(), 'pukat_sync_interval', 'pukat_process_campaign_results' );
 		}
 	}
 }

@@ -9,6 +9,7 @@ declare(strict_types=1);
 
 namespace Pukat\Api;
 
+use Pukat\Services\CampaignDataExportService;
 use Pukat\Services\CampaignReportPdfService;
 use Pukat\Services\CampaignRunService;
 use Pukat\Services\FollowUpReminderService;
@@ -25,15 +26,18 @@ class CampaignRunController extends RestController {
 	private CampaignRunService $campaign_runs;
 	private FollowUpReminderService $follow_up_reminders;
 	private CampaignReportPdfService $pdf;
+	private CampaignDataExportService $data_export;
 
 	public function __construct(
 		?CampaignRunService $campaign_runs = null,
 		?FollowUpReminderService $follow_up_reminders = null,
-		?CampaignReportPdfService $pdf = null
+		?CampaignReportPdfService $pdf = null,
+		?CampaignDataExportService $data_export = null
 	) {
 		$this->campaign_runs       = $campaign_runs ?? new CampaignRunService();
 		$this->follow_up_reminders = $follow_up_reminders ?? new FollowUpReminderService();
 		$this->pdf                 = $pdf ?? new CampaignReportPdfService();
+		$this->data_export         = $data_export ?? new CampaignDataExportService();
 	}
 
 	public function register_routes(): void {
@@ -122,6 +126,12 @@ class CampaignRunController extends RestController {
 			'permission_callback' => [ $this, 'permission_edit_campaign_run' ],
 		] );
 
+		register_rest_route( $this->namespace, '/campaign-runs/bulk-sync-results', [
+			'methods'             => 'POST',
+			'callback'            => [ $this, 'bulk_sync_campaign_run_results' ],
+			'permission_callback' => [ $this, 'permission_edit_campaign_run' ],
+		] );
+
 		register_rest_route( $this->namespace, '/campaign-runs/(?P<id>\d+)/report', [
 			'methods'             => 'GET',
 			'callback'            => [ $this, 'get_report' ],
@@ -131,6 +141,12 @@ class CampaignRunController extends RestController {
 		register_rest_route( $this->namespace, '/campaign-runs/(?P<id>\d+)/report/export', [
 			'methods'             => 'GET',
 			'callback'            => [ $this, 'export_report' ],
+			'permission_callback' => [ $this, 'permission_view_campaign_run' ],
+		] );
+
+		register_rest_route( $this->namespace, '/campaign-runs/(?P<id>\d+)/report/export-data', [
+			'methods'             => 'GET',
+			'callback'            => [ $this, 'export_report_data' ],
 			'permission_callback' => [ $this, 'permission_view_campaign_run' ],
 		] );
 
@@ -145,7 +161,7 @@ class CampaignRunController extends RestController {
 	 * Phase 3 of docs/IMPLEMENTATION_PLAN_RBAC.md: granular capability checks
 	 * replacing permission_read()/permission_manage(). Shares the same
 	 * campaigns.* registry keys as CampaignController — lock-snapshot, sync,
-	 * sync-results, send-follow-up-reminder, and assign-group (single + bulk) all reuse .edit
+	 * sync-results (single + bulk), send-follow-up-reminder, and assign-group (single + bulk) all reuse .edit
 	 * (operational state changes on an existing run, none of them a
 	 * create/delete/launch/complete). All shared/operator-gated in Phase 1,
 	 * same population as before. `campaigns.cancel` was renamed to
@@ -280,6 +296,13 @@ class CampaignRunController extends RestController {
 		return $this->result_response( $result );
 	}
 
+	public function bulk_sync_campaign_run_results( WP_REST_Request $request ): WP_REST_Response {
+		$params = $this->request_params( $request );
+		$ids    = array_map( 'intval', (array) ( $params['ids'] ?? [] ) );
+
+		return $this->success( $this->campaign_runs->bulk_sync_results( $ids, get_current_user_id() ) );
+	}
+
 	public function get_report( WP_REST_Request $request ): WP_REST_Response {
 		$result = $this->campaign_runs->report( (int) $request->get_param( 'id' ) );
 
@@ -304,7 +327,7 @@ class CampaignRunController extends RestController {
 			'department_breakdown'  => $metrics['department_breakdown'] ?? [],
 			'target_details'        => $metrics['target_details'] ?? [],
 			'synced'                => ! empty( $metrics['synced_at'] ),
-			'generated_at'          => $result['generated_at'] ?? current_time( 'mysql' ),
+			'generated_at'          => $result['generated_at'] ?? current_time( 'mysql', true ),
 		];
 
 		$pdf = $this->pdf->render_campaign_run( $context );
@@ -316,6 +339,44 @@ class CampaignRunController extends RestController {
 			$pdf,
 			"pukat-campaign-run-{$id}-audit-report.pdf",
 			'application/pdf'
+		);
+	}
+
+	/**
+	 * "Download data" (CSV/XLSX) for the Target details table on the
+	 * Monitoring page — docs/PRD_MONITORING_DATA_EXPORT.md FR-3/4/5. Reuses
+	 * the same report() data as export_report()/get_report() above, so it
+	 * inherits the same entity-scoped access guard (FR-12) without
+	 * reimplementing it.
+	 */
+	public function export_report_data( WP_REST_Request $request ): WP_REST_Response {
+		$format = $this->data_export->resolve_format( (string) $request->get_param( 'format' ) );
+		if ( is_wp_error( $format ) ) {
+			return $this->from_wp_error( $format );
+		}
+
+		$id     = (int) $request->get_param( 'id' );
+		$result = $this->campaign_runs->report( $id );
+
+		if ( is_wp_error( $result ) ) {
+			return $this->from_wp_error( $result );
+		}
+
+		$metrics = is_array( $result['metrics'] ?? null ) ? $result['metrics'] : [];
+		$table   = $this->data_export->target_details_table( is_array( $metrics['target_details'] ?? null ) ? $metrics['target_details'] : [] );
+
+		$binary = CampaignDataExportService::FORMAT_XLSX === $format
+			? $this->data_export->to_xlsx( $table )
+			: $this->data_export->to_csv( $table );
+
+		if ( is_wp_error( $binary ) ) {
+			return $this->from_wp_error( $binary );
+		}
+
+		return $this->binary_response(
+			$binary,
+			"pukat-monitoring-target-details-{$id}-" . gmdate( 'Ymd' ) . ".{$format}",
+			$this->data_export->content_type_for( $format )
 		);
 	}
 
