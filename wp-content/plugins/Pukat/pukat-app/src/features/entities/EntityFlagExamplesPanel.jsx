@@ -113,7 +113,9 @@ export default function EntityFlagExamplesPanel({ canManage = false, adminEntity
             </Button>
           </div>
           <p className="text-[11px] text-gray-400">
-            PNG, JPEG or WebP{maxBytes ? `, up to ${Math.floor(maxBytes / 1024 / 1024)} MB` : ''}.
+            PNG, JPEG or WebP{maxBytes ? `, up to ${Math.floor(maxBytes / 1024 / 1024)} MB` : ''}
+            {data?.max_megapixels ? ` and ${data.max_megapixels} megapixels` : ''}.
+            {data?.max_dimension ? ` Larger images are resized to ${data.max_dimension} px on the longest side.` : ''}
           </p>
         </div>
       )}

@@ -26,6 +26,18 @@ class FlagExampleService {
 	/** Application cap; the effective limit is also bounded by the server's upload limits. */
 	private const MAX_BYTES = 5 * 1024 * 1024;
 
+	/**
+	 * Resolution guardrails. Resizing a large image with Imagick costs roughly
+	 * 9 s per pass for ~32 MP here, and WordPress would otherwise re-process
+	 * the full-size original once per thumbnail size — blowing past PHP's 30 s
+	 * max_execution_time and killing the request with no response (observed
+	 * with a 6267×5105 upload). So: reject above MAX_PIXELS up front (header
+	 * read only, no decode), and downscale everything else to MAX_DIMENSION
+	 * once, before WordPress generates thumbnails from the smaller copy.
+	 */
+	private const MAX_PIXELS    = 40000000;
+	private const MAX_DIMENSION = 2560;
+
 	/** Allowed types, checked against the file contents (wp_check_filetype_and_ext), not the client's claim. */
 	private const ALLOWED_MIMES = [
 		'png'      => 'image/png',
@@ -105,6 +117,12 @@ class FlagExampleService {
 		$uploaded = wp_handle_upload( $file, [ 'test_form' => false, 'mimes' => self::ALLOWED_MIMES ] );
 		if ( isset( $uploaded['error'] ) ) {
 			return $this->validation_error( (string) $uploaded['error'] );
+		}
+
+		$resize_error = $this->downscale_if_needed( (string) $uploaded['file'] );
+		if ( $resize_error ) {
+			wp_delete_file( $uploaded['file'] );
+			return $resize_error;
 		}
 
 		$attachment_id = wp_insert_attachment(
@@ -229,7 +247,65 @@ class FlagExampleService {
 			return $this->validation_error( __( 'Only PNG, JPEG or WebP images are allowed.', 'pukat' ) );
 		}
 
+		// Header-only read — no pixel decoding, so this is cheap even for huge images.
+		$size = @getimagesize( (string) $file['tmp_name'] ); // phpcs:ignore WordPress.PHP.NoSilencedErrors.Discouraged
+		if ( ! $size || empty( $size[0] ) || empty( $size[1] ) ) {
+			return $this->validation_error( __( 'The image could not be read. Please upload a valid PNG, JPEG or WebP file.', 'pukat' ) );
+		}
+		if ( (int) $size[0] * (int) $size[1] > self::MAX_PIXELS ) {
+			return $this->validation_error(
+				sprintf(
+					/* translators: 1: width, 2: height, 3: megapixels, 4: max megapixels */
+					__( 'This image is %1$d×%2$d px (%3$s megapixels), which is too large to process. Please resize it to at most %4$d megapixels (for example 6000×6000 px) and upload again.', 'pukat' ),
+					(int) $size[0],
+					(int) $size[1],
+					number_format_i18n( ( (int) $size[0] * (int) $size[1] ) / 1000000, 1 ),
+					(int) ( self::MAX_PIXELS / 1000000 )
+				)
+			);
+		}
+
 		return null;
+	}
+
+	/**
+	 * Resize the stored original down to MAX_DIMENSION on its longest side
+	 * (in place), so thumbnail generation afterwards works from a small image.
+	 */
+	private function downscale_if_needed( string $path ): ?WP_Error {
+		$size = @getimagesize( $path ); // phpcs:ignore WordPress.PHP.NoSilencedErrors.Discouraged
+		if ( ! $size || max( (int) $size[0], (int) $size[1] ) <= self::MAX_DIMENSION ) {
+			return null;
+		}
+
+		wp_raise_memory_limit( 'image' );
+		if ( function_exists( 'set_time_limit' ) ) {
+			set_time_limit( 120 ); // One large resize can take ~10 s; keep headroom above PHP's 30 s default.
+		}
+
+		$editor = wp_get_image_editor( $path );
+		if ( is_wp_error( $editor ) ) {
+			return $this->validation_error( __( 'The image could not be processed. Please try a smaller image.', 'pukat' ) );
+		}
+
+		$resized = $editor->resize( self::MAX_DIMENSION, self::MAX_DIMENSION, false );
+		$saved   = is_wp_error( $resized ) ? $resized : $editor->save( $path );
+		if ( is_wp_error( $saved ) ) {
+			return $this->validation_error( __( 'The image could not be resized. Please try a smaller image.', 'pukat' ) );
+		}
+
+		return null;
+	}
+
+	/**
+	 * @return array{max_upload_bytes: int, max_megapixels: int, max_dimension: int}
+	 */
+	public static function upload_limits(): array {
+		return [
+			'max_upload_bytes' => self::max_upload_bytes(),
+			'max_megapixels'   => (int) ( self::MAX_PIXELS / 1000000 ),
+			'max_dimension'    => self::MAX_DIMENSION,
+		];
 	}
 
 	/**

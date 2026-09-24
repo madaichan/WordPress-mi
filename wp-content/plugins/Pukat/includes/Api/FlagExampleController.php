@@ -61,10 +61,10 @@ class FlagExampleController extends RestController {
 	}
 
 	public function list_examples( WP_REST_Request $request ): WP_REST_Response {
-		return $this->success( [
-			'examples'         => $this->examples->list( $request->get_params() ),
-			'max_upload_bytes' => FlagExampleService::max_upload_bytes(),
-		] );
+		return $this->success( array_merge(
+			[ 'examples' => $this->examples->list( $request->get_params() ) ],
+			FlagExampleService::upload_limits()
+		) );
 	}
 
 	public function upload_example( WP_REST_Request $request ): WP_REST_Response {
