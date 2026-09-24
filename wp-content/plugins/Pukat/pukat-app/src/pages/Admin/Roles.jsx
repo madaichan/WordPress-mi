@@ -12,15 +12,37 @@ import Input from '../../components/UI/Input.jsx'
 import Label from '../../components/UI/Label.jsx'
 import Textarea from '../../components/UI/Textarea.jsx'
 import Checkbox from '../../components/UI/Checkbox.jsx'
+import Select from '../../components/UI/Select.jsx'
 import AlertConfirmation from '../../components/UI/AlertConfirmation.jsx'
 import EmptyState from '../../components/UI/EmptyState.jsx'
 import { useRoles, usePermissionRegistry } from '../../hooks/queries/useRoleQueries.js'
 import { useCreateRoleMutation, useUpdateRoleMutation, useDeleteRoleMutation } from '../../hooks/mutations/useRoleMutations.js'
+import { frontendNavGroups, frontendRoutePermissions } from '../../config/appRoutes.jsx'
 
-const EMPTY_FORM = { display_name: '', description: '', permissions: [] }
+const EMPTY_FORM = { display_name: '', description: '', permissions: [], landing_menu: '' }
+
+// Only pages that actually exist in the frontend SPA (/pukat) can be a
+// landing page — same source of truth the sidebar itself renders from, so
+// this list can never drift from what a role can actually navigate to.
+// The menu key sent to the backend (PermissionRegistry) is derived from
+// each route's `<menu>.view` permission, not invented separately here.
+const LANDING_PAGE_OPTIONS = frontendNavGroups
+  .flatMap((group) => group.items)
+  .reduce((options, item) => {
+    const permission = frontendRoutePermissions.get(item.to)
+    const menu = permission?.endsWith('.view') ? permission.slice(0, -'.view'.length) : null
+    if (menu && !options.some((opt) => opt.menu === menu)) {
+      options.push({ menu, label: item.label })
+    }
+    return options
+  }, [])
 
 function formatActionLabel(action) {
   return action.charAt(0).toUpperCase() + action.slice(1).replace(/_/g, ' ')
+}
+
+function landingPageLabel(menu) {
+  return LANDING_PAGE_OPTIONS.find((opt) => opt.menu === menu)?.label || 'Dashboard'
 }
 
 /** Registry entries for a group come back flat (menu.view, menu.create, ...) — regroup by menu for the matrix. */
@@ -66,6 +88,7 @@ export default function Roles() {
       display_name: role.display_name,
       description: role.description || '',
       permissions: [...role.permissions],
+      landing_menu: role.landing_menu || '',
     })
     setEditingSlug(role.role_slug)
     setDrawerMode('edit')
@@ -99,6 +122,7 @@ export default function Roles() {
       display_name: displayName,
       description: form.description.trim(),
       permissions: form.permissions,
+      landing_menu: form.landing_menu,
     }
 
     if (drawerMode === 'edit') {
@@ -135,6 +159,7 @@ export default function Roles() {
               <th>Role</th>
               <th>Description</th>
               <th>Type</th>
+              <th>Lands on</th>
               <th>Users</th>
               <th className="text-right">Actions</th>
             </tr>
@@ -142,12 +167,12 @@ export default function Roles() {
           <tbody>
             {isLoading && (
               <tr>
-                <td colSpan={5} className="p-8 text-center text-sm text-gray-400">Loading roles...</td>
+                <td colSpan={6} className="p-8 text-center text-sm text-gray-400">Loading roles...</td>
               </tr>
             )}
             {!isLoading && roles.length === 0 && (
               <tr>
-                <td colSpan={5}>
+                <td colSpan={6}>
                   <EmptyState title="No roles yet" description="Create your first custom role to get started." />
                 </td>
               </tr>
@@ -169,6 +194,7 @@ export default function Roles() {
                       {role.is_system_role ? 'System' : 'Custom'}
                     </Badge>
                   </td>
+                  <td className="text-gray-500">{landingPageLabel(role.landing_menu)}</td>
                   <td className="text-gray-500">{role.user_count}</td>
                   <td className="text-right">
                     <div className="inline-flex items-center gap-1.5">
@@ -221,6 +247,20 @@ export default function Roles() {
               onChange={(e) => setForm((c) => ({ ...c, description: e.target.value }))}
               placeholder="What is this role for?"
             />
+          </div>
+
+          <div>
+            <Label>Default landing page</Label>
+            <Select
+              value={form.landing_menu}
+              onChange={(e) => setForm((c) => ({ ...c, landing_menu: e.target.value }))}
+            >
+              <option value="">Dashboard (default)</option>
+              {LANDING_PAGE_OPTIONS.map(({ menu, label }) => (
+                <option key={menu} value={menu}>{label}</option>
+              ))}
+            </Select>
+            <p className="mt-1 text-xs text-gray-400">Where this role&rsquo;s users land right after logging in.</p>
           </div>
 
           <div>

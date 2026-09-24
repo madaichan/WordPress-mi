@@ -14,6 +14,9 @@ namespace Pukat\Services;
  */
 class UserContextService {
 
+	/** Frontend SPA route landed on when no role override applies. */
+	private const DEFAULT_LANDING_ROUTE = '/dashboard';
+
 	/**
 	 * Build the data exposed to window.PukatData.
 	 *
@@ -65,6 +68,56 @@ class UserContextService {
 		}
 
 		return sanitize_text_field( $entity );
+	}
+
+	/**
+	 * Resolve the frontend SPA hash route the given user should land on for a
+	 * fresh visit to `/pukat` (login, or typing the bare URL with no hash
+	 * already in the address bar — see `main.jsx`'s `data-initial-route`
+	 * handling, which only ever applies when `window.location.hash` is empty).
+	 *
+	 * Looks up `wp_pukat_role_meta.landing_menu` for the first of the user's
+	 * WP roles that has a row there (mirrors the single-active-Pukat-role
+	 * model `UserController::update_role()` enforces). Falls back to
+	 * `/dashboard` when: the user has no matching role row, the role has no
+	 * `landing_menu` set, the menu has no frontend route (`PermissionRegistry
+	 * ::landing_route_for_menu()`), or the user no longer actually holds the
+	 * `<menu>.view` capability the configured page requires (e.g. permissions
+	 * were edited after the landing page was set) — a misconfigured landing
+	 * page should degrade to the safe default, not strand the user on
+	 * `PermissionRoute`'s forbidden state on every login.
+	 */
+	public function resolve_landing_route( \WP_User $user ): string {
+		global $wpdb;
+
+		$roles = $user->roles ?? [];
+		if ( ! $roles ) {
+			return self::DEFAULT_LANDING_ROUTE;
+		}
+
+		$table       = $wpdb->prefix . 'pukat_role_meta';
+		$placeholders = implode( ', ', array_fill( 0, count( $roles ), '%s' ) );
+		$landing_menu = $wpdb->get_var(
+			$wpdb->prepare(
+				"SELECT landing_menu FROM {$table} WHERE role_slug IN ({$placeholders}) AND landing_menu IS NOT NULL LIMIT 1",
+				$roles
+			)
+		);
+
+		if ( ! $landing_menu ) {
+			return self::DEFAULT_LANDING_ROUTE;
+		}
+
+		$route = PermissionRegistry::landing_route_for_menu( $landing_menu );
+		if ( ! $route ) {
+			return self::DEFAULT_LANDING_ROUTE;
+		}
+
+		if ( ! user_can( $user, PermissionRegistry::capability_for( "{$landing_menu}.view" ) ) ) {
+			return self::DEFAULT_LANDING_ROUTE;
+		}
+
+		return $route;
 	}
 
 	/**

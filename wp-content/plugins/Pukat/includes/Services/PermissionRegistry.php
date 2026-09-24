@@ -32,6 +32,30 @@ class PermissionRegistry {
 
 	private const CAPABILITY_PREFIX = 'pukat_';
 
+	/**
+	 * Menu keys that resolve to an actual page in the frontend SPA (`/pukat`),
+	 * mapped to that page's canonical hash route — the same paths
+	 * `frontendNavGroups` in `pukat-app/src/config/appRoutes.jsx` renders in
+	 * the sidebar. Only these are valid `wp_pukat_role_meta.landing_menu`
+	 * targets: menus absent here (settings, users, audit_logs, domains,
+	 * sending_profile_references) live only in the wp-admin panel, which has
+	 * no single "first access" landing page to redirect to.
+	 *
+	 * @var array<string, string>
+	 */
+	private const LANDING_MENU_ROUTES = [
+		'dashboard'               => '/dashboard',
+		'calendar'                => '/calendar',
+		'campaigns'               => '/campaigns',
+		'monitoring'              => '/monitoring',
+		'master_playbooks'        => '/playbooks',
+		'master_sending_profiles' => '/sending-profiles',
+		'master_email_templates'  => '/email-templates',
+		'master_landing_pages'    => '/landing-pages',
+		'reports'                 => '/reports',
+		'post_sim'                => '/post/quiz',
+	];
+
 	private const MENUS = [
 		'dashboard'                => [
 			'label'     => 'Dashboard',
@@ -300,5 +324,15 @@ class PermissionRegistry {
 		}
 
 		return $grouped;
+	}
+
+	/**
+	 * Resolve a `landing_menu` value (a bare menu key, e.g. 'monitoring') to
+	 * its frontend SPA hash route (e.g. '/monitoring'). Returns null for an
+	 * empty value or a menu with no frontend route (see `LANDING_MENU_ROUTES`)
+	 * — callers should fall back to the default `/dashboard` route in that case.
+	 */
+	public static function landing_route_for_menu( string $menu ): ?string {
+		return self::LANDING_MENU_ROUTES[ $menu ] ?? null;
 	}
 }

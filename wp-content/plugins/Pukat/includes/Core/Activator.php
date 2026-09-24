@@ -465,6 +465,7 @@ class Activator {
 			display_name   VARCHAR(255)    NOT NULL,
 			description    TEXT            DEFAULT NULL,
 			is_system_role TINYINT(1)      NOT NULL DEFAULT 0,
+			landing_menu   VARCHAR(60)     DEFAULT NULL,
 			created_by     BIGINT UNSIGNED NOT NULL DEFAULT 0,
 			updated_by     BIGINT UNSIGNED DEFAULT NULL,
 			created_at     DATETIME        NOT NULL DEFAULT CURRENT_TIMESTAMP,
@@ -486,6 +487,7 @@ class Activator {
 		self::ensure_targets_campaign_run_column();
 		self::ensure_campaign_runs_campaign_group_column();
 		self::ensure_campaign_runs_entity_column();
+		self::ensure_role_meta_landing_menu_column();
 	}
 
 	/**
@@ -665,6 +667,17 @@ class Activator {
 			}
 			update_option( 'pukat_db_version', '1.11.0' );
 		}
+
+		// Per-role landing page: `wp_pukat_role_meta.landing_menu` stores the
+		// menu key (PermissionRegistry key, e.g. 'monitoring') a role's users
+		// land on after login instead of always `/dashboard`. NULL means "no
+		// override" — existing roles keep landing on Dashboard until an admin
+		// explicitly sets one via Admin/Roles.jsx.
+		if ( version_compare( $db_version, '1.12.0', '<' ) ) {
+			self::ensure_role_meta_landing_menu_column();
+			update_option( 'pukat_db_version', '1.12.0' );
+		}
+
 	}
 
 	/**
@@ -755,6 +768,23 @@ class Activator {
 
 		if ( ! $index ) {
 			$wpdb->query( "ALTER TABLE {$table} ADD INDEX campaign_run_id (campaign_run_id)" );
+		}
+	}
+
+	/**
+	 * Ensure role metadata can store a per-role default landing page.
+	 */
+	private static function ensure_role_meta_landing_menu_column(): void {
+		global $wpdb;
+
+		$table = $wpdb->prefix . 'pukat_role_meta';
+
+		$column = $wpdb->get_var(
+			$wpdb->prepare( "SHOW COLUMNS FROM {$table} LIKE %s", 'landing_menu' )
+		);
+
+		if ( ! $column ) {
+			$wpdb->query( "ALTER TABLE {$table} ADD landing_menu VARCHAR(60) DEFAULT NULL AFTER is_system_role" );
 		}
 	}
 

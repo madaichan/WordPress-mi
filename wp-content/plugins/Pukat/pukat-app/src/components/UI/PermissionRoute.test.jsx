@@ -16,9 +16,9 @@ vi.mock('../../store/useAppStore.js', () => ({
   default: (selector) => selector({ permissions: mockPermissions }),
 }))
 
-function markup(permission) {
+function markup(permission, initialPath = '/') {
   return renderToStaticMarkup(
-    <MemoryRouter>
+    <MemoryRouter initialEntries={[initialPath]}>
       <PermissionRoute permission={permission}>
         <div data-testid="guarded-content">Secret content</div>
       </PermissionRoute>
@@ -45,5 +45,12 @@ describe('PermissionRoute', () => {
   it('blocks access even with zero permissions loaded (fail closed)', () => {
     mockPermissions = []
     expect(markup('dashboard.view')).not.toContain('Secret content')
+  })
+
+  it('shows a forbidden state instead of redirecting when already on /dashboard without dashboard.view', () => {
+    mockPermissions = []
+    const html = markup('dashboard.view', '/dashboard')
+    expect(html).not.toContain('Secret content')
+    expect(html).toContain('You do not have access to this page')
   })
 })

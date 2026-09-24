@@ -30,9 +30,11 @@ class FrontendPage {
 			exit;
 		}
 
-		$assets     = ( new AssetManifestService() )->app_entry();
-		$dev_server = self::vite_dev_server_url();
-		$pukat_data = wp_json_encode( ( new UserContextService() )->app_context( 'frontend' ) );
+		$user_context = new UserContextService();
+		$assets       = ( new AssetManifestService() )->app_entry();
+		$dev_server   = self::vite_dev_server_url();
+		$pukat_data   = wp_json_encode( $user_context->app_context( 'frontend' ) );
+		$initial_hash = '#' . $user_context->resolve_landing_route( wp_get_current_user() );
 
 		// Output standalone HTML page.
 		?>
@@ -49,7 +51,7 @@ class FrontendPage {
 		</head>
 		<body style="margin:0;padding:0;background:#0F1629;">
 			<div id="pukat-root"
-			     data-initial-route="#/dashboard"
+			     data-initial-route="<?php echo esc_attr( $initial_hash ); ?>"
 			     style="min-height:100vh;"
 			>
 				<!-- React mounts here -->

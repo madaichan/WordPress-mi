@@ -143,6 +143,11 @@ class RoleController extends RestController {
 			);
 		}
 
+		$landing_menu = $this->sanitize_landing_menu( $request->get_param( 'landing_menu' ) );
+		if ( false === $landing_menu ) {
+			return $this->error( 'invalid_landing_menu', __( 'Unknown landing page menu key.', 'pukat' ), 422 );
+		}
+
 		$slug = $this->generate_unique_slug( $display_name );
 		if ( ! $slug ) {
 			return $this->error( 'validation_error', __( 'Could not derive a role slug from display_name.', 'pukat' ), 422 );
@@ -162,11 +167,12 @@ class RoleController extends RestController {
 				'display_name'   => $display_name,
 				'description'    => $description,
 				'is_system_role' => 0,
+				'landing_menu'   => $landing_menu,
 				'created_by'     => get_current_user_id(),
 				'created_at'     => current_time( 'mysql', true ),
 				'updated_at'     => current_time( 'mysql', true ),
 			],
-			[ '%s', '%s', '%s', '%d', '%d', '%s', '%s' ]
+			[ '%s', '%s', '%s', '%d', '%s', '%d', '%s', '%s' ]
 		);
 
 		AuditLogService::log( 'role.created', [
@@ -206,6 +212,14 @@ class RoleController extends RestController {
 
 		if ( null !== $request->get_param( 'description' ) ) {
 			$update['description'] = sanitize_textarea_field( (string) $request->get_param( 'description' ) );
+		}
+
+		if ( null !== $request->get_param( 'landing_menu' ) ) {
+			$landing_menu = $this->sanitize_landing_menu( $request->get_param( 'landing_menu' ) );
+			if ( false === $landing_menu ) {
+				return $this->error( 'invalid_landing_menu', __( 'Unknown landing page menu key.', 'pukat' ), 422 );
+			}
+			$update['landing_menu'] = $landing_menu;
 		}
 
 		$granted = [];
@@ -356,7 +370,29 @@ class RoleController extends RestController {
 			'is_system_role' => isset( $role_meta['is_system_role'] ) && '1' === (string) $role_meta['is_system_role'],
 			'user_count'     => $user_count,
 			'permissions'    => $permissions,
+			'landing_menu'   => $role_meta['landing_menu'] ?? null,
 		];
+	}
+
+	/**
+	 * Sanitize and validate a `landing_menu` param.
+	 *
+	 * @return string|null|false null (no override, falls back to Dashboard),
+	 *                            a valid menu key, or false if the submitted
+	 *                            key isn't a recognized menu at all.
+	 */
+	private function sanitize_landing_menu( mixed $raw ): string|null|false {
+		$menu = trim( sanitize_text_field( (string) $raw ) );
+
+		if ( '' === $menu ) {
+			return null;
+		}
+
+		if ( ! PermissionRegistry::has_key( "{$menu}.view" ) ) {
+			return false;
+		}
+
+		return $menu;
 	}
 
 	/**
