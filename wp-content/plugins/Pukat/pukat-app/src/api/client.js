@@ -29,12 +29,19 @@ client.interceptors.response.use(
     return body
   },
   (error) => {
-    const message =
-      error.response?.data?.message ||
-      error.response?.data?.code ||
-      error.message ||
-      'An unknown error occurred.'
-    return Promise.reject(new Error(message))
+    const responseData = error.response?.data
+    const message = responseData?.message || responseData?.code || error.message || 'An unknown error occurred.'
+    const wrapped = new Error(message)
+    // Extra fields beyond `message` a WP_Error can carry (see
+    // RestController::from_wp_error()) — e.g. `code` to branch on a specific
+    // failure without string-matching the message, `details`/`errors` for a
+    // per-item breakdown (guardrail rejections, bulk validation). Every
+    // existing caller only ever reads `.message`, so this is purely additive.
+    wrapped.code = responseData?.code
+    wrapped.status = error.response?.status
+    wrapped.details = responseData?.details
+    wrapped.errors = responseData?.errors
+    return Promise.reject(wrapped)
   }
 )
 

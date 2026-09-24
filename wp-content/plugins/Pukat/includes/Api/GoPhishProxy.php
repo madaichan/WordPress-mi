@@ -258,8 +258,8 @@ class GoPhishProxy extends RestController {
 		return $this->proxy_mode_response( parent::success( $data, $status ) );
 	}
 
-	protected function error( string $code, string $message, int $status = 400 ): WP_REST_Response {
-		return $this->proxy_mode_response( parent::error( $code, $message, $status ) );
+	protected function error( string $code, string $message, int $status = 400, array $extra = [] ): WP_REST_Response {
+		return $this->proxy_mode_response( parent::error( $code, $message, $status, $extra ) );
 	}
 
 	protected function from_wp_error( WP_Error $wp_error, int $status = 500 ): WP_REST_Response {

@@ -50,32 +50,40 @@ abstract class RestController {
 	/**
 	 * Return an error JSON response.
 	 *
-	 * @param string $code    Error code.
-	 * @param string $message Human-readable error message.
-	 * @param int    $status  HTTP status code.
+	 * @param string               $code    Error code.
+	 * @param string               $message Human-readable error message.
+	 * @param int                  $status  HTTP status code.
+	 * @param array<string, mixed> $extra   Additional top-level fields to merge into the
+	 *                                      response body (e.g. `details` — a per-item
+	 *                                      breakdown of a bulk validation failure).
 	 * @return WP_REST_Response
 	 */
-	protected function error( string $code, string $message, int $status = 400 ): WP_REST_Response {
+	protected function error( string $code, string $message, int $status = 400, array $extra = [] ): WP_REST_Response {
 		return new WP_REST_Response(
-			[ 'success' => false, 'code' => $code, 'message' => $message ],
+			array_merge( [ 'success' => false, 'code' => $code, 'message' => $message ], $extra ),
 			$status
 		);
 	}
 
 	/**
-	 * Convert a WP_Error to a WP_REST_Response.
+	 * Convert a WP_Error to a WP_REST_Response. Any WP_Error data key besides
+	 * `status` (e.g. `details`) is passed through as an extra top-level field
+	 * on the response body — see error()'s $extra param.
 	 *
 	 * @param WP_Error $wp_error WP error instance.
 	 * @param int      $status   Default HTTP status if WP_Error has no data.
 	 * @return WP_REST_Response
 	 */
 	protected function from_wp_error( WP_Error $wp_error, int $status = 500 ): WP_REST_Response {
-		$data    = $wp_error->get_error_data();
-		$http    = ( is_array( $data ) && isset( $data['status'] ) ) ? (int) $data['status'] : $status;
+		$data  = $wp_error->get_error_data();
+		$http  = ( is_array( $data ) && isset( $data['status'] ) ) ? (int) $data['status'] : $status;
+		$extra = is_array( $data ) ? array_diff_key( $data, [ 'status' => true ] ) : [];
+
 		return $this->error(
 			$wp_error->get_error_code(),
 			$wp_error->get_error_message(),
-			$http
+			$http,
+			$extra
 		);
 	}
 
