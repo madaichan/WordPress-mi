@@ -235,19 +235,31 @@ class CampaignRunController extends RestController {
 	}
 
 	public function lock_snapshot( WP_REST_Request $request ): WP_REST_Response {
-		$result = $this->campaign_runs->lock_snapshot( (int) $request->get_param( 'id' ), get_current_user_id() );
+		$result = $this->campaign_runs->lock_snapshot(
+			(int) $request->get_param( 'id' ),
+			get_current_user_id(),
+			$this->request_params( $request )
+		);
 
 		return $this->result_response( $result );
 	}
 
 	public function sync_campaign_run( WP_REST_Request $request ): WP_REST_Response {
-		$result = $this->campaign_runs->sync( (int) $request->get_param( 'id' ), get_current_user_id() );
+		$result = $this->campaign_runs->sync(
+			(int) $request->get_param( 'id' ),
+			get_current_user_id(),
+			$this->request_params( $request )
+		);
 
 		return $this->result_response( $result );
 	}
 
 	public function launch_campaign_run( WP_REST_Request $request ): WP_REST_Response {
-		$result = $this->campaign_runs->launch( (int) $request->get_param( 'id' ), get_current_user_id() );
+		$result = $this->campaign_runs->launch(
+			(int) $request->get_param( 'id' ),
+			get_current_user_id(),
+			$this->request_params( $request )
+		);
 
 		return $this->result_response( $result );
 	}

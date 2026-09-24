@@ -11,6 +11,7 @@ import AssignmentBadge from '../../components/UI/AssignmentBadge.jsx'
 import AssignmentPanel from '../../components/UI/AssignmentPanel.jsx'
 import AlertConfirmation from '../../components/UI/AlertConfirmation.jsx'
 import Badge from '../../components/UI/Badge.jsx'
+import EntityNameField from '../../components/UI/EntityNameField.jsx'
 import PageHeader from '../../components/UI/PageHeader.jsx'
 import PageShell from '../../components/Layout/PageShell.jsx'
 import Button from '../../components/UI/Button.jsx'
@@ -144,7 +145,7 @@ function EditorPane({
             </label>
             <label className="block space-y-1">
               <span className="block font-semibold text-gray-700">Entity</span>
-              <input value={entity} onChange={event => setEntity(event.target.value)} placeholder="Example: EntityA" className="w-full rounded-lg border border-gray-200 bg-white px-3 py-2 text-gray-950 outline-none focus:border-violet-500" />
+              <EntityNameField value={entity} onChange={setEntity} placeholder="Example: EntityA" inputClassName="w-full" />
             </label>
             <label className="block space-y-1">
               <span className="block font-semibold text-gray-700">Subject *</span>

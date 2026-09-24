@@ -21,6 +21,12 @@ export const queryKeys = {
     report: (id) => ['campaign-groups', id, 'report'],
   },
 
+  entities: {
+    all: ['entities'],
+    overview: ['entities', 'guardrails-overview'],
+    emailDomains: (entityName) => ['entities', entityName, 'email-domains'],
+  },
+
   gophish: {
     all: ['gophish'],
     status: ['gophish', 'status'],

@@ -1,5 +1,6 @@
 export { campaignApi } from './campaignApi.js'
 export { campaignGroupApi } from './campaignGroupApi.js'
+export { entityApi } from './entityApi.js'
 export { gophishApi } from './gophishApi.js'
 export { masterAssetApi } from './masterAssetApi.js'
 export { permissionApi } from './permissionApi.js'

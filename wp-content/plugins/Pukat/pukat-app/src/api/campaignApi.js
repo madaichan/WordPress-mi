@@ -14,9 +14,13 @@ export const campaignApi = {
   createRun:      data => post('/campaign-runs', data),
   updateRun:      (id, data) => put(`/campaign-runs/${id}`, data),
   deleteRun:      id   => del(`/campaign-runs/${id}`),
-  lockRunSnapshot: id  => post(`/campaign-runs/${id}/lock-snapshot`),
-  syncRun:         id  => post(`/campaign-runs/${id}/sync`),
-  launchRun:       id  => post(`/campaign-runs/${id}/launch`),
+  lockRunSnapshot: (id, data) => post(`/campaign-runs/${id}/lock-snapshot`, data),
+  syncRun:         (id, data) => post(`/campaign-runs/${id}/sync`, data),
+  // `data` optionally carries `{ bypass_email_domain_guardrail: true }` — see
+  // docs/PRD_ENTITY_PROFILE_AND_GUARDRAILS.md FR-8. launch() is the only
+  // action the wizard's UI actually calls; there's no separate lock/sync
+  // step in the UI, so this is the one place that flag needs to be sendable from.
+  launchRun:       (id, data) => post(`/campaign-runs/${id}/launch`, data),
   importRunTargets: (campaignRunId, targets) => post('/targets/import', { campaign_run_id: campaignRunId, targets }),
 
   // Single "Complete" lifecycle action (cancel/recall/complete merged into

@@ -1,6 +1,8 @@
-import React, { useState, useEffect } from 'react'
+import React, { useState, useEffect, useMemo } from 'react'
 import { useMyProfile } from '../../hooks/queries/useProfileQueries.js'
 import { useUpdateProfileMutation, useChangePasswordMutation } from '../../hooks/mutations/useProfileMutations.js'
+import { useEntities } from '../../hooks/queries/useEntityQueries.js'
+import useAppStore from '../../store/useAppStore.js'
 import PageShell from '../../components/Layout/PageShell.jsx'
 import PageHeader from '../../components/UI/PageHeader.jsx'
 import Card from '../../components/UI/Card.jsx'
@@ -8,11 +10,45 @@ import Label from '../../components/UI/Label.jsx'
 import Input from '../../components/UI/Input.jsx'
 import Badge from '../../components/UI/Badge.jsx'
 import Button from '../../components/UI/Button.jsx'
+import Tabs from '../../components/UI/Tabs.jsx'
+import EmptyState from '../../components/UI/EmptyState.jsx'
+import EntityProfileForm from '../../features/entities/EntityProfileForm.jsx'
+import EntityEmailDomainsPanel from '../../features/entities/EntityEmailDomainsPanel.jsx'
+import EntityLandingDomainsPanel from '../../features/entities/EntityLandingDomainsPanel.jsx'
 
 const logoutUrl = window.PukatData?.logoutUrl || `${window.PukatData?.adminUrl || '/wp-admin/'}wp-login.php?action=logout`
 
+// Self-service home for the user's own entity data — see
+// docs/PRD_ENTITY_PROFILE_AND_GUARDRAILS.md §14.1.
+const TABS = [
+  { key: 'account', label: 'My Account', icon: 'ti-user' },
+  { key: 'entity', label: 'Entity Profile', icon: 'ti-building' },
+  { key: 'guardrails', label: 'Guardrails', icon: 'ti-shield-lock' },
+  { key: 'flags', label: 'Flags', icon: 'ti-flag' },
+  { key: 'report', label: 'Call Center Report', icon: 'ti-headset' },
+]
+
 export default function MyProfile() {
   const { data: profile, isLoading } = useMyProfile()
+  const [activeTab, setActiveTab] = useState('account')
+
+  const entityName = String(profile?.entity || '').trim()
+  const isGeneralEntity = entityName.toLowerCase() === 'general'
+  const isAdmin = useAppStore(state => state.isAdmin())
+  const canEditEntityPerm = useAppStore(state => state.hasPermission('master_entities.edit'))
+  const canCreateDomainPerm = useAppStore(state => state.hasPermission('domains.create'))
+
+  // Mirrors backend scoping (EntityProfileService::enforce_entity_editable(),
+  // MasterComponentService::enforce_write_entity()) only to avoid showing
+  // actions that would 403 — the backend is the real enforcement.
+  const canEditEntity = Boolean(entityName) && (isAdmin || (!isGeneralEntity && canEditEntityPerm))
+  const canManageLanding = Boolean(entityName) && (isAdmin || (!isGeneralEntity && canCreateDomainPerm))
+
+  const { data: entities = [], isLoading: isLoadingEntities } = useEntities({ enabled: Boolean(entityName) })
+  const ownEntityProfile = useMemo(
+    () => entities.find(e => String(e.entity_name).toLowerCase() === entityName.toLowerCase()) || null,
+    [entities, entityName]
+  )
 
   const [form, setForm] = useState({ display_name: '', email: '', phone: '' })
   const [passwordForm, setPasswordForm] = useState({ current_password: '', new_password: '', confirm_password: '' })
@@ -70,8 +106,8 @@ export default function MyProfile() {
   }
 
   return (
-    <PageShell spacing="space-y-6" className="max-w-2xl">
-      <PageHeader title="My Profile" subtitle="Manage your own account details" />
+    <PageShell spacing="space-y-6" className="max-w-3xl">
+      <PageHeader title="My Profile" subtitle="Manage your account and your entity's information" />
 
       {/* Read-only role & entity */}
       <Card>
@@ -91,6 +127,9 @@ export default function MyProfile() {
         </div>
       </Card>
 
+      <Tabs items={TABS} active={activeTab} onChange={setActiveTab} ariaLabel="My Profile sections" />
+
+      {activeTab === 'account' && (<>
       {/* Profile info */}
       <Card>
         <form onSubmit={handleSaveProfile}>
@@ -191,6 +230,62 @@ export default function MyProfile() {
           </div>
         </form>
       </Card>
+      </>)}
+
+      {activeTab !== 'account' && !entityName && (
+        <Card>
+          <EmptyState
+            icon="ti-building-off"
+            title="Your account is not assigned to an entity"
+            description="Entity Profile, Guardrails, Flags and Call Center Report are managed per entity. Ask an admin to assign your entity."
+          />
+        </Card>
+      )}
+
+      {activeTab === 'entity' && entityName && (
+        <Card>
+          <h2 className="mb-1 text-sm font-semibold text-gray-900">Entity Profile</h2>
+          <p className="mb-4 text-xs text-gray-500">
+            {canEditEntity ? 'Description and contact details for your entity.' : 'Read-only — only an admin can edit this entity.'}
+          </p>
+          {isLoadingEntities ? (
+            <p className="text-sm text-gray-400">Loading...</p>
+          ) : ownEntityProfile ? (
+            <EntityProfileForm profile={ownEntityProfile} canEdit={canEditEntity} />
+          ) : (
+            <EmptyState
+              icon="ti-building"
+              title={`No profile yet for "${entityName}"`}
+              description="Entity profiles are created by an admin. Once it exists, you can fill in its details here."
+            />
+          )}
+        </Card>
+      )}
+
+      {activeTab === 'guardrails' && entityName && (
+        <>
+          <Card>
+            <h2 className="mb-3 text-sm font-semibold text-gray-900">Landing page domains</h2>
+            <EntityLandingDomainsPanel entityName={entityName} canManage={canManageLanding} />
+          </Card>
+          <Card>
+            <h2 className="mb-3 text-sm font-semibold text-gray-900">Company email domains</h2>
+            <EntityEmailDomainsPanel entityName={entityName} canManage={canEditEntity} canToggle={canEditEntity} />
+          </Card>
+        </>
+      )}
+
+      {(activeTab === 'flags' || activeTab === 'report') && entityName && (
+        <Card>
+          <EmptyState
+            icon={activeTab === 'flags' ? 'ti-flag' : 'ti-headset'}
+            title="Coming in a later phase"
+            description={activeTab === 'flags'
+              ? 'Flag example galleries (Phishing, Scam, External, Spoofing) for your entity.'
+              : "Your entity's call center contact for phishing reports."}
+          />
+        </Card>
+      )}
     </PageShell>
   )
 }

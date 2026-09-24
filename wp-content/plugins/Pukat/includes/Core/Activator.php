@@ -474,6 +474,52 @@ class Activator {
 			UNIQUE KEY role_slug (role_slug)
 		) $charset_collate;";
 
+		// -----------------------------------------------------------------------
+		// pukat_entity_profiles — descriptive metadata for an Entity (contact,
+		// description, status). Deliberately NOT a foreign-key source of truth:
+		// `entity`/`owner_entity` string columns across every other table (and
+		// user meta) stay exactly as they are — this is a lookup table matched
+		// by case-insensitive entity_name, purely additive UI/contact info on
+		// top. See docs/PRD_ENTITY_PROFILE_AND_GUARDRAILS.md §6 for why a real
+		// FK migration was deliberately rejected.
+		// -----------------------------------------------------------------------
+		$sql[] = "CREATE TABLE IF NOT EXISTS {$prefix}entity_profiles (
+			id             BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
+			entity_name    VARCHAR(255)    NOT NULL,
+			description    TEXT            DEFAULT NULL,
+			contact_name   VARCHAR(255)    DEFAULT NULL,
+			contact_email  VARCHAR(255)    DEFAULT NULL,
+			contact_phone  VARCHAR(50)     DEFAULT NULL,
+			status         VARCHAR(20)     NOT NULL DEFAULT 'active',
+			created_by     BIGINT UNSIGNED NOT NULL DEFAULT 0,
+			updated_by     BIGINT UNSIGNED DEFAULT NULL,
+			created_at     DATETIME        NOT NULL DEFAULT CURRENT_TIMESTAMP,
+			updated_at     DATETIME        NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+			PRIMARY KEY (id),
+			UNIQUE KEY entity_name (entity_name),
+			KEY status (status)
+		) $charset_collate;";
+
+		// -----------------------------------------------------------------------
+		// pukat_target_email_domains — per-entity allow-list of recipient email
+		// domains for the guardrail in CampaignRunService::validate_target_email_domains().
+		// Fail-open by design: an entity with zero rows here has the guardrail
+		// disabled entirely (see docs/PRD_ENTITY_PROFILE_AND_GUARDRAILS.md §11) —
+		// this table starts empty for every entity on migration, on purpose.
+		// -----------------------------------------------------------------------
+		$sql[] = "CREATE TABLE IF NOT EXISTS {$prefix}target_email_domains (
+			id             BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
+			entity_name    VARCHAR(255)    NOT NULL,
+			domain         VARCHAR(255)    NOT NULL,
+			status         VARCHAR(20)     NOT NULL DEFAULT 'active',
+			created_by     BIGINT UNSIGNED NOT NULL DEFAULT 0,
+			created_at     DATETIME        NOT NULL DEFAULT CURRENT_TIMESTAMP,
+			updated_at     DATETIME        NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+			PRIMARY KEY (id),
+			UNIQUE KEY entity_domain (entity_name, domain),
+			KEY entity_name (entity_name)
+		) $charset_collate;";
+
 		foreach ( $sql as $query ) {
 			dbDelta( $query );
 		}
@@ -678,6 +724,52 @@ class Activator {
 			update_option( 'pukat_db_version', '1.12.0' );
 		}
 
+		// Entity Profile & Guardrails: new pukat_entity_profiles and
+		// pukat_target_email_domains tables, plus two new Permission Registry
+		// keys (master_entities.*, guardrails.bypass) that need seeding onto
+		// Admin/administrator the same way every other new-registry-key
+		// migration above does. See docs/PRD_ENTITY_PROFILE_AND_GUARDRAILS.md.
+		// Seeds one "General" entity profile row so the frontend dropdown
+		// (Phase 6) isn't empty on day one — no email domains are seeded for
+		// it, so the domain guardrail stays fail-open for every entity until
+		// an admin explicitly configures one.
+		if ( version_compare( $db_version, '1.13.0', '<' ) ) {
+			self::create_tables();
+			self::seed_rbac_defaults();
+
+			global $wpdb;
+			$table   = $wpdb->prefix . 'pukat_entity_profiles';
+			$exists  = $wpdb->get_var( $wpdb->prepare( "SELECT id FROM {$table} WHERE entity_name = %s", 'General' ) );
+			if ( ! $exists ) {
+				$wpdb->insert( $table, [ 'entity_name' => 'General', 'status' => 'active' ] );
+			}
+
+			update_option( 'pukat_db_version', '1.13.0' );
+		}
+
+		// Correction to 1.13.0: master_entities.view/.edit were seeded
+		// admin-only, which was the wrong access model — an entity's own
+		// non-admin users should be able to view/edit their own entity's
+		// profile and email-domain allow-list (EntityProfileService enforces
+		// the actual per-entity scoping; this just grants the capability so
+		// non-admin roles can reach the feature at all). create/delete stay
+		// admin-only (unchanged). See docs/PRD_ENTITY_PROFILE_AND_GUARDRAILS.md's
+		// revision note. seed_rbac_defaults() is additive-only (same class of
+		// migration as 1.7.3/1.9.0 above) — it grants the now-`shared`/
+		// `operator` keys to Viewer/Operator, but never needs a remove_cap()
+		// since Admin already had both capabilities regardless of gate.
+		if ( version_compare( $db_version, '1.14.0', '<' ) ) {
+			self::seed_rbac_defaults();
+			update_option( 'pukat_db_version', '1.14.0' );
+		}
+
+		// New `master_entities.oversee` key (admin-only) gating the Master
+		// Entities oversight page — self-service editing moved to My Profile
+		// (docs/PRD_ENTITY_PROFILE_AND_GUARDRAILS.md §14). Additive re-seed.
+		if ( version_compare( $db_version, '1.15.0', '<' ) ) {
+			self::seed_rbac_defaults();
+			update_option( 'pukat_db_version', '1.15.0' );
+		}
 	}
 
 	/**

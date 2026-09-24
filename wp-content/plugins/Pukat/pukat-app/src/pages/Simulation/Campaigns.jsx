@@ -180,6 +180,7 @@ export default function Campaigns() {
   const currentUser = useAppStore(state => state.user)
   const isFullAdmin = useAppStore(state => state.isAdmin())
   const hasPlaybookCreateCapability = useAppStore(state => state.hasPermission('master_playbooks.create'))
+  const canBypassEmailDomainGuardrail = useAppStore(state => state.hasPermission('guardrails.bypass'))
   const canUseCustomCampaign = canCreatePlaybook(currentUser, { isFullAdmin, hasCreateCapability: hasPlaybookCreateCapability })
   const defaultEntity = useMemo(() => assetEntityForUser(currentUser), [currentUser])
 
@@ -340,6 +341,38 @@ export default function Campaigns() {
     return true
   }
 
+  // Launches a run; on a target_email_domain_forbidden guardrail rejection
+  // (docs/PRD_ENTITY_PROFILE_AND_GUARDRAILS.md FR-7/FR-8), lists the
+  // offending emails and — only for users holding guardrails.bypass — offers
+  // to retry past it. Returns false if launch did not go through (caller
+  // should stop, not reset the wizard/navigate away).
+  const launchRunWithGuardrailRetry = async (runId) => {
+    try {
+      await launchCampaignRunMutation.mutateAsync(runId)
+      return true
+    } catch (err) {
+      if (err.code !== 'target_email_domain_forbidden') {
+        throw err
+      }
+
+      const badEmails = (err.details || []).map(item => item.email).filter(Boolean)
+      const emailList = badEmails.length > 0 ? badEmails.join(', ') : 'one or more targets'
+
+      if (!canBypassEmailDomainGuardrail) {
+        toast.error(`Blocked — these targets use a domain not allowed for this entity: ${emailList}`)
+        return false
+      }
+
+      const confirmed = window.confirm(
+        `These targets use an email domain not on this entity's allow-list:\n\n${emailList}\n\nLaunch anyway?`
+      )
+      if (!confirmed) return false
+
+      await launchCampaignRunMutation.mutateAsync({ id: runId, data: { bypass_email_domain_guardrail: true } })
+      return true
+    }
+  }
+
   const handleLaunch = async () => {
     if (!form.name.trim()) { toast.error('Campaign name is required.'); return }
     if (isScheduleSendTimeInvalid(form)) { toast.error('Send time must be at least 5 minutes from now.'); return }
@@ -386,7 +419,8 @@ export default function Campaigns() {
       await importTargetsMutation.mutateAsync({ campaignRunId: run.id, targets: buildTargetImportPayload(csvData) })
 
       setLaunchStage('launching')
-      await launchCampaignRunMutation.mutateAsync(run.id)
+      const launched = await launchRunWithGuardrailRetry(run.id)
+      if (!launched) return
 
       resetWizard()
       navigate('/manage-campaigns')

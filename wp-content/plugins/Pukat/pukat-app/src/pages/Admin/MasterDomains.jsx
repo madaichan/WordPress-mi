@@ -17,6 +17,7 @@ import Drawer from '../../components/UI/Drawer.jsx'
 import Label from '../../components/UI/Label.jsx'
 import Input from '../../components/UI/Input.jsx'
 import Select from '../../components/UI/Select.jsx'
+import EntityNameField from '../../components/UI/EntityNameField.jsx'
 
 const TABLE_KEY = 'dynamic_domains'
 const DEFAULT_TABLE_STATE = { search: '', sort: 'domain', order: 'asc', page: 1, perPage: 25, filters: {} }
@@ -203,7 +204,7 @@ function DomainSlideover({ mode, form, sourceDomain, isSaving, onChange, onClose
         <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
           <div>
             <Label>Owner entity</Label>
-            <Input value={form.ownerEntity} onChange={event => onChange('ownerEntity', event.target.value)} placeholder="General" />
+            <EntityNameField value={form.ownerEntity} onChange={value => onChange('ownerEntity', value)} placeholder="General" />
           </div>
           <div>
             <Label>Environment</Label>

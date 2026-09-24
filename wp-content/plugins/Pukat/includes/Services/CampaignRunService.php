@@ -11,6 +11,7 @@ namespace Pukat\Services;
 
 use Pukat\Repositories\CampaignGroupRepository;
 use Pukat\Repositories\CampaignRunRepository;
+use Pukat\Repositories\EntityProfileRepository;
 use WP_Error;
 
 /**
@@ -278,9 +279,14 @@ class CampaignRunService {
 	}
 
 	/**
+	 * @param array<string, mixed> $params Optional. `bypass_email_domain_guardrail`
+	 *                                     (bool) lets a request past the target
+	 *                                     email-domain guardrail (§below) — only
+	 *                                     honored if the caller also holds the
+	 *                                     `guardrails.bypass` capability.
 	 * @return array<string, mixed>|WP_Error
 	 */
-	public function lock_snapshot( int $id, int $user_id ): array|WP_Error {
+	public function lock_snapshot( int $id, int $user_id, array $params = [] ): array|WP_Error {
 		$run = $this->repository->find( $id );
 		if ( ! $run ) {
 			return $this->not_found_error( __( 'Campaign Run not found.', 'pukat' ) );
@@ -327,6 +333,11 @@ class CampaignRunService {
 
 		$snapshot = $this->build_snapshot( $run, $playbook );
 
+		$domain_guardrail_error = $this->enforce_target_email_domain_guardrail( $id, $run, $snapshot, $user_id, $params );
+		if ( $domain_guardrail_error ) {
+			return $domain_guardrail_error;
+		}
+
 		$this->repository->update(
 			$id,
 			[
@@ -354,9 +365,11 @@ class CampaignRunService {
 	/**
 	 * Sync a locked Campaign Run snapshot to GoPhish.
 	 *
+	 * @param array<string, mixed> $params Optional. Forwarded to lock_snapshot() if the
+	 *                                     snapshot isn't already locked — see its docblock.
 	 * @return array<string, mixed>|WP_Error
 	 */
-	public function sync( int $id, int $user_id ): array|WP_Error {
+	public function sync( int $id, int $user_id, array $params = [] ): array|WP_Error {
 		$run = $this->repository->find( $id );
 		if ( ! $run ) {
 			return $this->not_found_error( __( 'Campaign Run not found.', 'pukat' ) );
@@ -368,7 +381,7 @@ class CampaignRunService {
 		}
 
 		if ( empty( $run['snapshot_json'] ) ) {
-			$locked = $this->lock_snapshot( $id, $user_id );
+			$locked = $this->lock_snapshot( $id, $user_id, $params );
 			if ( is_wp_error( $locked ) ) {
 				return $locked;
 			}
@@ -482,9 +495,16 @@ class CampaignRunService {
 	/**
 	 * Mark a synced Campaign Run as scheduled or running.
 	 *
+	 * @param array<string, mixed> $params Optional. Forwarded to sync()/lock_snapshot()
+	 *                                     — see lock_snapshot()'s docblock for
+	 *                                     `bypass_email_domain_guardrail`. This is the
+	 *                                     only path the wizard's single "Launch" button
+	 *                                     actually calls; lock-snapshot/sync have no
+	 *                                     separate UI step, so the bypass flag has to
+	 *                                     reach the guardrail through here.
 	 * @return array<string, mixed>|WP_Error
 	 */
-	public function launch( int $id, int $user_id ): array|WP_Error {
+	public function launch( int $id, int $user_id, array $params = [] ): array|WP_Error {
 		$run = $this->repository->find( $id );
 		if ( ! $run ) {
 			return $this->not_found_error( __( 'Campaign Run not found.', 'pukat' ) );
@@ -496,7 +516,7 @@ class CampaignRunService {
 		}
 
 		if ( empty( $run['gophish_campaign_id'] ) ) {
-			$synced = $this->sync( $id, $user_id );
+			$synced = $this->sync( $id, $user_id, $params );
 			if ( is_wp_error( $synced ) ) {
 				return $synced;
 			}
@@ -1967,6 +1987,78 @@ class CampaignRunService {
 	}
 
 	/**
+	 * Guardrail: recipient email domains must be on the entity's allow-list
+	 * (docs/PRD_ENTITY_PROFILE_AND_GUARDRAILS.md §7.3). Runs at snapshot-lock
+	 * time — not create() — because that's the first point the concrete
+	 * target list (`find_targets()`) actually exists; create() only ever
+	 * receives a `target_segment_id` reference, never target rows themselves.
+	 *
+	 * @param array<string, mixed> $run      Campaign Run row.
+	 * @param array<string, mixed> $snapshot Snapshot about to be persisted.
+	 * @param array<string, mixed> $params   Raw lock_snapshot() request params.
+	 */
+	private function enforce_target_email_domain_guardrail( int $id, array $run, array $snapshot, int $user_id, array $params ): ?WP_Error {
+		$targets = $snapshot['target']['targets'] ?? [];
+		$entity  = (string) ( $run['entity'] ?? self::GENERAL_ENTITY );
+
+		$errors = $this->validate_target_email_domains( $targets, $entity );
+		if ( empty( $errors ) ) {
+			return null;
+		}
+
+		$bypass_requested = ! empty( $params['bypass_email_domain_guardrail'] );
+		if ( $bypass_requested && current_user_can( PermissionRegistry::capability_for( 'guardrails.bypass' ) ) ) {
+			AuditLogService::log(
+				'guardrail.email_domain.bypassed',
+				[ 'campaign_run_id' => $id, 'bypassed_emails' => array_column( $errors, 'email' ) ],
+				$user_id,
+				'campaign_run',
+				$id
+			);
+			return null;
+		}
+
+		return new WP_Error(
+			'target_email_domain_forbidden',
+			__( 'One or more targets use an email domain that is not on this entity\'s allow-list.', 'pukat' ),
+			[ 'status' => 422, 'details' => $errors ]
+		);
+	}
+
+	/**
+	 * Fail-open by design: an entity with zero rows in its email-domain
+	 * allow-list has this guardrail disabled entirely — returns no errors for
+	 * ANY domain until an admin explicitly configures at least one allowed
+	 * domain for that entity (docs/PRD_ENTITY_PROFILE_AND_GUARDRAILS.md §11).
+	 *
+	 * @param array<int, array<string, mixed>> $targets Rows with an `email` key.
+	 * @return array<int, array{email: string, reason: string}>
+	 */
+	private function validate_target_email_domains( array $targets, string $entity ): array {
+		$allowed_domains = ( new EntityProfileRepository() )->active_email_domains( $entity );
+		if ( empty( $allowed_domains ) ) {
+			return [];
+		}
+
+		$allowed_domains = array_map( 'strtolower', $allowed_domains );
+		$errors          = [];
+
+		foreach ( $targets as $target ) {
+			$email = (string) ( $target['email'] ?? '' );
+			if ( '' === $email || ! str_contains( $email, '@' ) ) {
+				continue;
+			}
+
+			$domain = strtolower( substr( strrchr( $email, '@' ), 1 ) );
+			if ( ! in_array( $domain, $allowed_domains, true ) ) {
+				$errors[] = [ 'email' => $email, 'reason' => 'domain_not_allowed' ];
+			}
+		}
+
+		return $errors;
+	}
+
+	/**
 	 * @param array<string, mixed> $playbook Playbook Master row.
 	 */
 	private function validate_playbook_ready( array $playbook ): ?WP_Error {
@@ -2003,6 +2095,14 @@ class CampaignRunService {
 				$errors[] = __( 'Default dynamic domain must be active.', 'pukat' );
 			} elseif ( 'authorized' !== (string) $domain['authorization_status'] ) {
 				$errors[] = __( 'Default dynamic domain must be authorized.', 'pukat' );
+			} elseif ( ! $this->current_user_can_access_entity( (string) $domain['owner_entity'] ) ) {
+				// Belt-and-suspenders on top of the transitive check that already
+				// happens via current_user_can_access_playbook() above (a
+				// playbook's entity gates who can use it at all) — this makes the
+				// domain's OWN entity explicit too, in case a domain is ever
+				// reused across playbooks in different entities. See
+				// docs/PRD_ENTITY_PROFILE_AND_GUARDRAILS.md §7.2 FR-4.
+				$errors[] = __( 'Dynamic domain belongs to a different entity.', 'pukat' );
 			}
 		}
 

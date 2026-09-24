@@ -51,4 +51,5 @@ export default client
 export const get    = (url, config)       => client.get(url, config)
 export const post   = (url, data, config) => client.post(url, data, config)
 export const put    = (url, data, config) => client.put(url, data, config)
+export const patch  = (url, data, config) => client.patch(url, data, config)
 export const del    = (url, config)       => client.delete(url, config)

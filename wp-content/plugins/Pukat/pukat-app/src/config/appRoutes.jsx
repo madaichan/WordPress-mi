@@ -9,6 +9,7 @@ const MasterSendingProfiles = lazy(() => import('../pages/Admin/MasterSendingPro
 const MasterEmailTemplates = lazy(() => import('../pages/Admin/MasterEmailTemplates.jsx'))
 const MasterLandingPages = lazy(() => import('../pages/Admin/MasterLandingPages.jsx'))
 const MasterDomains = lazy(() => import('../pages/Admin/MasterDomains.jsx'))
+const MasterEntities = lazy(() => import('../pages/Admin/MasterEntities.jsx'))
 const MyProfile = lazy(() => import('../pages/Admin/MyProfile.jsx'))
 
 const Calendar = lazy(() => import('../pages/Simulation/Calendar.jsx'))
@@ -41,6 +42,9 @@ export const adminRoutes = [
   { path: '/master/email-templates', element: <MasterEmailTemplates />, permission: 'master_email_templates.view' },
   { path: '/master/landing-pages', element: <MasterLandingPages />, permission: 'master_landing_pages.view' },
   { path: '/master/domains', element: <MasterDomains />, permission: 'domains.view' },
+  // Admin oversight only — master_entities.view is `shared` (My Profile needs
+  // it for self-service), so this page is gated by the admin-only `oversee`.
+  { path: '/master/entities', element: <MasterEntities />, permission: 'master_entities.oversee' },
   { path: '/admin/users', element: <Users />, permission: 'users.view' },
   { path: '/admin/roles', element: <Roles />, permission: 'users.manage_roles' },
   { path: '/admin/settings', element: <Settings />, permission: 'settings.view' },
@@ -160,6 +164,7 @@ export const adminNavGroups = [
       { to: '/master/landing-pages', icon: 'ti-browser', label: 'Landing Page' },
       { to: '/master/email-templates', icon: 'ti-mail', label: 'Email Template' },
       { to: '/master/sending-profiles', icon: 'ti-send', label: 'Sending profiles' },
+      { to: '/master/entities', icon: 'ti-building', label: 'Entities' },
     ],
   },
   {
@@ -240,6 +245,7 @@ export const routeMeta = [
   { path: '/master/email-templates', title: 'Master email templates', subtitle: 'Assigned GoPhish email templates', breadcrumb: 'Master email templates' },
   { path: '/master/landing-pages', title: 'Master landing pages', subtitle: 'Assigned simulation landing pages', breadcrumb: 'Master landing pages' },
   { path: '/master/domains', title: 'Domain Management', subtitle: 'Lookalike domains for sending and landing pages', breadcrumb: 'Domain Management' },
+  { path: '/master/entities', title: 'Master Entities', subtitle: 'Entity profiles and recipient email-domain guardrails', breadcrumb: 'Master Entities' },
   { path: '/admin/my-profile', title: 'My Profile', subtitle: 'Manage your own account details', breadcrumb: 'My Profile' },
   { path: '/my-profile', title: 'My Profile', subtitle: 'Manage your own account details', breadcrumb: 'My Profile' },
   { path: '/admin/users', title: 'User Access', subtitle: 'Role-based access control', breadcrumb: 'User Access' },

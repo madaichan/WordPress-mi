@@ -14,6 +14,7 @@ import PageShell from '../../components/Layout/PageShell.jsx'
 import Button from '../../components/UI/Button.jsx'
 import Tabs from '../../components/UI/Tabs.jsx'
 import Badge from '../../components/UI/Badge.jsx'
+import EntityNameField from '../../components/UI/EntityNameField.jsx'
 import TableActionMenu from '../../components/UI/TableActionMenu.jsx'
 import { useMasterLandingPages } from '../../hooks/queries/useMasterAssetQueries.js'
 import { useTableRows, useTableSchema } from '../../hooks/queries/useTableQueries.js'
@@ -509,7 +510,7 @@ export default function MasterLandingPages() {
                 </label>
                 <label className="block space-y-1 text-xs">
                   <span className="font-semibold text-gray-700">Entity</span>
-                  <input value={editingEntity} onChange={event => setEditingEntity(event.target.value)} placeholder="Example: EntityA" className="w-full rounded-lg border border-gray-200 bg-white px-3 py-2 text-gray-950 outline-none focus:border-violet-500" />
+                  <EntityNameField value={editingEntity} onChange={setEditingEntity} placeholder="Example: EntityA" inputClassName="w-full" />
                 </label>
                 {editingId && editingPage && (
                   <div className="block space-y-1 text-xs">

@@ -110,6 +110,30 @@ class PermissionRegistry {
 				'assign_entity' => 'operator',
 			],
 		],
+		// Entity Profile — descriptive metadata (contact, description, status)
+		// plus the per-entity email-domain allow-list. Corrected 2026-09-25
+		// (see docs/PRD_ENTITY_PROFILE_AND_GUARDRAILS.md's revision note): this
+		// is NOT admin-only governance content like Master Sending Profiles —
+		// an entity's own non-admin users self-manage their own profile/allow-
+		// list (EntityProfileService enforces the actual per-entity scoping;
+		// these gates only control whether a role can touch the feature AT
+		// ALL, same role-vs-entity split as everywhere else in this registry).
+		// create/delete stay admin-only — that's genuinely governance (which
+		// entities exist at all), not content only the entity itself knows.
+		'master_entities'          => [
+			'label'     => 'Master Entities',
+			'group'     => 'Master Library',
+			'view_gate' => 'shared',
+			'actions'   => [
+				'create'  => 'admin',
+				'edit'    => 'operator',
+				'delete'  => 'admin',
+				// Admin oversight page (Master Entities): cross-entity guardrail
+				// monitoring + enable/disable. Self-service editing lives on
+				// My Profile instead — see the PRD's §14.
+				'oversee' => 'admin',
+			],
+		],
 		'sending_profile_references' => [
 			'label'     => 'Sending Profile References',
 			'group'     => 'Master Library',
@@ -171,6 +195,20 @@ class PermissionRegistry {
 				// the capability re-seed (existing `pukat_campaigns_cancel`
 				// grants become `pukat_campaigns_complete`).
 				'complete' => 'operator',
+			],
+		],
+		// No dedicated page — same class of registry-only entry as `audit_logs`.
+		// `bypass` gates the `bypass_email_domain_guardrail` flag on
+		// CampaignRunService::create() (docs/PRD_ENTITY_PROFILE_AND_GUARDRAILS.md
+		// FR-8): lets a request past the target-email-domain guardrail even when
+		// some targets fail it. Admin-only by default, on purpose — this isn't a
+		// feature toggle, it's an override of a data-integrity check.
+		'guardrails'               => [
+			'label'     => 'Guardrails',
+			'group'     => 'Simulation',
+			'view_gate' => 'admin',
+			'actions'   => [
+				'bypass' => 'admin',
 			],
 		],
 		// `monitoring`/`calendar` split out of `campaigns.view` 2026-08-07 so

@@ -75,11 +75,19 @@ export function useDeleteCampaignRunMutation(options = {}) {
   })
 }
 
+// Accepts either a bare run id (existing call sites) or { id, data } — data
+// optionally carries { bypass_email_domain_guardrail: true } for retrying
+// past the target email-domain guardrail (docs/PRD_ENTITY_PROFILE_AND_GUARDRAILS.md FR-8).
 export function useLaunchCampaignRunMutation(options = {}) {
   const qc = useQueryClient()
 
   return useMutation({
-    mutationFn: id => campaignApi.launchRun(id),
+    mutationFn: (payload) => {
+      const { id, data } = payload && typeof payload === 'object' && 'id' in payload
+        ? payload
+        : { id: payload, data: undefined }
+      return campaignApi.launchRun(id, data)
+    },
     onSuccess: (data, variables, context) => {
       toast.success('Campaign run launched in GoPhish.')
       qc.invalidateQueries({ queryKey: queryKeys.campaignRuns.all })
@@ -87,7 +95,12 @@ export function useLaunchCampaignRunMutation(options = {}) {
       options.onSuccess?.(data, variables, context)
     },
     onError: (err, variables, context) => {
-      toast.error(err.message || 'Failed to launch campaign run.')
+      // A target_email_domain_forbidden rejection is handled specially by the
+      // caller (Campaigns.jsx's handleLaunch) — suppress the generic toast so
+      // it doesn't show twice alongside the detailed confirm dialog.
+      if (err.code !== 'target_email_domain_forbidden') {
+        toast.error(err.message || 'Failed to launch campaign run.')
+      }
       options.onError?.(err, variables, context)
     },
   })

@@ -1,6 +1,7 @@
 import clsx from 'clsx'
 import Drawer from '../../../components/UI/Drawer.jsx'
 import Button from '../../../components/UI/Button.jsx'
+import EntityNameField from '../../../components/UI/EntityNameField.jsx'
 import { getSmtpPortForEncryption } from '../../../utils/smtpProfileHelpers.js'
 
 function inputClass() {
@@ -192,11 +193,11 @@ export default function SmtpProfileDrawer({
         <input value={form.from} onChange={event => onChange('from', event.target.value)} className={inputClass()} placeholder="security@example.com" />
       </Field>
       <Field label="Entity">
-        <input
+        <EntityNameField
           value={form.entity}
-          onChange={event => onChange('entity', event.target.value)}
+          onChange={value => onChange('entity', value)}
           disabled={entityLocked}
-          className={clsx(inputClass(), entityLocked && 'bg-gray-50 text-gray-500')}
+          inputClassName={clsx(inputClass(), entityLocked && 'bg-gray-50 text-gray-500')}
           placeholder="EntityA"
         />
       </Field>
