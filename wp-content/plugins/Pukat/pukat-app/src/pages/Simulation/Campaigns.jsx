@@ -5,14 +5,25 @@ import { useCampaignList, useCampaignRun } from '../../hooks/queries/useCampaign
 import { useTableRows, useTableSchema } from '../../hooks/queries/useTableQueries.js'
 import { usePlaybooks } from '../../hooks/queries/usePlaybookQueries.js'
 import {
-  useCreateCampaignMutation,
+  useMasterDynamicDomains,
+  useMasterEmailTemplates,
+  useMasterLandingPages,
+  useMasterSendingProfiles,
+} from '../../hooks/queries/useMasterAssetQueries.js'
+import { useGophishSmtpProfiles } from '../../hooks/queries/useGophishQueries.js'
+import {
   useCreateCampaignRunMutation,
   useUpdateCampaignRunMutation,
   useImportCampaignRunTargetsMutation,
   useLaunchCampaignRunMutation,
   useDeleteCampaignMutation,
 } from '../../hooks/mutations/useCampaignMutations.js'
+import { useCreatePlaybookMutation } from '../../hooks/mutations/usePlaybookMutations.js'
 import { buildCampaignLaunchPayload, buildTargetImportPayload, regionForTimezone, localDateAndTimeFromScheduleAt, todayDateString, addDaysToDateString, minSendTimeForDate, isScheduleSendTimeInvalid } from '../../utils/campaignLaunch.js'
+import { playbookComponentOptions } from '../../utils/playbookComponentOptions.js'
+import { assetEntityForUser, canCreatePlaybook } from '../../utils/entityAssignmentHelpers.js'
+import { resolveSendingProfileRefId } from '../../utils/resolveSendingProfileRef.js'
+import useAppStore from '../../store/useAppStore.js'
 import WizardStepper from '../../features/campaigns/WizardStepper.jsx'
 import DeleteModal from '../../features/campaigns/DeleteModal.jsx'
 import WorkspaceHeader from '../../features/campaigns/WorkspaceHeader.jsx'
@@ -44,6 +55,7 @@ function makeInitialForm() {
     desc: '',
     mode: 'playbook',
     playbook: '',
+    customComponents: { email: '', page: '', smtp: '', domain: '' },
     scheduleEnabled: true,
     dateStart: today,
     dateEnd: addDaysToDateString(today, 1),
@@ -162,6 +174,25 @@ export default function Campaigns() {
     placeholderData: previous => previous,
   })
 
+  // Custom campaign — same master-asset sources as the Create-playbook drawer
+  // (features/setup/playbooks/Playbooks.jsx), so Step2 can offer the same
+  // Email template / Landing page / SMTP profile / Dynamic domain pickers.
+  const currentUser = useAppStore(state => state.user)
+  const isFullAdmin = useAppStore(state => state.isAdmin())
+  const hasPlaybookCreateCapability = useAppStore(state => state.hasPermission('master_playbooks.create'))
+  const canUseCustomCampaign = canCreatePlaybook(currentUser, { isFullAdmin, hasCreateCapability: hasPlaybookCreateCapability })
+  const defaultEntity = useMemo(() => assetEntityForUser(currentUser), [currentUser])
+
+  const { data: emailTemplates = [] } = useMasterEmailTemplates()
+  const { data: landingPages = [] } = useMasterLandingPages()
+  const { data: sendingProfiles = [], refetch: refetchSendingProfiles } = useMasterSendingProfiles()
+  const { data: dynamicDomains = [] } = useMasterDynamicDomains()
+  const { data: gophishSmtpProfiles = [] } = useGophishSmtpProfiles()
+
+  const componentOptions = useMemo(() => (
+    playbookComponentOptions({ emailTemplates, landingPages, sendingProfiles, dynamicDomains, gophishSmtpProfiles })
+  ), [emailTemplates, landingPages, sendingProfiles, dynamicDomains, gophishSmtpProfiles])
+
   const wizardPlaybooks = useMemo(() => (
     Array.isArray(playbookRows)
       ? playbookRows
@@ -170,17 +201,11 @@ export default function Campaigns() {
       : []
   ), [playbookRows])
 
-  const createCampaignMutation = useCreateCampaignMutation({
-    onSuccess: () => {
-      resetWizard()
-      navigate('/manage-campaigns')
-    },
-  })
-
   const createCampaignRunMutation = useCreateCampaignRunMutation()
   const updateCampaignRunMutation = useUpdateCampaignRunMutation()
   const importTargetsMutation = useImportCampaignRunTargetsMutation()
   const launchCampaignRunMutation = useLaunchCampaignRunMutation()
+  const createPlaybookMutation = useCreatePlaybookMutation()
 
   const deleteMutation = useDeleteCampaignMutation({
     onSuccess: () => {
@@ -263,25 +288,80 @@ export default function Campaigns() {
     setEditingRunId(null)
   }
 
+  // Custom campaign mode has no Playbook Master to point a Campaign Run at,
+  // so it auto-creates one (status 'active', straight from the 4 picked
+  // components) and hands its id back — CampaignRunService only cares that
+  // the playbook is active and ready, not how it was made. Returns null (and
+  // has already shown a toast) if the components couldn't be resolved/saved.
+  async function resolveCustomModePlaybookId() {
+    const { email, page, smtp, domain } = form.customComponents || {}
+
+    let resolvedSmtp
+    try {
+      resolvedSmtp = await resolveSendingProfileRefId({
+        smtpValue: smtp,
+        sendingProfiles,
+        gophishSmtpProfiles,
+        entity: defaultEntity,
+      })
+    } catch (error) {
+      toast.error(error.message || 'Failed to prepare the SMTP profile.')
+      return null
+    }
+
+    if (resolvedSmtp !== smtp) {
+      await refetchSendingProfiles()
+    }
+
+    try {
+      const playbook = await createPlaybookMutation.mutateAsync({
+        status: 'active',
+        entity: defaultEntity,
+        name: `${form.name.trim()} — Custom`,
+        description: `Auto-generated components for the "${form.name.trim()}" campaign.`,
+        difficulty: 3,
+        default_email_template_version_id: Number(email),
+        default_landing_page_version_id: Number(page),
+        default_sending_profile_ref_id: Number(resolvedSmtp),
+        default_dynamic_domain_id: domain ? Number(domain) : null,
+      })
+      return playbook.id
+    } catch {
+      // useCreatePlaybookMutation's own onError handler already surfaces this via toast.
+      return null
+    }
+  }
+
+  function validateCustomModeComponents() {
+    const { email, page, smtp } = form.customComponents || {}
+    if (!email) { toast.error('Select an email template for the custom campaign.'); return false }
+    if (!page) { toast.error('Select a landing page for the custom campaign.'); return false }
+    if (!smtp) { toast.error('Select an SMTP profile for the custom campaign.'); return false }
+    return true
+  }
+
   const handleLaunch = async () => {
     if (!form.name.trim()) { toast.error('Campaign name is required.'); return }
     if (isScheduleSendTimeInvalid(form)) { toast.error('Send time must be at least 5 minutes from now.'); return }
 
-    if (form.mode !== 'playbook') {
-      createCampaignMutation.mutate(buildCampaignLaunchPayload(form, []))
-      return
-    }
+    let playbookIdForRun = null
 
-    const selectedPlaybook = wizardPlaybooks.find(playbook => String(playbook.id) === String(form.playbook))
+    if (form.mode === 'custom') {
+      if (!validateCustomModeComponents()) return
+    } else {
+      const selectedPlaybook = wizardPlaybooks.find(playbook => String(playbook.id) === String(form.playbook))
 
-    if (!selectedPlaybook) {
-      toast.error('Select a Playbook Master first.')
-      return
-    }
+      if (!selectedPlaybook) {
+        toast.error('Select a Playbook Master first.')
+        return
+      }
 
-    if (String(selectedPlaybook.status || '').toLowerCase() !== 'active') {
-      toast.error('Playbook Master must be Active before creating a Campaign Run.')
-      return
+      if (String(selectedPlaybook.status || '').toLowerCase() !== 'active') {
+        toast.error('Playbook Master must be Active before creating a Campaign Run.')
+        return
+      }
+
+      playbookIdForRun = selectedPlaybook.id
     }
 
     if (csvData.length === 0) {
@@ -291,9 +371,16 @@ export default function Campaigns() {
 
     try {
       setLaunchStage('creating')
+
+      if (form.mode === 'custom') {
+        playbookIdForRun = await resolveCustomModePlaybookId()
+        if (!playbookIdForRun) return
+      }
+
+      const payload = buildCampaignLaunchPayload({ ...form, playbook: playbookIdForRun }, wizardPlaybooks)
       const run = editingRunId
-        ? await updateCampaignRunMutation.mutateAsync({ id: editingRunId, data: buildCampaignLaunchPayload(form, wizardPlaybooks) })
-        : await createCampaignRunMutation.mutateAsync(buildCampaignLaunchPayload(form, wizardPlaybooks))
+        ? await updateCampaignRunMutation.mutateAsync({ id: editingRunId, data: payload })
+        : await createCampaignRunMutation.mutateAsync(payload)
 
       setLaunchStage('importing-targets')
       await importTargetsMutation.mutateAsync({ campaignRunId: run.id, targets: buildTargetImportPayload(csvData) })
@@ -314,33 +401,43 @@ export default function Campaigns() {
     if (!form.name.trim()) { toast.error('Campaign name is required.'); return }
     if (isScheduleSendTimeInvalid(form)) { toast.error('Send time must be at least 5 minutes from now.'); return }
 
-    if (form.mode !== 'playbook') {
-      createCampaignMutation.mutate(buildCampaignLaunchPayload(form, []))
-      return
-    }
+    let playbookIdForRun = null
 
-    const selectedPlaybook = wizardPlaybooks.find(playbook => String(playbook.id) === String(form.playbook))
+    if (form.mode === 'custom') {
+      if (!validateCustomModeComponents()) return
+    } else {
+      const selectedPlaybook = wizardPlaybooks.find(playbook => String(playbook.id) === String(form.playbook))
 
-    if (!selectedPlaybook) {
-      toast.error('Select a Playbook Master first.')
-      return
-    }
+      if (!selectedPlaybook) {
+        toast.error('Select a Playbook Master first.')
+        return
+      }
 
-    if (String(selectedPlaybook.status || '').toLowerCase() !== 'active') {
-      toast.error('Playbook Master must be Active before saving a draft.')
-      return
+      if (String(selectedPlaybook.status || '').toLowerCase() !== 'active') {
+        toast.error('Playbook Master must be Active before saving a draft.')
+        return
+      }
+
+      playbookIdForRun = selectedPlaybook.id
     }
 
     try {
       setIsSavingDraft(true)
+
+      if (form.mode === 'custom') {
+        playbookIdForRun = await resolveCustomModePlaybookId()
+        if (!playbookIdForRun) return
+      }
+
+      const payload = buildCampaignLaunchPayload({ ...form, playbook: playbookIdForRun }, wizardPlaybooks)
       let run
       if (editingRunId) {
-        run = await updateCampaignRunMutation.mutateAsync({ id: editingRunId, data: buildCampaignLaunchPayload(form, wizardPlaybooks) })
+        run = await updateCampaignRunMutation.mutateAsync({ id: editingRunId, data: payload })
       } else {
         // Creating a Campaign Run without launching leaves it at status
         // draft_run — that already is the draft, no separate "draft"
         // endpoint/flag exists (see CampaignRunService::create()).
-        run = await createCampaignRunMutation.mutateAsync(buildCampaignLaunchPayload(form, wizardPlaybooks))
+        run = await createCampaignRunMutation.mutateAsync(payload)
       }
 
       // Targets typed/imported in Step1 only exist in local component state
@@ -400,6 +497,8 @@ export default function Campaigns() {
             form={form} setForm={setForm}
             playbooks={wizardPlaybooks}
             playbooksLoading={playbooksLoading}
+            componentOptions={componentOptions}
+            canUseCustom={canUseCustomCampaign}
             onBack={() => setWizardStep(1)}
             onNext={() => setWizardStep(3)}
           />
@@ -408,10 +507,11 @@ export default function Campaigns() {
           <Step3
             form={form} setForm={setForm} csvData={csvData}
             playbooks={wizardPlaybooks}
+            componentOptions={componentOptions}
             onBack={() => setWizardStep(2)}
             onLaunch={handleLaunch}
             onDraft={handleSaveDraft}
-            isLaunching={createCampaignMutation.isPending || createCampaignRunMutation.isPending || updateCampaignRunMutation.isPending || importTargetsMutation.isPending || launchCampaignRunMutation.isPending}
+            isLaunching={createPlaybookMutation.isPending || createCampaignRunMutation.isPending || updateCampaignRunMutation.isPending || importTargetsMutation.isPending || launchCampaignRunMutation.isPending}
             isSavingDraft={isSavingDraft}
             launchStage={launchStage}
             isEditing={Boolean(editingRunId)}

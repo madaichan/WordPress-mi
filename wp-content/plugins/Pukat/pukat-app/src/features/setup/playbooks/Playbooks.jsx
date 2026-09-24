@@ -21,11 +21,11 @@ import {
 import { useGophishSmtpProfiles } from '../../../hooks/queries/useGophishQueries.js'
 import { usePlaybooks } from '../../../hooks/queries/usePlaybookQueries.js'
 import { useApprovePlaybookMutation, useCreatePlaybookMutation, useDeletePlaybookMutation, useSubmitPlaybookReviewMutation, useUpdatePlaybookMutation } from '../../../hooks/mutations/usePlaybookMutations.js'
-import { masterAssetApi } from '../../../api/index.js'
 import useAppStore from '../../../store/useAppStore.js'
 import {
   GENERAL_ENTITY,
   assetEntityForUser,
+  canCreatePlaybook,
   entityKey,
   filterAssetsForUser,
   getUserEntity,
@@ -41,20 +41,9 @@ import {
   optionLabel,
   playbookComponentOptions,
 } from '../../../utils/playbookComponentOptions.js'
+import { resolveSendingProfileRefId } from '../../../utils/resolveSendingProfileRef.js'
 
 const CATEGORY_FILTERS = ['all', 'BEC', 'Credential', 'Malware', 'Vishing']
-
-/**
- * Gates the Create-playbook action. Mirrors the backend's
- * `PlaybookMasterService::enforce_write_entity()`: a full admin (WP
- * administrator / pukat_admin — outside RBAC's role editor) bypasses
- * everything, anyone else needs the `master_playbooks.create` RBAC
- * capability granted via Role Settings *and* an entity on their account.
- */
-function canCreatePlaybook(user, { isFullAdmin, hasCreateCapability }) {
-  if (isFullAdmin) return true
-  return hasCreateCapability && Boolean(getUserEntity(user))
-}
 
 /**
  * Gates edit/duplicate/delete/submit-for-review on one playbook. Mirrors
@@ -1272,32 +1261,18 @@ export default function Playbooks() {
     const smtpValue = String(form.smtp || '')
     if (!smtpValue.startsWith('gophish:')) return form
 
-    const gophishId = Number(smtpValue.replace('gophish:', ''))
-    if (!gophishId) return { ...form, smtp: '' }
-
-    const existingRef = sendingProfiles.find(profile => (
-      Number(profile.gophish_sending_profile_id || 0) === gophishId
-    ))
-
-    if (existingRef?.id) {
-      return { ...form, smtp: String(existingRef.id) }
-    }
-
-    const gophishProfile = gophishSmtpProfiles.find(profile => Number(profile.id) === gophishId)
-    const createdRef = await masterAssetApi.createSendingProfile({
-      name: gophishProfile?.name || `GoPhish SMTP ${gophishId}`,
-      gophish_sending_profile_id: gophishId,
-      from_email: gophishProfile?.from_address || gophishProfile?.from || '',
-      from_name: gophishProfile?.name || '',
-      entity: entity || GENERAL_ENTITY,
-      environment: 'production',
-      status: 'active',
-      allowed_domains: [],
+    const resolvedSmtp = await resolveSendingProfileRefId({
+      smtpValue,
+      sendingProfiles,
+      gophishSmtpProfiles,
+      entity,
     })
 
-    await refetchSendingProfiles()
+    if (resolvedSmtp && resolvedSmtp !== smtpValue) {
+      await refetchSendingProfiles()
+    }
 
-    return { ...form, smtp: String(createdRef.id) }
+    return { ...form, smtp: resolvedSmtp }
   }
 
   async function submitPlaybookForm() {

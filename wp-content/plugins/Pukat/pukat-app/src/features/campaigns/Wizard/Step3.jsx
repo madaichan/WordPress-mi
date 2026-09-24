@@ -3,6 +3,7 @@ import { Link } from 'react-router-dom'
 import Switch from '../../../components/UI/Switch.jsx'
 import { DEMO_TARGET_TOTAL } from './wizardData.js'
 import { isScheduleSendTimeInvalid } from '../../../utils/campaignLaunch.js'
+import { EMPTY_PLAYBOOK_COMPONENT_OPTIONS, optionLabel, optionReady } from '../../../utils/playbookComponentOptions.js'
 
 const LAUNCH_STAGE_LABELS = {
   creating: 'Creating run…',
@@ -10,9 +11,11 @@ const LAUNCH_STAGE_LABELS = {
   launching: 'Launching…',
 }
 
-export default function Step3({ form, setForm, csvData, playbooks = [], onBack, onLaunch, onDraft, isLaunching, isSavingDraft, launchStage, isEditing = false }) {
+export default function Step3({ form, setForm, csvData, playbooks = [], componentOptions = EMPTY_PLAYBOOK_COMPONENT_OPTIONS, onBack, onLaunch, onDraft, isLaunching, isSavingDraft, launchStage, isEditing = false }) {
   const quizEnabled = form.followUp?.quizEnabled ?? true
   const reminderEnabled = form.followUp?.forceResetPasswordReminderEnabled ?? false
+  const isCustomMode = form.mode === 'custom'
+  const customComponents = form.customComponents || {}
 
   const setFollowUp = (patch) => setForm(f => ({ ...f, followUp: { ...f.followUp, ...patch } }))
   const selectedPlaybook = playbooks.find(p => String(p.id) === String(form.playbook))
@@ -31,6 +34,20 @@ export default function Step3({ form, setForm, csvData, playbooks = [], onBack, 
       : (readiness?.errors || []).join('; ') || 'Playbook components are not ready for launch'
     : 'Select a Playbook Master to check component readiness'
 
+  const emailLabel = optionLabel(componentOptions.email, customComponents.email)
+  const landingLabel = optionLabel(componentOptions.page, customComponents.page)
+  const smtpLabel = optionLabel(componentOptions.smtp, customComponents.smtp)
+  const domainLabel = customComponents.domain ? optionLabel(componentOptions.domain, customComponents.domain) : 'Not set (optional)'
+
+  // Picking a component isn't enough on its own — CampaignRunService/
+  // PlaybookMasterService only accept an approved/active email & landing
+  // version and an active, GoPhish-mapped SMTP profile. Surface that here so
+  // the checklist doesn't show green for a draft component that will still
+  // be rejected at launch.
+  const emailReady = optionReady(componentOptions.email, customComponents.email)
+  const landingReady = optionReady(componentOptions.page, customComponents.page)
+  const smtpReady = optionReady(componentOptions.smtp, customComponents.smtp)
+
   const scheduleEnabled = form.scheduleEnabled ?? true
   const sendTimeInvalid = isScheduleSendTimeInvalid(form)
 
@@ -41,8 +58,37 @@ export default function Step3({ form, setForm, csvData, playbooks = [], onBack, 
         ? `${csvData.length.toLocaleString('en-US')} targets imported successfully`
         : 'Import targets before launching',
     },
-    { ok: Boolean(selectedPlaybook) && selectedPlaybookReady, text: playbookChecklistText },
-    { ok: Boolean(readiness?.ready), text: componentsReadyText },
+    ...(isCustomMode
+      ? [
+        {
+          ok: Boolean(customComponents.email) && emailReady,
+          text: !customComponents.email
+            ? 'Select an email template'
+            : emailReady
+              ? `Email template — ${emailLabel}`
+              : `Email template — ${emailLabel} (not approved yet; approve before launch)`,
+        },
+        {
+          ok: Boolean(customComponents.page) && landingReady,
+          text: !customComponents.page
+            ? 'Select a landing page'
+            : landingReady
+              ? `Landing page — ${landingLabel}`
+              : `Landing page — ${landingLabel} (not approved yet; approve before launch)`,
+        },
+        {
+          ok: Boolean(customComponents.smtp) && smtpReady,
+          text: !customComponents.smtp
+            ? 'Select an SMTP profile'
+            : smtpReady
+              ? `SMTP profile — ${smtpLabel}`
+              : `SMTP profile — ${smtpLabel} (not active or not mapped to GoPhish; fix before launch)`,
+        },
+      ]
+      : [
+        { ok: Boolean(selectedPlaybook) && selectedPlaybookReady, text: playbookChecklistText },
+        { ok: Boolean(readiness?.ready), text: componentsReadyText },
+      ]),
     scheduleEnabled
       ? sendTimeInvalid
         ? { ok: false, text: 'Send time must be at least 5 minutes from now' }
@@ -86,7 +132,15 @@ export default function Step3({ form, setForm, csvData, playbooks = [], onBack, 
           <div className="space-y-3 text-sm">
             {[
               { label: 'Name', value: form.name || '—' },
-              { label: 'Playbook', value: selectedPlaybook?.name || '—' },
+              ...(isCustomMode
+                ? [
+                  { label: 'Mode', value: 'Custom campaign' },
+                  { label: 'Email template', value: emailLabel },
+                  { label: 'Landing page', value: landingLabel },
+                  { label: 'SMTP profile', value: smtpLabel },
+                  { label: 'Dynamic domain', value: domainLabel },
+                ]
+                : [{ label: 'Playbook', value: selectedPlaybook?.name || '—' }]),
               { label: 'Total targets', value: `${targetCount.toLocaleString('en-US')} user` },
               {
                 label: 'Sending schedule',
@@ -96,7 +150,7 @@ export default function Step3({ form, setForm, csvData, playbooks = [], onBack, 
                     ? `${formatDate(form.dateStart)} – ${formatDate(form.dateEnd)}, ${form.sendTime || '09:00'} (${form.timezone || 'WIB'})`
                     : '—',
               },
-              { label: 'Difficulty', value: selectedPlaybook?.diff ? `${selectedPlaybook.diff}/5 (NIST)` : '—', red: true },
+              ...(isCustomMode ? [] : [{ label: 'Difficulty', value: selectedPlaybook?.diff ? `${selectedPlaybook.diff}/5 (NIST)` : '—', red: true }]),
             ].map(({ label, value, red }) => (
               <div key={label} className="flex items-baseline justify-between">
                 <span className="text-xs text-gray-500 w-32 flex-shrink-0">{label}</span>

@@ -54,6 +54,18 @@ export function canUserCreateAsset(user) {
   return canOperatePukat(role) && Boolean(getUserEntity(user))
 }
 
+/**
+ * Gates the Create-playbook action. Mirrors the backend's
+ * `PlaybookMasterService::enforce_write_entity()`: a full admin (WP
+ * administrator / pukat_admin — outside RBAC's role editor) bypasses
+ * everything, anyone else needs the `master_playbooks.create` RBAC
+ * capability granted via Role Settings *and* an entity on their account.
+ */
+export function canCreatePlaybook(user, { isFullAdmin, hasCreateCapability }) {
+  if (isFullAdmin) return true
+  return hasCreateCapability && Boolean(getUserEntity(user))
+}
+
 export function canUserEditAsset(asset, user) {
   const role = normalizePukatRole(user?.role ?? user?.pukat_role)
   if (canManagePukat(role)) return true

@@ -5,6 +5,13 @@ export const EMPTY_PLAYBOOK_COMPONENT_OPTIONS = {
   domain: [],
 }
 
+// Mirrors CampaignRunService::COMPONENT_READY_STATUSES /
+// PlaybookMasterService::READY_STATUSES — a version/ref in one of these
+// statuses is what the backend will actually accept for an active Playbook
+// Master. Used to flag "picked but not launch-ready" options (e.g. a still-
+// draft email template) instead of only checking that something was picked.
+const READY_STATUSES = ['approved', 'active']
+
 export function latestVersion(master) {
   if (master?.latest_version) return master.latest_version
   if (Array.isArray(master?.versions) && master.versions.length) return master.versions[0]
@@ -35,6 +42,7 @@ export function playbookComponentOptions({ emailTemplates, landingPages, sending
       : `Unmapped - ${profile.from_email || '-'}`,
     source: 'master',
     gophishId: Number(profile.gophish_sending_profile_id || 0) || null,
+    ready: profile.status === 'active' && Boolean(profile.gophish_sending_profile_id),
   })))
   const gophishSendingProfileOptions = compactOptions(gophishSmtpProfiles
     .filter(profile => profile?.id && !referencedGophishSmtpIds.has(Number(profile.id)))
@@ -45,6 +53,9 @@ export function playbookComponentOptions({ emailTemplates, landingPages, sending
       source: 'gophish',
       gophishId: Number(profile.id),
       profile,
+      // Picking this creates a new active sending_profile_ref at save time
+      // (resolveSendingProfileRefId()) — it's always launch-ready as-is.
+      ready: true,
     })))
 
   return {
@@ -55,6 +66,7 @@ export function playbookComponentOptions({ emailTemplates, landingPages, sending
         value: version?.id ? String(version.id) : '',
         label,
         description: version?.subject ? `v${version.version || 1} - ${version.subject}` : 'No approved version yet',
+        ready: Boolean(version) && READY_STATUSES.includes(version.status),
         preview: {
           type: 'email',
           value: label,
@@ -74,6 +86,7 @@ export function playbookComponentOptions({ emailTemplates, landingPages, sending
         value: version?.id ? String(version.id) : '',
         label,
         description: redirect ? `v${version.version || 1} - redirects to ${redirect}` : `v${version?.version || 1}`,
+        ready: Boolean(version) && READY_STATUSES.includes(version.status),
         preview: {
           type: 'landing',
           value: label,
@@ -93,6 +106,7 @@ export function playbookComponentOptions({ emailTemplates, landingPages, sending
       description: [domain.authorization_status, domain.dns_status, domain.tls_status]
         .filter(Boolean)
         .join(' - '),
+      ready: domain.status === 'active' && domain.authorization_status === 'authorized',
     }))),
   }
 }
@@ -107,4 +121,10 @@ export function optionLabel(options, value, fallback = 'Not selected') {
 
 export function optionDescription(options, value, fallback = '') {
   return options.find(option => option.value === String(value || ''))?.description || fallback
+}
+
+/** False both when nothing is selected and when the selected option isn't launch-ready. */
+export function optionReady(options, value) {
+  const found = options.find(option => option.value === String(value || ''))
+  return Boolean(found?.ready)
 }
