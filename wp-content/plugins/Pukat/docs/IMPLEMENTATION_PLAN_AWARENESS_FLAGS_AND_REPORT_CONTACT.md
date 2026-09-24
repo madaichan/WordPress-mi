@@ -1,116 +1,88 @@
 # Implementation Plan: Flag Example Library & Report Contact Info
 
 Status: Draft
-Date: 2026-09-23
+Date: 2026-09-25 (disusun ulang — menggantikan versi 2026-09-22 dan 2026-09-23)
 Related PRD: `docs/PRD_AWARENESS_FLAGS_AND_REPORT_CONTACT.md`
 
-**Catatan revisi (2026-09-23):** Plan ini menggantikan versi 2026-09-22 yang didesain untuk PRD lama (Flag = teks edukasi + delivery ke Awareness Page via redirect GoPhish). PRD sudah dikoreksi jadi galeri contoh gambar per-entity; plan ini disusun ulang total mengikuti PRD baru. Fase "validasi asumsi GoPhish redirect" dan "Awareness Page publik" dari plan lama **dihapus** — bukan bagian dari scope saat ini (lihat PRD §2.3/§4/§12), akan disusun sebagai plan terpisah kalau pembahasan delivery dimulai.
+**Kenapa disusun ulang:** dua koreksi requirement setelah versi sebelumnya ditulis — (1) Report Contact per-entity, bukan global lewat `SettingsController`; (2) semua data self-service entity dikelola dari **tab di My Profile**, admin hanya mengelola kategori Flag dan memantau lewat Master Entities (`docs/PRD_ENTITY_PROFILE_AND_GUARDRAILS.md` §14). Plan ini mengikuti pola yang sudah terbukti di Entity Profile & Guardrails: `EntityController`/`EntityProfileService` untuk data per-entity, `enforce_entity_editable()`/`current_user_can_view_entity()` untuk scoping, tab di `MyProfile.jsx` untuk UI.
 
-**Catatan revisi (2026-09-25):** PRD-nya baru saja dikoreksi lagi — Report Contact yang sebelumnya didesain global (WP option lewat `SettingsController`) sekarang per-entity (tabel baru `pukat_report_contacts`, reuse `EntityController.php`/`master_entities.*` dari `docs/PRD_ENTITY_PROFILE_AND_GUARDRAILS.md` — lihat PRD §5.3/§7/§8/§9/§11 terbaru). Plan Phase 4 & 6 di bawah (yang masih menyebut `SettingsController`) **belum diperbarui** mengikuti koreksi ini — akan disusun ulang saat implementasi PRD ini benar-benar dimulai, jangan diikuti apa adanya. Fase lain (Flag Example Library) tidak terpengaruh, sudah entity-scoped sejak awal.
-
-## 1. Ringkasan
-
-Dua tabel baru (`pukat_flags`, `pukat_flag_examples`), satu controller Flag (taksonomi, admin-managed), satu controller Flag Example (upload/list/delete, entity-scoped, memperkenalkan pola REST file upload yang belum pernah ada di plugin ini), satu controller publik kecil untuk Report Contact, dan dua halaman frontend (kelola kategori Flag untuk admin, galeri upload untuk semua user).
-
-## 2. Dependency Order
+## 1. Urutan
 
 ```text
-Phase 1: Schema — pukat_flags, pukat_flag_examples
-   |
-   +-- Phase 2: Backend Flag (taksonomi) CRUD — FlagController.php           [butuh Phase 1]
-   |
-   +-- Phase 3: Backend Flag Example upload/list/delete — FlagExampleController.php   [butuh Phase 1 + Phase 2]
-   |
-Phase 4: Report Contact — extend SettingsController + PublicController::report_contact()   [independen]
-   |
-Phase 5: RBAC — capability flags.*, flag_examples.*                          [butuh Phase 2 + 3]
-   |
-   +-- Phase 6: Frontend admin — Master Flags (kelola kategori)              [butuh Phase 2 + 5]
-   +-- Phase 7: Frontend — galeri upload Flag Example (semua user)           [butuh Phase 3 + 5, bisa paralel dengan Phase 6]
-   |
-Phase 8: QA end-to-end
+Bagian A — Call Center Report (kecil, pola identik Entity Profile)
+  A1 Schema pukat_report_contacts
+  A2 Backend: endpoint per-entity + endpoint publik + kolom oversight
+  A3 Frontend: tab "Call Center Report" di My Profile + kolom di Master Entities
+  A4 QA
+
+Bagian B — Flag Example Library (lebih berisiko: upload file lewat REST pertama di plugin ini)
+  B1 Schema pukat_flags + pukat_flag_examples, seed 4 kategori default
+  B2 Backend kategori Flag (admin) + RBAC
+  B3 Backend Flag Example: upload/list/delete per-entity
+  B4 Frontend: tab "Flags" di My Profile + halaman admin kategori Flag
+  B5 QA
 ```
 
-Phase 4 sepenuhnya independen — bisa dikerjakan kapan saja.
+Bagian A dikerjakan dulu karena kecil dan tidak punya risiko teknis baru; bagian B bisa dimulai setelah A selesai di-commit.
 
-## 3. Phase 1: Schema
+## 2. Bagian A — Call Center Report
 
-**File:** `includes/Core/Activator.php` — dua `CREATE TABLE IF NOT EXISTS` (SQL persis PRD §8) + blok `maybe_upgrade()` baru untuk instalasi existing.
+### A1. Schema
 
-**Acceptance Criteria:** `php -l` bersih; migration idempoten; kedua tabel muncul di DB dev.
+`includes/Core/Activator.php`: `CREATE TABLE IF NOT EXISTS {prefix}report_contacts` persis PRD §8 (`entity_name` UNIQUE, `contact_name`, `contact_phone`, `contact_email`, `updated_by`, timestamps). Blok `maybe_upgrade()` baru (1.16.0) → `create_tables()`. Tidak ada capability baru (PRD §9: reuse `master_entities.*`), jadi tidak perlu re-seed RBAC.
 
-## 4. Phase 2: Backend — Flag (Taksonomi) CRUD
+### A2. Backend
 
-**File baru:** `includes/Api/FlagController.php`, `includes/Repositories/FlagRepository.php`, `includes/Services/FlagService.php` (pola 3-layer standar di codebase ini).
+- `EntityProfileRepository`: `find_report_contact( $entity_name )` (case-insensitive), `upsert_report_contact( $entity_name, $data )` (insert kalau belum ada, update kalau sudah — satu baris per entity), dan hitungan "kontak terisi" per entity di `guardrail_counts()` (satu query grouped, bukan N+1).
+- `EntityProfileService`:
+  - `get_report_contact( $entity_name )` — scope `current_user_can_view_entity()`; entity yang tidak terlihat → objek kosong (bukan 403, konsisten dengan `list_email_domains()`).
+  - `save_report_contact( $entity_name, $params, $user_id )` — scope `enforce_entity_editable()` (General & entity lain ditolak untuk non-admin), sanitasi (`sanitize_text_field`, `sanitize_email` + `is_email()`), audit `entity_profile.report_contact_updated`.
+  - `guardrails_overview()` — tambah `report_contact_filled` (bool) per baris.
+- `EntityController`: `GET`/`PUT /entities/by-name/{entity_name}/report-contact` (gate `master_entities.view` / `.edit`).
+- `includes/Api/PublicController.php` (baru): `GET /public/report-contact?entity=<name>` — `permission_callback` selalu `true` (publik, docblock menjelaskan alasannya — PRD §12), hanya mengembalikan `entity_name`/`contact_name`/`contact_phone`/`contact_email`; entity kosong/tidak dikenal → objek kosong status 200, bukan 404. Didaftarkan di `Plugin.php`.
 
-- `FlagService::create()`: validasi `flag_key` unik (`sanitize_title()`), `label` wajib.
-- `FlagService::delete( int $id )`: cek dulu `SELECT COUNT(*) FROM pukat_flag_examples WHERE flag_id = %d` — kalau > 0, return `WP_Error( 'flag_in_use', ..., [ 'status' => 409 ] )` (PRD §10).
-- Route: `GET/POST /flags`, `PUT/DELETE /flags/{id}` — daftar persis PRD §9, didaftarkan di `includes/Core/Plugin.php`.
+### A3. Frontend
 
-**Acceptance Criteria:** CRUD kategori Flag lewat REST berhasil; hapus kategori yang masih punya Flag Example ditolak 409.
+- `entityApi`: `getReportContact(entityName)`, `saveReportContact(entityName, data)`, `publicReportContact` tidak perlu di frontend.
+- Hooks: `useEntityReportContact(entityName)`, `useSaveEntityReportContactMutation()` (invalidate kontak entity itu + `entities.overview`).
+- `features/entities/EntityReportContactForm.jsx` — form nama/telepon/email, read-only kalau `!canEdit`.
+- `MyProfile.jsx`: tab `report` memakai form itu (menggantikan placeholder), `canEdit` sama dengan `canEditEntity` yang sudah ada.
+- `MasterEntities.jsx`: kolom "Report contact" (terisi/belum) di tabel oversight.
 
-## 5. Phase 3: Backend — Flag Example (Upload, Galeri Entity-Scoped)
+### A4. QA
 
-**File baru:** `includes/Api/FlagExampleController.php`, `includes/Repositories/FlagExampleRepository.php`, `includes/Services/FlagExampleService.php`.
+`php -l`; smoke test sebagai `pukatopr` (isi/ubah kontak entity sendiri; ditolak untuk General & entity lain; endpoint publik tanpa login mengembalikan kontak yang benar dan objek kosong untuk entity tak dikenal; response publik hanya berisi 4 field whitelist); `npm run lint/build/test`.
 
-Ini fase paling berisiko di plan ini karena memperkenalkan pola baru (file upload lewat REST) — tidak ada precedent yang bisa langsung disalin dari controller lain di codebase ini (lihat PRD §2.1).
+## 3. Bagian B — Flag Example Library
 
-- `FlagExampleController::upload()`:
-  - Ambil file dari `$request->get_file_params()['file']` (bukan `get_json_params()` — endpoint ini `multipart/form-data`).
-  - Validasi ukuran (`$file['size']` terhadap batas mis. 5MB) dan tipe: panggil `wp_check_filetype_and_ext( $file['tmp_name'], $file['name'] )` (fungsi WP native yang membaca *actual* file signature, bukan cuma ekstensi/`Content-Type` klien) — tolak kalau hasilnya bukan salah satu `image/png`/`image/jpeg`/`image/webp` (PRD §9, mencegah upload file berbahaya yang disamarkan jadi gambar).
-  - Butuh `require_once ABSPATH . 'wp-admin/includes/file.php';` (dan `image.php`/`media.php`) sebelum memanggil `wp_handle_upload()` — file-file ini biasanya tidak ter-load di konteks REST API request, beda dari konteks wp-admin biasa. **Cek ini secara eksplisit saat implementasi**, gagal require ini adalah penyebab umum fatal error "call to undefined function" untuk fungsi upload WP di luar wp-admin.
-  - `wp_handle_upload( $file, [ 'test_form' => false ] )` → dapat path lokal → `wp_insert_attachment()` → `wp_generate_attachment_metadata()` + `wp_update_attachment_metadata()` (supaya thumbnail otomatis ter-generate, berguna kalau nanti frontend perlu preview kecil).
-  - `flag_id` dan `caption` dari `$request->get_param()` (form field biasa, tetap terbaca meski request `multipart/form-data`).
-  - `entity_name` **selalu** dari `current_user_entity( get_current_user_id() )` — parameter itu, kalau ada di body, diabaikan total (PRD §9, cegah spoofing entity).
-  - Insert baris `pukat_flag_examples` dengan `attachment_id` hasil `wp_insert_attachment()`.
-- `FlagExampleService::list( array $filters, int $user_id, bool $is_admin )`: non-admin — paksa `WHERE entity_name = current_user_entity( $user_id )` di query, abaikan parameter `entity` dari klien kalau ada (bukan reject, cukup diabaikan — PRD §9). Admin — boleh filter `entity`/`flag_id` bebas.
-- `FlagExampleService::delete( int $id, int $user_id, bool $is_admin )`: `find()` dulu, kalau `! $is_admin && $row['entity_name'] !== current_user_entity( $user_id )` → `WP_Error 403`. Sukses: `wp_delete_attachment( $row['attachment_id'], true )` (hard delete file fisik) baru hapus baris DB.
-- Route: `GET/POST /flag-examples`, `DELETE /flag-examples/{id}` — daftar persis PRD §9.
+### B1. Schema
 
-**Acceptance Criteria:** upload gambar valid berhasil, file muncul di Media Library dan baris `pukat_flag_examples` tercipta dengan `entity_name` sesuai uploader (coba kirim `entity_name` lain di body — harus tetap terisi entity uploader yang sebenarnya); upload file `.php` yang di-rename `.png` ditolak; non-admin hanya melihat/menghapus contoh entity-nya sendiri; hapus contoh juga menghapus attachment fisik dari Media Library.
+`pukat_flags` dan `pukat_flag_examples` persis PRD §8, blok migrasi baru. Seed 4 kategori default yang disebutkan di requirement awal — **Phishing, Scam, External, Spoofing** — kalau belum ada (idempoten, cek `flag_key`).
 
-## 6. Phase 4: Report Contact
+### B2. Kategori Flag (admin)
 
-**File:** `includes/Api/SettingsController.php`, `includes/Api/PublicController.php` (baru, kecil — kalau sudah ada dari kebutuhan lain di codebase, reuse; kalau belum, buat baru khusus menampung endpoint publik non-auth).
+`FlagController`/`FlagRepository`/`FlagService`: CRUD kategori, `delete` ditolak 409 kalau masih punya contoh. RBAC menu `flags` (view `shared`, create/edit/delete `admin`) + re-seed. Halaman admin kecil `Admin/MasterFlags.jsx`.
 
-- Tambah `pukat_report_contact_name`, `pukat_report_contact_phone`, `pukat_report_contact_email` ke `SettingsController::PUBLIC_SETTINGS` dan `update_settings()`'s `$plain_keys` (pola identik field string lain yang sudah ada, mis. `pukat_org_name`).
-- `PublicController::report_contact()` — `GET /pukat/v1/public/report-contact`, `permission_callback` selalu `true`, return tiga `get_option()` di atas saja (whitelist eksplisit).
+### B3. Flag Example (per-entity, upload)
 
-**Acceptance Criteria:** admin isi Report Contact di halaman Settings existing, tersimpan dan terbaca kembali; `GET /public/report-contact` tanpa login mengembalikan tiga field itu.
+`FlagExampleController`/`FlagExampleService`/`FlagExampleRepository`, RBAC `flag_examples` (view `shared`, upload/delete `operator`), scoping memakai pola yang sama dengan Entity Profile (view: entity sendiri + General; tulis: entity sendiri, General hanya admin). Titik rawan upload (PRD §9):
 
-## 7. Phase 5: RBAC
+- `multipart/form-data` → `$request->get_file_params()['file']`.
+- `require_once ABSPATH . 'wp-admin/includes/file.php'` (+ `image.php`, `media.php`) sebelum `wp_handle_upload()` — tidak otomatis ter-load di konteks REST.
+- Validasi ukuran (maks. 5MB) dan tipe lewat `wp_check_filetype_and_ext()` (isi file, bukan ekstensi/header klien) — hanya png/jpeg/webp.
+- `entity_name` selalu dari server (`current_user_entity()`), tidak pernah dari body.
+- Hapus = hapus baris **dan** `wp_delete_attachment( $id, true )`.
+- Frontend: kirim `FormData`; pastikan header `Content-Type: application/json` default di `client.js` tidak memaksa request upload (axios harus mengisi boundary sendiri) — verifikasi di request nyata.
 
-**File:** `includes/Services/PermissionRegistry.php`.
+### B4. Frontend
 
-- Menu `flags` (taksonomi) — `view_gate: 'shared'`, actions `create`/`edit`/`delete` semua seed `'admin'` (taksonomi bersama lintas entity, governance-sensitive).
-- Menu/action `flag_examples` — `view_gate: 'shared'` (dibatasi entity di level query, bukan di level RBAC — lihat Phase 3), actions `upload` seed `'operator'`, `delete` seed `'operator'` (backend tetap mengecek kepemilikan entity terpisah dari RBAC, lihat Phase 3 — RBAC di sini hanya menentukan role apa yang punya akses ke fitur ini SAMA SEKALI, bukan baris mana, konsisten dengan prinsip ortogonal role vs entity di `docs/PRD_RBAC.md` §39).
-- Endpoint publik Report Contact **tidak** didaftarkan di Permission Registry — di luar sistem RBAC karena memang publik.
+- Tab `flags` di My Profile: pilih kategori → galeri thumbnail milik entity sendiri, upload + caption, hapus.
+- Oversight admin: jumlah contoh per entity di Master Entities (opsional, kalau ringan).
 
-**Acceptance Criteria:** role Viewer bisa lihat galeri Flag Example (miliknya sendiri) tapi tidak bisa upload; role Operator bisa upload dan hapus miliknya sendiri.
+### B5. QA
 
-## 8. Phase 6: Frontend Admin — Kelola Kategori Flag
+Selain standar `AGENTS.md` §7: upload file bukan gambar yang di-rename `.png` harus ditolak; hapus contoh menghapus file fisik; user entity lain tidak bisa melihat/menghapus contoh entity lain; tes di environment yang merepresentasikan production untuk batas `upload_max_filesize`/`post_max_size`.
 
-- `pukat-app/src/pages/Admin/MasterFlags.jsx` — CRUD sederhana kategori Flag (label, warna, aktif/nonaktif) — tanpa versioning/approval karena bukan asset yang perlu draft/review.
-- `pukat-app/src/api/flags.js`, `hooks/queries/useFlags.js`, `hooks/mutations/useFlagMutations.js`.
+## 4. Di luar cakupan
 
-**Acceptance Criteria:** admin CRUD kategori Flag dari UI; hapus kategori yang masih punya contoh menampilkan pesan error yang jelas (bukan silent fail).
-
-## 9. Phase 7: Frontend — Galeri Upload Flag Example
-
-- Halaman baru `pukat-app/src/pages/Admin/FlagExamples.jsx` (dapat diakses semua role yang login, tidak hanya admin — lihat Phase 5) — pilih kategori Flag dari dropdown (`useFlags()`), tampilkan galeri thumbnail milik entity user (grid gambar + caption), tombol upload (`<input type="file">` + form data ke endpoint upload) dan tombol hapus per gambar (hanya tampil untuk gambar yang memang milik entity sendiri — meski begitu backend tetap validasi ulang, ini murni UX per §4.3 `AGENTS.md`).
-- `pukat-app/src/api/flagExamples.js` — wrapper upload pakai `FormData`, bukan JSON (`client.js` axios wrapper existing perlu dicek apakah default header `Content-Type: application/json`-nya perlu di-override jadi `multipart/form-data` untuk request ini — axios otomatis set boundary yang benar kalau body-nya `FormData` dan header `Content-Type` **tidak** di-set manual, jadi pastikan wrapper ini tidak memaksa header JSON default untuk endpoint upload).
-- Nav entry baru (grup "Master Library" atau grup baru — sesuaikan saat implementasi), gated `<PermissionRoute permission="flag_examples.view">`.
-
-**Acceptance Criteria:** user bisa upload gambar dan langsung melihatnya di galeri; user tidak melihat opsi hapus untuk gambar entity lain (meski secara teori tidak akan pernah menerima data entity lain dari API, lihat Phase 3 scoping query).
-
-## 10. Phase 8: QA
-
-- `npm run lint && npm run build && npm run test` dari `pukat-app`.
-- REST smoke test: upload valid/invalid file type/oversize, list dengan entity scoping (dua user beda entity saling tidak melihat galeri satu sama lain), delete oleh pemilik vs bukan pemilik vs admin.
-- Regression check ringan: pastikan menambahkan dua tabel baru tidak mengubah `pukat_db_version` handling yang dipakai fitur lain (jalankan `maybe_upgrade()` dua kali, pastikan idempoten — pola pengecekan yang sama seperti di `docs/IMPLEMENTATION_PLAN_CAMPAIGN_GROUP_MONITORING.md` §2.4).
-
-## 11. Risiko
-
-- **File upload lewat REST API adalah pola baru** (§5) — kemungkinan ada isu konfigurasi server (`upload_max_filesize`/`post_max_size` di PHP, batas body size di web server/reverse proxy) yang tidak relevan untuk endpoint JSON biasa. Perlu dites di environment yang representasikan production, bukan cuma local dev, sebelum dianggap selesai.
-- Kalau `wp-admin/includes/file.php` tidak ter-require dengan benar di konteks REST API, `wp_handle_upload()` akan fatal error — ini risiko implementasi konkret yang disebutkan eksplisit di Phase 3, bukan sekadar catatan umum.
-- Scope "bagaimana galeri ini nanti dipakai untuk delivery ke target" sengaja tidak dikerjakan di plan ini (PRD §2.3) — pastikan tidak ada pekerjaan diam-diam merambat ke sana sebelum pembahasan terpisah itu terjadi (`AGENTS.md`: "Jangan memperluas scope PRD secara diam-diam").
+Sesuai PRD §4 dan §13: cara galeri Flag ditampilkan ke target simulasi, cara add-in Outlook menentukan entity pelapor, dan editor anotasi gambar di dalam Pukat.

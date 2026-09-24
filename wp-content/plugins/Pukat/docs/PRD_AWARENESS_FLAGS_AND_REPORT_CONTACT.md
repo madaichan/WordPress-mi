@@ -3,7 +3,9 @@
 Status: Draft
 Date: 2026-09-23
 Owner: Pukat Product and Engineering
-Related area: Entity scoping (`docs/PRD_ENTITY_PROFILE_AND_GUARDRAILS.md`), `SettingsController.php`
+Related area: Entity scoping & My Profile tabs (`docs/PRD_ENTITY_PROFILE_AND_GUARDRAILS.md` §14), `EntityController.php`
+
+**Catatan lokasi UI (2026-09-25):** Mengikuti `docs/PRD_ENTITY_PROFILE_AND_GUARDRAILS.md` §14, kedua fitur di PRD ini dikelola user entity dari **tab di halaman My Profile** — tab **Flags** (galeri contoh per kategori milik entity sendiri) dan tab **Call Center Report** (kontak pelaporan entity sendiri). Admin tetap mengelola **kategori** Flag (taksonomi bersama) dan memantau lewat Master Entities. Referensi ke halaman terpisah (`FlagExamples.jsx`, form di Settings/Master Entities) di draft sebelumnya tidak berlaku lagi.
 Implementation plan: `docs/IMPLEMENTATION_PLAN_AWARENESS_FLAGS_AND_REPORT_CONTACT.md`
 
 **Catatan revisi (2026-09-23):** Versi PRD ini mengganti desain versi 2026-09-22 secara signifikan. Draft sebelumnya memodelkan Flag sebagai taksonomi teks generik (label + `education_text`) yang ditempel ke Email Template lalu dirender otomatis ke target lewat halaman awareness pasca-submit. Diskusi lanjutan mengoreksi ini: **Flag yang sebenarnya diinginkan adalah galeri contoh gambar (screenshot ber-anotasi dari email sungguhan) yang di-upload manual per-entity**, bukan teks generik — dan mekanisme *bagaimana* contoh-contoh ini nanti ditampilkan ke target dibahas terpisah, di luar cakupan PRD ini (lihat §4, §12). PRD ini sekarang fokus murni pada bagian "personalize": model data dan alur upload/kelola galeri contoh Flag per entity.
@@ -69,7 +71,7 @@ Info kontak pelaporan phishing milik satu entity (nama, telepon, email), dikelol
 
 ## 7. Functional Requirements — Report Contact *(direvisi 2026-09-25 — per-entity)*
 
-- **FR-6**: User dengan akses ke suatu entity dapat mengisi/mengubah kontak pelaporan entity itu (`contact_name`, `contact_phone`, `contact_email`) dari halaman Master Entities (`docs/PRD_ENTITY_PROFILE_AND_GUARDRAILS.md`) — bukan halaman terpisah, supaya satu tempat untuk semua data self-service per entity. Scope akses **identik** dengan `EntityProfileService::enforce_entity_editable()`: non-admin hanya entity miliknya sendiri, dan General tidak bisa diedit non-admin. Membuat entity baru tetap admin-only, tapi mengisi kontaknya adalah edit biasa.
+- **FR-6**: User dengan akses ke suatu entity dapat mengisi/mengubah kontak pelaporan entity itu (`contact_name`, `contact_phone`, `contact_email`) dari tab **Call Center Report** di halaman My Profile (`docs/PRD_ENTITY_PROFILE_AND_GUARDRAILS.md` §14.1) — bukan halaman terpisah, supaya satu tempat untuk semua data self-service per entity. Admin memantau lewat Master Entities (kolom status kontak terisi/belum), bukan mengisinya. Scope akses **identik** dengan `EntityProfileService::enforce_entity_editable()`: non-admin hanya entity miliknya sendiri, dan General tidak bisa diedit non-admin. Membuat entity baru tetap admin-only, tapi mengisi kontaknya adalah edit biasa.
 - **FR-7**: `GET /wp-json/pukat/v1/public/report-contact?entity=<entity_name>` — endpoint publik read-only, menerima `entity_name` sebagai parameter wajib, mengembalikan kontak entity itu (kosong kalau belum diisi). Ditujukan untuk dikonsumsi add-in Outlook yang akan dibangun kelak (§4) — **bagaimana add-in itu tahu entity mana yang relevan** (mis. dari domain email si pelapor, dicocokkan ke allow-list domain email entity di `docs/PRD_ENTITY_PROFILE_AND_GUARDRAILS.md`) belum didesain di PRD ini, dicatat sebagai Open Question (§13).
 
 ## 8. Data Model
@@ -166,7 +168,7 @@ Dua route pertama didaftarkan di `EntityController.php` yang sudah ada (`docs/PR
 - Upload file non-gambar (mis. `.exe`/`.php` yang diubah ekstensinya jadi `.png`) ditolak oleh validasi `wp_check_filetype_and_ext()`, bukan lolos ke Media Library.
 - Menghapus Flag Example juga menghapus attachment fisiknya dari Media Library (tidak orphan).
 - Menghapus kategori Flag yang masih punya Flag Example ditolak (409) sampai seluruh contoh di kategori itu dihapus dulu.
-- User non-admin entity "Finance" mengisi Report Contact untuk "Finance" lewat halaman Master Entities; user non-admin entity "HR" tidak bisa mengisi/mengubah kontak "Finance" (403 `entity_forbidden`, reuse `enforce_entity_editable()`).
+- User non-admin entity "Finance" mengisi Report Contact untuk "Finance" lewat tab Call Center Report di My Profile; user non-admin entity "HR" tidak bisa mengisi/mengubah kontak "Finance" (403 `entity_forbidden`, reuse `enforce_entity_editable()`).
 - `GET /public/report-contact?entity=Finance` (tanpa auth) mengembalikan kontak "Finance" yang baru diisi; dengan `entity` yang tidak ada profile-nya mengembalikan objek kosong berstatus 200, bukan 404.
 - `npm run lint`/`build`/`test` clean, `php -l` clean, smoke test endpoint publik dan admin (permission-denied/wrong-entity/invalid-file-type/success case) sesuai `AGENTS.md` §7.
 
