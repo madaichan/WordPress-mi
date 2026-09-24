@@ -1,5 +1,6 @@
 import React from 'react'
 import { useLocation } from 'react-router-dom'
+import clsx from 'clsx'
 import GoPhishStatus from '../UI/GoPhishStatus.jsx'
 import SidebarBrand from './SidebarBrand.jsx'
 import SidebarNav from './SidebarNav.jsx'
@@ -20,30 +21,46 @@ export default function FrontendLayout({ children }) {
   const groupLabel = getActiveGroupLabel(pathname, frontendNavGroups)
   const permissions = useAppStore((s) => s.permissions)
   const navGroups   = filterNavGroupsByPermission(frontendNavGroups, frontendRoutePermissions, permissions)
+  const collapsed   = useAppStore((s) => s.sidebarCollapsed)
+  const toggle      = useAppStore((s) => s.toggleSidebar)
 
   return (
     <div className="flex min-h-screen bg-gray-50">
 
       {/* ── Sidebar ── */}
-      <aside className="sidebar overflow-hidden no-scrollbar fixed top-0 left-0 h-screen z-30 w-[220px]">
+      <aside
+        className={clsx(
+          'sidebar transition-all duration-300 overflow-hidden no-scrollbar fixed top-0 left-0 h-screen z-30',
+          collapsed ? 'w-16' : 'w-[220px]'
+        )}
+      >
         {/* Brand */}
         <SidebarBrand
           className="h-14 flex items-center px-5 border-b border-gray-800 gap-2 flex-shrink-0"
           iconClassName="text-violet-500 text-lg"
           textClassName="font-semibold text-white tracking-tight"
+          collapsed={collapsed}
+          toggle={toggle}
+          toggleTitle={collapsed ? 'Expand sidebar' : 'Collapse sidebar'}
         />
 
         {/* Navigation */}
-        <SidebarNav groups={navGroups} defaultEnd groupGapClassName="space-y-1" />
+        <SidebarNav groups={navGroups} collapsed={collapsed} defaultEnd groupGapClassName="space-y-1" />
 
-        <div className="p-4 border-t border-gray-800/80 bg-navy-light/10 text-xs">
-          {permissions.includes('settings.view') && <GoPhishStatus />}
-          <div className="mt-1 text-[10px] text-gray-600">v0.12.0 • plugin v1.0</div>
+        <div className={clsx(
+          'p-4 border-t border-gray-800/80 bg-navy-light/10 text-xs',
+          collapsed ? 'flex flex-col items-center' : ''
+        )}>
+          {permissions.includes('settings.view') && <GoPhishStatus collapsed={collapsed} />}
+          {!collapsed && <div className="mt-1 text-[10px] text-gray-600">v0.12.0 • plugin v1.0</div>}
         </div>
       </aside>
 
       {/* Main content — offset by sidebar width, same shape as admin's Layout.jsx */}
-      <div className="ml-[220px] flex flex-1 flex-col" style={{ minHeight: '100vh' }}>
+      <div
+        className={clsx('flex flex-1 flex-col transition-all duration-300', collapsed ? 'ml-16' : 'ml-[220px]')}
+        style={{ minHeight: '100vh' }}
+      >
         <Topbar groupLabel={groupLabel} activeLabel={activeLabel} className="sticky top-0" />
         <main className="flex-1 overflow-x-hidden p-6 animate-fade-in">
           {children}
