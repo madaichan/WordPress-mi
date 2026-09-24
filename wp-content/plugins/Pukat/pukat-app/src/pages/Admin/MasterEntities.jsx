@@ -15,6 +15,7 @@ import Drawer from '../../components/UI/Drawer.jsx'
 import Label from '../../components/UI/Label.jsx'
 import Input from '../../components/UI/Input.jsx'
 import EntityEmailDomainsPanel from '../../features/entities/EntityEmailDomainsPanel.jsx'
+import EntityFlagExamplesPanel from '../../features/entities/EntityFlagExamplesPanel.jsx'
 
 const EMPTY_FORM = { entity_name: '', description: '' }
 const AUTH_TONE = { authorized: 'success', pending: 'warning', rejected: 'danger', expired: 'gray' }
@@ -63,9 +64,9 @@ function GuardrailsDrawer({ entity, landingDomains, onClose }) {
   return (
     <Drawer
       onClose={onClose}
-      widthClass="max-w-lg"
       title={`Guardrails — ${entity.entity_name}`}
       subtitle="Oversight view. Entity users manage these from their My Profile page."
+      widthClass="max-w-2xl"
     >
       <section className="space-y-3">
         <div className="flex items-center justify-between">
@@ -92,6 +93,11 @@ function GuardrailsDrawer({ entity, landingDomains, onClose }) {
       <section className="space-y-3">
         <div className="text-xs font-semibold uppercase tracking-wider text-gray-500">Company email domains</div>
         <EntityEmailDomainsPanel entityName={entity.entity_name} canToggle />
+      </section>
+
+      <section className="space-y-3">
+        <div className="text-xs font-semibold uppercase tracking-wider text-gray-500">Flag examples</div>
+        <EntityFlagExamplesPanel adminEntity={entity.entity_name} />
       </section>
     </Drawer>
   )
@@ -182,13 +188,14 @@ export default function MasterEntities() {
               <th>Landing domains</th>
               <th>Email domains</th>
               <th>Report contact</th>
+              <th>Flag examples</th>
               <th>Actions</th>
             </tr>
           </thead>
           <tbody>
             {isLoading
               ? [...Array(3)].map((_, i) => (
-                  <tr key={i}>{[...Array(6)].map((_, j) => <td key={j}><div className="h-4 animate-pulse rounded bg-gray-100" /></td>)}</tr>
+                  <tr key={i}>{[...Array(7)].map((_, j) => <td key={j}><div className="h-4 animate-pulse rounded bg-gray-100" /></td>)}</tr>
                 ))
               : rows.map(row => (
                   <tr key={row.id ?? `no-profile-${row.entity_name}`}>
@@ -207,6 +214,7 @@ export default function MasterEntities() {
                     <td><CountCell value={row.landing_domains_available} total={row.landing_domains_total} label="authorized" /></td>
                     <td><CountCell value={row.email_domains_active} total={row.email_domains_total} label="enabled" /></td>
                     <td><Badge tone={row.report_contact_filled ? 'success' : 'gray'}>{row.report_contact_filled ? 'Filled' : 'Not filled'}</Badge></td>
+                    <td><Badge tone={row.flag_examples_total > 0 ? 'success' : 'gray'}>{row.flag_examples_total}</Badge></td>
                     <td>
                       <div className="flex items-center gap-3">
                         <button type="button" className="text-xs font-semibold text-violet-600 hover:underline" onClick={() => setGuardrailsEntity(row)}>

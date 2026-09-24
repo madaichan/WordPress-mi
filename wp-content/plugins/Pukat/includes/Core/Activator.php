@@ -540,6 +540,40 @@ class Activator {
 			UNIQUE KEY entity_name (entity_name)
 		) $charset_collate;";
 
+		// -----------------------------------------------------------------------
+		// pukat_flags — shared Flag categories (Phishing, Scam, External,
+		// Spoofing, ...), admin-managed. No education text: the explanation
+		// lives inside each uploaded example image instead.
+		// pukat_flag_examples — per-entity gallery of annotated screenshots per
+		// category; files live in the WP Media Library (attachment_id).
+		// See docs/PRD_AWARENESS_FLAGS_AND_REPORT_CONTACT.md.
+		// -----------------------------------------------------------------------
+		$sql[] = "CREATE TABLE IF NOT EXISTS {$prefix}flags (
+			id              BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
+			flag_key        VARCHAR(100)    NOT NULL,
+			label           VARCHAR(255)    NOT NULL,
+			color           VARCHAR(20)     DEFAULT NULL,
+			is_active       TINYINT(1)      NOT NULL DEFAULT 1,
+			created_by      BIGINT UNSIGNED NOT NULL DEFAULT 0,
+			created_at      DATETIME        NOT NULL DEFAULT CURRENT_TIMESTAMP,
+			updated_at      DATETIME        NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+			PRIMARY KEY (id),
+			UNIQUE KEY flag_key (flag_key)
+		) $charset_collate;";
+
+		$sql[] = "CREATE TABLE IF NOT EXISTS {$prefix}flag_examples (
+			id             BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
+			flag_id        BIGINT UNSIGNED NOT NULL,
+			entity_name    VARCHAR(255)    NOT NULL,
+			attachment_id  BIGINT UNSIGNED NOT NULL,
+			caption        VARCHAR(255)    DEFAULT NULL,
+			uploaded_by    BIGINT UNSIGNED NOT NULL DEFAULT 0,
+			created_at     DATETIME        NOT NULL DEFAULT CURRENT_TIMESTAMP,
+			PRIMARY KEY (id),
+			KEY flag_id (flag_id),
+			KEY entity_name (entity_name)
+		) $charset_collate;";
+
 		foreach ( $sql as $query ) {
 			dbDelta( $query );
 		}
@@ -796,6 +830,39 @@ class Activator {
 		if ( version_compare( $db_version, '1.16.0', '<' ) ) {
 			self::create_tables();
 			update_option( 'pukat_db_version', '1.16.0' );
+		}
+
+		// Flag Example Library: pukat_flags + pukat_flag_examples, the four
+		// default categories from the original requirement, and the new
+		// flags.* / flag_examples.* registry keys.
+		if ( version_compare( $db_version, '1.17.0', '<' ) ) {
+			self::create_tables();
+			self::seed_default_flags();
+			self::seed_rbac_defaults();
+			update_option( 'pukat_db_version', '1.17.0' );
+		}
+	}
+
+	/**
+	 * Insert the default Flag categories if missing (idempotent by flag_key).
+	 * Admins can add/rename/deactivate categories afterwards.
+	 */
+	private static function seed_default_flags(): void {
+		global $wpdb;
+
+		$table    = $wpdb->prefix . 'pukat_flags';
+		$defaults = [
+			'phishing' => [ 'Phishing', 'danger' ],
+			'scam'     => [ 'Scam', 'warning' ],
+			'external' => [ 'External', 'info' ],
+			'spoofing' => [ 'Spoofing', 'violet' ],
+		];
+
+		foreach ( $defaults as $key => [ $label, $color ] ) {
+			$exists = $wpdb->get_var( $wpdb->prepare( "SELECT id FROM {$table} WHERE flag_key = %s", $key ) );
+			if ( ! $exists ) {
+				$wpdb->insert( $table, [ 'flag_key' => $key, 'label' => $label, 'color' => $color, 'is_active' => 1 ] );
+			}
 		}
 	}
 

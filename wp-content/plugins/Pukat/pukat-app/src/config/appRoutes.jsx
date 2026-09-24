@@ -10,6 +10,7 @@ const MasterEmailTemplates = lazy(() => import('../pages/Admin/MasterEmailTempla
 const MasterLandingPages = lazy(() => import('../pages/Admin/MasterLandingPages.jsx'))
 const MasterDomains = lazy(() => import('../pages/Admin/MasterDomains.jsx'))
 const MasterEntities = lazy(() => import('../pages/Admin/MasterEntities.jsx'))
+const MasterFlags = lazy(() => import('../pages/Admin/MasterFlags.jsx'))
 const MyProfile = lazy(() => import('../pages/Admin/MyProfile.jsx'))
 
 const Calendar = lazy(() => import('../pages/Simulation/Calendar.jsx'))
@@ -45,6 +46,9 @@ export const adminRoutes = [
   // Admin oversight only — master_entities.view is `shared` (My Profile needs
   // it for self-service), so this page is gated by the admin-only `oversee`.
   { path: '/master/entities', element: <MasterEntities />, permission: 'master_entities.oversee' },
+  // flags.view is `shared` (My Profile's Flags tab needs it), so category
+  // management is gated by the admin-only flags.edit instead.
+  { path: '/master/flags', element: <MasterFlags />, permission: 'flags.edit' },
   { path: '/admin/users', element: <Users />, permission: 'users.view' },
   { path: '/admin/roles', element: <Roles />, permission: 'users.manage_roles' },
   { path: '/admin/settings', element: <Settings />, permission: 'settings.view' },
@@ -165,6 +169,7 @@ export const adminNavGroups = [
       { to: '/master/email-templates', icon: 'ti-mail', label: 'Email Template' },
       { to: '/master/sending-profiles', icon: 'ti-send', label: 'Sending profiles' },
       { to: '/master/entities', icon: 'ti-building', label: 'Entities' },
+      { to: '/master/flags', icon: 'ti-flag', label: 'Flag categories' },
     ],
   },
   {
@@ -246,6 +251,7 @@ export const routeMeta = [
   { path: '/master/landing-pages', title: 'Master landing pages', subtitle: 'Assigned simulation landing pages', breadcrumb: 'Master landing pages' },
   { path: '/master/domains', title: 'Domain Management', subtitle: 'Lookalike domains for sending and landing pages', breadcrumb: 'Domain Management' },
   { path: '/master/entities', title: 'Master Entities', subtitle: 'Entity profiles and recipient email-domain guardrails', breadcrumb: 'Master Entities' },
+  { path: '/master/flags', title: 'Flag Categories', subtitle: 'Shared warning-sign categories for Flag examples', breadcrumb: 'Flag categories' },
   { path: '/admin/my-profile', title: 'My Profile', subtitle: 'Manage your own account details', breadcrumb: 'My Profile' },
   { path: '/my-profile', title: 'My Profile', subtitle: 'Manage your own account details', breadcrumb: 'My Profile' },
   { path: '/admin/users', title: 'User Access', subtitle: 'Role-based access control', breadcrumb: 'User Access' },

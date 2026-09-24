@@ -16,6 +16,7 @@ import EntityProfileForm from '../../features/entities/EntityProfileForm.jsx'
 import EntityEmailDomainsPanel from '../../features/entities/EntityEmailDomainsPanel.jsx'
 import EntityLandingDomainsPanel from '../../features/entities/EntityLandingDomainsPanel.jsx'
 import EntityReportContactForm from '../../features/entities/EntityReportContactForm.jsx'
+import EntityFlagExamplesPanel from '../../features/entities/EntityFlagExamplesPanel.jsx'
 
 const logoutUrl = window.PukatData?.logoutUrl || `${window.PukatData?.adminUrl || '/wp-admin/'}wp-login.php?action=logout`
 
@@ -38,12 +39,14 @@ export default function MyProfile() {
   const isAdmin = useAppStore(state => state.isAdmin())
   const canEditEntityPerm = useAppStore(state => state.hasPermission('master_entities.edit'))
   const canCreateDomainPerm = useAppStore(state => state.hasPermission('domains.create'))
+  const canUploadFlagPerm = useAppStore(state => state.hasPermission('flag_examples.upload'))
 
   // Mirrors backend scoping (EntityProfileService::enforce_entity_editable(),
   // MasterComponentService::enforce_write_entity()) only to avoid showing
   // actions that would 403 — the backend is the real enforcement.
   const canEditEntity = Boolean(entityName) && (isAdmin || (!isGeneralEntity && canEditEntityPerm))
   const canManageLanding = Boolean(entityName) && (isAdmin || (!isGeneralEntity && canCreateDomainPerm))
+  const canManageFlags = Boolean(entityName) && (isAdmin || (!isGeneralEntity && canUploadFlagPerm))
 
   const { data: entities = [], isLoading: isLoadingEntities } = useEntities({ enabled: Boolean(entityName) })
   const ownEntityProfile = useMemo(
@@ -290,11 +293,10 @@ export default function MyProfile() {
 
       {activeTab === 'flags' && entityName && (
         <Card>
-          <EmptyState
-            icon="ti-flag"
-            title="Coming in a later phase"
-            description="Flag example galleries (Phishing, Scam, External, Spoofing) for your entity."
-          />
+          <h2 className="mb-1 text-sm font-semibold text-gray-900">Flag examples</h2>
+          {!canManageFlags && <p className="mb-3 text-xs text-gray-500">Read-only — you can view but not change this entity&apos;s examples.</p>}
+          {/* Admins would otherwise get every entity's examples; pin to their own. */}
+          <EntityFlagExamplesPanel canManage={canManageFlags} adminEntity={isAdmin ? entityName : null} />
         </Card>
       )}
     </PageShell>

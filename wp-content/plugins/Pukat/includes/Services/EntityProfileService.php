@@ -10,6 +10,7 @@ declare(strict_types=1);
 namespace Pukat\Services;
 
 use Pukat\Repositories\EntityProfileRepository;
+use Pukat\Repositories\FlagExampleRepository;
 use WP_Error;
 
 /**
@@ -357,15 +358,20 @@ class EntityProfileService {
 	public function guardrails_overview(): array {
 		$counts   = $this->repository->guardrail_counts();
 		$contacts = $this->repository->entities_with_report_contact();
+		$examples = ( new FlagExampleRepository() )->counts_by_entity();
 
 		$rows = array_map(
-			fn ( array $profile ): array => $this->with_guardrail_counts( array_merge( $profile, [ 'has_profile' => true ] ), $counts, $contacts ),
+			fn ( array $profile ): array => $this->with_guardrail_counts( array_merge( $profile, [ 'has_profile' => true ] ), $counts, $contacts, $examples ),
 			$this->list()
 		);
 
-		// Entities that only exist through self-service data (domains or a
-		// report contact) but have no profile yet — still shown to admin.
+		// Entities that only exist through self-service data (domains, a
+		// report contact or flag examples) but have no profile yet — still
+		// shown to admin.
 		$candidates = $contacts;
+		foreach ( $examples as $key => $entry ) {
+			$candidates[ $key ] = $candidates[ $key ] ?? $entry['name'];
+		}
 		foreach ( [ 'email', 'landing' ] as $kind ) {
 			foreach ( $counts[ $kind ] as $key => $entry ) {
 				$candidates[ $key ] = $candidates[ $key ] ?? $entry['name'];
@@ -387,7 +393,7 @@ class EntityProfileService {
 				'contact_phone' => null,
 				'status'        => null,
 				'has_profile'   => false,
-			], $counts, $contacts );
+			], $counts, $contacts, $examples );
 		}
 
 		return array_merge( $rows, $orphans );
@@ -397,9 +403,10 @@ class EntityProfileService {
 	 * @param array<string, mixed>  $row
 	 * @param array<string, mixed>  $counts   From EntityProfileRepository::guardrail_counts().
 	 * @param array<string, string> $contacts From EntityProfileRepository::entities_with_report_contact().
+	 * @param array<string, mixed>  $examples From FlagExampleRepository::counts_by_entity().
 	 * @return array<string, mixed>
 	 */
-	private function with_guardrail_counts( array $row, array $counts, array $contacts ): array {
+	private function with_guardrail_counts( array $row, array $counts, array $contacts, array $examples ): array {
 		$key     = strtolower( (string) $row['entity_name'] );
 		$landing = $counts['landing'][ $key ] ?? [ 'total' => 0, 'available' => 0 ];
 		$email   = $counts['email'][ $key ] ?? [ 'total' => 0, 'active' => 0 ];
@@ -410,6 +417,7 @@ class EntityProfileService {
 			'email_domains_total'       => $email['total'],
 			'email_domains_active'      => $email['active'],
 			'report_contact_filled'     => isset( $contacts[ $key ] ),
+			'flag_examples_total'       => (int) ( $examples[ $key ]['total'] ?? 0 ),
 		] );
 	}
 
@@ -551,7 +559,7 @@ class EntityProfileService {
 	 * semantics as CampaignRunService::current_user_can_access_entity()) —
 	 * otherwise the entity must match the current user's own entity meta.
 	 */
-	private function current_user_can_view_entity( string $entity_name ): bool {
+	public function current_user_can_view_entity( string $entity_name ): bool {
 		if ( $this->current_user_can_admin_assets() ) {
 			return true;
 		}
@@ -573,7 +581,7 @@ class EntityProfileService {
 	 * CampaignRunService::enforce_existing_run_editable()'s identical
 	 * General-is-admin-only-to-edit rule.
 	 */
-	private function enforce_entity_editable( string $entity_name ): ?WP_Error {
+	public function enforce_entity_editable( string $entity_name ): ?WP_Error {
 		if ( $this->current_user_can_admin_assets() ) {
 			return null;
 		}
@@ -593,7 +601,7 @@ class EntityProfileService {
 	 * throughout this codebase — see ProfileController::current_user_entity()
 	 * for the fuller explanation of why this is duplicated rather than shared.
 	 */
-	private function current_user_entity(): string {
+	public function current_user_entity(): string {
 		$user_id = get_current_user_id();
 		$entity  = (string) get_user_meta( $user_id, 'meta_entity', true );
 
@@ -608,7 +616,7 @@ class EntityProfileService {
 		return sanitize_text_field( $entity );
 	}
 
-	private function current_user_can_admin_assets(): bool {
+	public function current_user_can_admin_assets(): bool {
 		return current_user_can( 'pukat_manage_settings' ) || current_user_can( 'administrator' );
 	}
 

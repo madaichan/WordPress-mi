@@ -134,6 +134,30 @@ class PermissionRegistry {
 				'oversee' => 'admin',
 			],
 		],
+		// Flag categories (Phishing/Scam/External/Spoofing, ...) are one shared
+		// taxonomy — admin-managed. Flag examples are per-entity galleries the
+		// entity's own users upload to from My Profile; FlagExampleService
+		// enforces which entity's rows a user may touch.
+		// See docs/PRD_AWARENESS_FLAGS_AND_REPORT_CONTACT.md §9.
+		'flags'                    => [
+			'label'     => 'Flag Categories',
+			'group'     => 'Master Library',
+			'view_gate' => 'shared',
+			'actions'   => [
+				'create' => 'admin',
+				'edit'   => 'admin',
+				'delete' => 'admin',
+			],
+		],
+		'flag_examples'            => [
+			'label'     => 'Flag Examples',
+			'group'     => 'Master Library',
+			'view_gate' => 'shared',
+			'actions'   => [
+				'upload' => 'operator',
+				'delete' => 'operator',
+			],
+		],
 		'sending_profile_references' => [
 			'label'     => 'Sending Profile References',
 			'group'     => 'Master Library',

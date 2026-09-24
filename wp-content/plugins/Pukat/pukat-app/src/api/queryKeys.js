@@ -28,6 +28,11 @@ export const queryKeys = {
     reportContact: (entityName) => ['entities', entityName, 'report-contact'],
   },
 
+  flags: {
+    all: ['flags'],
+    examples: (params = {}) => ['flags', 'examples', params],
+  },
+
   gophish: {
     all: ['gophish'],
     status: ['gophish', 'status'],
