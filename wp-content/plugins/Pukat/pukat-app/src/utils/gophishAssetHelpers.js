@@ -20,23 +20,20 @@ export function emailTemplateThumbnail(category) {
   if (category === 'urgent') {
     return {
       icon: 'ti-alert-triangle',
-      bg: 'bg-yellow-500/20 text-yellow-500',
-      bars: [{ w: 'w-24' }],
+      bg: 'bg-amber-100 text-amber-600',
     }
   }
 
   if (category === 'info') {
     return {
       icon: 'ti-receipt',
-      bg: 'bg-emerald-500/20 text-emerald-500',
-      bars: [{ w: 'w-16' }],
+      bg: 'bg-emerald-100 text-emerald-600',
     }
   }
 
   return {
     icon: 'ti-mail-opened',
-    bg: 'bg-red-500/20 text-red-500',
-    bars: [{ w: 'w-16' }, { w: 'w-24' }],
+    bg: 'bg-rose-100 text-rose-600',
   }
 }
 
@@ -110,21 +107,21 @@ export function landingCategoryForCapture({ captureData, capturePass, redirectUr
 export function landingPageThumbnail(category) {
   if (category === 'redirect') {
     return {
-      accent: null,
-      bars: [{ w: 'w-3/4' }],
+      icon: 'ti-arrow-forward-up',
+      bg: 'bg-sky-100 text-sky-600',
     }
   }
 
-  if (category === 'form') {
+  if (category === 'login') {
     return {
-      accent: null,
-      bars: [{ w: 'w-full' }, { w: 'w-4/5' }],
+      icon: 'ti-lock',
+      bg: 'bg-rose-100 text-rose-600',
     }
   }
 
   return {
-    accent: null,
-    bars: [{ w: 'w-full' }, { w: 'w-4/5' }],
+    icon: 'ti-forms',
+    bg: 'bg-violet-100 text-violet-600',
   }
 }
 

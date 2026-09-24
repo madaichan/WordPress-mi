@@ -2,10 +2,13 @@ import { useState, useMemo, useCallback, useEffect } from 'react'
 import clsx from 'clsx'
 import toast from 'react-hot-toast'
 import HtmlCodeEditor from '../../components/Editor/HtmlCodeEditor.jsx'
-import { AssetCard, AssetCreateCard, AssetEditorLayout, BrowserPreview } from '../../features/assets/components/index.js'
+import { AssetCard, AssetCreateCard, AssetEditorLayout, AssetLockBadge, BrowserPreview, HtmlThumbnail } from '../../features/assets/components/index.js'
+import { DataTable } from '../../components/DataTable/index.js'
 import PageHeader from '../../components/UI/PageHeader.jsx'
 import PageShell from '../../components/Layout/PageShell.jsx'
 import Button from '../../components/UI/Button.jsx'
+import TableActionMenu from '../../components/UI/TableActionMenu.jsx'
+import ViewToggle from '../../components/UI/ViewToggle.jsx'
 import AlertConfirmation from '../../components/UI/AlertConfirmation.jsx'
 import { useMasterLandingPages } from '../../hooks/queries/useMasterAssetQueries.js'
 import { useApproveMasterLandingPageVersionMutation, useCreateMasterLandingPageMutation, useDeleteMasterLandingPageMutation, useUpdateMasterLandingPageMutation } from '../../hooks/mutations/useMasterAssetMutations.js'
@@ -13,6 +16,15 @@ import useAppStore from '../../store/useAppStore.js'
 import { canManagePukat } from '../../utils/roles.js'
 import { assetEntityForUser, canUserCreateAsset, canUserEditAsset, filterAssetsForUser } from '../../utils/entityAssignmentHelpers.js'
 import { buildMasterLandingPagePayload, masterAssetLockMessage, masterLandingPageToUiPage } from '../../utils/masterAssetHelpers.js'
+import { paginateRows } from '../../utils/clientTableState.js'
+
+const VIEW_MODE_OPTIONS = [
+  { value: 'grid', icon: 'ti-layout-grid', label: 'Grid view' },
+  { value: 'table', icon: 'ti-list', label: 'Table view' },
+]
+
+const LANDING_TABLE_DEFAULT_STATE = { search: '', sort: 'name', order: 'asc', page: 1, perPage: 10, filters: {} }
+const LANDING_STATUS_TONES = { Published: 'success', Draft: 'gray' }
 
 /* ─── Data ───────────────────────────────────────────────────────────── */
 
@@ -36,28 +48,35 @@ function CaptureBadge({ label }) {
 
 function ThumbnailMockup({ page }) {
   return (
-    <div className="h-32 bg-[#1F1F1F] rounded-lg border border-gray-800 p-3 relative flex flex-col justify-center gap-2 overflow-hidden select-none">
+    <div className="h-32 rounded-lg border border-gray-200 relative flex flex-col overflow-hidden select-none">
+      {/* Category badge */}
+      <span
+        className={clsx(
+          'absolute top-2 left-2 z-10 w-6 h-6 rounded-full flex items-center justify-center text-xs shadow-sm bg-white',
+          page.thumbnail?.bg?.split(' ')[1] || 'text-violet-600'
+        )}
+      >
+        <i className={clsx('ti', page.thumbnail?.icon || 'ti-forms')} />
+      </span>
+
       {/* Master badge */}
-      <span className="absolute top-2 right-2 rounded-full text-[9px] font-semibold px-2 py-0.5 bg-amber-100 text-amber-700">
+      <span className="absolute top-2 right-2 z-10 rounded-full text-[9px] font-semibold px-2 py-0.5 bg-amber-100 text-amber-700 shadow-sm">
         Master
       </span>
 
-      {/* Accent element */}
-      {page.thumbnail.accent}
-
-      {/* Bars */}
-      <div className="space-y-2 mt-2">
-        {page.thumbnail.bars.map((bar, i) => (
-          <div key={i} className={clsx('h-2.5 bg-gray-700/60 rounded', bar.w)} />
-        ))}
+      {/* Live preview */}
+      <div className="relative flex-1 min-h-0 bg-white">
+        <HtmlThumbnail html={page.html} />
       </div>
 
       {/* Badges */}
-      <div className="absolute bottom-2 left-2 flex items-center gap-1.5">
-        {page.badges.map((badge) => (
-          <CaptureBadge key={badge} label={badge} />
-        ))}
-      </div>
+      {page.badges?.length > 0 && (
+        <div className="absolute bottom-2 left-2 z-10 flex items-center gap-1.5">
+          {page.badges.map((badge) => (
+            <CaptureBadge key={badge} label={badge} />
+          ))}
+        </div>
+      )}
     </div>
   )
 }
@@ -116,6 +135,30 @@ function LandingPageCard({ page, canEdit, canApprove, onEdit, onPreview, onDelet
         cls: page.status === 'Published' ? 'bg-emerald-100 text-emerald-700' : 'bg-gray-100 text-gray-600',
       }}
     />
+  )
+}
+
+function LandingPageEntityCell({ page }) {
+  return (
+    <div className="flex flex-wrap items-center gap-1.5">
+      {page.entity ? (
+        <span className="inline-flex rounded-full bg-gray-100 px-2 py-0.5 text-[10px] font-semibold text-gray-600">{page.entity}</span>
+      ) : (
+        <span className="text-gray-300">—</span>
+      )}
+      <AssetLockBadge locked={page.editLocked} reason={masterAssetLockMessage(page, 'Landing page')} />
+    </div>
+  )
+}
+
+function LandingPageCaptureCell({ page }) {
+  if (!page.badges?.length) return <span className="text-gray-300">—</span>
+  return (
+    <div className="flex flex-wrap items-center gap-1.5">
+      {page.badges.map((badge) => (
+        <CaptureBadge key={badge} label={badge} />
+      ))}
+    </div>
   )
 }
 
@@ -295,6 +338,8 @@ export default function LandingPages() {
   const [activeTab, setActiveTab] = useState('list')
   const [activeFilter, setActiveFilter] = useState('all')
   const [searchQuery, setSearchQuery] = useState('')
+  const [viewMode, setViewMode] = useState('grid')
+  const [tableState, setTableState] = useState(LANDING_TABLE_DEFAULT_STATE)
   const [previewTitle, setPreviewTitle] = useState('Microsoft 365 Login')
 
   // Editor / Preview Shared state (lifting state up)
@@ -349,17 +394,16 @@ export default function LandingPages() {
   }, [currentUser, masterPages])
 
   /* ── Filtered cards ── */
+  const categoryFilteredPages = useMemo(() => {
+    if (activeFilter === 'all') return pages
+    return pages.filter((p) => p.category === activeFilter)
+  }, [pages, activeFilter])
+
   const filteredPages = useMemo(() => {
-    let list = pages
-    if (activeFilter !== 'all') {
-      list = list.filter((p) => p.category === activeFilter)
-    }
-    if (searchQuery.trim()) {
-      const q = searchQuery.toLowerCase()
-      list = list.filter((p) => p.name.toLowerCase().includes(q))
-    }
-    return list
-  }, [pages, activeFilter, searchQuery])
+    if (!searchQuery.trim()) return categoryFilteredPages
+    const q = searchQuery.toLowerCase()
+    return categoryFilteredPages.filter((p) => p.name.toLowerCase().includes(q))
+  }, [categoryFilteredPages, searchQuery])
 
   const categories = useMemo(() => {
     return [
@@ -524,6 +568,53 @@ export default function LandingPages() {
     toast.success(`Master database refreshed - ${result.data?.length ?? 0} landing pages`)
   }, [refetch])
 
+  function renderLandingPageActionsCell(page) {
+    const canEdit = canUserEditAsset(page, currentUser)
+    const canApprove = canApproveLandingPages
+      && page.status !== 'Published'
+      && Number(currentUser.id) !== Number(page.versionCreatedBy)
+      && Number(currentUser.id) !== Number(page.versionUpdatedBy)
+    const lockMessage = masterAssetLockMessage(page, 'Landing page')
+
+    const menuItems = [
+      canEdit && { key: 'edit', label: 'Edit', icon: 'ti-edit', disabled: page.editLocked, reason: page.editLocked ? lockMessage : undefined },
+      canEdit && { key: 'delete', label: 'Delete', icon: 'ti-trash', disabled: page.editLocked, reason: page.editLocked ? lockMessage : undefined },
+      canApprove && { key: 'approve', label: 'Approve', icon: 'ti-shield-check' },
+    ].filter(Boolean)
+
+    return (
+      <div className="inline-flex items-center justify-end gap-1.5">
+        <Button variant="secondary" size="sm" onClick={() => handlePreview(page.id)}>
+          <i className="ti ti-eye" />
+          Preview
+        </Button>
+        <TableActionMenu
+          items={menuItems}
+          triggerTitle="More Actions"
+          onSelect={actionKey => {
+            if (actionKey === 'edit') handleEdit(page.id)
+            else if (actionKey === 'delete') handleDelete(page.id)
+            else if (actionKey === 'approve') handleApprove(page.id)
+          }}
+        />
+      </div>
+    )
+  }
+
+  const landingPageColumns = [
+    { key: 'name', label: 'Landing page', renderer: 'text_with_subtext', subtextKey: 'description', sortable: true },
+    { key: 'redirectUrl', label: 'Redirect URL', renderer: 'text' },
+    { key: 'entity', label: 'Entity', renderer: 'custom', render: page => <LandingPageEntityCell page={page} /> },
+    { key: 'capture', label: 'Capture', renderer: 'custom', render: page => <LandingPageCaptureCell page={page} /> },
+    { key: 'status', label: 'Status', renderer: 'badge', toneMap: LANDING_STATUS_TONES },
+    { key: 'actions', label: '', renderer: 'custom', align: 'right', render: renderLandingPageActionsCell },
+  ]
+
+  const { rows: landingTableRows, total: landingTableTotal } = useMemo(
+    () => paginateRows(categoryFilteredPages, tableState, { searchFields: ['name', 'description', 'redirectUrl'] }),
+    [categoryFilteredPages, tableState],
+  )
+
   /* ── Tab button classes ── */
   const tabBtnClass = (tab) =>
     clsx(
@@ -550,19 +641,21 @@ export default function LandingPages() {
         subtitle="Managed from a master database"
         actions={
           <>
-            {/* Search bar */}
-            <div className="relative w-64">
-              <span className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none text-gray-400">
-                <i className="ti ti-search text-base" />
-              </span>
-              <input
-                type="text"
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
-                placeholder="Cari landing page..."
-                className="w-full bg-white border border-gray-200 rounded-xl pl-9 pr-4 py-2 text-sm text-gray-950 placeholder-gray-400 focus:outline-none focus:border-violet-500 transition-colors"
-              />
-            </div>
+            {/* Search bar (table view has its own, in the DataTable toolbar) */}
+            {viewMode === 'grid' && (
+              <div className="relative w-64">
+                <span className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none text-gray-400">
+                  <i className="ti ti-search text-base" />
+                </span>
+                <input
+                  type="text"
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                  placeholder="Cari landing page..."
+                  className="w-full bg-white border border-gray-200 rounded-xl pl-9 pr-4 py-2 text-sm text-gray-950 placeholder-gray-400 focus:outline-none focus:border-violet-500 transition-colors"
+                />
+              </div>
+            )}
             {/* Sync button */}
             <Button variant="outline" onClick={handleSync} disabled={syncing || isFetching}>
               <i className={clsx('ti ti-refresh text-base', (syncing || isFetching) && 'animate-spin')} />
@@ -606,44 +699,62 @@ export default function LandingPages() {
         {activeTab === 'list' && (
           <div className="space-y-6 animate-fade-in">
             {/* Filter Pills */}
-            <div className="flex flex-wrap items-center gap-2">
-              {categories.map((cat) => (
-                <button
-                  key={cat.key}
-                  onClick={() => setActiveFilter(cat.key)}
-                  className={pillClass(cat.key)}
-                >
-                  {cat.label} ({cat.count})
-                </button>
-              ))}
+            <div className="flex flex-wrap items-center justify-between gap-2">
+              <div className="flex flex-wrap items-center gap-2">
+                {categories.map((cat) => (
+                  <button
+                    key={cat.key}
+                    onClick={() => setActiveFilter(cat.key)}
+                    className={pillClass(cat.key)}
+                  >
+                    {cat.label} ({cat.count})
+                  </button>
+                ))}
+              </div>
+              <ViewToggle value={viewMode} onChange={setViewMode} options={VIEW_MODE_OPTIONS} />
             </div>
 
+            {isLoading && (
+              <div className="bg-white border border-gray-200 rounded-xl p-8 text-center text-sm text-gray-400">
+                Memuat landing page dari master database...
+              </div>
+            )}
+
             {/* Landing Pages Grid */}
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-              {isLoading && (
-                <div className="bg-white border border-gray-200 rounded-xl p-8 text-center text-sm text-gray-400">
-                  Memuat landing page dari master database...
-                </div>
-              )}
-              {!isLoading && filteredPages.map((page) => (
-                <LandingPageCard
-                  key={page.id}
-                  page={page}
-                  canEdit={canUserEditAsset(page, currentUser)}
-                  canApprove={
-                    canApproveLandingPages
-                    && page.status !== 'Published'
-                    && Number(currentUser.id) !== Number(page.versionCreatedBy)
-                    && Number(currentUser.id) !== Number(page.versionUpdatedBy)
-                  }
-                  onEdit={handleEdit}
-                  onPreview={handlePreview}
-                  onDelete={handleDelete}
-                  onApprove={handleApprove}
-                />
-              ))}
-              {canCreateAssets && <AssetCreateCard label="Create landing page" onClick={handleCreate} />}
-            </div>
+            {!isLoading && viewMode === 'grid' && (
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                {filteredPages.map((page) => (
+                  <LandingPageCard
+                    key={page.id}
+                    page={page}
+                    canEdit={canUserEditAsset(page, currentUser)}
+                    canApprove={
+                      canApproveLandingPages
+                      && page.status !== 'Published'
+                      && Number(currentUser.id) !== Number(page.versionCreatedBy)
+                      && Number(currentUser.id) !== Number(page.versionUpdatedBy)
+                    }
+                    onEdit={handleEdit}
+                    onPreview={handlePreview}
+                    onDelete={handleDelete}
+                    onApprove={handleApprove}
+                  />
+                ))}
+                {canCreateAssets && <AssetCreateCard label="Create landing page" onClick={handleCreate} />}
+              </div>
+            )}
+
+            {/* Landing Pages Table */}
+            {!isLoading && viewMode === 'table' && (
+              <DataTable
+                tableKey="landing_pages"
+                schema={{ columns: landingPageColumns, search: { placeholder: 'Cari landing page...' } }}
+                rows={landingTableRows}
+                meta={{ total: landingTableTotal, per_page: tableState.perPage }}
+                state={tableState}
+                onStateChange={setTableState}
+              />
+            )}
           </div>
         )}
 
