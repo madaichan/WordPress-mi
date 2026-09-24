@@ -36,8 +36,15 @@ export function useDeleteFlagMutation(options = {}) {
   return useFlagMutation(id => flagApi.delete(id), 'Flag category deleted.', FLAG_KEYS, options)
 }
 
+// Called as mutate({ formData, onProgress }) — onProgress receives axios
+// upload progress events (bytes sent), for the upload progress indicator.
 export function useUploadFlagExampleMutation(options = {}) {
-  return useFlagMutation(formData => flagApi.uploadExample(formData), 'Example uploaded.', EXAMPLE_KEYS, options)
+  return useFlagMutation(
+    ({ formData, onProgress }) => flagApi.uploadExample(formData, onProgress),
+    'Example uploaded.',
+    EXAMPLE_KEYS,
+    options
+  )
 }
 
 export function useDeleteFlagExampleMutation(options = {}) {

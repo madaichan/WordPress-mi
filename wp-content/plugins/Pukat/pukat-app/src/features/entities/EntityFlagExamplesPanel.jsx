@@ -1,4 +1,4 @@
-import { useMemo, useRef, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import clsx from 'clsx'
 import toast from 'react-hot-toast'
 import { useFlags, useFlagExamples } from '../../hooks/queries/useFlagQueries.js'
@@ -6,6 +6,7 @@ import { useUploadFlagExampleMutation, useDeleteFlagExampleMutation } from '../.
 import Input from '../../components/UI/Input.jsx'
 import Button from '../../components/UI/Button.jsx'
 import Badge from '../../components/UI/Badge.jsx'
+import UploadProgress from '../../components/UI/UploadProgress.jsx'
 
 const ACCEPT = 'image/png,image/jpeg,image/webp'
 
@@ -30,13 +31,33 @@ export default function EntityFlagExamplesPanel({ canManage = false, adminEntity
   const [file, setFile] = useState(null)
   const [caption, setCaption] = useState('')
   const fileInputRef = useRef(null)
+  // { percent, phase: 'uploading' | 'processing', fileName, fileSize } while an upload runs.
+  const [upload, setUpload] = useState(null)
+  const [elapsed, setElapsed] = useState(0)
   const uploadMutation = useUploadFlagExampleMutation({
     onSuccess: () => {
+      setUpload(null)
       setFile(null)
       setCaption('')
       if (fileInputRef.current) fileInputRef.current.value = ''
     },
+    onError: () => setUpload(null),
   })
+  const isUploading = uploadMutation.isPending
+
+  // Elapsed-seconds counter + leave-page warning, only while an upload runs.
+  useEffect(() => {
+    if (!isUploading) return undefined
+    setElapsed(0)
+    const started = Date.now()
+    const timer = setInterval(() => setElapsed(Math.floor((Date.now() - started) / 1000)), 1000)
+    const warnOnLeave = event => { event.preventDefault(); event.returnValue = '' }
+    window.addEventListener('beforeunload', warnOnLeave)
+    return () => {
+      clearInterval(timer)
+      window.removeEventListener('beforeunload', warnOnLeave)
+    }
+  }, [isUploading])
   const deleteMutation = useDeleteFlagExampleMutation()
 
   const countByFlag = useMemo(() => {
@@ -61,7 +82,16 @@ export default function EntityFlagExamplesPanel({ canManage = false, adminEntity
     formData.append('flag_id', String(flagId))
     if (caption.trim()) formData.append('caption', caption.trim())
     if (adminEntity) formData.append('entity', adminEntity)
-    uploadMutation.mutate(formData)
+
+    setUpload({ percent: 0, phase: 'uploading', fileName: file.name, fileSize: file.size })
+    uploadMutation.mutate({
+      formData,
+      onProgress: event => {
+        const percent = event.total ? Math.min(100, Math.round((event.loaded * 100) / event.total)) : 0
+        // All bytes sent — the server is now resizing/creating thumbnails.
+        setUpload(current => current && { ...current, percent, phase: percent >= 100 ? 'processing' : 'uploading' })
+      },
+    })
   }
 
   function handleDelete(example) {
@@ -85,8 +115,10 @@ export default function EntityFlagExamplesPanel({ canManage = false, adminEntity
             key={flag.id}
             type="button"
             onClick={() => setSelectedFlagId(flag.id)}
+            disabled={isUploading}
+            title={isUploading ? 'Wait for the current upload to finish' : undefined}
             className={clsx(
-              'flex items-center gap-1.5 rounded-full border px-3 py-1 text-xs font-semibold transition-colors',
+              'flex items-center gap-1.5 rounded-full border px-3 py-1 text-xs font-semibold transition-colors disabled:cursor-not-allowed disabled:opacity-60',
               flag.id === flagId ? 'border-violet-500 bg-violet-50 text-violet-600' : 'border-gray-200 text-gray-600 hover:border-gray-300'
             )}
           >
@@ -104,14 +136,25 @@ export default function EntityFlagExamplesPanel({ canManage = false, adminEntity
             type="file"
             accept={ACCEPT}
             onChange={e => setFile(e.target.files?.[0] || null)}
+            disabled={isUploading}
             className="block w-full text-xs text-gray-600 file:mr-3 file:rounded-md file:border-0 file:bg-violet-50 file:px-3 file:py-1.5 file:text-xs file:font-semibold file:text-violet-600"
           />
           <div className="flex gap-2">
-            <Input value={caption} onChange={e => setCaption(e.target.value)} placeholder="Short caption (optional)" maxLength={255} />
-            <Button variant="primary" onClick={handleUpload} disabled={uploadMutation.isPending || !file}>
-              {uploadMutation.isPending ? 'Uploading...' : 'Upload'}
+            <Input value={caption} onChange={e => setCaption(e.target.value)} placeholder="Short caption (optional)" maxLength={255} disabled={isUploading} />
+            <Button variant="primary" onClick={handleUpload} disabled={isUploading || !file}>
+              {isUploading ? 'Uploading…' : 'Upload'}
             </Button>
           </div>
+          {isUploading && upload && (
+            <UploadProgress
+              fileName={upload.fileName}
+              fileSize={upload.fileSize}
+              percent={upload.percent}
+              phase={upload.phase}
+              elapsedSeconds={elapsed}
+              processingHint="Large images can take up to ~20 s"
+            />
+          )}
           <p className="text-[11px] text-gray-400">
             PNG, JPEG or WebP{maxBytes ? `, up to ${Math.floor(maxBytes / 1024 / 1024)} MB` : ''}
             {data?.max_megapixels ? ` and ${data.max_megapixels} megapixels` : ''}.

@@ -13,7 +13,10 @@ export const flagApi = {
   // serialize a FormData body to JSON (the file would be silently dropped).
   // Declaring multipart here makes axios keep the FormData and let the
   // browser set the boundary itself.
-  uploadExample: (formData) => post('/flag-examples', formData, { headers: { 'Content-Type': 'multipart/form-data' } }),
+  uploadExample: (formData, onUploadProgress) => post('/flag-examples', formData, {
+    headers: { 'Content-Type': 'multipart/form-data' },
+    onUploadProgress,
+  }),
   deleteExample: (id) => del(`/flag-examples/${id}`),
 }
 
