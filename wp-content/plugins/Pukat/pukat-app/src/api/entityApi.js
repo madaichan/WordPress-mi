@@ -4,6 +4,10 @@ function emailDomainsPath(entityName) {
   return `/entities/by-name/${encodeURIComponent(entityName)}/email-domains`
 }
 
+function reportContactPath(entityName) {
+  return `/entities/by-name/${encodeURIComponent(entityName)}/report-contact`
+}
+
 export const entityApi = {
   list:   ()        => get('/entities'),
   get:    (id)       => get(`/entities/${id}`),
@@ -18,6 +22,9 @@ export const entityApi = {
   addEmailDomain:        (entityName, domain)     => post(emailDomainsPath(entityName), { domain }),
   removeEmailDomain:     (entityName, id)         => del(`${emailDomainsPath(entityName)}/${id}`),
   setEmailDomainStatus:  (entityName, id, status) => patch(`${emailDomainsPath(entityName)}/${id}`, { status }),
+
+  getReportContact:  (entityName)       => get(reportContactPath(entityName)),
+  saveReportContact: (entityName, data) => put(reportContactPath(entityName), data),
 }
 
 export default entityApi

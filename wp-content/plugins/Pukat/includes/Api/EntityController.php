@@ -83,6 +83,20 @@ class EntityController extends RestController {
 			],
 		] );
 
+		// Per-entity call center report contact (docs/PRD_AWARENESS_FLAGS_AND_REPORT_CONTACT.md FR-6).
+		register_rest_route( $this->namespace, '/entities/by-name/(?P<entity_name>[^/]+)/report-contact', [
+			[
+				'methods'             => 'GET',
+				'callback'            => [ $this, 'get_report_contact' ],
+				'permission_callback' => [ $this, 'permission_view_entity' ],
+			],
+			[
+				'methods'             => 'PUT',
+				'callback'            => [ $this, 'save_report_contact' ],
+				'permission_callback' => [ $this, 'permission_edit_entity' ],
+			],
+		] );
+
 		// Admin oversight summary (docs/PRD_ENTITY_PROFILE_AND_GUARDRAILS.md §14.2).
 		register_rest_route( $this->namespace, '/entities/guardrails-overview', [
 			'methods'             => 'GET',
@@ -219,6 +233,20 @@ class EntityController extends RestController {
 			(int) $request->get_param( 'id' ),
 			(string) $request->get_param( 'entity_name' ),
 			(string) ( $params['status'] ?? '' ),
+			get_current_user_id()
+		);
+
+		return $this->result_response( $result );
+	}
+
+	public function get_report_contact( WP_REST_Request $request ): WP_REST_Response {
+		return $this->success( $this->entities->get_report_contact( (string) $request->get_param( 'entity_name' ) ) );
+	}
+
+	public function save_report_contact( WP_REST_Request $request ): WP_REST_Response {
+		$result = $this->entities->save_report_contact(
+			(string) $request->get_param( 'entity_name' ),
+			$this->request_params( $request ),
 			get_current_user_id()
 		);
 

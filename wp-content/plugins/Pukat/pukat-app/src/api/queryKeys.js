@@ -25,6 +25,7 @@ export const queryKeys = {
     all: ['entities'],
     overview: ['entities', 'guardrails-overview'],
     emailDomains: (entityName) => ['entities', entityName, 'email-domains'],
+    reportContact: (entityName) => ['entities', entityName, 'report-contact'],
   },
 
   gophish: {

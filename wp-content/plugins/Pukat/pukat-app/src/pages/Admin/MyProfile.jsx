@@ -15,6 +15,7 @@ import EmptyState from '../../components/UI/EmptyState.jsx'
 import EntityProfileForm from '../../features/entities/EntityProfileForm.jsx'
 import EntityEmailDomainsPanel from '../../features/entities/EntityEmailDomainsPanel.jsx'
 import EntityLandingDomainsPanel from '../../features/entities/EntityLandingDomainsPanel.jsx'
+import EntityReportContactForm from '../../features/entities/EntityReportContactForm.jsx'
 
 const logoutUrl = window.PukatData?.logoutUrl || `${window.PukatData?.adminUrl || '/wp-admin/'}wp-login.php?action=logout`
 
@@ -275,14 +276,24 @@ export default function MyProfile() {
         </>
       )}
 
-      {(activeTab === 'flags' || activeTab === 'report') && entityName && (
+      {activeTab === 'report' && entityName && (
+        <Card>
+          <h2 className="mb-1 text-sm font-semibold text-gray-900">Call Center Report</h2>
+          <p className="mb-4 text-xs text-gray-500">
+            {canEditEntity
+              ? 'Who employees of your entity should contact to report a suspicious email.'
+              : 'Read-only — only an admin can edit this entity.'}
+          </p>
+          <EntityReportContactForm entityName={entityName} canEdit={canEditEntity} />
+        </Card>
+      )}
+
+      {activeTab === 'flags' && entityName && (
         <Card>
           <EmptyState
-            icon={activeTab === 'flags' ? 'ti-flag' : 'ti-headset'}
+            icon="ti-flag"
             title="Coming in a later phase"
-            description={activeTab === 'flags'
-              ? 'Flag example galleries (Phishing, Scam, External, Spoofing) for your entity.'
-              : "Your entity's call center contact for phishing reports."}
+            description="Flag example galleries (Phishing, Scam, External, Spoofing) for your entity."
           />
         </Card>
       )}

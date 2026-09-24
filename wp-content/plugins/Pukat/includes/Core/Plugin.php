@@ -19,6 +19,7 @@ use Pukat\Api\MasterComponentController;
 use Pukat\Api\PlaybookController;
 use Pukat\Api\PlaybookMasterController;
 use Pukat\Api\ProfileController;
+use Pukat\Api\PublicController;
 use Pukat\Api\QuizController;
 use Pukat\Api\ReportController;
 use Pukat\Api\RoleController;
@@ -323,6 +324,7 @@ final class Plugin {
 		( new UserController() )->register_routes();
 		( new ProfileController() )->register_routes();
 		( new EntityController() )->register_routes();
+		( new PublicController() )->register_routes();
 		( new TableController() )->register_routes();
 		( new RoleController() )->register_routes();
 	}

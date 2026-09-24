@@ -520,6 +520,26 @@ class Activator {
 			KEY entity_name (entity_name)
 		) $charset_collate;";
 
+		// -----------------------------------------------------------------------
+		// pukat_report_contacts — each entity's own call center / phishing
+		// report contact, self-managed from My Profile and exposed read-only
+		// via /public/report-contact for a future Outlook "Report" add-in.
+		// One row per entity, matched by entity_name string like the tables
+		// above. See docs/PRD_AWARENESS_FLAGS_AND_REPORT_CONTACT.md.
+		// -----------------------------------------------------------------------
+		$sql[] = "CREATE TABLE IF NOT EXISTS {$prefix}report_contacts (
+			id             BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
+			entity_name    VARCHAR(255)    NOT NULL,
+			contact_name   VARCHAR(255)    DEFAULT NULL,
+			contact_phone  VARCHAR(50)     DEFAULT NULL,
+			contact_email  VARCHAR(255)    DEFAULT NULL,
+			updated_by     BIGINT UNSIGNED DEFAULT NULL,
+			created_at     DATETIME        NOT NULL DEFAULT CURRENT_TIMESTAMP,
+			updated_at     DATETIME        NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+			PRIMARY KEY (id),
+			UNIQUE KEY entity_name (entity_name)
+		) $charset_collate;";
+
 		foreach ( $sql as $query ) {
 			dbDelta( $query );
 		}
@@ -769,6 +789,13 @@ class Activator {
 		if ( version_compare( $db_version, '1.15.0', '<' ) ) {
 			self::seed_rbac_defaults();
 			update_option( 'pukat_db_version', '1.15.0' );
+		}
+
+		// Per-entity call center report contact (pukat_report_contacts).
+		// Reuses master_entities.* capabilities, so no RBAC re-seed needed.
+		if ( version_compare( $db_version, '1.16.0', '<' ) ) {
+			self::create_tables();
+			update_option( 'pukat_db_version', '1.16.0' );
 		}
 	}
 

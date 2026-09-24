@@ -18,6 +18,15 @@ export function useGuardrailsOverview(options = {}) {
   })
 }
 
+export function useEntityReportContact(entityName, options = {}) {
+  return useQuery({
+    queryKey: queryKeys.entities.reportContact(entityName),
+    queryFn: () => entityApi.getReportContact(entityName),
+    enabled: Boolean(entityName),
+    ...options,
+  })
+}
+
 export function useEntityEmailDomains(entityName, options = {}) {
   return useQuery({
     queryKey: queryKeys.entities.emailDomains(entityName),

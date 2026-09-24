@@ -355,42 +355,51 @@ class EntityProfileService {
 	 * @return array<int, array<string, mixed>>
 	 */
 	public function guardrails_overview(): array {
-		$counts = $this->repository->guardrail_counts();
+		$counts   = $this->repository->guardrail_counts();
+		$contacts = $this->repository->entities_with_report_contact();
 
-		$rows = array_map( fn ( array $profile ): array => $this->with_guardrail_counts( array_merge( $profile, [ 'has_profile' => true ] ), $counts ), $this->list() );
+		$rows = array_map(
+			fn ( array $profile ): array => $this->with_guardrail_counts( array_merge( $profile, [ 'has_profile' => true ] ), $counts, $contacts ),
+			$this->list()
+		);
 
-		$known = array_map( static fn ( array $row ): string => strtolower( (string) $row['entity_name'] ), $rows );
-		$orphans = [];
+		// Entities that only exist through self-service data (domains or a
+		// report contact) but have no profile yet — still shown to admin.
+		$candidates = $contacts;
 		foreach ( [ 'email', 'landing' ] as $kind ) {
 			foreach ( $counts[ $kind ] as $key => $entry ) {
-				if ( '' === $key || in_array( $key, $known, true ) || isset( $orphans[ $key ] ) ) {
-					continue;
-				}
-				if ( ! $this->current_user_can_view_entity( $entry['name'] ) ) {
-					continue;
-				}
-				$orphans[ $key ] = $this->with_guardrail_counts( [
-					'id'            => null,
-					'entity_name'   => $entry['name'],
-					'description'   => null,
-					'contact_name'  => null,
-					'contact_email' => null,
-					'contact_phone' => null,
-					'status'        => null,
-					'has_profile'   => false,
-				], $counts );
+				$candidates[ $key ] = $candidates[ $key ] ?? $entry['name'];
 			}
 		}
 
-		return array_merge( $rows, array_values( $orphans ) );
+		$known   = array_map( static fn ( array $row ): string => strtolower( (string) $row['entity_name'] ), $rows );
+		$orphans = [];
+		foreach ( $candidates as $key => $name ) {
+			if ( '' === $key || in_array( $key, $known, true ) || ! $this->current_user_can_view_entity( $name ) ) {
+				continue;
+			}
+			$orphans[] = $this->with_guardrail_counts( [
+				'id'            => null,
+				'entity_name'   => $name,
+				'description'   => null,
+				'contact_name'  => null,
+				'contact_email' => null,
+				'contact_phone' => null,
+				'status'        => null,
+				'has_profile'   => false,
+			], $counts, $contacts );
+		}
+
+		return array_merge( $rows, $orphans );
 	}
 
 	/**
-	 * @param array<string, mixed> $row
-	 * @param array<string, mixed> $counts From EntityProfileRepository::guardrail_counts().
+	 * @param array<string, mixed>  $row
+	 * @param array<string, mixed>  $counts   From EntityProfileRepository::guardrail_counts().
+	 * @param array<string, string> $contacts From EntityProfileRepository::entities_with_report_contact().
 	 * @return array<string, mixed>
 	 */
-	private function with_guardrail_counts( array $row, array $counts ): array {
+	private function with_guardrail_counts( array $row, array $counts, array $contacts ): array {
 		$key     = strtolower( (string) $row['entity_name'] );
 		$landing = $counts['landing'][ $key ] ?? [ 'total' => 0, 'available' => 0 ];
 		$email   = $counts['email'][ $key ] ?? [ 'total' => 0, 'active' => 0 ];
@@ -400,7 +409,93 @@ class EntityProfileService {
 			'landing_domains_available' => $landing['available'],
 			'email_domains_total'       => $email['total'],
 			'email_domains_active'      => $email['active'],
+			'report_contact_filled'     => isset( $contacts[ $key ] ),
 		] );
+	}
+
+	/**
+	 * The entity's call center report contact (docs/PRD_AWARENESS_FLAGS_AND_REPORT_CONTACT.md
+	 * FR-6). Same read scope as list_email_domains(): an entity the caller
+	 * can't view comes back as empty fields, not an error.
+	 *
+	 * @return array<string, string>
+	 */
+	public function get_report_contact( string $entity_name ): array {
+		if ( ! $this->current_user_can_view_entity( $entity_name ) ) {
+			return $this->prepare_report_contact( $entity_name, null );
+		}
+
+		return $this->prepare_report_contact( $entity_name, $this->repository->find_report_contact( $entity_name ) );
+	}
+
+	/**
+	 * @param array<string, mixed> $params contact_name/contact_phone/contact_email.
+	 * @return array<string, string>|WP_Error
+	 */
+	public function save_report_contact( string $entity_name, array $params, int $user_id ): array|WP_Error {
+		$entity_name = sanitize_text_field( $entity_name );
+		if ( '' === trim( $entity_name ) ) {
+			return $this->validation_error( __( 'Entity name is required.', 'pukat' ) );
+		}
+
+		$edit_error = $this->enforce_entity_editable( $entity_name );
+		if ( $edit_error ) {
+			return $edit_error;
+		}
+
+		$email = trim( (string) ( $params['contact_email'] ?? '' ) );
+		if ( '' !== $email && ! is_email( $email ) ) {
+			return $this->validation_error( __( 'Please provide a valid contact email.', 'pukat' ) );
+		}
+
+		$data = [
+			'contact_name'  => $this->sanitize_optional_text( $params['contact_name'] ?? null ),
+			'contact_phone' => $this->sanitize_optional_text( $params['contact_phone'] ?? null ),
+			'contact_email' => $this->sanitize_optional_email( $email ),
+			'updated_by'    => $user_id,
+		];
+
+		if ( ! $this->repository->upsert_report_contact( $entity_name, $data ) ) {
+			return $this->db_error( __( 'Failed to save the report contact.', 'pukat' ) );
+		}
+
+		AuditLogService::log(
+			'entity_profile.report_contact_updated',
+			[ 'entity_name' => $entity_name ],
+			$user_id,
+			'entity_profile',
+			null
+		);
+
+		return $this->prepare_report_contact( $entity_name, $this->repository->find_report_contact( $entity_name ) );
+	}
+
+	/**
+	 * Unauthenticated lookup for the public endpoint (future Outlook add-in).
+	 * Deliberately bypasses entity scoping — it's public, read-only contact
+	 * info — and returns only the whitelisted fields from
+	 * prepare_report_contact(), never the raw row.
+	 *
+	 * @return array<string, string>
+	 */
+	public function public_report_contact( string $entity_name ): array {
+		$entity_name = sanitize_text_field( $entity_name );
+		$row         = '' === trim( $entity_name ) ? null : $this->repository->find_report_contact( $entity_name );
+
+		return $this->prepare_report_contact( $entity_name, $row );
+	}
+
+	/**
+	 * @param array<string, mixed>|null $row
+	 * @return array<string, string>
+	 */
+	private function prepare_report_contact( string $entity_name, ?array $row ): array {
+		return [
+			'entity_name'   => $row ? (string) $row['entity_name'] : $entity_name,
+			'contact_name'  => (string) ( $row['contact_name'] ?? '' ),
+			'contact_phone' => (string) ( $row['contact_phone'] ?? '' ),
+			'contact_email' => (string) ( $row['contact_email'] ?? '' ),
+		];
 	}
 
 	/**

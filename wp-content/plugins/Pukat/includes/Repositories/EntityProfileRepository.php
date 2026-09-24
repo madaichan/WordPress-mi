@@ -147,6 +147,59 @@ class EntityProfileRepository {
 		return false !== $wpdb->delete( $this->domains_table(), [ 'id' => $id ] );
 	}
 
+	/**
+	 * @return array<string, mixed>|null
+	 */
+	public function find_report_contact( string $entity_name ): ?array {
+		global $wpdb;
+
+		$row = $wpdb->get_row(
+			$wpdb->prepare( "SELECT * FROM {$this->contacts_table()} WHERE LOWER(entity_name) = LOWER(%s)", $entity_name ),
+			ARRAY_A
+		);
+
+		return $row ?: null;
+	}
+
+	/**
+	 * One contact row per entity — updates the existing row, inserts if none.
+	 *
+	 * @param array<string, mixed> $data contact_name/contact_phone/contact_email/updated_by.
+	 */
+	public function upsert_report_contact( string $entity_name, array $data ): bool {
+		global $wpdb;
+
+		$existing = $this->find_report_contact( $entity_name );
+		if ( $existing ) {
+			return false !== $wpdb->update( $this->contacts_table(), $data, [ 'id' => (int) $existing['id'] ] );
+		}
+
+		return false !== $wpdb->insert( $this->contacts_table(), array_merge( $data, [ 'entity_name' => $entity_name ] ) );
+	}
+
+	/**
+	 * Entities that have at least one contact field filled — for the admin
+	 * oversight column, in one query. Keyed by lowercased name, value is the
+	 * stored name (needed to display entities that have no profile yet).
+	 *
+	 * @return array<string, string>
+	 */
+	public function entities_with_report_contact(): array {
+		global $wpdb;
+
+		$names = $wpdb->get_col(
+			"SELECT entity_name FROM {$this->contacts_table()}
+			 WHERE COALESCE(contact_name, '') <> '' OR COALESCE(contact_phone, '') <> '' OR COALESCE(contact_email, '') <> ''"
+		) ?: [];
+
+		$map = [];
+		foreach ( $names as $name ) {
+			$map[ strtolower( (string) $name ) ] = (string) $name;
+		}
+
+		return $map;
+	}
+
 	public function update_email_domain_status( int $id, string $status ): bool {
 		global $wpdb;
 
@@ -227,5 +280,11 @@ class EntityProfileRepository {
 		global $wpdb;
 
 		return $wpdb->prefix . 'pukat_target_email_domains';
+	}
+
+	private function contacts_table(): string {
+		global $wpdb;
+
+		return $wpdb->prefix . 'pukat_report_contacts';
 	}
 }

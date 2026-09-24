@@ -181,13 +181,14 @@ export default function MasterEntities() {
               <th>Contact</th>
               <th>Landing domains</th>
               <th>Email domains</th>
+              <th>Report contact</th>
               <th>Actions</th>
             </tr>
           </thead>
           <tbody>
             {isLoading
               ? [...Array(3)].map((_, i) => (
-                  <tr key={i}>{[...Array(5)].map((_, j) => <td key={j}><div className="h-4 animate-pulse rounded bg-gray-100" /></td>)}</tr>
+                  <tr key={i}>{[...Array(6)].map((_, j) => <td key={j}><div className="h-4 animate-pulse rounded bg-gray-100" /></td>)}</tr>
                 ))
               : rows.map(row => (
                   <tr key={row.id ?? `no-profile-${row.entity_name}`}>
@@ -205,6 +206,7 @@ export default function MasterEntities() {
                     <td className="text-gray-500">{row.contact_email || row.contact_name || <span className="text-gray-300">Not filled</span>}</td>
                     <td><CountCell value={row.landing_domains_available} total={row.landing_domains_total} label="authorized" /></td>
                     <td><CountCell value={row.email_domains_active} total={row.email_domains_total} label="enabled" /></td>
+                    <td><Badge tone={row.report_contact_filled ? 'success' : 'gray'}>{row.report_contact_filled ? 'Filled' : 'Not filled'}</Badge></td>
                     <td>
                       <div className="flex items-center gap-3">
                         <button type="button" className="text-xs font-semibold text-violet-600 hover:underline" onClick={() => setGuardrailsEntity(row)}>

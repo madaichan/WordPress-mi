@@ -94,6 +94,24 @@ export function useRemoveEntityEmailDomainMutation(options = {}) {
   })
 }
 
+export function useSaveEntityReportContactMutation(options = {}) {
+  const qc = useQueryClient()
+
+  return useMutation({
+    mutationFn: ({ entityName, data }) => entityApi.saveReportContact(entityName, data),
+    onSuccess: (data, variables, context) => {
+      toast.success('Report contact saved.')
+      qc.invalidateQueries({ queryKey: queryKeys.entities.reportContact(variables.entityName) })
+      qc.invalidateQueries({ queryKey: queryKeys.entities.overview })
+      options.onSuccess?.(data, variables, context)
+    },
+    onError: (err, variables, context) => {
+      toast.error(err.message)
+      options.onError?.(err, variables, context)
+    },
+  })
+}
+
 // Enable/disable without deleting — the admin oversight lever (PRD §14.2),
 // also available to the entity's own users on their own domains.
 export function useSetEntityEmailDomainStatusMutation(options = {}) {
