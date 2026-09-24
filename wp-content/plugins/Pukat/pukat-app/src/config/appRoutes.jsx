@@ -9,6 +9,7 @@ const MasterSendingProfiles = lazy(() => import('../pages/Admin/MasterSendingPro
 const MasterEmailTemplates = lazy(() => import('../pages/Admin/MasterEmailTemplates.jsx'))
 const MasterLandingPages = lazy(() => import('../pages/Admin/MasterLandingPages.jsx'))
 const MasterDomains = lazy(() => import('../pages/Admin/MasterDomains.jsx'))
+const MyProfile = lazy(() => import('../pages/Admin/MyProfile.jsx'))
 
 const Calendar = lazy(() => import('../pages/Simulation/Calendar.jsx'))
 const Campaigns = lazy(() => import('../pages/Simulation/Campaigns.jsx'))
@@ -43,6 +44,11 @@ export const adminRoutes = [
   { path: '/admin/users', element: <Users />, permission: 'users.view' },
   { path: '/admin/roles', element: <Roles />, permission: 'users.manage_roles' },
   { path: '/admin/settings', element: <Settings />, permission: 'settings.view' },
+  // No `permission` key — deliberately ungated. This page only ever reads/writes
+  // the logged-in user's own data (see includes/Api/ProfileController.php), so
+  // it must be reachable by every role, not just ones with a specific Permission
+  // Registry grant (docs/PRD_USER_PROFILE.md §9).
+  { path: '/admin/my-profile', element: <MyProfile /> },
   { path: '*', element: <Dashboard /> },
 ]
 
@@ -75,6 +81,11 @@ export const frontendRoutes = [
   { path: '/post/coaching', element: <Coaching />, permission: 'post_sim.view' },
   { path: '/next-planning', element: <NextPlanning />, permission: 'post_sim.view' },
   { path: '/setup/playbooks', element: <Playbooks />, permission: 'master_playbooks.view' },
+  // No `permission` key — deliberately ungated, same reasoning as
+  // /admin/my-profile in adminRoutes above. This is the app operators/admins
+  // actually use day to day (standalone /pukat/ URL, not the wp-admin-embedded
+  // one), so the profile page has to exist here too, not just in adminRoutes.
+  { path: '/my-profile', element: <MyProfile /> },
   { path: '*', element: <Dashboard /> },
 ]
 
@@ -136,6 +147,7 @@ export const adminNavGroups = [
   {
     group: 'Admin',
     items: [
+      { to: '/admin/my-profile', icon: 'ti-user-circle', label: 'My Profile' },
       { to: '/admin/users', icon: 'ti-users', label: 'User Access' },
       { to: '/admin/roles', icon: 'ti-shield-lock', label: 'Roles' },
       { to: '/admin/settings', icon: 'ti-settings', label: 'Settings' },
@@ -164,6 +176,12 @@ export const frontendNavGroups = [
     items: [
       { to: '/dashboard', icon: 'ti-layout-dashboard', label: 'Dashboard' },
       { to: '/calendar', icon: 'ti-calendar', label: 'Simulation calendar' },
+    ],
+  },
+  {
+    group: 'Account',
+    items: [
+      { to: '/my-profile', icon: 'ti-user-circle', label: 'My Profile' },
     ],
   },
   {
@@ -222,6 +240,8 @@ export const routeMeta = [
   { path: '/master/email-templates', title: 'Master email templates', subtitle: 'Assigned GoPhish email templates', breadcrumb: 'Master email templates' },
   { path: '/master/landing-pages', title: 'Master landing pages', subtitle: 'Assigned simulation landing pages', breadcrumb: 'Master landing pages' },
   { path: '/master/domains', title: 'Domain Management', subtitle: 'Lookalike domains for sending and landing pages', breadcrumb: 'Domain Management' },
+  { path: '/admin/my-profile', title: 'My Profile', subtitle: 'Manage your own account details', breadcrumb: 'My Profile' },
+  { path: '/my-profile', title: 'My Profile', subtitle: 'Manage your own account details', breadcrumb: 'My Profile' },
   { path: '/admin/users', title: 'User Access', subtitle: 'Role-based access control', breadcrumb: 'User Access' },
   { path: '/admin/roles', title: 'Roles', subtitle: 'Create and manage RBAC roles', breadcrumb: 'Roles' },
   { path: '/admin/settings', title: 'Settings', subtitle: 'Global configuration and GoPhish connection', breadcrumb: 'Settings' },

@@ -17,6 +17,7 @@ use Pukat\Api\GoPhishProxy;
 use Pukat\Api\MasterComponentController;
 use Pukat\Api\PlaybookController;
 use Pukat\Api\PlaybookMasterController;
+use Pukat\Api\ProfileController;
 use Pukat\Api\QuizController;
 use Pukat\Api\ReportController;
 use Pukat\Api\RoleController;
@@ -319,6 +320,7 @@ final class Plugin {
 		( new ReportController() )->register_routes();
 		( new QuizController() )->register_routes();
 		( new UserController() )->register_routes();
+		( new ProfileController() )->register_routes();
 		( new TableController() )->register_routes();
 		( new RoleController() )->register_routes();
 	}

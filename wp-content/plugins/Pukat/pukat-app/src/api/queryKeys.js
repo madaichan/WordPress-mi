@@ -1,5 +1,6 @@
 export const queryKeys = {
   settings: ['settings'],
+  me: ['me'],
 
   campaigns: {
     all: ['campaigns'],
