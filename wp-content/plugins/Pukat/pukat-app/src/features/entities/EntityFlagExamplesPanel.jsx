@@ -7,6 +7,7 @@ import Input from '../../components/UI/Input.jsx'
 import Button from '../../components/UI/Button.jsx'
 import Badge from '../../components/UI/Badge.jsx'
 import UploadProgress from '../../components/UI/UploadProgress.jsx'
+import AlertConfirmation from '../../components/UI/AlertConfirmation.jsx'
 
 const ACCEPT = 'image/png,image/jpeg,image/webp'
 
@@ -58,7 +59,8 @@ export default function EntityFlagExamplesPanel({ canManage = false, adminEntity
       window.removeEventListener('beforeunload', warnOnLeave)
     }
   }, [isUploading])
-  const deleteMutation = useDeleteFlagExampleMutation()
+  const [deletingExample, setDeletingExample] = useState(null)
+  const deleteMutation = useDeleteFlagExampleMutation({ onSuccess: () => setDeletingExample(null) })
 
   const countByFlag = useMemo(() => {
     const counts = {}
@@ -94,9 +96,8 @@ export default function EntityFlagExamplesPanel({ canManage = false, adminEntity
     })
   }
 
-  function handleDelete(example) {
-    if (!window.confirm('Delete this example? The image file is removed too.')) return
-    deleteMutation.mutate(example.id)
+  function confirmDelete() {
+    if (deletingExample) deleteMutation.mutate(deletingExample.id)
   }
 
   if (activeFlags.length === 0) {
@@ -180,7 +181,7 @@ export default function EntityFlagExamplesPanel({ canManage = false, adminEntity
                   <button
                     type="button"
                     className="shrink-0 text-xs font-semibold text-danger hover:underline"
-                    onClick={() => handleDelete(example)}
+                    onClick={() => setDeletingExample(example)}
                     disabled={deleteMutation.isPending}
                   >
                     Delete
@@ -196,6 +197,20 @@ export default function EntityFlagExamplesPanel({ canManage = false, adminEntity
         <div className="flex flex-wrap gap-1.5">
           {activeFlags.map(f => <Badge key={f.id} tone={f.color || 'gray'}>{f.label}: {countByFlag[f.id] || 0}</Badge>)}
         </div>
+      )}
+
+      {deletingExample && (
+        <AlertConfirmation
+          title="Delete example?"
+          message="This example will be deleted and its image file removed too."
+          icon="ti-trash"
+          tone="danger"
+          confirmLabel="Delete"
+          pendingLabel="Deleting..."
+          isPending={deleteMutation.isPending}
+          onCancel={() => setDeletingExample(null)}
+          onConfirm={confirmDelete}
+        />
       )}
     </div>
   )

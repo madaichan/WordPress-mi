@@ -9,6 +9,7 @@ import {
 import Input from '../../components/UI/Input.jsx'
 import Button from '../../components/UI/Button.jsx'
 import Badge from '../../components/UI/Badge.jsx'
+import AlertConfirmation from '../../components/UI/AlertConfirmation.jsx'
 
 const AUTH_TONE = { authorized: 'success', pending: 'warning', rejected: 'danger', expired: 'gray' }
 
@@ -20,9 +21,10 @@ const AUTH_TONE = { authorized: 'success', pending: 'warning', rejected: 'danger
  */
 export default function EntityLandingDomainsPanel({ entityName, canManage = false }) {
   const [newDomain, setNewDomain] = useState('')
+  const [deletingDomain, setDeletingDomain] = useState(null)
   const { data: allDomains = [], isLoading } = useMasterDynamicDomains()
   const createMutation = useCreateMasterDynamicDomainMutation({ onSuccess: () => setNewDomain('') })
-  const deleteMutation = useDeleteMasterDynamicDomainMutation()
+  const deleteMutation = useDeleteMasterDynamicDomainMutation({ onSuccess: () => setDeletingDomain(null) })
   const healthCheckMutation = useHealthCheckMasterDynamicDomainMutation()
 
   const domains = useMemo(
@@ -50,9 +52,8 @@ export default function EntityLandingDomainsPanel({ entityName, canManage = fals
     })
   }
 
-  function handleDelete(domain) {
-    if (!window.confirm(`Delete domain "${domain.domain}"?`)) return
-    deleteMutation.mutate(domain.id)
+  function confirmDelete() {
+    if (deletingDomain) deleteMutation.mutate(deletingDomain.id)
   }
 
   return (
@@ -100,7 +101,7 @@ export default function EntityLandingDomainsPanel({ entityName, canManage = fals
                   <button
                     type="button"
                     className="text-xs font-semibold text-danger hover:underline"
-                    onClick={() => handleDelete(d)}
+                    onClick={() => setDeletingDomain(d)}
                     disabled={deleteMutation.isPending}
                   >
                     Delete
@@ -110,6 +111,20 @@ export default function EntityLandingDomainsPanel({ entityName, canManage = fals
             </li>
           ))}
         </ul>
+      )}
+
+      {deletingDomain && (
+        <AlertConfirmation
+          title="Delete domain?"
+          message={`"${deletingDomain.domain}" will be deleted from this entity's landing page domains.`}
+          icon="ti-trash"
+          tone="danger"
+          confirmLabel="Delete"
+          pendingLabel="Deleting..."
+          isPending={deleteMutation.isPending}
+          onCancel={() => setDeletingDomain(null)}
+          onConfirm={confirmDelete}
+        />
       )}
     </div>
   )

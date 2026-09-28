@@ -9,6 +9,7 @@ import {
 import Input from '../../components/UI/Input.jsx'
 import Button from '../../components/UI/Button.jsx'
 import Badge from '../../components/UI/Badge.jsx'
+import AlertConfirmation from '../../components/UI/AlertConfirmation.jsx'
 
 /**
  * Container for one entity's recipient email-domain allow-list. Used by My
@@ -19,10 +20,15 @@ import Badge from '../../components/UI/Badge.jsx'
  */
 export default function EntityEmailDomainsPanel({ entityName, canManage = false, canToggle = false }) {
   const [newDomain, setNewDomain] = useState('')
+  const [removingDomain, setRemovingDomain] = useState(null)
   const { data: domains = [], isLoading } = useEntityEmailDomains(entityName)
   const addMutation = useAddEntityEmailDomainMutation({ onSuccess: () => setNewDomain('') })
-  const removeMutation = useRemoveEntityEmailDomainMutation()
+  const removeMutation = useRemoveEntityEmailDomainMutation({ onSuccess: () => setRemovingDomain(null) })
   const statusMutation = useSetEntityEmailDomainStatusMutation()
+
+  function confirmRemove() {
+    if (removingDomain) removeMutation.mutate({ entityName, id: removingDomain.id })
+  }
 
   function handleAdd() {
     const domain = newDomain.trim().toLowerCase()
@@ -81,7 +87,7 @@ export default function EntityEmailDomainsPanel({ entityName, canManage = false,
                   <button
                     type="button"
                     className="text-xs font-semibold text-danger hover:underline"
-                    onClick={() => removeMutation.mutate({ entityName, id: d.id })}
+                    onClick={() => setRemovingDomain(d)}
                     disabled={removeMutation.isPending}
                   >
                     Remove
@@ -91,6 +97,20 @@ export default function EntityEmailDomainsPanel({ entityName, canManage = false,
             </li>
           ))}
         </ul>
+      )}
+
+      {removingDomain && (
+        <AlertConfirmation
+          title="Remove email domain?"
+          message={`"${removingDomain.domain}" will be removed from this entity's allowed email domains.${activeCount <= 1 && removingDomain.status === 'active' ? ' It is the last active domain, so the email-domain guardrail will be disabled.' : ''}`}
+          icon="ti-trash"
+          tone="danger"
+          confirmLabel="Remove"
+          pendingLabel="Removing..."
+          isPending={removeMutation.isPending}
+          onCancel={() => setRemovingDomain(null)}
+          onConfirm={confirmRemove}
+        />
       )}
     </div>
   )
