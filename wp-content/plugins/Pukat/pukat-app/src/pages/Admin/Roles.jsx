@@ -1,12 +1,12 @@
-import { useState } from 'react'
+import { useMemo, useState } from 'react'
 import toast from 'react-hot-toast'
+import clsx from 'clsx'
 import PageShell from '../../components/Layout/PageShell.jsx'
 import PageHeader from '../../components/UI/PageHeader.jsx'
-import Card from '../../components/UI/Card.jsx'
-import Table from '../../components/UI/Table.jsx'
+import { DataTable } from '../../components/DataTable/index.js'
 import Badge from '../../components/UI/Badge.jsx'
 import Button from '../../components/UI/Button.jsx'
-import TableActionButton from '../../components/UI/TableActionButton.jsx'
+import TableActionMenu from '../../components/UI/TableActionMenu.jsx'
 import Drawer from '../../components/UI/Drawer.jsx'
 import Input from '../../components/UI/Input.jsx'
 import Label from '../../components/UI/Label.jsx'
@@ -14,12 +14,17 @@ import Textarea from '../../components/UI/Textarea.jsx'
 import Checkbox from '../../components/UI/Checkbox.jsx'
 import Select from '../../components/UI/Select.jsx'
 import AlertConfirmation from '../../components/UI/AlertConfirmation.jsx'
-import EmptyState from '../../components/UI/EmptyState.jsx'
 import { useRoles, usePermissionRegistry } from '../../hooks/queries/useRoleQueries.js'
 import { useCreateRoleMutation, useUpdateRoleMutation, useDeleteRoleMutation } from '../../hooks/mutations/useRoleMutations.js'
 import { frontendNavGroups, frontendRoutePermissions } from '../../config/appRoutes.jsx'
 
 const EMPTY_FORM = { display_name: '', description: '', permissions: [], landing_menu: '' }
+const TABLE_KEY = 'roles'
+const DEFAULT_TABLE_STATE = { search: '', sort: 'role', order: 'asc', page: 1, perPage: 25, filters: {} }
+// Roles come from a plain list endpoint (useRoles), not the backend server-driven Table
+// API/TableRegistry like `landing_pages` — the list is small, so search/sort/pagination
+// for the shared DataTable UI are done client-side here instead.
+const SEARCHABLE_FIELDS = ['display_name', 'description', 'role_slug']
 
 // Only pages that actually exist in the frontend SPA (/pukat) can be a
 // landing page — same source of truth the sidebar itself renders from, so
@@ -58,13 +63,14 @@ function groupEntriesByMenu(entries) {
 }
 
 export default function Roles() {
-  const { data: roles = [], isLoading } = useRoles()
+  const { data: roles = [], isLoading, isFetching, refetch } = useRoles()
   const { data: registry = {} } = usePermissionRegistry()
 
   const [drawerMode, setDrawerMode] = useState(null) // 'create' | 'edit'
   const [editingSlug, setEditingSlug] = useState(null)
   const [form, setForm] = useState(EMPTY_FORM)
   const [deletingRole, setDeletingRole] = useState(null)
+  const [tableState, setTableState] = useState(DEFAULT_TABLE_STATE)
 
   const createMutation = useCreateRoleMutation({ onSuccess: closeDrawer })
   const updateMutation = useUpdateRoleMutation({ onSuccess: closeDrawer })
@@ -139,82 +145,152 @@ export default function Roles() {
 
   const groupNames = Object.keys(registry)
 
+  const tableRows = useMemo(() => roles.map(role => ({ ...role, id: role.role_slug })), [roles])
+
+  const filteredRows = useMemo(() => {
+    const term = tableState.search.trim().toLowerCase()
+    if (!term) return tableRows
+    return tableRows.filter(row => SEARCHABLE_FIELDS.some(
+      field => String(row[field] || '').toLowerCase().includes(term)
+    ))
+  }, [tableRows, tableState.search])
+
+  const sortedRows = useMemo(() => {
+    if (tableState.sort !== 'role') return filteredRows
+    const sorted = [...filteredRows].sort(
+      (a, b) => String(a.display_name || '').localeCompare(String(b.display_name || ''))
+    )
+    if (tableState.order === 'desc') sorted.reverse()
+    return sorted
+  }, [filteredRows, tableState.sort, tableState.order])
+
+  const perPage = tableState.perPage || DEFAULT_TABLE_STATE.perPage
+  const pageCount = Math.max(1, Math.ceil(sortedRows.length / perPage))
+  const currentPage = Math.min(tableState.page || 1, pageCount)
+  const pagedRows = useMemo(
+    () => sortedRows.slice((currentPage - 1) * perPage, currentPage * perPage),
+    [sortedRows, currentPage, perPage]
+  )
+  const tableMeta = { total: sortedRows.length, per_page: perPage, has_next: currentPage < pageCount }
+
+  function handleRowAction({ actionKey, row }) {
+    if (actionKey === 'edit') openEdit(row)
+    else if (actionKey === 'delete') setDeletingRole(row)
+  }
+
+  async function syncRoles() {
+    const result = await refetch()
+    if (result.error) {
+      toast.error(result.error.message || 'Failed to refresh roles.')
+      return
+    }
+    toast.success(`Refresh complete - ${result.data?.length ?? 0} roles`)
+  }
+
+  function renderActionsCell(role) {
+    const canDelete = !role.is_system_role && role.user_count === 0
+    const deleteReason = role.is_system_role
+      ? 'System roles cannot be deleted'
+      : role.user_count > 0
+        ? `${role.user_count} user(s) still assigned to this role`
+        : ''
+
+    return (
+      <div className="inline-flex items-center justify-end gap-1.5">
+        <Button variant="secondary" size="sm" onClick={() => openEdit(role)}>
+          <i className="ti ti-edit" />
+          Edit
+        </Button>
+        <TableActionMenu
+          items={[{ key: 'delete', label: 'Delete', icon: 'ti-trash', disabled: !canDelete, reason: deleteReason }]}
+          triggerTitle="More Actions"
+          onSelect={actionKey => handleRowAction({ actionKey, row: role })}
+        />
+      </div>
+    )
+  }
+
+  const schema = useMemo(() => ({
+    search: { placeholder: 'Search roles...' },
+    columns: [
+      {
+        key: 'role',
+        label: 'Role',
+        renderer: 'custom',
+        sortable: true,
+        render: row => <span className="font-semibold text-gray-900">{row.display_name}</span>,
+      },
+      {
+        key: 'description',
+        label: 'Description',
+        renderer: 'custom',
+        render: row => row.description
+          ? <span className="text-gray-500">{row.description}</span>
+          : <span className="text-gray-300">—</span>,
+      },
+      {
+        key: 'type',
+        label: 'Type',
+        renderer: 'custom',
+        render: row => (
+          <Badge tone={row.is_system_role ? 'violet' : 'gray'} className="text-[10px]">
+            {row.is_system_role ? 'System' : 'Custom'}
+          </Badge>
+        ),
+      },
+      {
+        key: 'landing_menu',
+        label: 'Lands on',
+        renderer: 'custom',
+        render: row => <span className="text-gray-500">{landingPageLabel(row.landing_menu)}</span>,
+      },
+      {
+        key: 'user_count',
+        label: 'Users',
+        renderer: 'custom',
+        render: row => <span className="text-gray-500">{row.user_count}</span>,
+      },
+      {
+        key: 'actions',
+        label: 'Actions',
+        renderer: 'custom',
+        align: 'right',
+        render: row => renderActionsCell(row),
+      },
+    ],
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }), [])
+
   return (
     <PageShell>
       <PageHeader
         title="Roles"
         subtitle="Create roles and control exactly what each one can see and do"
         actions={
-          <Button variant="primary" onClick={openCreate}>
-            <i className="ti ti-plus text-sm" />
-            New role
-          </Button>
+          <>
+            <Button variant="outline" onClick={syncRoles} disabled={isFetching}>
+              <i className={clsx('ti ti-refresh text-base', isFetching && 'animate-spin')} />
+              <span>Refresh</span>
+            </Button>
+            <Button variant="primary" onClick={openCreate}>
+              <i className="ti ti-plus text-sm" />
+              New role
+            </Button>
+          </>
         }
       />
 
-      <Card className="p-0">
-        <Table>
-          <thead>
-            <tr>
-              <th>Role</th>
-              <th>Description</th>
-              <th>Type</th>
-              <th>Lands on</th>
-              <th>Users</th>
-              <th className="text-right">Actions</th>
-            </tr>
-          </thead>
-          <tbody>
-            {isLoading && (
-              <tr>
-                <td colSpan={6} className="p-8 text-center text-sm text-gray-400">Loading roles...</td>
-              </tr>
-            )}
-            {!isLoading && roles.length === 0 && (
-              <tr>
-                <td colSpan={6}>
-                  <EmptyState title="No roles yet" description="Create your first custom role to get started." />
-                </td>
-              </tr>
-            )}
-            {!isLoading && roles.map((role) => {
-              const canDelete = !role.is_system_role && role.user_count === 0
-              const deleteTitle = role.is_system_role
-                ? 'System roles cannot be deleted'
-                : role.user_count > 0
-                  ? `${role.user_count} user(s) still assigned to this role`
-                  : 'Delete'
-
-              return (
-                <tr key={role.role_slug}>
-                  <td className="font-medium text-gray-900">{role.display_name}</td>
-                  <td className="text-gray-500">{role.description || '—'}</td>
-                  <td>
-                    <Badge tone={role.is_system_role ? 'violet' : 'gray'}>
-                      {role.is_system_role ? 'System' : 'Custom'}
-                    </Badge>
-                  </td>
-                  <td className="text-gray-500">{landingPageLabel(role.landing_menu)}</td>
-                  <td className="text-gray-500">{role.user_count}</td>
-                  <td className="text-right">
-                    <div className="inline-flex items-center gap-1.5">
-                      <TableActionButton icon="ti-edit" label="Edit" onClick={() => openEdit(role)} />
-                      <TableActionButton
-                        icon="ti-trash"
-                        label="Delete"
-                        tone="red"
-                        disabled={!canDelete}
-                        title={deleteTitle}
-                        onClick={() => setDeletingRole(role)}
-                      />
-                    </div>
-                  </td>
-                </tr>
-              )
-            })}
-          </tbody>
-        </Table>
-      </Card>
+      <DataTable
+        tableKey={TABLE_KEY}
+        schema={schema}
+        rows={pagedRows}
+        meta={tableMeta}
+        state={{ ...tableState, page: currentPage }}
+        loading={isLoading}
+        refetching={isFetching && !isLoading}
+        onStateChange={setTableState}
+        onRowAction={handleRowAction}
+      />
 
       {drawerMode && (
         <Drawer

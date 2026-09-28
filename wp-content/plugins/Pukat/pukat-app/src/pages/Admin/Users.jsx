@@ -1,4 +1,4 @@
-import React, { useState } from 'react'
+import React, { useMemo, useState } from 'react'
 import { useUsers } from '../../hooks/queries/useUserQueries.js'
 import { useTableRows, useTableSchema } from '../../hooks/queries/useTableQueries.js'
 import { useUpdateUserRoleMutation } from '../../hooks/mutations/useUserMutations.js'
@@ -7,9 +7,6 @@ import { DataTable } from '../../components/DataTable/index.js'
 import PageHeader from '../../components/UI/PageHeader.jsx'
 import PageShell from '../../components/Layout/PageShell.jsx'
 import Tabs from '../../components/UI/Tabs.jsx'
-import Input from '../../components/UI/Input.jsx'
-import Card from '../../components/UI/Card.jsx'
-import Table from '../../components/UI/Table.jsx'
 import Badge from '../../components/UI/Badge.jsx'
 
 const TABS = [
@@ -17,15 +14,22 @@ const TABS = [
   { key: 'audit', label: 'Audit Log' },
 ]
 
+const USERS_TABLE_KEY = 'users'
+const DEFAULT_USERS_TABLE_STATE = { search: '', sort: 'name', order: 'asc', page: 1, perPage: 25, filters: {} }
 const AUDIT_TABLE_KEY = 'audit_logs'
 const DEFAULT_AUDIT_TABLE_STATE = { search: '', sort: 'created_at', order: 'desc', page: 1, perPage: 50, filters: {} }
 
 export default function Users() {
-  const [search, setSearch] = useState('')
+  const [usersTableState, setUsersTableState] = useState(DEFAULT_USERS_TABLE_STATE)
   const [activeTab, setActiveTab] = useState('users')
   const [auditTableState, setAuditTableState] = useState(DEFAULT_AUDIT_TABLE_STATE)
 
-  const { data: usersData, isLoading } = useUsers({ search, per_page: 50 })
+  // The users endpoint already searches and paginates server-side (ordered by display name),
+  // it just isn't registered in the generic Table API — so drive it from the DataTable state.
+  const { data: usersData, isLoading, isFetching: isFetchingUsers } = useUsers(
+    { search: usersTableState.search, page: usersTableState.page, per_page: usersTableState.perPage },
+    { placeholderData: previous => previous }
+  )
 
   const { data: auditSchema } = useTableSchema(AUDIT_TABLE_KEY, { enabled: activeTab === 'audit' })
   const { data: auditRowsData, isLoading: isLoadingAuditRows, isFetching: isFetchingAuditRows } = useTableRows(AUDIT_TABLE_KEY, {
@@ -41,6 +45,69 @@ export default function Users() {
   const { data: roles = [] } = useRoles()
 
   const users = usersData?.users || []
+  const usersMeta = {
+    total: usersData?.total,
+    per_page: usersData?.per_page ?? usersTableState.perPage,
+    has_next: (usersData?.page ?? 1) < (usersData?.last_page ?? 1),
+  }
+
+  const usersSchema = useMemo(() => ({
+    search: { placeholder: 'Search users...' },
+    columns: [
+      {
+        key: 'username',
+        label: 'Username',
+        renderer: 'custom',
+        render: u => <span className="font-semibold text-gray-900">{u.username || '-'}</span>,
+      },
+      {
+        key: 'name',
+        label: 'Name',
+        renderer: 'custom',
+        render: u => {
+          const name = u.display_name || u.username || u.email || `User ${u.id}`
+          return (
+            <div className="flex items-center gap-2">
+              <div className="flex h-7 w-7 items-center justify-center rounded-full bg-violet-100 text-xs font-bold text-violet-600">
+                {name.charAt(0).toUpperCase()}
+              </div>
+              <span className="font-semibold text-gray-900">{name}</span>
+            </div>
+          )
+        },
+      },
+      {
+        key: 'email',
+        label: 'Email',
+        renderer: 'custom',
+        render: u => <span className="text-gray-500">{u.email}</span>,
+      },
+      {
+        key: 'entity',
+        label: 'Entity',
+        renderer: 'custom',
+        render: u => u.entity
+          ? <Badge tone="gray" className="text-[10px]">{u.entity}</Badge>
+          : <span className="text-gray-300">—</span>,
+      },
+      {
+        key: 'role',
+        label: 'Change Role',
+        renderer: 'custom',
+        render: u => (
+          <select
+            className="input w-auto py-1 font-medium text-gray-500"
+            value={u.pukat_role || 'none'}
+            onChange={e => roleMutation.mutate({ id: u.id, role: e.target.value })}
+          >
+            <option value="none">No Access</option>
+            {roles.map(r => <option key={r.role_slug} value={r.role_slug}>{r.display_name}</option>)}
+          </select>
+        ),
+      },
+    ],
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }), [roles])
 
   return (
     <PageShell spacing="space-y-4">
@@ -49,45 +116,16 @@ export default function Users() {
       <Tabs items={TABS} active={activeTab} onChange={setActiveTab} className="mb-4" />
 
       {activeTab === 'users' && (
-        <>
-          <Input className="max-w-xs" placeholder="Search users..." value={search} onChange={e => setSearch(e.target.value)} />
-          <Card className="p-0">
-            <Table>
-              <thead>
-                <tr>
-                  <th>Username</th>
-                  <th>Name</th>
-                  <th>Email</th>
-                  <th>Entity</th>
-                  <th>Change Role</th>
-                </tr>
-              </thead>
-              <tbody>
-                {isLoading ? [...Array(5)].map((_, i) => <tr key={i}>{[...Array(5)].map((_, j) => <td key={j}><div className="h-4 bg-gray-100 rounded animate-pulse" /></td>)}</tr>) :
-                  users.map(u => {
-                    const role = u.pukat_role || 'none'
-                    const name = u.display_name || u.username || u.email || `User ${u.id}`
-                    const initial = name.charAt(0).toUpperCase()
-
-                    return (
-                      <tr key={u.id}>
-                        <td className="font-medium text-gray-900">{u.username || '-'}</td>
-                        <td><div className="flex items-center gap-2"><div className="w-7 h-7 rounded-full bg-violet-100 flex items-center justify-center text-violet-600 text-xs font-bold">{initial}</div><span className="font-medium text-gray-900">{name}</span></div></td>
-                        <td className="text-gray-500">{u.email}</td>
-                        <td>{u.entity ? <Badge tone="gray">{u.entity}</Badge> : <span className="font-medium text-gray-900">-</span>}</td>
-                        <td>
-                          <select className="input py-1 font-medium text-gray-500 w-auto" value={role} onChange={e => roleMutation.mutate({ id: u.id, role: e.target.value })}>
-                            <option value="none">No Access</option>
-                            {roles.map(r => <option key={r.role_slug} value={r.role_slug}>{r.display_name}</option>)}
-                          </select>
-                        </td>
-                      </tr>
-                    )
-                  })}
-              </tbody>
-            </Table>
-          </Card>
-        </>
+        <DataTable
+          tableKey={USERS_TABLE_KEY}
+          schema={usersSchema}
+          rows={users}
+          meta={usersMeta}
+          state={usersTableState}
+          loading={isLoading}
+          refetching={isFetchingUsers && !isLoading}
+          onStateChange={setUsersTableState}
+        />
       )}
 
       {activeTab === 'audit' && (

@@ -1,6 +1,7 @@
 import { useMemo, useState } from 'react'
 import { Link } from 'react-router-dom'
 import toast from 'react-hot-toast'
+import clsx from 'clsx'
 import { useGuardrailsOverview } from '../../hooks/queries/useEntityQueries.js'
 import { useMasterDynamicDomains } from '../../hooks/queries/useMasterAssetQueries.js'
 import { useCreateEntityMutation, useDeleteEntityMutation } from '../../hooks/mutations/useEntityMutations.js'
@@ -8,9 +9,11 @@ import useAppStore from '../../store/useAppStore.js'
 import PageHeader from '../../components/UI/PageHeader.jsx'
 import PageShell from '../../components/Layout/PageShell.jsx'
 import Card from '../../components/UI/Card.jsx'
-import Table from '../../components/UI/Table.jsx'
+import { DataTable } from '../../components/DataTable/index.js'
 import Badge from '../../components/UI/Badge.jsx'
 import Button from '../../components/UI/Button.jsx'
+import TableActionMenu from '../../components/UI/TableActionMenu.jsx'
+import AlertConfirmation from '../../components/UI/AlertConfirmation.jsx'
 import Drawer from '../../components/UI/Drawer.jsx'
 import Label from '../../components/UI/Label.jsx'
 import Input from '../../components/UI/Input.jsx'
@@ -19,6 +22,14 @@ import EntityFlagExamplesPanel from '../../features/entities/EntityFlagExamplesP
 
 const EMPTY_FORM = { entity_name: '', description: '' }
 const AUTH_TONE = { authorized: 'success', pending: 'warning', rejected: 'danger', expired: 'gray' }
+const TABLE_KEY = 'entities'
+const DEFAULT_TABLE_STATE = { search: '', sort: 'entity', order: 'asc', page: 1, perPage: 25, filters: {} }
+// The guardrails overview endpoint returns an aggregated view (profile + landing-domain +
+// email-domain + report-contact + flag-example counts in one row) rather than a plain SQL
+// table, so it isn't registered in the backend TableRegistry/server-driven table API like
+// `landing_pages` is. It's small (one row per entity), so search/sort/pagination for the
+// shared DataTable UI are done client-side here instead.
+const SEARCHABLE_FIELDS = ['entity_name', 'description', 'contact_email', 'contact_name']
 
 function CountCell({ value, total, label }) {
   const tone = total === 0 ? 'gray' : value === 0 ? 'warning' : 'success'
@@ -113,21 +124,158 @@ export default function MasterEntities() {
   const [createOpen, setCreateOpen] = useState(false)
   const [form, setForm] = useState(EMPTY_FORM)
   const [guardrailsEntity, setGuardrailsEntity] = useState(null)
+  const [tableState, setTableState] = useState(DEFAULT_TABLE_STATE)
+  const [deletingEntity, setDeletingEntity] = useState(null)
 
-  const { data: rows = [], isLoading } = useGuardrailsOverview()
+  const { data: rows = [], isLoading, isFetching, refetch } = useGuardrailsOverview()
   const { data: allLandingDomains = [] } = useMasterDynamicDomains()
 
   const canCreate = useAppStore(state => state.hasPermission('master_entities.create'))
   const canDelete = useAppStore(state => state.hasPermission('master_entities.delete'))
 
   const createMutation = useCreateEntityMutation({ onSuccess: closeCreate })
-  const deleteMutation = useDeleteEntityMutation()
+  const deleteMutation = useDeleteEntityMutation({ onSuccess: () => setDeletingEntity(null) })
 
   const summary = useMemo(() => ({
     entities: rows.length,
     withoutEmailGuardrail: rows.filter(r => r.email_domains_active === 0).length,
     withoutLandingDomain: rows.filter(r => r.landing_domains_available === 0).length,
   }), [rows])
+
+  // Row ids are nullable for entities that have guardrail data but no admin-created
+  // profile yet (see `has_profile` below) — give every row a stable, unique id so
+  // DataTable's row keys/actions never collide.
+  const normalizedRows = useMemo(
+    () => rows.map(row => ({ ...row, id: row.id ?? `no-profile-${row.entity_name}` })),
+    [rows]
+  )
+
+  const filteredRows = useMemo(() => {
+    const term = tableState.search.trim().toLowerCase()
+    if (!term) return normalizedRows
+    return normalizedRows.filter(row => SEARCHABLE_FIELDS.some(
+      field => String(row[field] || '').toLowerCase().includes(term)
+    ))
+  }, [normalizedRows, tableState.search])
+
+  const sortedRows = useMemo(() => {
+    if (tableState.sort !== 'entity') return filteredRows
+    const sorted = [...filteredRows].sort(
+      (a, b) => String(a.entity_name || '').localeCompare(String(b.entity_name || ''))
+    )
+    if (tableState.order === 'desc') sorted.reverse()
+    return sorted
+  }, [filteredRows, tableState.sort, tableState.order])
+
+  const perPage = tableState.perPage || DEFAULT_TABLE_STATE.perPage
+  const pageCount = Math.max(1, Math.ceil(sortedRows.length / perPage))
+  const currentPage = Math.min(tableState.page || 1, pageCount)
+  const pagedRows = useMemo(
+    () => sortedRows.slice((currentPage - 1) * perPage, currentPage * perPage),
+    [sortedRows, currentPage, perPage]
+  )
+  const tableMeta = { total: sortedRows.length, per_page: perPage, has_next: currentPage < pageCount }
+
+  function renderActionsCell(row) {
+    const menuItems = []
+    if (!row.has_profile && canCreate) {
+      menuItems.push({ key: 'create_profile', label: 'Create profile', icon: 'ti-user-plus' })
+    }
+    if (row.has_profile && canDelete) {
+      menuItems.push({ key: 'delete', label: 'Delete', icon: 'ti-trash' })
+    }
+
+    return (
+      <div className="inline-flex items-center justify-end gap-1.5">
+        <Button variant="secondary" size="sm" onClick={() => setGuardrailsEntity(row)}>
+          <i className="ti ti-shield-lock" />
+          Guardrails
+        </Button>
+        {menuItems.length > 0 && (
+          <TableActionMenu
+            items={menuItems}
+            triggerTitle="More Actions"
+            onSelect={actionKey => handleRowAction({ actionKey, row })}
+          />
+        )}
+      </div>
+    )
+  }
+
+  const schema = useMemo(() => ({
+    search: { placeholder: 'Search entities...' },
+    columns: [
+      {
+        key: 'entity',
+        label: 'Entity',
+        renderer: 'custom',
+        sortable: true,
+        render: row => (
+          <div className="min-w-0">
+            <div className="flex items-center gap-2">
+              <span className="truncate font-semibold text-gray-900">{row.entity_name}</span>
+              {!row.has_profile && (
+                <span title="This entity's users registered guardrails, but no admin has created its profile yet.">
+                  <Badge tone="warning" className="text-[10px]">No profile</Badge>
+                </span>
+              )}
+            </div>
+            {row.description && <div className="truncate text-[11px] text-gray-400">{row.description}</div>}
+          </div>
+        ),
+      },
+      {
+        key: 'contact',
+        label: 'Contact',
+        renderer: 'custom',
+        render: row => (
+          row.contact_email || row.contact_name
+            ? <span className="text-gray-500">{row.contact_email || row.contact_name}</span>
+            : <span className="text-gray-300">Not filled</span>
+        ),
+      },
+      {
+        key: 'landing_domains',
+        label: 'Landing domains',
+        renderer: 'custom',
+        render: row => <CountCell value={row.landing_domains_available} total={row.landing_domains_total} label="authorized" />,
+      },
+      {
+        key: 'email_domains',
+        label: 'Email domains',
+        renderer: 'custom',
+        render: row => <CountCell value={row.email_domains_active} total={row.email_domains_total} label="enabled" />,
+      },
+      {
+        key: 'report_contact',
+        label: 'Report contact',
+        renderer: 'custom',
+        render: row => (
+          <Badge tone={row.report_contact_filled ? 'success' : 'gray'} className="text-[10px]">
+            {row.report_contact_filled ? 'Filled' : 'Not filled'}
+          </Badge>
+        ),
+      },
+      {
+        key: 'flag_examples',
+        label: 'Flag examples',
+        renderer: 'custom',
+        render: row => (
+          <Badge tone={row.flag_examples_total > 0 ? 'success' : 'gray'} className="text-[10px]">
+            {row.flag_examples_total}
+          </Badge>
+        ),
+      },
+      {
+        key: 'actions',
+        label: 'Actions',
+        renderer: 'custom',
+        align: 'right',
+        render: row => renderActionsCell(row),
+      },
+    ],
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }), [canCreate, canDelete])
 
   const guardrailsLandingDomains = useMemo(() => {
     if (!guardrailsEntity) return []
@@ -153,11 +301,22 @@ export default function MasterEntities() {
     createMutation.mutate(form)
   }
 
-  function deleteEntity(row) {
-    const confirmed = window.confirm(
-      `Delete entity "${row.entity_name}"? This only removes its profile — playbooks, templates and domains already tagged with this entity name are not affected.`
-    )
-    if (confirmed) deleteMutation.mutate(row.id)
+  function confirmDelete() {
+    if (deletingEntity) deleteMutation.mutate(deletingEntity.id)
+  }
+
+  function handleRowAction({ actionKey, row }) {
+    if (actionKey === 'create_profile') openCreate(row.entity_name)
+    else if (actionKey === 'delete') setDeletingEntity(row)
+  }
+
+  async function syncEntities() {
+    const result = await refetch()
+    if (result.error) {
+      toast.error(result.error.message || 'Failed to refresh entities.')
+      return
+    }
+    toast.success(`Refresh complete - ${result.data?.length ?? 0} entities`)
   }
 
   return (
@@ -165,12 +324,20 @@ export default function MasterEntities() {
       <PageHeader
         title="Master Entities"
         subtitle="Oversight of entities and their guardrails. Entity users manage their own data from My Profile."
-        actions={canCreate && (
-          <Button variant="primary" onClick={() => openCreate()}>
-            <i className="ti ti-plus text-sm" />
-            Add entity
-          </Button>
-        )}
+        actions={
+          <>
+            <Button variant="outline" onClick={syncEntities} disabled={isFetching}>
+              <i className={clsx('ti ti-refresh text-base', isFetching && 'animate-spin')} />
+              <span>Refresh</span>
+            </Button>
+            {canCreate && (
+              <Button variant="primary" onClick={() => openCreate()}>
+                <i className="ti ti-plus text-sm" />
+                Add entity
+              </Button>
+            )}
+          </>
+        }
       />
 
       <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
@@ -179,64 +346,31 @@ export default function MasterEntities() {
         <Card><div className="text-2xl font-bold text-gray-900">{summary.withoutEmailGuardrail}</div><div className="text-xs font-semibold text-gray-500">Email-domain guardrail disabled (no active domain)</div></Card>
       </div>
 
-      <Card className="p-0">
-        <Table>
-          <thead>
-            <tr>
-              <th>Entity</th>
-              <th>Contact</th>
-              <th>Landing domains</th>
-              <th>Email domains</th>
-              <th>Report contact</th>
-              <th>Flag examples</th>
-              <th>Actions</th>
-            </tr>
-          </thead>
-          <tbody>
-            {isLoading
-              ? [...Array(3)].map((_, i) => (
-                  <tr key={i}>{[...Array(7)].map((_, j) => <td key={j}><div className="h-4 animate-pulse rounded bg-gray-100" /></td>)}</tr>
-                ))
-              : rows.map(row => (
-                  <tr key={row.id ?? `no-profile-${row.entity_name}`}>
-                    <td>
-                      <div className="flex items-center gap-2">
-                        <span className="font-medium text-gray-900">{row.entity_name}</span>
-                        {!row.has_profile && (
-                          <span title="This entity's users registered guardrails, but no admin has created its profile yet.">
-                            <Badge tone="warning">No profile</Badge>
-                          </span>
-                        )}
-                      </div>
-                      {row.description && <div className="text-xs text-gray-400">{row.description}</div>}
-                    </td>
-                    <td className="text-gray-500">{row.contact_email || row.contact_name || <span className="text-gray-300">Not filled</span>}</td>
-                    <td><CountCell value={row.landing_domains_available} total={row.landing_domains_total} label="authorized" /></td>
-                    <td><CountCell value={row.email_domains_active} total={row.email_domains_total} label="enabled" /></td>
-                    <td><Badge tone={row.report_contact_filled ? 'success' : 'gray'}>{row.report_contact_filled ? 'Filled' : 'Not filled'}</Badge></td>
-                    <td><Badge tone={row.flag_examples_total > 0 ? 'success' : 'gray'}>{row.flag_examples_total}</Badge></td>
-                    <td>
-                      <div className="flex items-center gap-3">
-                        <button type="button" className="text-xs font-semibold text-violet-600 hover:underline" onClick={() => setGuardrailsEntity(row)}>
-                          Guardrails
-                        </button>
-                        {!row.has_profile && canCreate && (
-                          <button type="button" className="text-xs font-semibold text-gray-600 hover:underline" onClick={() => openCreate(row.entity_name)}>
-                            Create profile
-                          </button>
-                        )}
-                        {row.has_profile && canDelete && (
-                          <button type="button" className="text-xs font-semibold text-danger hover:underline" onClick={() => deleteEntity(row)}>
-                            Delete
-                          </button>
-                        )}
-                      </div>
-                    </td>
-                  </tr>
-                ))}
-          </tbody>
-        </Table>
-      </Card>
+      <DataTable
+        tableKey={TABLE_KEY}
+        schema={schema}
+        rows={pagedRows}
+        meta={tableMeta}
+        state={{ ...tableState, page: currentPage }}
+        loading={isLoading}
+        refetching={isFetching && !isLoading}
+        onStateChange={setTableState}
+        onRowAction={handleRowAction}
+      />
+
+      {deletingEntity && (
+        <AlertConfirmation
+          title="Delete entity?"
+          message={`"${deletingEntity.entity_name}" will be deleted. This only removes its profile — playbooks, templates and domains already tagged with this entity name are not affected.`}
+          icon="ti-trash"
+          tone="danger"
+          confirmLabel="Delete"
+          pendingLabel="Deleting..."
+          isPending={deleteMutation.isPending}
+          onCancel={() => setDeletingEntity(null)}
+          onConfirm={confirmDelete}
+        />
+      )}
 
       <CreateEntityDrawer
         open={createOpen}
