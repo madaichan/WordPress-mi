@@ -121,6 +121,20 @@ class EntityController extends RestController {
 				'permission_callback' => [ $this, 'permission_delete_entity' ],
 			],
 		] );
+
+		// Entity logo (docs/PRD_ENTITY_PROFILE_AND_GUARDRAILS.md §15.4).
+		register_rest_route( $this->namespace, '/entities/(?P<id>\d+)/logo', [
+			[
+				'methods'             => 'POST',
+				'callback'            => [ $this, 'upload_logo' ],
+				'permission_callback' => [ $this, 'permission_edit_entity' ],
+			],
+			[
+				'methods'             => 'DELETE',
+				'callback'            => [ $this, 'remove_logo' ],
+				'permission_callback' => [ $this, 'permission_edit_entity' ],
+			],
+		] );
 	}
 
 	public function permission_view_entity(): bool|WP_Error {
@@ -191,6 +205,19 @@ class EntityController extends RestController {
 		}
 
 		return $this->success( [ 'deleted' => true ] );
+	}
+
+	public function upload_logo( WP_REST_Request $request ): WP_REST_Response {
+		$files  = $request->get_file_params();
+		$result = $this->entities->set_logo( (int) $request->get_param( 'id' ), $files['file'] ?? null, get_current_user_id() );
+
+		return $this->result_response( $result );
+	}
+
+	public function remove_logo( WP_REST_Request $request ): WP_REST_Response {
+		$result = $this->entities->remove_logo( (int) $request->get_param( 'id' ), get_current_user_id() );
+
+		return $this->result_response( $result );
 	}
 
 	public function list_email_domains( WP_REST_Request $request ): WP_REST_Response {

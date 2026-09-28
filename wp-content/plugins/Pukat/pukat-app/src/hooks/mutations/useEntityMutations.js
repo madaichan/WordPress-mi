@@ -55,6 +55,35 @@ export function useDeleteEntityMutation(options = {}) {
   })
 }
 
+function useEntityLogoMutation(mutationFn, successMessage, options) {
+  const qc = useQueryClient()
+
+  return useMutation({
+    mutationFn,
+    onSuccess: (data, variables, context) => {
+      toast.success(successMessage)
+      qc.invalidateQueries({ queryKey: queryKeys.entities.all })
+      options.onSuccess?.(data, variables, context)
+    },
+    onError: (err, variables, context) => {
+      toast.error(err.message)
+      options.onError?.(err, variables, context)
+    },
+  })
+}
+
+export function useUploadEntityLogoMutation(options = {}) {
+  return useEntityLogoMutation(
+    ({ id, formData, onProgress }) => entityApi.uploadLogo(id, formData, onProgress),
+    'Logo uploaded.',
+    options
+  )
+}
+
+export function useRemoveEntityLogoMutation(options = {}) {
+  return useEntityLogoMutation(id => entityApi.removeLogo(id), 'Logo removed.', options)
+}
+
 function invalidateEmailDomains(qc, entityName) {
   qc.invalidateQueries({ queryKey: queryKeys.entities.emailDomains(entityName) })
   qc.invalidateQueries({ queryKey: queryKeys.entities.overview })

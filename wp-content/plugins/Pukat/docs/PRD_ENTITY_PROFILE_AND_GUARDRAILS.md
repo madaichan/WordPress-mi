@@ -223,3 +223,46 @@ Halaman `Master Entities` (admin) berubah dari "tempat mengedit" jadi "tempat me
 - **Monitoring Guardrails lintas semua entity**: per entity terlihat berapa domain landing page & domain email yang terdaftar beserta statusnya.
 - **Enable/disable** (keputusan diskusi — bukan full edit): admin bisa menonaktifkan/mengaktifkan domain email yang didaftarkan suatu entity tanpa menghapus datanya (`PATCH .../email-domains/{id}` — status `active`/`inactive`; guardrail di `CampaignRunService` hanya memakai domain `active`, jadi menonaktifkan = mengeluarkan domain itu dari allow-list tanpa kehilangan jejaknya). Untuk domain landing page, enable/disable & authorize sudah tersedia lewat halaman Master Domains yang ada (`status`, `authorization_status`, capability `domains.authorize`) — tidak diduplikasi di Master Entities, cukup ditautkan.
 - **Tidak lagi** jadi tempat utama mengedit kontak/deskripsi entity — itu pindah ke My Profile milik entity itu. Admin tetap *bisa* mengedit lewat API (bypass entity-scoping, §10), tapi UI-nya tidak lagi diarahkan ke sana.
+
+## 15. Identitas Entity (logo, nama tampilan, sektor, jumlah karyawan, lokasi)
+
+*(Ditambahkan 2026-09-28.)*
+
+### 15.1 Tujuan
+
+Melengkapi Entity Profile dengan identitas organisasi, diisi sendiri oleh user entity dari tab **Entity Profile** di My Profile (scope akses sama dengan §10 — `enforce_entity_editable()`), dan terlihat oleh admin di Master Entities sebagai konteks oversight.
+
+### 15.2 Field baru di `pukat_entity_profiles`
+
+| Kolom | Tipe | Keterangan |
+|---|---|---|
+| `display_name` | VARCHAR(255) NULL | Nama resmi yang ditampilkan; fallback ke `entity_name` kalau kosong. `entity_name` tetap immutable (§6). |
+| `logo_attachment_id` | BIGINT UNSIGNED NULL | Attachment WP Media Library. |
+| `sector` | VARCHAR(50) NULL | Salah satu key dari daftar tetap (§15.3). |
+| `employee_count` | INT UNSIGNED NULL | Perkiraan jumlah karyawan. |
+| `location` | VARCHAR(255) NULL | Kota/wilayah, teks bebas. |
+
+Ditambahkan lewat migrasi `ALTER TABLE` idempoten (pola `ensure_*_column()` yang sudah ada), bukan tabel baru.
+
+### 15.3 Daftar sektor (whitelist di backend)
+
+`banking_finance`, `insurance`, `government`, `healthcare`, `education`, `energy_utilities`, `telecommunications`, `manufacturing`, `retail`, `technology`, `transportation_logistics`, `other`. Nilai di luar daftar ditolak (422). Label ditampilkan di frontend.
+
+### 15.4 Logo
+
+- `POST /entities/{id}/logo` (multipart `file`) dan `DELETE /entities/{id}/logo`, gate `master_entities.edit` + `enforce_entity_editable()`.
+- Hanya PNG/JPEG/WebP — **SVG ditolak** (bisa memuat script). Tipe dicek dari isi file, bukan ekstensi.
+- Batas ukuran file sama dengan Flag Example; batas resolusi 40 MP; diperkecil otomatis ke maksimal **512 px** sisi terpanjang.
+- Mengganti atau menghapus logo menghapus attachment lama beserta file fisiknya.
+- Logika upload (validasi, downscale, insert attachment) dipindah dari `FlagExampleService` ke service bersama `ImageUploadService` supaya dipakai Flag Example dan logo tanpa duplikasi.
+
+### 15.5 Di luar cakupan
+
+Pemakaian logo/nama tampilan di laporan PDF dan di halaman awareness target — datanya disiapkan dulu, integrasinya menyusul.
+
+### 15.6 Acceptance criteria
+
+- `pukatopr` (entity `ibaraki`) mengisi nama tampilan, sektor, jumlah karyawan, lokasi, dan meng-upload logo dari My Profile; admin melihatnya di Master Entities.
+- Sektor di luar whitelist, jumlah karyawan negatif/bukan angka, dan logo SVG/file non-gambar ditolak dengan pesan jelas.
+- Non-admin tidak bisa mengubah identitas/logo entity General atau entity lain (403).
+- Mengganti logo tidak meninggalkan attachment lama di Media Library.

@@ -39,6 +39,17 @@ class EntityProfileService {
 
 	private const VALID_STATUSES = [ 'active', 'inactive' ];
 
+	/** Sector whitelist (labels live in the frontend) — docs/PRD_ENTITY_PROFILE_AND_GUARDRAILS.md §15.3. */
+	public const SECTORS = [
+		'banking_finance', 'insurance', 'government', 'healthcare', 'education', 'energy_utilities',
+		'telecommunications', 'manufacturing', 'retail', 'technology', 'transportation_logistics', 'other',
+	];
+
+	/** Logos are downscaled to this on their longest side. */
+	private const LOGO_MAX_DIMENSION = 512;
+
+	private const MAX_EMPLOYEE_COUNT = 10000000;
+
 	/** Basic domain-format check — rejects schemes/paths/spaces, not a full RFC validator. */
 	private const DOMAIN_PATTERN = '/^[a-z0-9]([a-z0-9-]{0,61}[a-z0-9])?(\.[a-z0-9]([a-z0-9-]{0,61}[a-z0-9])?)+$/i';
 
@@ -96,7 +107,12 @@ class EntityProfileService {
 
 		$status = $this->sanitize_status( $params['status'] ?? 'active' );
 
-		$id = $this->repository->create( [
+		$identity = $this->sanitize_identity( $params );
+		if ( is_wp_error( $identity ) ) {
+			return $identity;
+		}
+
+		$id = $this->repository->create( $identity + [
 			'entity_name'   => $entity_name,
 			'description'   => $this->sanitize_optional_textarea( $params['description'] ?? null ),
 			'contact_name'  => $this->sanitize_optional_text( $params['contact_name'] ?? null ),
@@ -159,6 +175,12 @@ class EntityProfileService {
 			$data['status'] = $this->sanitize_status( $params['status'] );
 		}
 
+		$identity = $this->sanitize_identity( $params );
+		if ( is_wp_error( $identity ) ) {
+			return $identity;
+		}
+		$data = array_merge( $data, $identity );
+
 		if ( ! $this->repository->update( $id, $data ) ) {
 			return $this->db_error( __( 'Failed to update Entity Profile.', 'pukat' ) );
 		}
@@ -189,6 +211,12 @@ class EntityProfileService {
 
 		if ( ! $this->repository->delete( $id ) ) {
 			return $this->db_error( __( 'Failed to delete Entity Profile.', 'pukat' ) );
+		}
+
+		// The profile's own logo file goes with it — that's not a cascade into
+		// other tables (§6), just not leaving an orphan in the Media Library.
+		if ( ! empty( $existing['logo_attachment_id'] ) ) {
+			wp_delete_attachment( (int) $existing['logo_attachment_id'], true );
 		}
 
 		AuditLogService::log(
@@ -385,8 +413,13 @@ class EntityProfileService {
 				continue;
 			}
 			$orphans[] = $this->with_guardrail_counts( [
-				'id'            => null,
-				'entity_name'   => $name,
+				'id'             => null,
+				'entity_name'    => $name,
+				'display_name'   => null,
+				'sector'         => null,
+				'employee_count' => null,
+				'location'       => null,
+				'logo_url'       => null,
 				'description'   => null,
 				'contact_name'  => null,
 				'contact_email' => null,
@@ -507,13 +540,120 @@ class EntityProfileService {
 	}
 
 	/**
+	 * Upload or replace the entity's logo (§15.4). The previous logo's
+	 * attachment and files are removed once the new one is stored.
+	 *
+	 * @param array<string, mixed>|null $file One entry of $_FILES.
+	 * @return array<string, mixed>|WP_Error
+	 */
+	public function set_logo( int $id, ?array $file, int $user_id ): array|WP_Error {
+		$existing = $this->repository->find( $id );
+		if ( ! $existing ) {
+			return $this->not_found_error( __( 'Entity Profile not found.', 'pukat' ) );
+		}
+
+		$edit_error = $this->enforce_entity_editable( (string) $existing['entity_name'] );
+		if ( $edit_error ) {
+			return $edit_error;
+		}
+
+		$attachment_id = ( new ImageUploadService() )->store( $file, self::LOGO_MAX_DIMENSION );
+		if ( is_wp_error( $attachment_id ) ) {
+			return $attachment_id;
+		}
+
+		if ( ! $this->repository->update( $id, [ 'logo_attachment_id' => $attachment_id, 'updated_by' => $user_id ] ) ) {
+			wp_delete_attachment( $attachment_id, true );
+			return $this->db_error( __( 'Failed to save the logo.', 'pukat' ) );
+		}
+
+		if ( ! empty( $existing['logo_attachment_id'] ) ) {
+			wp_delete_attachment( (int) $existing['logo_attachment_id'], true );
+		}
+
+		AuditLogService::log( 'entity_profile.logo_updated', [ 'entity_profile_id' => $id ], $user_id, 'entity_profile', $id );
+
+		return $this->get( $id ) ?: [];
+	}
+
+	/**
+	 * @return array<string, mixed>|WP_Error
+	 */
+	public function remove_logo( int $id, int $user_id ): array|WP_Error {
+		$existing = $this->repository->find( $id );
+		if ( ! $existing ) {
+			return $this->not_found_error( __( 'Entity Profile not found.', 'pukat' ) );
+		}
+
+		$edit_error = $this->enforce_entity_editable( (string) $existing['entity_name'] );
+		if ( $edit_error ) {
+			return $edit_error;
+		}
+
+		if ( ! empty( $existing['logo_attachment_id'] ) ) {
+			$this->repository->update( $id, [ 'logo_attachment_id' => null, 'updated_by' => $user_id ] );
+			wp_delete_attachment( (int) $existing['logo_attachment_id'], true );
+			AuditLogService::log( 'entity_profile.logo_removed', [ 'entity_profile_id' => $id ], $user_id, 'entity_profile', $id );
+		}
+
+		return $this->get( $id ) ?: [];
+	}
+
+	/**
+	 * Identity fields present in $params (§15.2), sanitized. Absent keys are
+	 * left out so update() only touches what was sent.
+	 *
+	 * @param array<string, mixed> $params
+	 * @return array<string, mixed>|WP_Error
+	 */
+	private function sanitize_identity( array $params ): array|WP_Error {
+		$data = [];
+
+		if ( array_key_exists( 'display_name', $params ) ) {
+			$data['display_name'] = $this->sanitize_optional_text( $params['display_name'] );
+		}
+		if ( array_key_exists( 'location', $params ) ) {
+			$data['location'] = $this->sanitize_optional_text( $params['location'] );
+		}
+
+		if ( array_key_exists( 'sector', $params ) ) {
+			$sector = trim( (string) $params['sector'] );
+			if ( '' !== $sector && ! in_array( $sector, self::SECTORS, true ) ) {
+				return $this->validation_error( __( 'Unknown sector.', 'pukat' ) );
+			}
+			$data['sector'] = '' === $sector ? null : $sector;
+		}
+
+		if ( array_key_exists( 'employee_count', $params ) ) {
+			$raw = $params['employee_count'];
+			if ( null === $raw || '' === trim( (string) $raw ) ) {
+				$data['employee_count'] = null;
+			} elseif ( ! is_numeric( $raw ) || (int) $raw != $raw || (int) $raw < 0 || (int) $raw > self::MAX_EMPLOYEE_COUNT ) { // phpcs:ignore Universal.Operators.StrictComparisons.LooseNotEqual -- rejects "12.5"
+				return $this->validation_error( __( 'Employee count must be a whole number of 0 or more.', 'pukat' ) );
+			} else {
+				$data['employee_count'] = (int) $raw;
+			}
+		}
+
+		return $data;
+	}
+
+	/**
 	 * @param array<string, mixed> $row
 	 * @return array<string, mixed>
 	 */
 	private function prepare( array $row ): array {
+		$logo_id  = ! empty( $row['logo_attachment_id'] ) ? (int) $row['logo_attachment_id'] : null;
+		$logo_src = $logo_id ? wp_get_attachment_image_src( $logo_id, 'medium' ) : false;
+
 		return [
-			'id'            => (int) $row['id'],
-			'entity_name'   => (string) $row['entity_name'],
+			'id'             => (int) $row['id'],
+			'entity_name'    => (string) $row['entity_name'],
+			'display_name'   => $row['display_name'] ?? null,
+			'sector'         => $row['sector'] ?? null,
+			'employee_count' => isset( $row['employee_count'] ) ? (int) $row['employee_count'] : null,
+			'location'       => $row['location'] ?? null,
+			'logo_url'       => $logo_id ? (string) ( $logo_src ? $logo_src[0] : wp_get_attachment_url( $logo_id ) ) : null,
 			'description'   => $row['description'] ?? null,
 			'contact_name'  => $row['contact_name'] ?? null,
 			'contact_email' => $row['contact_email'] ?? null,

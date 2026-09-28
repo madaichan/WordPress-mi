@@ -3,9 +3,16 @@ import { useUpdateEntityMutation } from '../../hooks/mutations/useEntityMutation
 import Label from '../../components/UI/Label.jsx'
 import Input from '../../components/UI/Input.jsx'
 import Button from '../../components/UI/Button.jsx'
+import Select from '../../components/UI/Select.jsx'
+import EntityLogoField from './EntityLogoField.jsx'
+import { ENTITY_SECTORS } from './entitySectors.js'
 
 function formFromProfile(profile) {
   return {
+    display_name: profile?.display_name || '',
+    sector: profile?.sector || '',
+    employee_count: profile?.employee_count ?? '',
+    location: profile?.location || '',
     description: profile?.description || '',
     contact_name: profile?.contact_name || '',
     contact_email: profile?.contact_email || '',
@@ -38,8 +45,48 @@ export default function EntityProfileForm({ profile, canEdit }) {
   return (
     <form onSubmit={handleSubmit} className="space-y-4">
       <div>
-        <Label>Entity name</Label>
-        <Input value={profile.entity_name} disabled />
+        <Label>Logo</Label>
+        <EntityLogoField profile={profile} canEdit={canEdit} />
+      </div>
+      <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+        <div>
+          <Label>Entity name</Label>
+          <Input value={profile.entity_name} disabled />
+        </div>
+        <div>
+          <Label>Display name</Label>
+          <Input
+            value={form.display_name}
+            onChange={e => update('display_name', e.target.value)}
+            placeholder={profile.entity_name}
+            disabled={!canEdit}
+          />
+          <p className="mt-1 text-xs text-gray-500">Shown in reports. Falls back to the entity name.</p>
+        </div>
+      </div>
+      <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
+        <div>
+          <Label>Sector</Label>
+          <Select value={form.sector} onChange={e => update('sector', e.target.value)} disabled={!canEdit}>
+            <option value="">Not set</option>
+            {ENTITY_SECTORS.map(s => <option key={s.value} value={s.value}>{s.label}</option>)}
+          </Select>
+        </div>
+        <div>
+          <Label>Employees</Label>
+          <Input
+            type="number"
+            min="0"
+            step="1"
+            value={form.employee_count}
+            onChange={e => update('employee_count', e.target.value)}
+            disabled={!canEdit}
+          />
+        </div>
+        <div>
+          <Label>Location</Label>
+          <Input value={form.location} onChange={e => update('location', e.target.value)} placeholder="Jakarta" disabled={!canEdit} />
+        </div>
       </div>
       <div>
         <Label>Description</Label>

@@ -588,6 +588,7 @@ class Activator {
 		self::ensure_campaign_runs_campaign_group_column();
 		self::ensure_campaign_runs_entity_column();
 		self::ensure_role_meta_landing_menu_column();
+		self::ensure_entity_profiles_identity_columns();
 	}
 
 	/**
@@ -840,6 +841,37 @@ class Activator {
 			self::seed_default_flags();
 			self::seed_rbac_defaults();
 			update_option( 'pukat_db_version', '1.17.0' );
+		}
+
+		// Entity identity fields (display name, logo, sector, employee count,
+		// location) — docs/PRD_ENTITY_PROFILE_AND_GUARDRAILS.md §15.
+		if ( version_compare( $db_version, '1.18.0', '<' ) ) {
+			self::ensure_entity_profiles_identity_columns();
+			update_option( 'pukat_db_version', '1.18.0' );
+		}
+	}
+
+	/**
+	 * Add the entity identity columns to pukat_entity_profiles if missing
+	 * (idempotent). See docs/PRD_ENTITY_PROFILE_AND_GUARDRAILS.md §15.2.
+	 */
+	private static function ensure_entity_profiles_identity_columns(): void {
+		global $wpdb;
+
+		$table   = $wpdb->prefix . 'pukat_entity_profiles';
+		$columns = [
+			'display_name'       => "VARCHAR(255) DEFAULT NULL AFTER entity_name",
+			'logo_attachment_id' => "BIGINT UNSIGNED DEFAULT NULL AFTER display_name",
+			'sector'             => "VARCHAR(50) DEFAULT NULL AFTER logo_attachment_id",
+			'employee_count'     => "INT UNSIGNED DEFAULT NULL AFTER sector",
+			'location'           => "VARCHAR(255) DEFAULT NULL AFTER employee_count",
+		];
+
+		foreach ( $columns as $column => $definition ) {
+			$exists = $wpdb->get_var( $wpdb->prepare( "SHOW COLUMNS FROM {$table} LIKE %s", $column ) );
+			if ( ! $exists ) {
+				$wpdb->query( "ALTER TABLE {$table} ADD {$column} {$definition}" ); // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared -- fixed whitelist above
+			}
 		}
 	}
 

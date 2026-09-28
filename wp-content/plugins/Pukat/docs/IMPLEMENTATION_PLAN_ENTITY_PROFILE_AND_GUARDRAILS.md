@@ -98,3 +98,11 @@ Phase 4 independen — bisa dikerjakan paralel dengan Phase 1-3 karena hanya men
 ## 10. Risiko
 
 - Kalau ternyata ada kode lain (di luar `CampaignRunService.php`) yang juga membangun/mengirim daftar target langsung ke GoPhish tanpa lewat `create()`/`snapshot_targets()`, guardrail Phase 3 tidak akan tersentuh di jalur itu — perlu grep ulang `gp->create_group(` di seluruh `includes/` sebelum Phase 3 dianggap selesai untuk memastikan hanya satu jalur pembuatan target group yang ada.
+
+## 11. Identitas Entity (PRD §15)
+
+1. **Schema**: `Activator::ensure_entity_profiles_identity_columns()` (ALTER idempoten untuk 5 kolom PRD §15.2), dipanggil dari `create_tables()` dan blok migrasi 1.18.0.
+2. **Refactor upload**: `Services/ImageUploadService.php` — `validate()`, `store( $file, $max_dimension )` (wp_handle_upload → downscale → attachment + metadata, cleanup kalau gagal), `limits()`. `FlagExampleService` memakainya (perilaku tidak berubah; re-test upload Flag).
+3. **Backend**: `EntityProfileService` — `create`/`update` menerima `display_name`, `sector` (whitelist), `employee_count` (int ≥ 0), `location`; `set_logo()`/`remove_logo()`; `prepare()` menambah field + `logo_url`. `EntityController` — `POST`/`DELETE /entities/{id}/logo`.
+4. **Frontend**: `EntityProfileForm` — field baru + upload logo (pakai `UploadProgress`); konstanta daftar sektor; Master Entities menampilkan logo, nama tampilan, sektor, jumlah karyawan.
+5. **QA**: smoke test HTTP sebagai `pukatopr` (isi field, upload/ganti/hapus logo, SVG/non-gambar ditolak, General/entity lain 403, attachment lama terhapus); re-test upload Flag Example setelah refactor; lint/build/test.

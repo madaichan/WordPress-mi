@@ -15,6 +15,14 @@ export const entityApi = {
   update: (id, data) => put(`/entities/${id}`, data),
   delete: (id)       => del(`/entities/${id}`),
 
+  // Entity logo — docs/PRD_ENTITY_PROFILE_AND_GUARDRAILS.md §15.4. Multipart
+  // header so axios keeps the FormData (see flagApi.uploadExample).
+  uploadLogo: (id, formData, onUploadProgress) => post(`/entities/${id}/logo`, formData, {
+    headers: { 'Content-Type': 'multipart/form-data' },
+    onUploadProgress,
+  }),
+  removeLogo: (id) => del(`/entities/${id}/logo`),
+
   // Admin oversight summary — docs/PRD_ENTITY_PROFILE_AND_GUARDRAILS.md §14.2.
   guardrailsOverview: () => get('/entities/guardrails-overview'),
 

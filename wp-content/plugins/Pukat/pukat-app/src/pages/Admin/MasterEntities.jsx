@@ -19,6 +19,7 @@ import Label from '../../components/UI/Label.jsx'
 import Input from '../../components/UI/Input.jsx'
 import EntityEmailDomainsPanel from '../../features/entities/EntityEmailDomainsPanel.jsx'
 import EntityFlagExamplesPanel from '../../features/entities/EntityFlagExamplesPanel.jsx'
+import { sectorLabel } from '../../features/entities/entitySectors.js'
 
 const EMPTY_FORM = { entity_name: '', description: '' }
 const AUTH_TONE = { authorized: 'success', pending: 'warning', rejected: 'danger', expired: 'gray' }
@@ -29,7 +30,7 @@ const DEFAULT_TABLE_STATE = { search: '', sort: 'entity', order: 'asc', page: 1,
 // table, so it isn't registered in the backend TableRegistry/server-driven table API like
 // `landing_pages` is. It's small (one row per entity), so search/sort/pagination for the
 // shared DataTable UI are done client-side here instead.
-const SEARCHABLE_FIELDS = ['entity_name', 'description', 'contact_email', 'contact_name']
+const SEARCHABLE_FIELDS = ['entity_name', 'display_name', 'description', 'contact_email', 'contact_name', 'location', 'sector_label']
 
 function CountCell({ value, total, label }) {
   const tone = total === 0 ? 'gray' : value === 0 ? 'warning' : 'success'
@@ -146,7 +147,7 @@ export default function MasterEntities() {
   // profile yet (see `has_profile` below) — give every row a stable, unique id so
   // DataTable's row keys/actions never collide.
   const normalizedRows = useMemo(
-    () => rows.map(row => ({ ...row, id: row.id ?? `no-profile-${row.entity_name}` })),
+    () => rows.map(row => ({ ...row, id: row.id ?? `no-profile-${row.entity_name}`, sector_label: sectorLabel(row.sector) })),
     [rows]
   )
 
@@ -211,9 +212,18 @@ export default function MasterEntities() {
         renderer: 'custom',
         sortable: true,
         render: row => (
+          <div className="flex min-w-0 items-center gap-3">
+            <div className="flex h-8 w-8 shrink-0 items-center justify-center overflow-hidden rounded-md border border-gray-100 bg-gray-50">
+              {row.logo_url
+                ? <img src={row.logo_url} alt="" className="h-full w-full object-contain" />
+                : <i className="ti ti-building text-sm text-gray-300" />}
+            </div>
           <div className="min-w-0">
             <div className="flex items-center gap-2">
-              <span className="truncate font-semibold text-gray-900">{row.entity_name}</span>
+              <span className="truncate font-semibold text-gray-900">{row.display_name || row.entity_name}</span>
+              {row.display_name && row.display_name !== row.entity_name && (
+                <span className="truncate text-[11px] text-gray-400">{row.entity_name}</span>
+              )}
               {!row.has_profile && (
                 <span title="This entity's users registered guardrails, but no admin has created its profile yet.">
                   <Badge tone="warning" className="text-[10px]">No profile</Badge>
@@ -222,6 +232,22 @@ export default function MasterEntities() {
             </div>
             {row.description && <div className="truncate text-[11px] text-gray-400">{row.description}</div>}
           </div>
+          </div>
+        ),
+      },
+      {
+        key: 'identity',
+        label: 'Sector / size',
+        renderer: 'custom',
+        render: row => (
+          row.sector || row.employee_count != null || row.location ? (
+            <div className="min-w-0 text-xs">
+              <div className="truncate text-gray-600">{row.sector_label || '—'}</div>
+              <div className="truncate text-[11px] text-gray-400">
+                {[row.employee_count != null && `${row.employee_count.toLocaleString()} employees`, row.location].filter(Boolean).join(' · ')}
+              </div>
+            </div>
+          ) : <span className="text-gray-300">Not filled</span>
         ),
       },
       {
