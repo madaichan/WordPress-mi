@@ -3,6 +3,7 @@ import { Link } from 'react-router-dom'
 import Switch from '../../../components/UI/Switch.jsx'
 import { DEMO_TARGET_TOTAL } from './wizardData.js'
 import { isScheduleSendTimeInvalid } from '../../../utils/campaignLaunch.js'
+import { useEntityEmailDomains, useEntityReadiness } from '../../../hooks/queries/useEntityQueries.js'
 import { EMPTY_PLAYBOOK_COMPONENT_OPTIONS, optionLabel, optionReady } from '../../../utils/playbookComponentOptions.js'
 
 const LAUNCH_STAGE_LABELS = {
@@ -11,7 +12,7 @@ const LAUNCH_STAGE_LABELS = {
   launching: 'Launching…',
 }
 
-export default function Step3({ form, setForm, csvData, playbooks = [], componentOptions = EMPTY_PLAYBOOK_COMPONENT_OPTIONS, onBack, onLaunch, onDraft, isLaunching, isSavingDraft, launchStage, isEditing = false }) {
+export default function Step3({ form, setForm, csvData, playbooks = [], componentOptions = EMPTY_PLAYBOOK_COMPONENT_OPTIONS, onBack, onLaunch, onDraft, isLaunching, isSavingDraft, launchStage, isEditing = false, entity = '', canBypassEmailDomainGuardrail = false }) {
   const quizEnabled = form.followUp?.quizEnabled ?? true
   const reminderEnabled = form.followUp?.forceResetPasswordReminderEnabled ?? false
   const isCustomMode = form.mode === 'custom'
@@ -47,6 +48,52 @@ export default function Step3({ form, setForm, csvData, playbooks = [], componen
   const emailReady = optionReady(componentOptions.email, customComponents.email)
   const landingReady = optionReady(componentOptions.page, customComponents.page)
   const smtpReady = optionReady(componentOptions.smtp, customComponents.smtp)
+
+  // Recipient email-domain guardrail: targets must be on the entity's active
+  // allow-list (My Profile > Guardrails). The backend enforces this at launch;
+  // this mirrors it so the problem is visible before launching.
+  const { data: entityDomains, isLoading: domainsLoading } = useEntityEmailDomains(entity)
+  const { data: entityReadiness } = useEntityReadiness(entity)
+  const domainGuardrailRequired = entityReadiness?.email_domain_required !== false
+  const allowedDomains = (entityDomains || []).filter(d => d.status === 'active').map(d => String(d.domain).toLowerCase())
+  const domainGuardrailLoaded = Boolean(entity) && !domainsLoading && entityDomains !== undefined
+  const blockedEmails = domainGuardrailLoaded && allowedDomains.length > 0
+    ? csvData
+      .map(row => String(row.email || '').trim())
+      .filter(email => email.includes('@') && !allowedDomains.includes(email.slice(email.lastIndexOf('@') + 1).toLowerCase()))
+    : []
+  const noActiveDomains = domainGuardrailLoaded && allowedDomains.length === 0 && domainGuardrailRequired
+  const domainBlocked = noActiveDomains || (blockedEmails.length > 0 && !canBypassEmailDomainGuardrail)
+
+  // status: passed | failed | bypass | disabled | checking | waiting
+  let domainChecklistItem
+  if (!csvData.length) {
+    domainChecklistItem = { status: 'waiting', text: 'Email domain check — waiting for targets to be imported' }
+  } else if (!domainGuardrailLoaded) {
+    domainChecklistItem = { status: 'checking', text: `Email domain check — checking against "${entity}" guardrails…` }
+  } else if (noActiveDomains) {
+    domainChecklistItem = { status: 'failed', text: `Entity "${entity}" has no active company email domain — add one in My Profile > Guardrails` }
+  } else if (allowedDomains.length === 0) {
+    domainChecklistItem = { status: 'disabled', text: 'Email domain guardrail is disabled for this entity (no active domain)' }
+  } else if (blockedEmails.length > 0) {
+    const sample = blockedEmails.slice(0, 3).join(', ')
+    const more = blockedEmails.length > 3 ? ` +${blockedEmails.length - 3} more` : ''
+    domainChecklistItem = {
+      status: canBypassEmailDomainGuardrail ? 'bypass' : 'failed',
+      text: `${blockedEmails.length.toLocaleString('en-US')} target(s) use a domain not registered in "${entity}" guardrails (${sample}${more})${canBypassEmailDomainGuardrail ? ' — you can launch with bypass' : ' — remove them before launching'}`,
+    }
+  } else {
+    domainChecklistItem = { status: 'passed', text: `All targets use registered email domains — ${allowedDomains.join(', ')}` }
+  }
+  const DOMAIN_STATUS = {
+    passed:   { ok: true,  label: 'Passed' },
+    disabled: { ok: true,  label: 'Skipped' },
+    failed:   { ok: false, label: 'Blocked' },
+    bypass:   { ok: false, warn: true, label: 'Bypass required' },
+    checking: { ok: false, neutral: true, label: 'Checking…' },
+    waiting:  { ok: false, neutral: true, label: 'Pending' },
+  }[domainChecklistItem.status]
+  domainChecklistItem = { ...DOMAIN_STATUS, text: domainChecklistItem.text }
 
   const scheduleEnabled = form.scheduleEnabled ?? true
   const sendTimeInvalid = isScheduleSendTimeInvalid(form)
@@ -94,6 +141,7 @@ export default function Step3({ form, setForm, csvData, playbooks = [], componen
         ? { ok: false, text: 'Send time must be at least 5 minutes from now' }
         : { ok: !!(form.dateStart && form.dateEnd), text: form.dateStart && form.dateEnd ? `Schedule set — ${form.dateStart} to ${form.dateEnd} at ${form.sendTime || '09:00'} (${form.timezone})` : 'Set sending schedule' }
       : { ok: true, text: 'Send immediately upon launch' },
+    domainChecklistItem,
   ]
 
   const formatDate = (d) => {
@@ -108,12 +156,16 @@ export default function Step3({ form, setForm, csvData, playbooks = [], componen
       <div className="bg-white border border-gray-200 rounded-xl p-5">
         <h3 className="text-sm font-semibold text-gray-900 mb-4">Pre-launch checklist</h3>
         <div className="space-y-2">
-          {checklist.map(({ ok, text }, i) => (
+          {checklist.map(({ ok, warn, neutral, label, text }, i) => (
             <div key={i} className={clsx(
               'rounded-lg px-4 py-2.5 text-xs font-medium flex items-center justify-between',
-              ok ? 'bg-emerald-50 text-emerald-800 border border-emerald-100' : 'bg-red-50 text-red-800 border border-red-100',
+              ok ? 'bg-emerald-50 text-emerald-800 border border-emerald-100'
+                : warn ? 'bg-amber-50 text-amber-800 border border-amber-100'
+                  : neutral ? 'bg-gray-50 text-gray-600 border border-gray-200'
+                  : 'bg-red-50 text-red-800 border border-red-100',
             )}>
-              <span>{ok ? '✓' : '✗'} {text}</span>
+              <span>{ok ? '✓' : warn ? '⚠' : neutral ? '…' : '✗'} {text}</span>
+              {label && <span className="ml-4 whitespace-nowrap rounded-full bg-white/70 px-2 py-0.5 text-[10px] font-semibold">{label}</span>}
             </div>
           ))}
           {/* Static warning */}
@@ -202,8 +254,8 @@ export default function Step3({ form, setForm, csvData, playbooks = [], componen
             className="bg-white border border-gray-200 text-gray-700 hover:bg-gray-50 disabled:opacity-50 px-4 py-2 text-sm font-semibold rounded-xl transition-all">
             {isSavingDraft ? 'Saving…' : isEditing ? 'Update draft' : 'Save as draft'}
           </button>
-          <button onClick={onLaunch} disabled={isLaunching || isSavingDraft || sendTimeInvalid}
-            title={sendTimeInvalid ? 'Fix the sending schedule — Send time must be at least 5 minutes from now.' : undefined}
+          <button onClick={onLaunch} disabled={isLaunching || isSavingDraft || sendTimeInvalid || domainBlocked}
+            title={sendTimeInvalid ? 'Fix the sending schedule — Send time must be at least 5 minutes from now.' : domainBlocked ? 'Targets must use email domains registered in this entity\'s guardrails.' : undefined}
             className="bg-violet-500 text-white hover:bg-violet-600 disabled:opacity-50 px-5 py-2 text-sm font-semibold rounded-xl flex items-center gap-1.5 transition-all">
             <i className="ti ti-player-play-filled text-sm" />
             {isLaunching ? (LAUNCH_STAGE_LABELS[launchStage] || 'Launching...') : 'Launch campaign'}

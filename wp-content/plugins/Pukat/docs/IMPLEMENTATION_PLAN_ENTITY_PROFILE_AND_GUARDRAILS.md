@@ -106,3 +106,12 @@ Phase 4 independen — bisa dikerjakan paralel dengan Phase 1-3 karena hanya men
 3. **Backend**: `EntityProfileService` — `create`/`update` menerima `display_name`, `sector` (whitelist), `employee_count` (int ≥ 0), `location`; `set_logo()`/`remove_logo()`; `prepare()` menambah field + `logo_url`. `EntityController` — `POST`/`DELETE /entities/{id}/logo`.
 4. **Frontend**: `EntityProfileForm` — field baru + upload logo (pakai `UploadProgress`); konstanta daftar sektor; Master Entities menampilkan logo, nama tampilan, sektor, jumlah karyawan.
 5. **QA**: smoke test HTTP sebagai `pukatopr` (isi field, upload/ganti/hapus logo, SVG/non-gambar ditolak, General/entity lain 403, attachment lama terhapus); re-test upload Flag Example setelah refactor; lint/build/test.
+
+## 12. Guardrail email domain wajib & Kesiapan Entity (PRD §16)
+
+1. Activator: migrasi 1.19.0 `add_option( 'pukat_require_email_domain_guardrail', '1' )`.
+2. `EntityProfileService`: `email_domain_guardrail_required()`, `readiness( $entity_name )`; overview menambah `can_launch`.
+3. `CampaignRunService::enforce_target_email_domain_guardrail()`: cek domain aktif kosong + setting on → `entity_email_domains_missing` sebelum logika bypass.
+4. `EntityController`: `GET /entities/by-name/{entity_name}/readiness`. `SettingsController`: expose + update boolean.
+5. Frontend: `EntityReadinessCard` di My Profile, kolom Launch di Master Entities, pesan error di Campaigns wizard, toggle di Settings, teks panel email domain disesuaikan.
+6. QA: HTTP sebagai pukatopr (readiness, launch diblok), toggle setting, lint/test/build.

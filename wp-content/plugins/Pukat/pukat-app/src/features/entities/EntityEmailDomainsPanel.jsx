@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import toast from 'react-hot-toast'
-import { useEntityEmailDomains } from '../../hooks/queries/useEntityQueries.js'
+import { useEntityEmailDomains, useEntityReadiness } from '../../hooks/queries/useEntityQueries.js'
 import {
   useAddEntityEmailDomainMutation,
   useRemoveEntityEmailDomainMutation,
@@ -22,6 +22,9 @@ export default function EntityEmailDomainsPanel({ entityName, canManage = false,
   const [newDomain, setNewDomain] = useState('')
   const [removingDomain, setRemovingDomain] = useState(null)
   const { data: domains = [], isLoading } = useEntityEmailDomains(entityName)
+  // Whether an empty list blocks launches (PRD §16) or just disables the check (§11).
+  const { data: readiness } = useEntityReadiness(entityName)
+  const required = readiness?.email_domain_required !== false
   const addMutation = useAddEntityEmailDomainMutation({ onSuccess: () => setNewDomain('') })
   const removeMutation = useRemoveEntityEmailDomainMutation({ onSuccess: () => setRemovingDomain(null) })
   const statusMutation = useSetEntityEmailDomainStatusMutation()
@@ -45,7 +48,9 @@ export default function EntityEmailDomainsPanel({ entityName, canManage = false,
     <div className="space-y-3">
       <p className="text-xs text-gray-500">
         Campaign targets whose email domain is not on the active list are rejected when a Campaign Run is launched.
-        {activeCount === 0 && ' No active domain yet — this guardrail is currently disabled for this entity.'}
+        {activeCount === 0 && (required
+          ? <strong className="text-danger"> No active domain yet — campaigns for this entity cannot be launched until one is added.</strong>
+          : ' No active domain yet — this guardrail is currently disabled for this entity.')}
       </p>
 
       {canManage && (
@@ -102,7 +107,7 @@ export default function EntityEmailDomainsPanel({ entityName, canManage = false,
       {removingDomain && (
         <AlertConfirmation
           title="Remove email domain?"
-          message={`"${removingDomain.domain}" will be removed from this entity's allowed email domains.${activeCount <= 1 && removingDomain.status === 'active' ? ' It is the last active domain, so the email-domain guardrail will be disabled.' : ''}`}
+          message={`"${removingDomain.domain}" will be removed from this entity's allowed email domains.${activeCount <= 1 && removingDomain.status === 'active' ? (required ? ' It is the last active domain, so this entity will not be able to launch campaigns.' : ' It is the last active domain, so the email-domain guardrail will be disabled.') : ''}`}
           icon="ti-trash"
           tone="danger"
           confirmLabel="Remove"

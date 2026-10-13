@@ -9,6 +9,7 @@ import Input from '../../components/UI/Input.jsx'
 import Select from '../../components/UI/Select.jsx'
 import Badge from '../../components/UI/Badge.jsx'
 import Button from '../../components/UI/Button.jsx'
+import Switch from '../../components/UI/Switch.jsx'
 
 export default function Settings() {
   const { data: settings, isLoading } = useSettingsQuery()
@@ -20,6 +21,7 @@ export default function Settings() {
     pukat_timezone:              'UTC',
     pukat_quiz_pass_score:       70,
     pukat_sync_interval_minutes: 1,
+    pukat_require_email_domain_guardrail: true,
   })
 
   const [testResult, setTestResult] = useState(null) // null | 'success' | 'error'
@@ -33,6 +35,7 @@ export default function Settings() {
         pukat_timezone:              settings.pukat_timezone              || 'UTC',
         pukat_quiz_pass_score:       settings.pukat_quiz_pass_score       || 70,
         pukat_sync_interval_minutes: settings.pukat_sync_interval_minutes || 1,
+        pukat_require_email_domain_guardrail: settings.pukat_require_email_domain_guardrail !== false,
       }))
     }
   }, [settings])
@@ -226,6 +229,22 @@ export default function Settings() {
             A shorter interval means fresher data on the Monitoring dashboard, but more frequent calls to your GoPhish server.
           </p>
         </div>
+      </Card>
+
+      {/* Guardrails — docs/PRD_ENTITY_PROFILE_AND_GUARDRAILS.md §16 */}
+      <Card>
+        <h2 className="text-sm font-semibold text-gray-900 mb-1">Guardrails</h2>
+        <p className="text-xs text-gray-500 mb-4">Safety checks applied when a Campaign Run is launched.</p>
+
+        <Switch
+          checked={form.pukat_require_email_domain_guardrail}
+          onChange={value => update('pukat_require_email_domain_guardrail', value)}
+          label="Require company email domains before launch"
+        />
+        <p className="text-xs text-gray-400 mt-1">
+          On: an entity with no active company email domain cannot launch campaigns (including General).
+          Off: such entities skip the target email-domain check entirely. Changes are recorded in the audit log.
+        </p>
       </Card>
 
       {/* Save */}

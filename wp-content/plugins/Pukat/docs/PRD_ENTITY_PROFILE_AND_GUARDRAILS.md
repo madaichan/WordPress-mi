@@ -266,3 +266,41 @@ Pemakaian logo/nama tampilan di laporan PDF dan di halaman awareness target — 
 - Sektor di luar whitelist, jumlah karyawan negatif/bukan angka, dan logo SVG/file non-gambar ditolak dengan pesan jelas.
 - Non-admin tidak bisa mengubah identitas/logo entity General atau entity lain (403).
 - Mengganti logo tidak meninggalkan attachment lama di Media Library.
+
+## 16. Guardrail email domain wajib & Kesiapan Entity (2026-09-28)
+
+### 16.1 Masalah
+§11 membuat guardrail email domain *fail-open*: entity tanpa domain aktif = guardrail mati, target domain apa pun lolos. Untuk pengaman, ini terbalik — entity baru yang belum mengisi apa pun justru paling tidak terlindungi.
+
+### 16.2 Aturan baru (fail-closed)
+- Setting global `pukat_require_email_domain_guardrail` (default **on**, Settings admin).
+- Saat on: Campaign Run entity yang **tidak punya satu pun email domain aktif** ditolak saat lock snapshot/launch dengan `422 entity_email_domains_missing`. Berlaku untuk semua entity, **termasuk General**.
+- Penolakan ini **tidak** bisa dilewati `bypass_email_domain_guardrail` / `guardrails.bypass` — bypass tetap hanya untuk target yang domainnya tidak cocok (FR-8). Admin yang perlu launch cukup menambahkan domain ke entity (admin boleh edit semua entity).
+- Admin men-disable semua domain sebuah entity = entity itu berhenti bisa launch (kill switch).
+- Saat off: perilaku lama §11 (fail-open).
+
+### 16.3 Kesiapan Entity (readiness)
+`GET /entities/by-name/{entity_name}/readiness` (gate sama dengan email-domains) mengembalikan:
+`{ entity_name, can_launch, email_domain_required, items: [{ key, level, done }] }`
+
+| key | level | done bila |
+|---|---|---|
+| `email_domains` | `required` (atau `recommended` bila setting off) | ≥1 email domain aktif |
+| `landing_domains` | `recommended` | ≥1 landing domain milik entity yang authorized + active (dynamic domain di playbook opsional; bila dipakai sudah divalidasi di `validate_playbook_ready`) |
+| `report_contact` | `recommended` | report contact terisi |
+| `flag_examples` | `recommended` | ≥1 contoh Flag |
+| `identity` | `optional` | profil ada dan sektor terisi |
+
+`can_launch` = semua item `required` selesai. Overview admin (`guardrails-overview`) menambah `can_launch` per baris.
+
+### 16.4 UI
+- My Profile: kartu "Entity readiness" di atas tab (checklist, item wajib yang belum = merah + "Campaign tidak bisa diluncurkan").
+- Master Entities: kolom "Launch" (Ready / Blocked); kartu ringkasan "Cannot launch campaigns".
+- Campaign wizard: error `entity_email_domains_missing` ditampilkan jelas, tanpa tawaran bypass.
+- Settings: toggle "Require company email domains before launch".
+
+### 16.5 Acceptance criteria
+- Setting on + entity tanpa domain aktif → launch 422 `entity_email_domains_missing`, juga dengan `bypass_email_domain_guardrail: true`.
+- Setting off → launch lolos seperti sebelumnya.
+- Tambah 1 domain aktif → readiness `can_launch: true`, launch lolos (target tetap divalidasi FR-7).
+- User non-admin tidak bisa membaca readiness entity lain (hasil kosong/403 sesuai gate §14).

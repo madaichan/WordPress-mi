@@ -35,3 +35,12 @@ export function useEntityEmailDomains(entityName, options = {}) {
     ...options,
   })
 }
+
+export function useEntityReadiness(entityName, options = {}) {
+  return useQuery({
+    queryKey: queryKeys.entities.readiness(entityName),
+    queryFn: () => entityApi.getReadiness(entityName),
+    enabled: Boolean(entityName),
+    ...options,
+  })
+}

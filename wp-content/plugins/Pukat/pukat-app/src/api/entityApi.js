@@ -31,6 +31,9 @@ export const entityApi = {
   removeEmailDomain:     (entityName, id)         => del(`${emailDomainsPath(entityName)}/${id}`),
   setEmailDomainStatus:  (entityName, id, status) => patch(`${emailDomainsPath(entityName)}/${id}`, { status }),
 
+  // Readiness checklist — docs/PRD_ENTITY_PROFILE_AND_GUARDRAILS.md §16.3.
+  getReadiness: (entityName) => get(`/entities/by-name/${encodeURIComponent(entityName)}/readiness`),
+
   getReportContact:  (entityName)       => get(reportContactPath(entityName)),
   saveReportContact: (entityName, data) => put(reportContactPath(entityName), data),
 }

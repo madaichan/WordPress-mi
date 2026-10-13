@@ -50,6 +50,9 @@ class EntityProfileService {
 
 	private const MAX_EMPLOYEE_COUNT = 10000000;
 
+	/** Settings option — docs/PRD_ENTITY_PROFILE_AND_GUARDRAILS.md §16.2. */
+	public const REQUIRE_EMAIL_DOMAIN_OPTION = 'pukat_require_email_domain_guardrail';
+
 	/** Basic domain-format check — rejects schemes/paths/spaces, not a full RFC validator. */
 	private const DOMAIN_PATTERN = '/^[a-z0-9]([a-z0-9-]{0,61}[a-z0-9])?(\.[a-z0-9]([a-z0-9-]{0,61}[a-z0-9])?)+$/i';
 
@@ -444,7 +447,7 @@ class EntityProfileService {
 		$landing = $counts['landing'][ $key ] ?? [ 'total' => 0, 'available' => 0 ];
 		$email   = $counts['email'][ $key ] ?? [ 'total' => 0, 'active' => 0 ];
 
-		return array_merge( $row, [
+		$row = array_merge( $row, [
 			'landing_domains_total'     => $landing['total'],
 			'landing_domains_available' => $landing['available'],
 			'email_domains_total'       => $email['total'],
@@ -452,6 +455,76 @@ class EntityProfileService {
 			'report_contact_filled'     => isset( $contacts[ $key ] ),
 			'flag_examples_total'       => (int) ( $examples[ $key ]['total'] ?? 0 ),
 		] );
+		$row['can_launch'] = $this->can_launch( $this->readiness_items( $row ) );
+
+		return $row;
+	}
+
+	/**
+	 * Whether a Campaign Run of an entity with no active email domain is
+	 * rejected (fail-closed, PRD §16.2) rather than skipping the target
+	 * domain check (fail-open, §11). Defaults to on.
+	 */
+	public static function email_domain_guardrail_required(): bool {
+		return '1' === (string) get_option( self::REQUIRE_EMAIL_DOMAIN_OPTION, '1' );
+	}
+
+	/**
+	 * Readiness checklist for one entity (PRD §16.3).
+	 *
+	 * @return array<string, mixed>|WP_Error
+	 */
+	public function readiness( string $entity_name ): array|WP_Error {
+		$entity_name = trim( $entity_name );
+		if ( '' === $entity_name || ! $this->current_user_can_view_entity( $entity_name ) ) {
+			return $this->forbidden_error( __( 'You can only view your own entity.', 'pukat' ) );
+		}
+
+		$profile = $this->repository->find_by_name( $entity_name );
+		$row     = $this->with_guardrail_counts(
+			[ 'entity_name' => $entity_name, 'sector' => $profile['sector'] ?? null, 'has_profile' => (bool) $profile ],
+			$this->repository->guardrail_counts(),
+			$this->repository->entities_with_report_contact(),
+			( new FlagExampleRepository() )->counts_by_entity()
+		);
+		$items = $this->readiness_items( $row );
+
+		return [
+			'entity_name'           => $entity_name,
+			'can_launch'            => $this->can_launch( $items ),
+			'email_domain_required' => self::email_domain_guardrail_required(),
+			'items'                 => $items,
+		];
+	}
+
+	/**
+	 * @param array<string, mixed> $row A with_guardrail_counts() row.
+	 * @return array<int, array{key: string, level: string, done: bool}>
+	 */
+	private function readiness_items( array $row ): array {
+		return [
+			[
+				'key'   => 'email_domains',
+				'level' => self::email_domain_guardrail_required() ? 'required' : 'recommended',
+				'done'  => $row['email_domains_active'] > 0,
+			],
+			[ 'key' => 'landing_domains', 'level' => 'recommended', 'done' => $row['landing_domains_available'] > 0 ],
+			[ 'key' => 'report_contact', 'level' => 'recommended', 'done' => (bool) $row['report_contact_filled'] ],
+			[ 'key' => 'flag_examples', 'level' => 'recommended', 'done' => $row['flag_examples_total'] > 0 ],
+			[ 'key' => 'identity', 'level' => 'optional', 'done' => ! empty( $row['has_profile'] ) && ! empty( $row['sector'] ) ],
+		];
+	}
+
+	/**
+	 * @param array<int, array{key: string, level: string, done: bool}> $items
+	 */
+	private function can_launch( array $items ): bool {
+		foreach ( $items as $item ) {
+			if ( 'required' === $item['level'] && ! $item['done'] ) {
+				return false;
+			}
+		}
+		return true;
 	}
 
 	/**

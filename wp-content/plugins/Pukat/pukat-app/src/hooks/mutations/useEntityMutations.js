@@ -87,6 +87,7 @@ export function useRemoveEntityLogoMutation(options = {}) {
 function invalidateEmailDomains(qc, entityName) {
   qc.invalidateQueries({ queryKey: queryKeys.entities.emailDomains(entityName) })
   qc.invalidateQueries({ queryKey: queryKeys.entities.overview })
+  qc.invalidateQueries({ queryKey: queryKeys.entities.readiness(entityName) })
 }
 
 export function useAddEntityEmailDomainMutation(options = {}) {
@@ -132,6 +133,7 @@ export function useSaveEntityReportContactMutation(options = {}) {
       toast.success('Report contact saved.')
       qc.invalidateQueries({ queryKey: queryKeys.entities.reportContact(variables.entityName) })
       qc.invalidateQueries({ queryKey: queryKeys.entities.overview })
+      qc.invalidateQueries({ queryKey: queryKeys.entities.readiness(variables.entityName) })
       options.onSuccess?.(data, variables, context)
     },
     onError: (err, variables, context) => {

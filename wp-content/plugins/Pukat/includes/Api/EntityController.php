@@ -97,6 +97,13 @@ class EntityController extends RestController {
 			],
 		] );
 
+		// Readiness checklist (docs/PRD_ENTITY_PROFILE_AND_GUARDRAILS.md §16.3).
+		register_rest_route( $this->namespace, '/entities/by-name/(?P<entity_name>[^/]+)/readiness', [
+			'methods'             => 'GET',
+			'callback'            => [ $this, 'get_readiness' ],
+			'permission_callback' => [ $this, 'permission_view_entity' ],
+		] );
+
 		// Admin oversight summary (docs/PRD_ENTITY_PROFILE_AND_GUARDRAILS.md §14.2).
 		register_rest_route( $this->namespace, '/entities/guardrails-overview', [
 			'methods'             => 'GET',
@@ -218,6 +225,10 @@ class EntityController extends RestController {
 		$result = $this->entities->remove_logo( (int) $request->get_param( 'id' ), get_current_user_id() );
 
 		return $this->result_response( $result );
+	}
+
+	public function get_readiness( WP_REST_Request $request ): WP_REST_Response {
+		return $this->result_response( $this->entities->readiness( (string) $request->get_param( 'entity_name' ) ) );
 	}
 
 	public function list_email_domains( WP_REST_Request $request ): WP_REST_Response {

@@ -4,6 +4,7 @@ import toast from 'react-hot-toast'
 import { useCampaignList, useCampaignRun } from '../../hooks/queries/useCampaignQueries.js'
 import { useTableRows, useTableSchema } from '../../hooks/queries/useTableQueries.js'
 import { usePlaybooks } from '../../hooks/queries/usePlaybookQueries.js'
+import { useEntityReadiness } from '../../hooks/queries/useEntityQueries.js'
 import {
   useMasterDynamicDomains,
   useMasterEmailTemplates,
@@ -21,7 +22,7 @@ import {
 import { useCreatePlaybookMutation } from '../../hooks/mutations/usePlaybookMutations.js'
 import { buildCampaignLaunchPayload, buildTargetImportPayload, regionForTimezone, localDateAndTimeFromScheduleAt, todayDateString, addDaysToDateString, minSendTimeForDate, isScheduleSendTimeInvalid } from '../../utils/campaignLaunch.js'
 import { playbookComponentOptions } from '../../utils/playbookComponentOptions.js'
-import { assetEntityForUser, canCreatePlaybook } from '../../utils/entityAssignmentHelpers.js'
+import { GENERAL_ENTITY, assetEntityForUser, canCreatePlaybook, getUserEntity } from '../../utils/entityAssignmentHelpers.js'
 import { resolveSendingProfileRefId } from '../../utils/resolveSendingProfileRef.js'
 import useAppStore from '../../store/useAppStore.js'
 import WizardStepper from '../../features/campaigns/WizardStepper.jsx'
@@ -181,6 +182,12 @@ export default function Campaigns() {
   const isFullAdmin = useAppStore(state => state.isAdmin())
   const hasPlaybookCreateCapability = useAppStore(state => state.hasPermission('master_playbooks.create'))
   const canBypassEmailDomainGuardrail = useAppStore(state => state.hasPermission('guardrails.bypass'))
+  // A run belongs to its creator's entity, or General when they have none
+  // (CampaignRunService::create()) — pre-check that entity's readiness so a
+  // blocked launch (PRD_ENTITY_PROFILE_AND_GUARDRAILS §16) fails before a
+  // draft run is created. The backend still enforces it.
+  const runEntity = getUserEntity(currentUser) || GENERAL_ENTITY
+  const { data: runEntityReadiness } = useEntityReadiness(runEntity)
   const canUseCustomCampaign = canCreatePlaybook(currentUser, { isFullAdmin, hasCreateCapability: hasPlaybookCreateCapability })
   const defaultEntity = useMemo(() => assetEntityForUser(currentUser), [currentUser])
 
@@ -402,6 +409,11 @@ export default function Campaigns() {
       return
     }
 
+    if (runEntityReadiness && !runEntityReadiness.can_launch) {
+      toast.error(`Entity "${runEntity}" has no active company email domain. Add one in My Profile > Guardrails before launching.`)
+      return
+    }
+
     try {
       setLaunchStage('creating')
 
@@ -549,6 +561,8 @@ export default function Campaigns() {
             isSavingDraft={isSavingDraft}
             launchStage={launchStage}
             isEditing={Boolean(editingRunId)}
+            entity={runEntity}
+            canBypassEmailDomainGuardrail={canBypassEmailDomainGuardrail}
           />
         )}
       </PageShell>

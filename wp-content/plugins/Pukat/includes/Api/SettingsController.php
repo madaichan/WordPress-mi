@@ -12,6 +12,7 @@ namespace Pukat\Api;
 use Pukat\Core\Plugin;
 use Pukat\Services\AuditLogService;
 use Pukat\Services\EncryptionService;
+use Pukat\Services\EntityProfileService;
 use Pukat\Services\GoPhishService;
 use Pukat\Services\PermissionRegistry;
 use WP_Error;
@@ -90,6 +91,8 @@ class SettingsController extends RestController {
 		}
 		// Numeric — the generic string default above would otherwise round-trip as ''.
 		$settings['pukat_sync_interval_minutes'] = Plugin::sync_interval_minutes();
+		// Boolean — PRD_ENTITY_PROFILE_AND_GUARDRAILS §16.2.
+		$settings[ EntityProfileService::REQUIRE_EMAIL_DOMAIN_OPTION ] = EntityProfileService::email_domain_guardrail_required();
 		// Lets the frontend render the interval picker from one source of truth.
 		$settings['sync_interval_choices'] = Plugin::SYNC_INTERVAL_CHOICES_MINUTES;
 		// Indicate whether API key is set (without revealing it).
@@ -134,6 +137,17 @@ class SettingsController extends RestController {
 				update_option( $key, $value );
 				$updated[] = $key;
 			}
+		}
+
+		// Security guardrail toggle (PRD_ENTITY_PROFILE_AND_GUARDRAILS §16.2) — audit-logged.
+		$guardrail_key = EntityProfileService::REQUIRE_EMAIL_DOMAIN_OPTION;
+		if ( array_key_exists( $guardrail_key, $params ) ) {
+			$required = rest_sanitize_boolean( $params[ $guardrail_key ] );
+			if ( $required !== EntityProfileService::email_domain_guardrail_required() ) {
+				AuditLogService::log( 'settings.email_domain_guardrail_' . ( $required ? 'required' : 'optional' ), [], get_current_user_id() );
+			}
+			update_option( $guardrail_key, $required ? '1' : '0' );
+			$updated[] = $guardrail_key;
 		}
 
 		// API key — encrypt before storing.

@@ -849,6 +849,13 @@ class Activator {
 			self::ensure_entity_profiles_identity_columns();
 			update_option( 'pukat_db_version', '1.18.0' );
 		}
+
+		// PRD_ENTITY_PROFILE_AND_GUARDRAILS §16: email-domain guardrail is
+		// fail-closed by default. add_option never overwrites an admin's choice.
+		if ( version_compare( $db_version, '1.19.0', '<' ) ) {
+			add_option( 'pukat_require_email_domain_guardrail', '1' );
+			update_option( 'pukat_db_version', '1.19.0' );
+		}
 	}
 
 	/**

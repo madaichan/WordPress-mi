@@ -104,7 +104,9 @@ function GuardrailsDrawer({ entity, landingDomains, onClose }) {
 
       <section className="space-y-3">
         <div className="text-xs font-semibold uppercase tracking-wider text-gray-500">Company email domains</div>
-        <EntityEmailDomainsPanel entityName={entity.entity_name} canToggle />
+        {/* Admin can also add: with the §16 guardrail on, an entity only admin
+            may edit (e.g. General) would otherwise have no way to become launchable. */}
+        <EntityEmailDomainsPanel entityName={entity.entity_name} canManage canToggle />
       </section>
 
       <section className="space-y-3">
@@ -139,7 +141,7 @@ export default function MasterEntities() {
 
   const summary = useMemo(() => ({
     entities: rows.length,
-    withoutEmailGuardrail: rows.filter(r => r.email_domains_active === 0).length,
+    cannotLaunch: rows.filter(r => r.can_launch === false).length,
     withoutLandingDomain: rows.filter(r => r.landing_domains_available === 0).length,
   }), [rows])
 
@@ -273,6 +275,16 @@ export default function MasterEntities() {
         render: row => <CountCell value={row.email_domains_active} total={row.email_domains_total} label="enabled" />,
       },
       {
+        key: 'launch',
+        label: 'Launch',
+        renderer: 'custom',
+        render: row => (
+          <Badge tone={row.can_launch ? 'success' : 'danger'} className="text-[10px]">
+            {row.can_launch ? 'Ready' : 'Blocked'}
+          </Badge>
+        ),
+      },
+      {
         key: 'report_contact',
         label: 'Report contact',
         renderer: 'custom',
@@ -369,7 +381,7 @@ export default function MasterEntities() {
       <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
         <Card><div className="text-2xl font-bold text-gray-900">{summary.entities}</div><div className="text-xs font-semibold text-gray-500">Entities</div></Card>
         <Card><div className="text-2xl font-bold text-gray-900">{summary.withoutLandingDomain}</div><div className="text-xs font-semibold text-gray-500">Without an authorized landing domain</div></Card>
-        <Card><div className="text-2xl font-bold text-gray-900">{summary.withoutEmailGuardrail}</div><div className="text-xs font-semibold text-gray-500">Email-domain guardrail disabled (no active domain)</div></Card>
+        <Card><div className="text-2xl font-bold text-gray-900">{summary.cannotLaunch}</div><div className="text-xs font-semibold text-gray-500">Cannot launch campaigns (no active email domain)</div></Card>
       </div>
 
       <DataTable

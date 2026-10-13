@@ -11,6 +11,8 @@ export function useSaveSettingsMutation(options = {}) {
     onSuccess: (data, variables, context) => {
       toast.success('Settings saved successfully.')
       qc.invalidateQueries({ queryKey: queryKeys.settings })
+      // The email-domain guardrail toggle changes entity readiness/can_launch.
+      qc.invalidateQueries({ queryKey: queryKeys.entities.all })
       options.onSuccess?.(data, variables, context)
     },
     onError: (err, variables, context) => {

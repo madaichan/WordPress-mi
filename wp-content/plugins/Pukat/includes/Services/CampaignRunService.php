@@ -2001,6 +2001,24 @@ class CampaignRunService {
 		$targets = $snapshot['target']['targets'] ?? [];
 		$entity  = (string) ( $run['entity'] ?? self::GENERAL_ENTITY );
 
+		// Fail-closed (docs/PRD_ENTITY_PROFILE_AND_GUARDRAILS.md §16.2): no
+		// active domain means the entity hasn't set its guardrail up, so the
+		// run is refused outright. Deliberately checked before, and not
+		// covered by, the bypass below — bypass is for individual target
+		// mismatches; the fix here is adding a domain to the entity.
+		if ( EntityProfileService::email_domain_guardrail_required()
+			&& empty( ( new EntityProfileRepository() )->active_email_domains( $entity ) ) ) {
+			return new WP_Error(
+				'entity_email_domains_missing',
+				sprintf(
+					/* translators: %s: entity name */
+					__( 'Entity "%s" has no active company email domain. Add one in My Profile > Guardrails before launching a campaign.', 'pukat' ),
+					$entity
+				),
+				[ 'status' => 422 ]
+			);
+		}
+
 		$errors = $this->validate_target_email_domains( $targets, $entity );
 		if ( empty( $errors ) ) {
 			return null;
@@ -2026,10 +2044,10 @@ class CampaignRunService {
 	}
 
 	/**
-	 * Fail-open by design: an entity with zero rows in its email-domain
-	 * allow-list has this guardrail disabled entirely — returns no errors for
-	 * ANY domain until an admin explicitly configures at least one allowed
-	 * domain for that entity (docs/PRD_ENTITY_PROFILE_AND_GUARDRAILS.md §11).
+	 * An empty allow-list returns no errors here. With the §16 setting on
+	 * (the default) that case never reaches this method — it's rejected in
+	 * enforce_target_email_domain_guardrail(); with it off, this is the
+	 * original fail-open behavior (docs/PRD_ENTITY_PROFILE_AND_GUARDRAILS.md §11).
 	 *
 	 * @param array<int, array<string, mixed>> $targets Rows with an `email` key.
 	 * @return array<int, array{email: string, reason: string}>

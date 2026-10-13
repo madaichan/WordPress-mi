@@ -26,6 +26,9 @@ export const queryKeys = {
     overview: ['entities', 'guardrails-overview'],
     emailDomains: (entityName) => ['entities', entityName, 'email-domains'],
     reportContact: (entityName) => ['entities', entityName, 'report-contact'],
+    // Under entities.all so entity/logo updates refresh it too.
+    readinessAll: ['entities', 'readiness'],
+    readiness: (entityName) => ['entities', 'readiness', String(entityName || '').toLowerCase()],
   },
 
   flags: {
