@@ -1,6 +1,7 @@
 import clsx from 'clsx'
 import ClientPreview from '../Editor/ClientPreview.jsx'
 import Portal from '../UI/Portal.jsx'
+import HtmlThumbnail from '../../features/assets/components/HtmlThumbnail.jsx'
 
 export function playbookFieldClass() {
   return 'w-full rounded-md border border-gray-300 bg-white px-3 py-2 text-[13px] text-gray-800 outline-none transition-colors focus:border-violet-500'
@@ -43,12 +44,21 @@ export function PlaybookComponentSelect({ icon, bg, color, label, value, options
   const displayDescription = currentOption?.description || ''
   const disabled = selectOptions.length === 0 && !hasEmptyOption
   const canPreview = Boolean(onPreview && currentOption && !disabled)
+  const livePreviewHtml = currentOption?.preview?.html
+  const hasLivePreview = Boolean(livePreviewHtml && livePreviewHtml.trim())
 
   return (
     <div className="overflow-hidden rounded-lg border border-gray-200 bg-white">
       <div className="flex items-center gap-3 p-3">
-        <span className="flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-md" style={{ backgroundColor: bg }}>
-          <i className={clsx('ti text-[13px]', icon)} style={{ color }} />
+        <span
+          className="flex h-11 w-14 flex-shrink-0 items-center justify-center overflow-hidden rounded-md border border-gray-100"
+          style={hasLivePreview ? undefined : { backgroundColor: bg }}
+        >
+          {hasLivePreview ? (
+            <HtmlThumbnail html={livePreviewHtml} className="h-full w-full" />
+          ) : (
+            <i className={clsx('ti text-[13px]', icon)} style={{ color }} />
+          )}
         </span>
         <span className="min-w-0 flex-1">
           <span className="block text-[13px] font-semibold text-gray-800">{label}</span>

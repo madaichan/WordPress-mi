@@ -6,6 +6,7 @@ import PageHeader from '../../../components/UI/PageHeader.jsx'
 import PageShell from '../../../components/Layout/PageShell.jsx'
 import Button from '../../../components/UI/Button.jsx'
 import AlertConfirmation from '../../../components/UI/AlertConfirmation.jsx'
+import HtmlThumbnail from '../../assets/components/HtmlThumbnail.jsx'
 import {
   PlaybookComponentSelect as ComponentSelect,
   PlaybookField as Field,
@@ -651,11 +652,20 @@ function StatMini({ label, value, sub, color }) {
 
 function ComponentRow({ component, onPreview }) {
   const canPreview = component.type === 'email' || component.type === 'page'
+  const livePreviewHtml = component.preview?.html
+  const hasLivePreview = canPreview && Boolean(livePreviewHtml && livePreviewHtml.trim())
 
   return (
     <div className="mb-2 flex items-center gap-3 rounded-lg border border-gray-100 bg-white p-3">
-      <span className="flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-md" style={{ backgroundColor: component.bg }}>
-        <i className={clsx('ti text-[13px]', component.icon)} style={{ color: component.color }} />
+      <span
+        className="flex h-11 w-14 flex-shrink-0 items-center justify-center overflow-hidden rounded-md border border-gray-100"
+        style={hasLivePreview ? undefined : { backgroundColor: component.bg }}
+      >
+        {hasLivePreview ? (
+          <HtmlThumbnail html={livePreviewHtml} className="h-full w-full" />
+        ) : (
+          <i className={clsx('ti text-[13px]', component.icon)} style={{ color: component.color }} />
+        )}
       </span>
       <span className="min-w-0 flex-1">
         <span className="block text-[13px] font-semibold text-gray-800">{component.name}</span>
