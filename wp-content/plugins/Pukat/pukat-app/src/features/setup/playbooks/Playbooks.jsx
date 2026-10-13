@@ -42,6 +42,7 @@ import {
   playbookComponentOptions,
 } from '../../../utils/playbookComponentOptions.js'
 import { resolveSendingProfileRefId } from '../../../utils/resolveSendingProfileRef.js'
+import Portal from '../../../components/UI/Portal.jsx'
 
 const CATEGORY_FILTERS = ['all', 'BEC', 'Credential', 'Malware', 'Vishing']
 
@@ -699,192 +700,194 @@ function PlaybookSlideover({
   const difficultyScore = Number(form.difficulty || 3)
 
   return (
-    <div
-      className="fixed inset-0 z-50 flex justify-end bg-navy/40 backdrop-blur-sm"
-      onMouseDown={event => {
-        if (event.target === event.currentTarget) onClose()
-      }}
-    >
-      <aside className="flex h-full w-full max-w-[460px] flex-col bg-white shadow-2xl">
-        <header className="flex flex-shrink-0 items-center gap-3 border-b border-gray-200 px-6 py-5">
-          <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-violet-100 text-violet-600">
-            <i className={clsx('ti', isEdit ? 'ti-edit' : 'ti-plus')} />
-          </div>
-          <div className="min-w-0 flex-1">
-            <h2 className="text-base font-bold text-gray-900">{isEdit ? 'Edit playbook' : 'Create playbook'}</h2>
-            <p className="text-xs text-gray-500">Configure a GoPhish simulation playbook</p>
-          </div>
-          {dirty && (
-            <span className="inline-flex items-center gap-1.5 rounded-full bg-amber-100 px-2 py-0.5 text-[10px] font-semibold text-amber-700">
-              <span className="h-1.5 w-1.5 rounded-full bg-amber-500" />
-              Unsaved changes
-            </span>
-          )}
-          <button
-            type="button"
-            onClick={onClose}
-            className="flex h-8 w-8 items-center justify-center rounded-lg text-gray-400 transition-colors hover:bg-gray-100 hover:text-gray-700"
-            aria-label="Close playbook form"
-          >
-            <i className="ti ti-x text-lg" />
-          </button>
-        </header>
-
-        <div className="flex-1 space-y-5 overflow-y-auto p-6">
-          <section className="space-y-3">
-            <div className="text-[11px] font-bold uppercase tracking-wider text-gray-500">Basic information</div>
-            <Field label="Playbook name" required>
-              <input
-                value={form.name}
-                onChange={event => onChange('name', event.target.value)}
-                placeholder="Example: BEC — finance approval"
-                className={fieldClass()}
-              />
-            </Field>
-            <Field label="Description" required>
-              <textarea
-                value={form.desc}
-                onChange={event => onChange('desc', event.target.value)}
-                placeholder="Brief playbook summary"
-                rows={3}
-                className={clsx(fieldClass(), 'resize-none')}
-              />
-            </Field>
-            <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-              <Field label="Attack type">
-                <select value={form.category} onChange={event => onChange('category', event.target.value)} className={fieldClass()}>
-                  {CATEGORY_FILTERS.filter(item => item !== 'all').map(option => (
-                    <option key={option}>{option}</option>
-                  ))}
-                </select>
-              </Field>
-              <Field label="Target department">
-                <select value={form.dept} onChange={event => onChange('dept', event.target.value)} className={fieldClass()}>
-                  <option>All departments</option>
-                  <option>Finance</option>
-                  <option>HR</option>
-                  <option>Legal</option>
-                  <option>IT</option>
-                  <option>Custom</option>
-                </select>
-              </Field>
+    <Portal>
+      <div
+        className="fixed inset-0 z-50 flex justify-end bg-navy/40 backdrop-blur-sm"
+        onMouseDown={event => {
+          if (event.target === event.currentTarget) onClose()
+        }}
+      >
+        <aside className="flex h-full w-full max-w-[460px] flex-col bg-white shadow-2xl">
+          <header className="flex flex-shrink-0 items-center gap-3 border-b border-gray-200 px-6 py-5">
+            <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-violet-100 text-violet-600">
+              <i className={clsx('ti', isEdit ? 'ti-edit' : 'ti-plus')} />
             </div>
-            <Field label="Difficulty">
-              <input
-                type="range"
-                min="1"
-                max="5"
-                value={form.difficulty}
-                onChange={event => onChange('difficulty', event.target.value)}
-                className="w-full accent-violet-500"
-              />
-              <div className="flex items-center justify-between">
-                <div className="flex gap-1">
-                  {[1, 2, 3, 4, 5].map(score => (
-                    <span
-                      key={score}
-                      className={clsx('h-1.5 w-8 rounded-full', score <= difficultyScore ? 'bg-red-500' : 'bg-gray-200')}
-                    />
-                  ))}
-                </div>
-                <span className="text-[11px] font-semibold text-red-700">
-                  {DIFFICULTY_TEXT[form.difficulty] ?? DIFFICULTY_TEXT[3]}
-                </span>
-              </div>
-            </Field>
-          </section>
-
-          <div className="h-px bg-gray-100" />
-
-          <section className="space-y-3">
-            <div className="text-[11px] font-bold uppercase tracking-wider text-gray-500">Technical components</div>
-            <ComponentSelect
-              icon="ti-mail"
-              bg="#DBEAFE"
-              color="#1D4ED8"
-              label="Email template"
-              value={form.email}
-              options={componentOptions.email}
-              onChange={value => onChange('email', value)}
-              onPreview={option => onPreviewEmail(option?.preview || option?.label || form.email)}
-            />
-            <ComponentSelect
-              icon="ti-world"
-              bg="#D1FAE5"
-              color="#065F46"
-              label="Landing page"
-              value={form.page}
-              options={componentOptions.page}
-              onChange={value => onChange('page', value)}
-              onPreview={option => onPreviewLanding(option?.preview || option?.label || form.page)}
-            />
-            <ComponentSelect
-              icon="ti-send"
-              bg="#FEF3C7"
-              color="#92400E"
-              label="SMTP profile"
-              value={form.smtp}
-              options={componentOptions.smtp}
-              onChange={value => onChange('smtp', value)}
-            />
-            <ComponentSelect
-              icon="ti-network"
-              bg="#F3E8FF"
-              color="#7C3AED"
-              label="Dynamic domain"
-              value={form.domain}
-              options={componentOptions.domain}
-              emptyLabel="No dynamic domain (optional)"
-              onChange={value => onChange('domain', value)}
-            />
-          </section>
-
-          <div className="h-px bg-gray-100" />
-
-          <section className="space-y-3">
-            <div className="text-[11px] font-bold uppercase tracking-wider text-gray-500">Scenario</div>
-            <Field label="Narrative shown to the target" hint="This text appears in the playbook details after saving.">
-              <textarea
-                value={form.scenario}
-                onChange={event => onChange('scenario', event.target.value)}
-                rows={5}
-                placeholder="The target receives an email..."
-                className={clsx(fieldClass(), 'resize-none')}
-              />
-            </Field>
-          </section>
-        </div>
-
-        <footer className="flex flex-shrink-0 items-center gap-3 border-t border-gray-200 bg-gray-50 px-6 py-5">
-          {isEdit && (
+            <div className="min-w-0 flex-1">
+              <h2 className="text-base font-bold text-gray-900">{isEdit ? 'Edit playbook' : 'Create playbook'}</h2>
+              <p className="text-xs text-gray-500">Configure a GoPhish simulation playbook</p>
+            </div>
+            {dirty && (
+              <span className="inline-flex items-center gap-1.5 rounded-full bg-amber-100 px-2 py-0.5 text-[10px] font-semibold text-amber-700">
+                <span className="h-1.5 w-1.5 rounded-full bg-amber-500" />
+                Unsaved changes
+              </span>
+            )}
             <button
               type="button"
-              onClick={onDelete}
-              className="inline-flex items-center gap-1.5 rounded-lg border border-red-500 bg-red-500 px-4 py-2 text-xs font-semibold text-white transition-colors hover:bg-red-600"
+              onClick={onClose}
+              className="flex h-8 w-8 items-center justify-center rounded-lg text-gray-400 transition-colors hover:bg-gray-100 hover:text-gray-700"
+              aria-label="Close playbook form"
             >
-              <i className="ti ti-trash" />
-              Delete
+              <i className="ti ti-x text-lg" />
             </button>
-          )}
-          <button
-            type="button"
-            onClick={onClose}
-            className="ml-auto rounded-lg border border-gray-200 bg-white px-4 py-2 text-xs font-semibold text-gray-700 transition-colors hover:bg-gray-50"
-          >
-            Cancel
-          </button>
-          <button
-            type="button"
-            onClick={onSubmit}
-            disabled={saving}
-            className="inline-flex items-center gap-1.5 rounded-lg border border-violet-500 bg-violet-500 px-4 py-2 text-xs font-semibold text-white transition-colors hover:bg-violet-600"
-          >
-            <i className="ti ti-device-floppy" />
-            {saving ? 'Saving...' : isEdit ? 'Save changes' : 'Create playbook'}
-          </button>
-        </footer>
-      </aside>
-    </div>
+          </header>
+
+          <div className="flex-1 space-y-5 overflow-y-auto p-6">
+            <section className="space-y-3">
+              <div className="text-[11px] font-bold uppercase tracking-wider text-gray-500">Basic information</div>
+              <Field label="Playbook name" required>
+                <input
+                  value={form.name}
+                  onChange={event => onChange('name', event.target.value)}
+                  placeholder="Example: BEC — finance approval"
+                  className={fieldClass()}
+                />
+              </Field>
+              <Field label="Description" required>
+                <textarea
+                  value={form.desc}
+                  onChange={event => onChange('desc', event.target.value)}
+                  placeholder="Brief playbook summary"
+                  rows={3}
+                  className={clsx(fieldClass(), 'resize-none')}
+                />
+              </Field>
+              <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+                <Field label="Attack type">
+                  <select value={form.category} onChange={event => onChange('category', event.target.value)} className={fieldClass()}>
+                    {CATEGORY_FILTERS.filter(item => item !== 'all').map(option => (
+                      <option key={option}>{option}</option>
+                    ))}
+                  </select>
+                </Field>
+                <Field label="Target department">
+                  <select value={form.dept} onChange={event => onChange('dept', event.target.value)} className={fieldClass()}>
+                    <option>All departments</option>
+                    <option>Finance</option>
+                    <option>HR</option>
+                    <option>Legal</option>
+                    <option>IT</option>
+                    <option>Custom</option>
+                  </select>
+                </Field>
+              </div>
+              <Field label="Difficulty">
+                <input
+                  type="range"
+                  min="1"
+                  max="5"
+                  value={form.difficulty}
+                  onChange={event => onChange('difficulty', event.target.value)}
+                  className="w-full accent-violet-500"
+                />
+                <div className="flex items-center justify-between">
+                  <div className="flex gap-1">
+                    {[1, 2, 3, 4, 5].map(score => (
+                      <span
+                        key={score}
+                        className={clsx('h-1.5 w-8 rounded-full', score <= difficultyScore ? 'bg-red-500' : 'bg-gray-200')}
+                      />
+                    ))}
+                  </div>
+                  <span className="text-[11px] font-semibold text-red-700">
+                    {DIFFICULTY_TEXT[form.difficulty] ?? DIFFICULTY_TEXT[3]}
+                  </span>
+                </div>
+              </Field>
+            </section>
+
+            <div className="h-px bg-gray-100" />
+
+            <section className="space-y-3">
+              <div className="text-[11px] font-bold uppercase tracking-wider text-gray-500">Technical components</div>
+              <ComponentSelect
+                icon="ti-mail"
+                bg="#DBEAFE"
+                color="#1D4ED8"
+                label="Email template"
+                value={form.email}
+                options={componentOptions.email}
+                onChange={value => onChange('email', value)}
+                onPreview={option => onPreviewEmail(option?.preview || option?.label || form.email)}
+              />
+              <ComponentSelect
+                icon="ti-world"
+                bg="#D1FAE5"
+                color="#065F46"
+                label="Landing page"
+                value={form.page}
+                options={componentOptions.page}
+                onChange={value => onChange('page', value)}
+                onPreview={option => onPreviewLanding(option?.preview || option?.label || form.page)}
+              />
+              <ComponentSelect
+                icon="ti-send"
+                bg="#FEF3C7"
+                color="#92400E"
+                label="SMTP profile"
+                value={form.smtp}
+                options={componentOptions.smtp}
+                onChange={value => onChange('smtp', value)}
+              />
+              <ComponentSelect
+                icon="ti-network"
+                bg="#F3E8FF"
+                color="#7C3AED"
+                label="Dynamic domain"
+                value={form.domain}
+                options={componentOptions.domain}
+                emptyLabel="No dynamic domain (optional)"
+                onChange={value => onChange('domain', value)}
+              />
+            </section>
+
+            <div className="h-px bg-gray-100" />
+
+            <section className="space-y-3">
+              <div className="text-[11px] font-bold uppercase tracking-wider text-gray-500">Scenario</div>
+              <Field label="Narrative shown to the target" hint="This text appears in the playbook details after saving.">
+                <textarea
+                  value={form.scenario}
+                  onChange={event => onChange('scenario', event.target.value)}
+                  rows={5}
+                  placeholder="The target receives an email..."
+                  className={clsx(fieldClass(), 'resize-none')}
+                />
+              </Field>
+            </section>
+          </div>
+
+          <footer className="flex flex-shrink-0 items-center gap-3 border-t border-gray-200 bg-gray-50 px-6 py-5">
+            {isEdit && (
+              <button
+                type="button"
+                onClick={onDelete}
+                className="inline-flex items-center gap-1.5 rounded-lg border border-red-500 bg-red-500 px-4 py-2 text-xs font-semibold text-white transition-colors hover:bg-red-600"
+              >
+                <i className="ti ti-trash" />
+                Delete
+              </button>
+            )}
+            <button
+              type="button"
+              onClick={onClose}
+              className="ml-auto rounded-lg border border-gray-200 bg-white px-4 py-2 text-xs font-semibold text-gray-700 transition-colors hover:bg-gray-50"
+            >
+              Cancel
+            </button>
+            <button
+              type="button"
+              onClick={onSubmit}
+              disabled={saving}
+              className="inline-flex items-center gap-1.5 rounded-lg border border-violet-500 bg-violet-500 px-4 py-2 text-xs font-semibold text-white transition-colors hover:bg-violet-600"
+            >
+              <i className="ti ti-device-floppy" />
+              {saving ? 'Saving...' : isEdit ? 'Save changes' : 'Create playbook'}
+            </button>
+          </footer>
+        </aside>
+      </div>
+    </Portal>
   )
 }
 

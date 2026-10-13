@@ -50,6 +50,7 @@ import {
   entityFromAssignment,
   userForAssignmentPanel,
 } from '../../utils/entityAssignmentHelpers.js'
+import Portal from '../../components/UI/Portal.jsx'
 
 const TABLE_KEY = 'playbooks'
 const DEFAULT_TABLE_STATE = { search: '', sort: 'name', order: 'asc', page: 1, perPage: 25, filters: {} }
@@ -348,169 +349,171 @@ function PlaybookDrawer({
   }
 
   return (
-    <div
-      className="fixed inset-0 z-50 flex justify-end bg-navy/40 backdrop-blur-sm"
-      onMouseDown={event => {
-        if (event.target === event.currentTarget) onClose()
-      }}
-    >
-      <aside className="flex h-full w-full max-w-[460px] flex-col bg-white shadow-2xl animate-slide-in">
-        <header className="flex flex-shrink-0 items-center gap-3 border-b border-gray-200 px-6 py-5">
-          <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-violet-100 text-violet-600">
-            <i className={clsx('ti', isEdit ? 'ti-edit' : 'ti-plus')} />
-          </div>
-          <div className="min-w-0 flex-1">
-            <h2 className="text-base font-bold text-gray-900">{isEdit ? 'Edit playbook' : 'Create playbook'}</h2>
-            <p className="text-xs text-gray-500">{isEdit ? 'Update the master playbook and assignment.' : 'Create a master playbook and choose who can use it.'}</p>
-          </div>
-          <button
-            type="button"
-            onClick={onClose}
-            className="flex h-8 w-8 items-center justify-center rounded-lg text-gray-400 transition-colors hover:bg-gray-100 hover:text-gray-700"
-            aria-label="Close playbook form"
-          >
-            <i className="ti ti-x text-lg" />
-          </button>
-        </header>
-
-        <div className="flex-1 space-y-5 overflow-y-auto p-6">
-          <section className="space-y-3">
-            <div className="text-[11px] font-bold uppercase tracking-wider text-gray-500">Basic information</div>
-            <PlaybookField label="Playbook name" required>
-              <input
-                value={form.name}
-                onChange={event => update('name', event.target.value)}
-                placeholder="Example: BEC - finance approval"
-                className={playbookFieldClass()}
-              />
-            </PlaybookField>
-            <PlaybookField label="Description" required>
-              <textarea
-                value={form.description}
-                onChange={event => update('description', event.target.value)}
-                placeholder="Brief playbook summary"
-                rows={3}
-                className={clsx(playbookFieldClass(), 'resize-none')}
-              />
-            </PlaybookField>
-            <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-              <PlaybookField label="Attack type">
-                <select value={form.category} onChange={event => update('category', event.target.value)} className={playbookFieldClass()}>
-                  {ATTACK_TYPE_OPTIONS.map(option => (
-                    <option key={option}>{option}</option>
-                  ))}
-                </select>
-              </PlaybookField>
-              <PlaybookField label="Status">
-                <select value={form.status} onChange={event => update('status', event.target.value)} className={playbookFieldClass()}>
-                  <option value="Draft">Draft</option>
-                  <option value="Published">Published</option>
-                </select>
-              </PlaybookField>
+    <Portal>
+      <div
+        className="fixed inset-0 z-50 flex justify-end bg-navy/40 backdrop-blur-sm"
+        onMouseDown={event => {
+          if (event.target === event.currentTarget) onClose()
+        }}
+      >
+        <aside className="flex h-full w-full max-w-[460px] flex-col bg-white shadow-2xl animate-slide-in">
+          <header className="flex flex-shrink-0 items-center gap-3 border-b border-gray-200 px-6 py-5">
+            <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-violet-100 text-violet-600">
+              <i className={clsx('ti', isEdit ? 'ti-edit' : 'ti-plus')} />
             </div>
-            <PlaybookField label="Target department">
-              <input
-                value={form.targetDepartment}
-                onChange={event => update('targetDepartment', event.target.value)}
-                placeholder="All departments"
-                className={playbookFieldClass()}
-              />
-            </PlaybookField>
-            <PlaybookField label="Difficulty">
-              <input
-                type="range"
-                min="1"
-                max="5"
-                value={difficultyScore}
-                onChange={event => update('difficulty', difficultyValueFromScore(event.target.value))}
-                className="w-full accent-violet-500"
-              />
-              <div className="flex items-center justify-between">
-                <div className="flex gap-1">
-                  {[1, 2, 3, 4, 5].map(score => (
-                    <span
-                      key={score}
-                      className={clsx('h-1.5 w-8 rounded-full', score <= difficultyScore ? 'bg-red-500' : 'bg-gray-200')}
-                    />
-                  ))}
-                </div>
-                <span className="text-[11px] font-semibold text-red-700">
-                  {difficultyLabelFromValue(form.difficulty)}
-                </span>
+            <div className="min-w-0 flex-1">
+              <h2 className="text-base font-bold text-gray-900">{isEdit ? 'Edit playbook' : 'Create playbook'}</h2>
+              <p className="text-xs text-gray-500">{isEdit ? 'Update the master playbook and assignment.' : 'Create a master playbook and choose who can use it.'}</p>
+            </div>
+            <button
+              type="button"
+              onClick={onClose}
+              className="flex h-8 w-8 items-center justify-center rounded-lg text-gray-400 transition-colors hover:bg-gray-100 hover:text-gray-700"
+              aria-label="Close playbook form"
+            >
+              <i className="ti ti-x text-lg" />
+            </button>
+          </header>
+
+          <div className="flex-1 space-y-5 overflow-y-auto p-6">
+            <section className="space-y-3">
+              <div className="text-[11px] font-bold uppercase tracking-wider text-gray-500">Basic information</div>
+              <PlaybookField label="Playbook name" required>
+                <input
+                  value={form.name}
+                  onChange={event => update('name', event.target.value)}
+                  placeholder="Example: BEC - finance approval"
+                  className={playbookFieldClass()}
+                />
+              </PlaybookField>
+              <PlaybookField label="Description" required>
+                <textarea
+                  value={form.description}
+                  onChange={event => update('description', event.target.value)}
+                  placeholder="Brief playbook summary"
+                  rows={3}
+                  className={clsx(playbookFieldClass(), 'resize-none')}
+                />
+              </PlaybookField>
+              <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+                <PlaybookField label="Attack type">
+                  <select value={form.category} onChange={event => update('category', event.target.value)} className={playbookFieldClass()}>
+                    {ATTACK_TYPE_OPTIONS.map(option => (
+                      <option key={option}>{option}</option>
+                    ))}
+                  </select>
+                </PlaybookField>
+                <PlaybookField label="Status">
+                  <select value={form.status} onChange={event => update('status', event.target.value)} className={playbookFieldClass()}>
+                    <option value="Draft">Draft</option>
+                    <option value="Published">Published</option>
+                  </select>
+                </PlaybookField>
               </div>
-            </PlaybookField>
-          </section>
+              <PlaybookField label="Target department">
+                <input
+                  value={form.targetDepartment}
+                  onChange={event => update('targetDepartment', event.target.value)}
+                  placeholder="All departments"
+                  className={playbookFieldClass()}
+                />
+              </PlaybookField>
+              <PlaybookField label="Difficulty">
+                <input
+                  type="range"
+                  min="1"
+                  max="5"
+                  value={difficultyScore}
+                  onChange={event => update('difficulty', difficultyValueFromScore(event.target.value))}
+                  className="w-full accent-violet-500"
+                />
+                <div className="flex items-center justify-between">
+                  <div className="flex gap-1">
+                    {[1, 2, 3, 4, 5].map(score => (
+                      <span
+                        key={score}
+                        className={clsx('h-1.5 w-8 rounded-full', score <= difficultyScore ? 'bg-red-500' : 'bg-gray-200')}
+                      />
+                    ))}
+                  </div>
+                  <span className="text-[11px] font-semibold text-red-700">
+                    {difficultyLabelFromValue(form.difficulty)}
+                  </span>
+                </div>
+              </PlaybookField>
+            </section>
 
-          <div className="h-px bg-gray-100" />
+            <div className="h-px bg-gray-100" />
 
-          <section className="space-y-3">
-            <div className="text-[11px] font-bold uppercase tracking-wider text-gray-500">Technical components</div>
-            {PLAYBOOK_COMPONENT_FIELDS.map(component => (
-              <PlaybookComponentSelect
-                key={component.field}
-                icon={component.icon}
-                bg={component.bg}
-                color={component.color}
-                label={component.label}
-                value={form[component.field]}
-                options={componentOptions[component.optionKey] || []}
-                emptyLabel={component.optionKey === 'domain' ? 'No dynamic domain (optional)' : ''}
-                onChange={value => update(component.field, value)}
-                onPreview={component.previewType ? option => previewComponent(component, option) : undefined}
-              />
-            ))}
-          </section>
+            <section className="space-y-3">
+              <div className="text-[11px] font-bold uppercase tracking-wider text-gray-500">Technical components</div>
+              {PLAYBOOK_COMPONENT_FIELDS.map(component => (
+                <PlaybookComponentSelect
+                  key={component.field}
+                  icon={component.icon}
+                  bg={component.bg}
+                  color={component.color}
+                  label={component.label}
+                  value={form[component.field]}
+                  options={componentOptions[component.optionKey] || []}
+                  emptyLabel={component.optionKey === 'domain' ? 'No dynamic domain (optional)' : ''}
+                  onChange={value => update(component.field, value)}
+                  onPreview={component.previewType ? option => previewComponent(component, option) : undefined}
+                />
+              ))}
+            </section>
 
-          <div className="h-px bg-gray-100" />
+            <div className="h-px bg-gray-100" />
 
-          <section className="space-y-3">
-            <div className="text-[11px] font-bold uppercase tracking-wider text-gray-500">Scenario</div>
-            <PlaybookField label="Narrative shown to the target" required hint="This text appears in the playbook details after saving.">
-              <textarea
-                value={form.scenario}
-                onChange={event => update('scenario', event.target.value)}
-                rows={5}
-                placeholder="The target receives an email..."
-                className={clsx(playbookFieldClass(), 'resize-none')}
-              />
-            </PlaybookField>
-          </section>
+            <section className="space-y-3">
+              <div className="text-[11px] font-bold uppercase tracking-wider text-gray-500">Scenario</div>
+              <PlaybookField label="Narrative shown to the target" required hint="This text appears in the playbook details after saving.">
+                <textarea
+                  value={form.scenario}
+                  onChange={event => update('scenario', event.target.value)}
+                  rows={5}
+                  placeholder="The target receives an email..."
+                  className={clsx(playbookFieldClass(), 'resize-none')}
+                />
+              </PlaybookField>
+            </section>
 
-          <div className="h-px bg-gray-100" />
+            <div className="h-px bg-gray-100" />
 
-          <PlaybookAssignmentEditor
-            form={form}
-            users={users}
-            onChange={update}
-            onToggleUser={toggleUser}
-          />
-        </div>
+            <PlaybookAssignmentEditor
+              form={form}
+              users={users}
+              onChange={update}
+              onToggleUser={toggleUser}
+            />
+          </div>
 
-        <footer className="flex flex-shrink-0 items-center gap-3 border-t border-gray-200 bg-gray-50 px-6 py-5">
-          <button
-            type="button"
-            onClick={onClose}
-            className="ml-auto rounded-lg border border-gray-200 bg-white px-4 py-2 text-xs font-semibold text-gray-700 transition-colors hover:bg-gray-50"
-          >
-            Cancel
-          </button>
-          <button
-            type="button"
-            onClick={submit}
-            disabled={saving}
-            className="inline-flex items-center gap-1.5 rounded-lg border border-violet-500 bg-violet-500 px-4 py-2 text-xs font-semibold text-white transition-colors hover:bg-violet-600"
-          >
-            <i className="ti ti-device-floppy" />
-            {saving ? 'Saving...' : isEdit ? 'Save changes' : 'Create playbook'}
-          </button>
-        </footer>
-      </aside>
-      <PlaybookPreviewModal
-        preview={preview}
-        onClose={() => setPreview(null)}
-        offsetForSlideover
-      />
-    </div>
+          <footer className="flex flex-shrink-0 items-center gap-3 border-t border-gray-200 bg-gray-50 px-6 py-5">
+            <button
+              type="button"
+              onClick={onClose}
+              className="ml-auto rounded-lg border border-gray-200 bg-white px-4 py-2 text-xs font-semibold text-gray-700 transition-colors hover:bg-gray-50"
+            >
+              Cancel
+            </button>
+            <button
+              type="button"
+              onClick={submit}
+              disabled={saving}
+              className="inline-flex items-center gap-1.5 rounded-lg border border-violet-500 bg-violet-500 px-4 py-2 text-xs font-semibold text-white transition-colors hover:bg-violet-600"
+            >
+              <i className="ti ti-device-floppy" />
+              {saving ? 'Saving...' : isEdit ? 'Save changes' : 'Create playbook'}
+            </button>
+          </footer>
+        </aside>
+        <PlaybookPreviewModal
+          preview={preview}
+          onClose={() => setPreview(null)}
+          offsetForSlideover
+        />
+      </div>
+    </Portal>
   )
 }
 

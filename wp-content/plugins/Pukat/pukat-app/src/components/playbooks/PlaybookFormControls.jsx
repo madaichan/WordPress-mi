@@ -1,5 +1,6 @@
 import clsx from 'clsx'
 import ClientPreview from '../Editor/ClientPreview.jsx'
+import Portal from '../UI/Portal.jsx'
 
 export function playbookFieldClass() {
   return 'w-full rounded-md border border-gray-300 bg-white px-3 py-2 text-[13px] text-gray-800 outline-none transition-colors focus:border-violet-500'
@@ -301,46 +302,48 @@ export function PlaybookPreviewModal({ preview, onClose, offsetForSlideover = fa
   const hasHtml = Boolean(html.trim())
 
   return (
-    <section
-      className={clsx(
-        'fixed bottom-6 left-6 right-6 top-6 z-[60] flex flex-col overflow-hidden rounded-xl border border-gray-200 bg-white shadow-2xl',
-        offsetForSlideover && 'lg:right-[500px]'
-      )}
-    >
-      <header className="flex flex-shrink-0 items-center gap-3 border-b border-gray-200 px-5 py-4">
-        <span
-          className="flex h-9 w-9 items-center justify-center rounded-lg"
-          style={{ backgroundColor: isEmail ? '#DBEAFE' : '#D1FAE5', color: isEmail ? '#1D4ED8' : '#065F46' }}
-        >
-          <i className={clsx('ti', isEmail ? 'ti-mail' : 'ti-world')} />
-        </span>
-        <div className="min-w-0 flex-1">
-          <h2 className="truncate text-sm font-bold text-gray-900">{isEmail ? 'Preview email' : 'Preview landing page'}</h2>
-          <p className="truncate text-xs text-gray-500">{displayValue}</p>
-        </div>
-        <button
-          type="button"
-          onClick={onClose}
-          className="flex h-8 w-8 items-center justify-center rounded-lg text-gray-400 hover:bg-gray-100 hover:text-gray-700"
-          aria-label="Close preview"
-        >
-          <i className="ti ti-x text-lg" />
-        </button>
-      </header>
-      <div className="flex flex-1 items-center justify-center overflow-y-auto bg-gray-100 p-6">
-        {isEmail && hasHtml && (
-          <ClientPreview
-            html={html}
-            sender={preview.sender || 'Pukat Simulation <notification@corp-sim.local>'}
-            subject={preview.subject || displayValue}
-            timestampLabel="Today, 10:24 AM"
-            recipientLabel="{{.Email}} (Target Employee)"
-          />
+    <Portal>
+      <section
+        className={clsx(
+          'fixed bottom-6 left-6 right-6 top-6 z-[60] flex flex-col overflow-hidden rounded-xl border border-gray-200 bg-white shadow-2xl',
+          offsetForSlideover && 'lg:right-[500px]'
         )}
-        {isEmail && !hasHtml && <EmailPreview value={displayValue} />}
-        {!isEmail && hasHtml && <LandingHtmlPreview html={html} redirectUrl={preview.redirectUrl} />}
-        {!isEmail && !hasHtml && <LandingPreview value={displayValue} />}
-      </div>
-    </section>
+      >
+        <header className="flex flex-shrink-0 items-center gap-3 border-b border-gray-200 px-5 py-4">
+          <span
+            className="flex h-9 w-9 items-center justify-center rounded-lg"
+            style={{ backgroundColor: isEmail ? '#DBEAFE' : '#D1FAE5', color: isEmail ? '#1D4ED8' : '#065F46' }}
+          >
+            <i className={clsx('ti', isEmail ? 'ti-mail' : 'ti-world')} />
+          </span>
+          <div className="min-w-0 flex-1">
+            <h2 className="truncate text-sm font-bold text-gray-900">{isEmail ? 'Preview email' : 'Preview landing page'}</h2>
+            <p className="truncate text-xs text-gray-500">{displayValue}</p>
+          </div>
+          <button
+            type="button"
+            onClick={onClose}
+            className="flex h-8 w-8 items-center justify-center rounded-lg text-gray-400 hover:bg-gray-100 hover:text-gray-700"
+            aria-label="Close preview"
+          >
+            <i className="ti ti-x text-lg" />
+          </button>
+        </header>
+        <div className="flex flex-1 items-center justify-center overflow-y-auto bg-gray-100 p-6">
+          {isEmail && hasHtml && (
+            <ClientPreview
+              html={html}
+              sender={preview.sender || 'Pukat Simulation <notification@corp-sim.local>'}
+              subject={preview.subject || displayValue}
+              timestampLabel="Today, 10:24 AM"
+              recipientLabel="{{.Email}} (Target Employee)"
+            />
+          )}
+          {isEmail && !hasHtml && <EmailPreview value={displayValue} />}
+          {!isEmail && hasHtml && <LandingHtmlPreview html={html} redirectUrl={preview.redirectUrl} />}
+          {!isEmail && !hasHtml && <LandingPreview value={displayValue} />}
+        </div>
+      </section>
+    </Portal>
   )
 }
