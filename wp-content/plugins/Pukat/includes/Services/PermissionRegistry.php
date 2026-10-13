@@ -158,6 +158,18 @@ class PermissionRegistry {
 				'delete' => 'operator',
 			],
 		],
+		// Per-entity education page per Flag category, authored on My Profile >
+		// Flags. FlagPageService enforces which entity's page a user may touch.
+		// See docs/PRD_FLAG_EDUCATION_PAGES.md.
+		'flag_pages'               => [
+			'label'     => 'Flag Education Pages',
+			'group'     => 'Master Library',
+			'view_gate' => 'shared',
+			'actions'   => [
+				'edit'    => 'operator',
+				'publish' => 'operator',
+			],
+		],
 		'sending_profile_references' => [
 			'label'     => 'Sending Profile References',
 			'group'     => 'Master Library',

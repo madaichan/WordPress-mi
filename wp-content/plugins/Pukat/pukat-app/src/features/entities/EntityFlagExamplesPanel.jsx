@@ -18,11 +18,13 @@ const ACCEPT = 'image/png,image/jpeg,image/webp'
  * oversight view ask for a specific entity. The backend enforces who may
  * upload/delete — `canManage` only hides actions that would 403.
  */
-export default function EntityFlagExamplesPanel({ canManage = false, adminEntity = null }) {
+export default function EntityFlagExamplesPanel({ canManage = false, adminEntity = null, selectedFlagId: controlledFlagId, onSelectFlag }) {
   const { data: flags = [] } = useFlags()
   const activeFlags = useMemo(() => flags.filter(f => f.is_active), [flags])
   const [selectedFlagId, setSelectedFlagId] = useState(null)
-  const flagId = selectedFlagId ?? activeFlags[0]?.id ?? null
+  // A parent that owns the selected category (EntityFlagsPanel) passes
+  // selectedFlagId + onSelectFlag; standalone use keeps its own state.
+  const flagId = controlledFlagId ?? selectedFlagId ?? activeFlags[0]?.id ?? null
 
   const params = adminEntity ? { entity: adminEntity } : {}
   const { data, isLoading } = useFlagExamples(params)
@@ -115,7 +117,7 @@ export default function EntityFlagExamplesPanel({ canManage = false, adminEntity
           <button
             key={flag.id}
             type="button"
-            onClick={() => setSelectedFlagId(flag.id)}
+            onClick={() => (onSelectFlag ? onSelectFlag(flag.id) : setSelectedFlagId(flag.id))}
             disabled={isUploading}
             title={isUploading ? 'Wait for the current upload to finish' : undefined}
             className={clsx(

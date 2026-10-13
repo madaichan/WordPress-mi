@@ -18,6 +18,16 @@ export const flagApi = {
     onUploadProgress,
   }),
   deleteExample: (id) => del(`/flag-examples/${id}`),
+  // Downscaled base64 data URI for one example, to embed in an education page.
+  exampleDataUri: (id) => get(`/flag-examples/${id}/data-uri`),
+
+  // One education page per entity (docs/PRD_FLAG_EDUCATION_PAGES.md).
+  // `entity` is only honored for admins.
+  getPage:       (params = {}) => get('/flag-page', { params }),
+  savePage:      (data)        => put('/flag-page', data),
+  publishPage:   (data = {})   => post('/flag-page/publish', data),
+  unpublishPage: (data = {})   => post('/flag-page/unpublish', data),
+  syncPage:      (data = {})   => post('/flag-page/sync', data),
 }
 
 export default flagApi

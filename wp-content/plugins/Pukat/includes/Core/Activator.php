@@ -574,6 +574,35 @@ class Activator {
 			KEY entity_name (entity_name)
 		) $charset_collate;";
 
+		// -----------------------------------------------------------------------
+		// pukat_flag_pages — one education page per entity, authored in the
+		// My Profile > Flags editor. One page can cover many flags; inserted
+		// example images carry their own origin via data-pukat-img in the HTML.
+		// html_body is the working draft; published_html is the copy targets
+		// will see (later synced to the GoPhish education master landing page).
+		// See docs/PRD_FLAG_EDUCATION_PAGES.md.
+		// -----------------------------------------------------------------------
+		$sql[] = "CREATE TABLE IF NOT EXISTS {$prefix}flag_pages (
+			id              BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
+			entity_name     VARCHAR(191)    NOT NULL,
+			title           VARCHAR(255)    NOT NULL DEFAULT '',
+			html_body       LONGTEXT        NOT NULL,
+			published_html  LONGTEXT        DEFAULT NULL,
+			status          VARCHAR(50)     NOT NULL DEFAULT 'draft',
+			created_by      BIGINT UNSIGNED NOT NULL DEFAULT 0,
+			updated_by      BIGINT UNSIGNED DEFAULT NULL,
+			published_by    BIGINT UNSIGNED DEFAULT NULL,
+			created_at      DATETIME        NOT NULL DEFAULT CURRENT_TIMESTAMP,
+			updated_at      DATETIME        NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+			published_at    DATETIME        DEFAULT NULL,
+			gophish_page_id   BIGINT UNSIGNED DEFAULT NULL,
+			synced_at         DATETIME        DEFAULT NULL,
+			launch_url        VARCHAR(500)    DEFAULT NULL,
+			gophish_master_id BIGINT UNSIGNED DEFAULT NULL,
+			PRIMARY KEY (id),
+			UNIQUE KEY entity_name (entity_name)
+		) $charset_collate;";
+
 		foreach ( $sql as $query ) {
 			dbDelta( $query );
 		}
@@ -855,6 +884,89 @@ class Activator {
 		if ( version_compare( $db_version, '1.19.0', '<' ) ) {
 			add_option( 'pukat_require_email_domain_guardrail', '1' );
 			update_option( 'pukat_db_version', '1.19.0' );
+		}
+
+		// Flag education pages (pukat_flag_pages) and the flag_pages.* registry
+		// keys — docs/PRD_FLAG_EDUCATION_PAGES.md.
+		if ( version_compare( $db_version, '1.20.0', '<' ) ) {
+			self::create_tables();
+			self::seed_rbac_defaults();
+			update_option( 'pukat_db_version', '1.20.0' );
+		}
+
+		// Education page reshaped to one-per-entity (dropped flag_id, UNIQUE on
+		// entity_name). The feature is unreleased, so the simplest correct path
+		// is to drop and recreate the table rather than alter it in place.
+		// See docs/PRD_FLAG_EDUCATION_PAGES.md §12 (revisi 2026-10-12).
+		if ( version_compare( $db_version, '1.21.0', '<' ) ) {
+			global $wpdb;
+			$wpdb->query( "DROP TABLE IF EXISTS {$wpdb->prefix}pukat_flag_pages" ); // phpcs:ignore WordPress.DB.DirectDatabaseQuery
+			self::create_tables();
+			update_option( 'pukat_db_version', '1.21.0' );
+		}
+
+		// Education page sync-to-GoPhish bookkeeping (gophish_page_id, synced_at)
+		// — docs/PRD_FLAG_EDUCATION_PAGES.md §11 (G2). ALTER (not drop) so pages
+		// entities already authored are preserved.
+		if ( version_compare( $db_version, '1.22.0', '<' ) ) {
+			self::ensure_flag_pages_sync_columns();
+			update_option( 'pukat_db_version', '1.22.0' );
+		}
+
+		// Education page: chosen launch URL (phish domain) for its GoPhish
+		// education master — docs/PRD_FLAG_EDUCATION_PAGES.md §11 (G3 input).
+		if ( version_compare( $db_version, '1.23.0', '<' ) ) {
+			self::ensure_flag_pages_launch_url_column();
+			update_option( 'pukat_db_version', '1.23.0' );
+		}
+
+		// Education page: GoPhish education master id (G3) —
+		// docs/PRD_FLAG_EDUCATION_PAGES.md §11.
+		if ( version_compare( $db_version, '1.24.0', '<' ) ) {
+			self::ensure_flag_pages_master_column();
+			update_option( 'pukat_db_version', '1.24.0' );
+		}
+	}
+
+	/**
+	 * Add the gophish_master_id column to pukat_flag_pages if missing (idempotent).
+	 */
+	private static function ensure_flag_pages_master_column(): void {
+		global $wpdb;
+
+		$table = $wpdb->prefix . 'pukat_flag_pages';
+
+		if ( ! $wpdb->get_var( $wpdb->prepare( "SHOW COLUMNS FROM {$table} LIKE %s", 'gophish_master_id' ) ) ) {
+			$wpdb->query( "ALTER TABLE {$table} ADD gophish_master_id BIGINT UNSIGNED DEFAULT NULL AFTER launch_url" );
+		}
+	}
+
+	/**
+	 * Add the launch_url column to pukat_flag_pages if missing (idempotent).
+	 */
+	private static function ensure_flag_pages_launch_url_column(): void {
+		global $wpdb;
+
+		$table = $wpdb->prefix . 'pukat_flag_pages';
+
+		if ( ! $wpdb->get_var( $wpdb->prepare( "SHOW COLUMNS FROM {$table} LIKE %s", 'launch_url' ) ) ) {
+			$wpdb->query( "ALTER TABLE {$table} ADD launch_url VARCHAR(500) DEFAULT NULL AFTER synced_at" );
+		}
+	}
+
+	/**
+	 * Add the sync bookkeeping columns to pukat_flag_pages if missing (idempotent).
+	 */
+	private static function ensure_flag_pages_sync_columns(): void {
+		global $wpdb;
+
+		$table = $wpdb->prefix . 'pukat_flag_pages';
+
+		if ( ! $wpdb->get_var( $wpdb->prepare( "SHOW COLUMNS FROM {$table} LIKE %s", 'gophish_page_id' ) ) ) {
+			$wpdb->query( "ALTER TABLE {$table} ADD gophish_page_id BIGINT UNSIGNED DEFAULT NULL AFTER published_at" );
+		}
+		if ( ! $wpdb->get_var( $wpdb->prepare( "SHOW COLUMNS FROM {$table} LIKE %s", 'synced_at' ) ) ) {
+			$wpdb->query( "ALTER TABLE {$table} ADD synced_at DATETIME DEFAULT NULL AFTER gophish_page_id" );
 		}
 	}
 

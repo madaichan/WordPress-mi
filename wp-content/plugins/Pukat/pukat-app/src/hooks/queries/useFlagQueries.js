@@ -18,3 +18,14 @@ export function useFlagExamples(params = {}, options = {}) {
     ...options,
   })
 }
+
+/** The entity's single education page (empty page if none saved yet). */
+export function useFlagPage(params = {}, options = {}) {
+  return useQuery({
+    queryKey: queryKeys.flags.page(params),
+    queryFn: () => flagApi.getPage(params),
+    // The editor holds unsaved text; a focus refetch must not race it.
+    refetchOnWindowFocus: false,
+    ...options,
+  })
+}

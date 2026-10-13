@@ -22,7 +22,7 @@ function useFlagMutation(mutationFn, successMessage, invalidate, options) {
 
 // queryKeys.flags.all is a prefix of every examples key, so it refreshes both.
 const FLAG_KEYS = [queryKeys.flags.all]
-const EXAMPLE_KEYS = [queryKeys.flags.all, queryKeys.entities.overview]
+const EXAMPLE_KEYS = [queryKeys.flags.all, queryKeys.entities.overview, queryKeys.entities.readinessAll]
 
 export function useCreateFlagMutation(options = {}) {
   return useFlagMutation(data => flagApi.create(data), 'Flag category created.', FLAG_KEYS, options)
@@ -49,4 +49,42 @@ export function useUploadFlagExampleMutation(options = {}) {
 
 export function useDeleteFlagExampleMutation(options = {}) {
   return useFlagMutation(id => flagApi.deleteExample(id), 'Example deleted.', EXAMPLE_KEYS, options)
+}
+
+// Education page (one per entity). Called as mutate({ data }); `data.entity`
+// is only honored for admins.
+export function useSaveFlagPageMutation(options = {}) {
+  return useFlagMutation(({ data }) => flagApi.savePage(data), 'Draft saved.', FLAG_KEYS, options)
+}
+
+export function usePublishFlagPageMutation(options = {}) {
+  return useFlagMutation(({ data }) => flagApi.publishPage(data), 'Education page published.', FLAG_KEYS, options)
+}
+
+export function useUnpublishFlagPageMutation(options = {}) {
+  return useFlagMutation(({ data }) => flagApi.unpublishPage(data), 'Education page unpublished.', FLAG_KEYS, options)
+}
+
+// Re-push the published page to GoPhish. The request returns 200 even when the
+// GoPhish side failed (reported in `data.sync.ok`), so the toast reflects that
+// rather than a fixed success message.
+export function useSyncFlagPageMutation(options = {}) {
+  const qc = useQueryClient()
+
+  return useMutation({
+    mutationFn: ({ data }) => flagApi.syncPage(data),
+    onSuccess: (data, variables, context) => {
+      if (data?.sync && data.sync.ok === false) {
+        toast.error(data.sync.message || 'GoPhish sync failed.')
+      } else {
+        toast.success(data?.sync?.message || 'Synced to GoPhish.')
+      }
+      FLAG_KEYS.forEach(queryKey => qc.invalidateQueries({ queryKey }))
+      options.onSuccess?.(data, variables, context)
+    },
+    onError: (err, variables, context) => {
+      toast.error(err.message)
+      options.onError?.(err, variables, context)
+    },
+  })
 }

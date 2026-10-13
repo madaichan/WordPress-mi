@@ -34,6 +34,7 @@ export const queryKeys = {
   flags: {
     all: ['flags'],
     examples: (params = {}) => ['flags', 'examples', params],
+    page: (params = {}) => ['flags', 'page', params],
   },
 
   gophish: {

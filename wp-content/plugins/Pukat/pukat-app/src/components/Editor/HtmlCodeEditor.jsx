@@ -17,12 +17,17 @@ import { highlightHtml } from '../../utils/htmlHighlight.js'
  *  - src/pages/Admin/MasterEmailTemplates.jsx   (height: 400, default)
  *  - src/pages/Simulation/LandingPages.jsx      (height: 420)
  */
-export default function HtmlCodeEditor({ value, onChange, height = 400 }) {
+export default function HtmlCodeEditor({ value, onChange, onCaretChange, height = 400 }) {
   const textareaRef = useRef(null)
   const highlightRef = useRef(null)
   const lineNumRef = useRef(null)
 
   const lineCount = value.split('\n').length
+
+  // Report the caret position so a parent can insert at it (optional).
+  const reportCaret = useCallback((e) => {
+    onCaretChange?.(e.target.selectionStart)
+  }, [onCaretChange])
 
   const handleScroll = useCallback(() => {
     const textarea = textareaRef.current
@@ -79,6 +84,9 @@ export default function HtmlCodeEditor({ value, onChange, height = 400 }) {
           onChange={(e) => onChange(e.target.value)}
           onScroll={handleScroll}
           onKeyDown={handleKeyDown}
+          onSelect={reportCaret}
+          onClick={reportCaret}
+          onKeyUp={reportCaret}
           spellCheck={false}
           className="absolute inset-0 w-full h-full resize-none p-4 m-0 bg-transparent border-none outline-none overflow-auto"
           style={{

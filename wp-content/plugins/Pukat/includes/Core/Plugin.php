@@ -16,6 +16,7 @@ use Pukat\Api\CampaignRunController;
 use Pukat\Api\EntityController;
 use Pukat\Api\FlagController;
 use Pukat\Api\FlagExampleController;
+use Pukat\Api\FlagPageController;
 use Pukat\Api\GoPhishProxy;
 use Pukat\Api\MasterComponentController;
 use Pukat\Api\PlaybookController;
@@ -329,6 +330,7 @@ final class Plugin {
 		( new PublicController() )->register_routes();
 		( new FlagController() )->register_routes();
 		( new FlagExampleController() )->register_routes();
+		( new FlagPageController() )->register_routes();
 		( new TableController() )->register_routes();
 		( new RoleController() )->register_routes();
 	}

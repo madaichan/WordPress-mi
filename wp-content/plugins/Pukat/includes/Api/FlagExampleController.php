@@ -48,6 +48,12 @@ class FlagExampleController extends RestController {
 			'callback'            => [ $this, 'delete_example' ],
 			'permission_callback' => fn () => $this->require_capability( 'flag_examples.delete' ),
 		] );
+
+		register_rest_route( $this->namespace, '/flag-examples/(?P<id>\d+)/data-uri', [
+			'methods'             => 'GET',
+			'callback'            => [ $this, 'example_data_uri' ],
+			'permission_callback' => fn () => $this->require_capability( 'flag_examples.view' ),
+		] );
 	}
 
 	private function require_capability( string $permission_key ): bool|WP_Error {
@@ -78,5 +84,11 @@ class FlagExampleController extends RestController {
 		$result = $this->examples->delete( (int) $request->get_param( 'id' ), get_current_user_id() );
 
 		return is_wp_error( $result ) ? $this->from_wp_error( $result ) : $this->success( [ 'deleted' => true ] );
+	}
+
+	public function example_data_uri( WP_REST_Request $request ): WP_REST_Response {
+		$result = $this->examples->data_uri( (int) $request->get_param( 'id' ) );
+
+		return is_wp_error( $result ) ? $this->from_wp_error( $result ) : $this->success( $result );
 	}
 }

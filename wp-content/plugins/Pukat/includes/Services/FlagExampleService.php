@@ -154,6 +154,53 @@ class FlagExampleService {
 	}
 
 	/**
+	 * A downscaled copy of one example, base64-encoded as a data URI, for
+	 * embedding into a Flag education page so the GoPhish landing page is
+	 * self-contained (docs/PRD_FLAG_EDUCATION_PAGES.md FR-6b). View-scoped like
+	 * the gallery; never encodes the full-resolution original.
+	 *
+	 * @return array{data_uri: string}|WP_Error
+	 */
+	public function data_uri( int $id ): array|WP_Error {
+		$row = $this->repository->find( $id );
+		if ( ! $row || ! $this->access->current_user_can_view_entity( (string) $row['entity_name'] ) ) {
+			return new WP_Error( 'not_found', __( 'Flag example not found.', 'pukat' ), [ 'status' => 404 ] );
+		}
+
+		$attachment_id = (int) $row['attachment_id'];
+		$path          = $this->rendition_path( $attachment_id );
+		if ( '' === $path || ! file_exists( $path ) ) {
+			return new WP_Error( 'not_found', __( 'The image file is missing.', 'pukat' ), [ 'status' => 404 ] );
+		}
+
+		$mime = (string) get_post_mime_type( $attachment_id );
+		if ( '' === $mime ) {
+			$mime = (string) ( wp_check_filetype( $path )['type'] ?? 'image/png' );
+		}
+
+		$data = file_get_contents( $path ); // phpcs:ignore WordPress.WP.AlternativeFunctions.file_get_contents_file_get_contents
+		if ( false === $data ) {
+			return new WP_Error( 'read_error', __( 'Failed to read the image file.', 'pukat' ), [ 'status' => 500 ] );
+		}
+
+		return [ 'data_uri' => 'data:' . $mime . ';base64,' . base64_encode( $data ) ];
+	}
+
+	/**
+	 * Path to the downscaled 'large' rendition for embedding; falls back to the
+	 * stored file when an image was too small to have one.
+	 */
+	private function rendition_path( int $attachment_id ): string {
+		$sized = image_get_intermediate_size( $attachment_id, 'large' );
+		if ( is_array( $sized ) && ! empty( $sized['path'] ) ) {
+			$uploads = wp_get_upload_dir();
+			return trailingslashit( (string) $uploads['basedir'] ) . (string) $sized['path'];
+		}
+
+		return (string) get_attached_file( $attachment_id );
+	}
+
+	/**
 	 * Server-side entity for a new upload: always the uploader's own entity
 	 * for non-admins; an admin may upload on behalf of an entity via `entity`.
 	 *
