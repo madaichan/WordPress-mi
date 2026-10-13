@@ -13,9 +13,25 @@ const DOT_CLASS = {
   critical: 'bg-red-500',
 }
 
+// Written out in full, not built as `badge-${tone}`: Tailwind only keeps
+// classes it finds literally in the source, so dynamic names were purged
+// from the build (success/danger badges rendered as plain text).
+const TONE_CLASS = {
+  violet: 'badge-violet',
+  success: 'badge-success',
+  danger: 'badge-danger',
+  warning: 'badge-warning',
+  info: 'badge-info',
+  gray: 'badge-gray',
+  low: 'badge-low',
+  medium: 'badge-medium',
+  high: 'badge-high',
+  critical: 'badge-critical',
+}
+
 export default function Badge({ tone = 'gray', dot, className, children }) {
   return (
-    <span className={clsx(`badge-${tone}`, className)}>
+    <span className={clsx(TONE_CLASS[tone] || TONE_CLASS.gray, className)}>
       {dot && <span className={clsx('h-1.5 w-1.5 rounded-full', DOT_CLASS[tone])} />}
       {children}
     </span>
