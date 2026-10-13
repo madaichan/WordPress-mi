@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useMemo } from 'react'
+import clsx from 'clsx'
 import { useMyProfile } from '../../hooks/queries/useProfileQueries.js'
 import { useUpdateProfileMutation, useChangePasswordMutation } from '../../hooks/mutations/useProfileMutations.js'
 import { useEntities } from '../../hooks/queries/useEntityQueries.js'
@@ -16,7 +17,9 @@ import EntityProfileForm from '../../features/entities/EntityProfileForm.jsx'
 import EntityEmailDomainsPanel from '../../features/entities/EntityEmailDomainsPanel.jsx'
 import EntityLandingDomainsPanel from '../../features/entities/EntityLandingDomainsPanel.jsx'
 import EntityReportContactForm from '../../features/entities/EntityReportContactForm.jsx'
-import EntityFlagExamplesPanel from '../../features/entities/EntityFlagExamplesPanel.jsx'
+import EntityFlagsPanel from '../../features/entities/EntityFlagsPanel.jsx'
+import EntityReadinessCard from '../../features/entities/EntityReadinessCard.jsx'
+import EntitySummaryCard from '../../features/entities/EntitySummaryCard.jsx'
 
 const logoutUrl = window.PukatData?.logoutUrl || `${window.PukatData?.adminUrl || '/wp-admin/'}wp-login.php?action=logout`
 
@@ -40,6 +43,8 @@ export default function MyProfile() {
   const canEditEntityPerm = useAppStore(state => state.hasPermission('master_entities.edit'))
   const canCreateDomainPerm = useAppStore(state => state.hasPermission('domains.create'))
   const canUploadFlagPerm = useAppStore(state => state.hasPermission('flag_examples.upload'))
+  const canEditFlagPagePerm = useAppStore(state => state.hasPermission('flag_pages.edit'))
+  const canPublishFlagPagePerm = useAppStore(state => state.hasPermission('flag_pages.publish'))
 
   // Mirrors backend scoping (EntityProfileService::enforce_entity_editable(),
   // MasterComponentService::enforce_write_entity()) only to avoid showing
@@ -47,6 +52,8 @@ export default function MyProfile() {
   const canEditEntity = Boolean(entityName) && (isAdmin || (!isGeneralEntity && canEditEntityPerm))
   const canManageLanding = Boolean(entityName) && (isAdmin || (!isGeneralEntity && canCreateDomainPerm))
   const canManageFlags = Boolean(entityName) && (isAdmin || (!isGeneralEntity && canUploadFlagPerm))
+  const canEditFlagPage = Boolean(entityName) && (isAdmin || (!isGeneralEntity && canEditFlagPagePerm))
+  const canPublishFlagPage = Boolean(entityName) && (isAdmin || (!isGeneralEntity && canPublishFlagPagePerm))
 
   const { data: entities = [], isLoading: isLoadingEntities } = useEntities({ enabled: Boolean(entityName) })
   const ownEntityProfile = useMemo(
@@ -62,8 +69,8 @@ export default function MyProfile() {
     if (profile) {
       setForm({
         display_name: profile.display_name || '',
-        email:        profile.email        || '',
-        phone:        profile.phone        || '',
+        email: profile.email || '',
+        phone: profile.phone || '',
       })
     }
   }, [profile])
@@ -95,7 +102,7 @@ export default function MyProfile() {
 
     changePasswordMutation.mutate({
       current_password: passwordForm.current_password,
-      new_password:      passwordForm.new_password,
+      new_password: passwordForm.new_password,
     })
   }
 
@@ -110,7 +117,7 @@ export default function MyProfile() {
   }
 
   return (
-    <PageShell spacing="space-y-6" className="max-w-3xl">
+    <PageShell spacing="space-y-6" className={entityName ? '' : 'max-w-3xl'}>
       <PageHeader title="My Profile" subtitle="Manage your account and your entity's information" />
 
       {/* Read-only role & entity */}
@@ -131,174 +138,199 @@ export default function MyProfile() {
         </div>
       </Card>
 
-      <Tabs items={TABS} active={activeTab} onChange={setActiveTab} ariaLabel="My Profile sections" />
+      {/* Two columns on wide screens: tabs + content, and a sticky sidebar
+          with the entity at a glance and its readiness. On narrow screens the
+          sidebar stacks above the tabs. */}
+      <div className={clsx('grid grid-cols-1 gap-6', entityName && 'lg:grid-cols-3 lg:items-start')}>
+        <div className="min-w-0 space-y-6 lg:col-span-2">
+          <Tabs items={TABS} active={activeTab} onChange={setActiveTab} ariaLabel="My Profile sections" />
 
-      {activeTab === 'account' && (<>
-      {/* Profile info */}
-      <Card>
-        <form onSubmit={handleSaveProfile}>
-          <h2 className="text-sm font-semibold text-gray-900 mb-1">Profile Information</h2>
-          <p className="text-xs text-gray-500 mb-4">Update your display name, email, and phone number.</p>
+          {activeTab === 'account' && (<>
+            {/* Profile info */}
+            <Card>
+              <form onSubmit={handleSaveProfile}>
+                <h2 className="text-sm font-semibold text-gray-900 mb-1">Profile Information</h2>
+                <p className="text-xs text-gray-500 mb-4">Update your display name, email, and phone number.</p>
 
-          <div className="space-y-4">
-            <div>
-              <Label>Display Name</Label>
-              <Input
-                value={form.display_name}
-                onChange={e => updateField('display_name', e.target.value)}
-                placeholder="Your name"
+                <div className="space-y-4">
+                  <div>
+                    <Label>Display Name</Label>
+                    <Input
+                      value={form.display_name}
+                      onChange={e => updateField('display_name', e.target.value)}
+                      placeholder="Your name"
+                    />
+                  </div>
+                  <div>
+                    <Label>Email</Label>
+                    <Input
+                      type="email"
+                      value={form.email}
+                      onChange={e => updateField('email', e.target.value)}
+                      placeholder="you@example.com"
+                    />
+                  </div>
+                  <div>
+                    <Label>Phone Number</Label>
+                    <Input
+                      type="tel"
+                      value={form.phone}
+                      onChange={e => updateField('phone', e.target.value)}
+                      placeholder="e.g. 08123456789"
+                    />
+                  </div>
+                </div>
+
+                <div className="flex justify-end mt-4">
+                  <Button type="submit" variant="primary" disabled={updateMutation.isPending}>
+                    {updateMutation.isPending ? 'Saving...' : 'Save Changes'}
+                  </Button>
+                </div>
+              </form>
+            </Card>
+
+            {/* Change password */}
+            <Card>
+              <form onSubmit={handleChangePassword}>
+                <h2 className="text-sm font-semibold text-gray-900 mb-1">Change Password</h2>
+                <p className="text-xs text-gray-500 mb-4">
+                  You will be logged out and need to sign in again after changing your password.
+                </p>
+
+                {passwordError && (
+                  <p className="mb-3 text-xs text-danger">{passwordError}</p>
+                )}
+
+                <div className="space-y-4">
+                  <div>
+                    <Label>Current Password</Label>
+                    <Input
+                      type="password"
+                      autoComplete="current-password"
+                      value={passwordForm.current_password}
+                      onChange={e => updatePasswordField('current_password', e.target.value)}
+                    />
+                  </div>
+                  <div>
+                    <Label>New Password</Label>
+                    <Input
+                      type="password"
+                      autoComplete="new-password"
+                      value={passwordForm.new_password}
+                      onChange={e => updatePasswordField('new_password', e.target.value)}
+                    />
+                  </div>
+                  <div>
+                    <Label>Confirm New Password</Label>
+                    <Input
+                      type="password"
+                      autoComplete="new-password"
+                      value={passwordForm.confirm_password}
+                      onChange={e => updatePasswordField('confirm_password', e.target.value)}
+                    />
+                  </div>
+                </div>
+
+                <div className="flex justify-end mt-4">
+                  <Button
+                    type="submit"
+                    variant="primary"
+                    disabled={
+                      changePasswordMutation.isPending ||
+                      !passwordForm.current_password ||
+                      !passwordForm.new_password
+                    }
+                  >
+                    {changePasswordMutation.isPending ? 'Changing...' : 'Change Password'}
+                  </Button>
+                </div>
+              </form>
+            </Card>
+          </>)}
+
+          {activeTab !== 'account' && !entityName && (
+            <Card>
+              <EmptyState
+                icon="ti-building-off"
+                title="Your account is not assigned to an entity"
+                description="Entity Profile, Guardrails, Flags and Call Center Report are managed per entity. Ask an admin to assign your entity."
               />
-            </div>
-            <div>
-              <Label>Email</Label>
-              <Input
-                type="email"
-                value={form.email}
-                onChange={e => updateField('email', e.target.value)}
-                placeholder="you@example.com"
-              />
-            </div>
-            <div>
-              <Label>Phone Number</Label>
-              <Input
-                type="tel"
-                value={form.phone}
-                onChange={e => updateField('phone', e.target.value)}
-                placeholder="e.g. 08123456789"
-              />
-            </div>
-          </div>
-
-          <div className="flex justify-end mt-4">
-            <Button type="submit" variant="primary" disabled={updateMutation.isPending}>
-              {updateMutation.isPending ? 'Saving...' : 'Save Changes'}
-            </Button>
-          </div>
-        </form>
-      </Card>
-
-      {/* Change password */}
-      <Card>
-        <form onSubmit={handleChangePassword}>
-          <h2 className="text-sm font-semibold text-gray-900 mb-1">Change Password</h2>
-          <p className="text-xs text-gray-500 mb-4">
-            You will be logged out and need to sign in again after changing your password.
-          </p>
-
-          {passwordError && (
-            <p className="mb-3 text-xs text-danger">{passwordError}</p>
+            </Card>
           )}
 
-          <div className="space-y-4">
-            <div>
-              <Label>Current Password</Label>
-              <Input
-                type="password"
-                autoComplete="current-password"
-                value={passwordForm.current_password}
-                onChange={e => updatePasswordField('current_password', e.target.value)}
-              />
-            </div>
-            <div>
-              <Label>New Password</Label>
-              <Input
-                type="password"
-                autoComplete="new-password"
-                value={passwordForm.new_password}
-                onChange={e => updatePasswordField('new_password', e.target.value)}
-              />
-            </div>
-            <div>
-              <Label>Confirm New Password</Label>
-              <Input
-                type="password"
-                autoComplete="new-password"
-                value={passwordForm.confirm_password}
-                onChange={e => updatePasswordField('confirm_password', e.target.value)}
-              />
-            </div>
-          </div>
-
-          <div className="flex justify-end mt-4">
-            <Button
-              type="submit"
-              variant="primary"
-              disabled={
-                changePasswordMutation.isPending ||
-                !passwordForm.current_password ||
-                !passwordForm.new_password
-              }
-            >
-              {changePasswordMutation.isPending ? 'Changing...' : 'Change Password'}
-            </Button>
-          </div>
-        </form>
-      </Card>
-      </>)}
-
-      {activeTab !== 'account' && !entityName && (
-        <Card>
-          <EmptyState
-            icon="ti-building-off"
-            title="Your account is not assigned to an entity"
-            description="Entity Profile, Guardrails, Flags and Call Center Report are managed per entity. Ask an admin to assign your entity."
-          />
-        </Card>
-      )}
-
-      {activeTab === 'entity' && entityName && (
-        <Card>
-          <h2 className="mb-1 text-sm font-semibold text-gray-900">Entity Profile</h2>
-          <p className="mb-4 text-xs text-gray-500">
-            {canEditEntity ? 'Description and contact details for your entity.' : 'Read-only — only an admin can edit this entity.'}
-          </p>
-          {isLoadingEntities ? (
-            <p className="text-sm text-gray-400">Loading...</p>
-          ) : ownEntityProfile ? (
-            <EntityProfileForm profile={ownEntityProfile} canEdit={canEditEntity} />
-          ) : (
-            <EmptyState
-              icon="ti-building"
-              title={`No profile yet for "${entityName}"`}
-              description="Entity profiles are created by an admin. Once it exists, you can fill in its details here."
-            />
+          {activeTab === 'entity' && entityName && (
+            <Card>
+              <h2 className="mb-1 text-sm font-semibold text-gray-900">Entity Profile</h2>
+              <p className="mb-4 text-xs text-gray-500">
+                {canEditEntity ? 'Description and contact details for your entity.' : 'Read-only — only an admin can edit this entity.'}
+              </p>
+              {isLoadingEntities ? (
+                <p className="text-sm text-gray-400">Loading...</p>
+              ) : ownEntityProfile ? (
+                <EntityProfileForm profile={ownEntityProfile} canEdit={canEditEntity} />
+              ) : (
+                <EmptyState
+                  icon="ti-building"
+                  title={`No profile yet for "${entityName}"`}
+                  description="Entity profiles are created by an admin. Once it exists, you can fill in its details here."
+                />
+              )}
+            </Card>
           )}
-        </Card>
-      )}
 
-      {activeTab === 'guardrails' && entityName && (
-        <>
-          <Card>
-            <h2 className="mb-3 text-sm font-semibold text-gray-900">Landing page domains</h2>
-            <EntityLandingDomainsPanel entityName={entityName} canManage={canManageLanding} />
-          </Card>
-          <Card>
-            <h2 className="mb-3 text-sm font-semibold text-gray-900">Company email domains</h2>
-            <EntityEmailDomainsPanel entityName={entityName} canManage={canEditEntity} canToggle={canEditEntity} />
-          </Card>
-        </>
-      )}
+          {activeTab === 'guardrails' && entityName && (
+            <>
+              <Card>
+                <h2 className="mb-3 text-sm font-semibold text-gray-900">Landing page domains</h2>
+                <EntityLandingDomainsPanel entityName={entityName} canManage={canManageLanding} />
+              </Card>
+              <Card>
+                <h2 className="mb-3 text-sm font-semibold text-gray-900">Company email domains</h2>
+                <EntityEmailDomainsPanel entityName={entityName} canManage={canEditEntity} canToggle={canEditEntity} />
+              </Card>
+            </>
+          )}
 
-      {activeTab === 'report' && entityName && (
-        <Card>
-          <h2 className="mb-1 text-sm font-semibold text-gray-900">Call Center Report</h2>
-          <p className="mb-4 text-xs text-gray-500">
-            {canEditEntity
-              ? 'Who employees of your entity should contact to report a suspicious email.'
-              : 'Read-only — only an admin can edit this entity.'}
-          </p>
-          <EntityReportContactForm entityName={entityName} canEdit={canEditEntity} />
-        </Card>
-      )}
+          {activeTab === 'report' && entityName && (
+            <Card>
+              <h2 className="mb-1 text-sm font-semibold text-gray-900">Call Center Report</h2>
+              <p className="mb-4 text-xs text-gray-500">
+                {canEditEntity
+                  ? 'Who employees of your entity should contact to report a suspicious email.'
+                  : 'Read-only — only an admin can edit this entity.'}
+              </p>
+              <EntityReportContactForm entityName={entityName} canEdit={canEditEntity} />
+            </Card>
+          )}
 
-      {activeTab === 'flags' && entityName && (
-        <Card>
-          <h2 className="mb-1 text-sm font-semibold text-gray-900">Flag examples</h2>
-          {!canManageFlags && <p className="mb-3 text-xs text-gray-500">Read-only — you can view but not change this entity&apos;s examples.</p>}
-          {/* Admins would otherwise get every entity's examples; pin to their own. */}
-          <EntityFlagExamplesPanel canManage={canManageFlags} adminEntity={isAdmin ? entityName : null} />
-        </Card>
-      )}
+          {activeTab === 'flags' && entityName && (
+            <Card>
+              <h2 className="mb-1 text-sm font-semibold text-gray-900">Flags</h2>
+              <p className="mb-3 text-xs text-gray-500">
+                Build the education page your colleagues see after a simulation, one per Flag category. Write the page in the Editor, check it in Preview, and upload annotated example screenshots in Images.
+              </p>
+              {!canManageFlags && !canEditFlagPage && <p className="mb-3 text-xs text-gray-500">Read-only — you can view but not change this entity&apos;s education pages and examples.</p>}
+              {/* Admins would otherwise get every entity's data; pin to their own. */}
+              <div className="mt-3">
+                <EntityFlagsPanel
+                  entityName={entityName}
+                  adminEntity={isAdmin ? entityName : null}
+                  canManageExamples={canManageFlags}
+                  canEditPage={canEditFlagPage}
+                  canPublishPage={canPublishFlagPage}
+                />
+              </div>
+            </Card>
+          )}
+        </div>
+
+        {entityName && (
+          <aside className="order-first space-y-6 lg:sticky lg:top-4 lg:order-none">
+            <EntitySummaryCard entityName={entityName} profile={ownEntityProfile} onOpenTab={setActiveTab} />
+            <EntityReadinessCard entityName={entityName} onOpenTab={setActiveTab} compact />
+          </aside>
+        )}
+      </div>
     </PageShell>
   )
 }
