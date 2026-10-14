@@ -8,6 +8,10 @@ function invalidatePlaybooks(qc) {
   qc.invalidateQueries({ queryKey: queryKeys.tables.all })
 }
 
+// `options.mapErrorMessage(err)` lets a caller restate a backend failure in its
+// own terms — the campaign wizard's custom mode needs this, since the services
+// reject an auto-generated Playbook Master with playbook wording the user never
+// chose. Returning a falsy value keeps the default message.
 export function useCreatePlaybookMutation(options = {}) {
   const qc = useQueryClient()
 
@@ -19,7 +23,7 @@ export function useCreatePlaybookMutation(options = {}) {
       options.onSuccess?.(data, variables, context)
     },
     onError: (err, variables, context) => {
-      toast.error(err.message || 'Failed to save playbook.')
+      toast.error(options.mapErrorMessage?.(err) || err.message || 'Failed to save playbook.')
       options.onError?.(err, variables, context)
     },
   })

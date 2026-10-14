@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest'
 import {
   buildCampaignLaunchPayload,
   buildTargetImportPayload,
+  customCampaignReadinessMessage,
   playbookMasterIdForForm,
   scheduleAtForDate,
   timezoneForRegion,
@@ -79,5 +80,36 @@ describe('campaignLaunch', () => {
       { email: 'jane@example.com', first_name: 'Jane', last_name: 'Doe', department: 'Finance', position: 'Analyst' },
       { email: 'bob@example.com', first_name: 'Bob', last_name: 'Lee', department: '', position: '' },
     ])
+  })
+
+  it('restates a playbook readiness rejection in custom-campaign terms, keeping the reasons', () => {
+    const error = Object.assign(new Error('Playbook Master is not ready for approval or activation.'), {
+      code: 'playbook_not_ready',
+      status: 422,
+      errors: [
+        'Default dynamic domain must be authorized.',
+        'Default sending profile reference must be active.',
+      ],
+    })
+
+    const message = customCampaignReadinessMessage(error)
+    expect(message).not.toMatch(/Playbook Master/)
+    expect(message).toContain('Default dynamic domain must be authorized.')
+    expect(message).toContain('Default sending profile reference must be active.')
+  })
+
+  it('falls back to a component hint when the rejection carries no reasons', () => {
+    const error = Object.assign(new Error('Playbook Master is not ready to create or lock a Campaign Run.'), {
+      code: 'playbook_not_ready',
+      errors: [],
+    })
+
+    expect(customCampaignReadinessMessage(error)).toMatch(/email template, landing page, SMTP profile, and dynamic domain/)
+  })
+
+  it('leaves unrelated errors to the caller default', () => {
+    expect(customCampaignReadinessMessage(Object.assign(new Error('nope'), { code: 'rest_forbidden' }))).toBeNull()
+    expect(customCampaignReadinessMessage(new Error('nope'))).toBeNull()
+    expect(customCampaignReadinessMessage(undefined)).toBeNull()
   })
 })

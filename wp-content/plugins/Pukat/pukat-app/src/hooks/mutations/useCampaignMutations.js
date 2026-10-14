@@ -20,6 +20,10 @@ export function useCreateCampaignMutation(options = {}) {
   })
 }
 
+// `options.mapErrorMessage(err)` lets a caller restate a backend failure in its
+// own terms — the campaign wizard's custom mode needs this, since the services
+// reject an auto-generated Playbook Master with playbook wording the user never
+// chose. Returning a falsy value keeps the default message.
 export function useCreateCampaignRunMutation(options = {}) {
   const qc = useQueryClient()
 
@@ -31,7 +35,7 @@ export function useCreateCampaignRunMutation(options = {}) {
       options.onSuccess?.(data, variables, context)
     },
     onError: (err, variables, context) => {
-      toast.error(err.message || 'Failed to create campaign run.')
+      toast.error(options.mapErrorMessage?.(err) || err.message || 'Failed to create campaign run.')
       options.onError?.(err, variables, context)
     },
   })
@@ -49,7 +53,7 @@ export function useUpdateCampaignRunMutation(options = {}) {
       options.onSuccess?.(data, variables, context)
     },
     onError: (err, variables, context) => {
-      toast.error(err.message || 'Failed to update campaign run.')
+      toast.error(options.mapErrorMessage?.(err) || err.message || 'Failed to update campaign run.')
       options.onError?.(err, variables, context)
     },
   })

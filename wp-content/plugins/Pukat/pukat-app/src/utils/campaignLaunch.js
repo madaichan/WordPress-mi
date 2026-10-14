@@ -117,3 +117,34 @@ export function buildCampaignLaunchPayload(form, playbooks) {
     },
   }
 }
+
+/**
+ * Custom campaign mode has no Playbook Master of its own — the wizard builds a
+ * hidden one from the four picked components (see resolveCustomModePlaybookId
+ * in pages/Simulation/Campaigns.jsx). Both PlaybookMasterService::
+ * validate_ready_for_approval() and CampaignRunService reject it under the
+ * `playbook_not_ready` code with playbook wording ("Playbook Master is not
+ * ready for approval or activation.") and a per-reason `errors` array. In
+ * custom mode that headline names something the user never chose, while the
+ * reasons — which do name the component at fault — were being dropped. Restate
+ * it in component terms and keep the reasons.
+ *
+ * Reasons are passed through verbatim rather than rewritten: they are backend
+ * copy, and pattern-matching them here would silently mangle future messages.
+ *
+ * @returns {string|null} null when this isn't a readiness rejection, so callers
+ *   fall back to their own default message.
+ */
+export function customCampaignReadinessMessage(error) {
+  if (error?.code !== 'playbook_not_ready') return null
+
+  const reasons = (Array.isArray(error.errors) ? error.errors : [])
+    .map(reason => String(reason ?? '').trim())
+    .filter(Boolean)
+
+  if (reasons.length === 0) {
+    return 'Custom campaign components are not ready for launch. Re-check the selected email template, landing page, SMTP profile, and dynamic domain.'
+  }
+
+  return `Custom campaign components are not ready for launch: ${reasons.join(' ')}`
+}

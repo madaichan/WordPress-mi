@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react'
+import { useCallback, useEffect, useMemo, useState } from 'react'
 import { useNavigate, useSearchParams } from 'react-router-dom'
 import toast from 'react-hot-toast'
 import { useCampaignList, useCampaignRun } from '../../hooks/queries/useCampaignQueries.js'
@@ -20,7 +20,7 @@ import {
   useDeleteCampaignMutation,
 } from '../../hooks/mutations/useCampaignMutations.js'
 import { useCreatePlaybookMutation } from '../../hooks/mutations/usePlaybookMutations.js'
-import { buildCampaignLaunchPayload, buildTargetImportPayload, regionForTimezone, localDateAndTimeFromScheduleAt, todayDateString, addDaysToDateString, minSendTimeForDate, isScheduleSendTimeInvalid } from '../../utils/campaignLaunch.js'
+import { buildCampaignLaunchPayload, buildTargetImportPayload, customCampaignReadinessMessage, regionForTimezone, localDateAndTimeFromScheduleAt, todayDateString, addDaysToDateString, minSendTimeForDate, isScheduleSendTimeInvalid } from '../../utils/campaignLaunch.js'
 import { playbookComponentOptions } from '../../utils/playbookComponentOptions.js'
 import { GENERAL_ENTITY, assetEntityForUser, canCreatePlaybook, getUserEntity } from '../../utils/entityAssignmentHelpers.js'
 import { resolveSendingProfileRefId } from '../../utils/resolveSendingProfileRef.js'
@@ -209,11 +209,21 @@ export default function Campaigns() {
       : []
   ), [playbookRows])
 
-  const createCampaignRunMutation = useCreateCampaignRunMutation()
-  const updateCampaignRunMutation = useUpdateCampaignRunMutation()
+  // In custom mode the Playbook Master is an implementation detail the user
+  // never picked, so a `playbook_not_ready` rejection has to be restated in
+  // terms of the components they did pick — and its per-reason breakdown shown
+  // instead of dropped. Playbook mode keeps the backend's own wording, which is
+  // accurate there.
+  const mapCustomModeReadinessError = useCallback(
+    err => (form.mode === 'custom' ? customCampaignReadinessMessage(err) : null),
+    [form.mode]
+  )
+
+  const createCampaignRunMutation = useCreateCampaignRunMutation({ mapErrorMessage: mapCustomModeReadinessError })
+  const updateCampaignRunMutation = useUpdateCampaignRunMutation({ mapErrorMessage: mapCustomModeReadinessError })
   const importTargetsMutation = useImportCampaignRunTargetsMutation()
   const launchCampaignRunMutation = useLaunchCampaignRunMutation()
-  const createPlaybookMutation = useCreatePlaybookMutation()
+  const createPlaybookMutation = useCreatePlaybookMutation({ mapErrorMessage: mapCustomModeReadinessError })
 
   const deleteMutation = useDeleteCampaignMutation({
     onSuccess: () => {

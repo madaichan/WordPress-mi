@@ -48,6 +48,11 @@ export default function Step3({ form, setForm, csvData, playbooks = [], componen
   const emailReady = optionReady(componentOptions.email, customComponents.email)
   const landingReady = optionReady(componentOptions.page, customComponents.page)
   const smtpReady = optionReady(componentOptions.smtp, customComponents.smtp)
+  // The dynamic domain is optional, but once picked
+  // PlaybookMasterService::readiness_errors() requires it to be active AND
+  // authorized. Without this the checklist showed all green and the launch
+  // failed late with a playbook-worded 422.
+  const domainReady = optionReady(componentOptions.domain, customComponents.domain)
 
   // Recipient email-domain guardrail: targets must be on the entity's active
   // allow-list (My Profile > Guardrails). The backend enforces this at launch;
@@ -130,6 +135,14 @@ export default function Step3({ form, setForm, csvData, playbooks = [], componen
             : smtpReady
               ? `SMTP profile — ${smtpLabel}`
               : `SMTP profile — ${smtpLabel} (not active or not mapped to GoPhish; fix before launch)`,
+        },
+        {
+          ok: !customComponents.domain || domainReady,
+          text: !customComponents.domain
+            ? 'Dynamic domain — not set (optional)'
+            : domainReady
+              ? `Dynamic domain — ${domainLabel}`
+              : `Dynamic domain — ${domainLabel} (not active or not authorized; clear it or fix the domain before launch)`,
         },
       ]
       : [
