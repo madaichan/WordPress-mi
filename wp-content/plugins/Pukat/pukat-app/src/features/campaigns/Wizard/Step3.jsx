@@ -12,9 +12,14 @@ const LAUNCH_STAGE_LABELS = {
   launching: 'Launching…',
 }
 
-export default function Step3({ form, setForm, csvData, playbooks = [], componentOptions = EMPTY_PLAYBOOK_COMPONENT_OPTIONS, onBack, onLaunch, onDraft, isLaunching, isSavingDraft, launchStage, isEditing = false, entity = '', canBypassEmailDomainGuardrail = false }) {
+export default function Step3({ form, setForm, csvData, playbooks = [], componentOptions = EMPTY_PLAYBOOK_COMPONENT_OPTIONS, onBack, onLaunch, onDraft, isLaunching, isSavingDraft, launchStage, isEditing = false, entity = '', canBypassEmailDomainGuardrail = false, educationFollowUpAvailable = false }) {
   const quizEnabled = form.followUp?.quizEnabled ?? true
   const reminderEnabled = form.followUp?.forceResetPasswordReminderEnabled ?? false
+  // Education follow-up (G3b) is only offered when this entity has a published
+  // education page synced to a GoPhish master; otherwise there's nothing to
+  // chain to. The toggle defaults on, so its effective state folds in
+  // availability — matching what the launch payload actually sends.
+  const educationEnabled = educationFollowUpAvailable && (form.followUp?.educationEnabled ?? true)
   const isCustomMode = form.mode === 'custom'
   const customComponents = form.customComponents || {}
 
@@ -226,31 +231,59 @@ export default function Step3({ form, setForm, csvData, playbooks = [], componen
         </div>
 
         {/* After running */}
-        <div className="bg-white border border-gray-200 rounded-xl p-5" aria-disabled="true">
-          <div className="flex items-center justify-between mb-4">
-            <h3 className="text-sm font-semibold text-gray-900">Set The Follow Up</h3>
-            <span className="rounded-full text-[9px] font-semibold px-2 py-0.5 bg-gray-100 text-gray-500">Coming soon</span>
-          </div>
-          <div className="space-y-3 opacity-60 pointer-events-none" title="Follow-up settings are still in development — not available yet.">
+        <div className="bg-white border border-gray-200 rounded-xl p-5">
+          <h3 className="text-sm font-semibold text-gray-900 mb-4">Set The Follow Up</h3>
+          <div className="space-y-3">
             <div className="flex items-center gap-2 text-xs text-gray-700">
               <i className="ti ti-circle-check text-emerald-600 text-base flex-shrink-0" />
               Monitoring real-time enabled automatically
             </div>
 
+            {/* Education follow-up (G3b) — live when the entity has a published
+                education page synced to GoPhish, otherwise gated off. */}
             <div className="flex items-center justify-between gap-2">
-              <div className="flex items-center gap-2 text-xs text-gray-700">
-                <i className={clsx('ti text-base flex-shrink-0', quizEnabled ? 'ti-circle-check text-emerald-600' : 'ti-circle-x text-gray-400')} />
-                {quizEnabled ? 'Quiz sent to users who click' : 'Quiz disabled for this campaign'}
+              <div className="flex items-start gap-2 text-xs text-gray-700">
+                <i className={clsx('ti text-base flex-shrink-0', educationEnabled ? 'ti-circle-check text-emerald-600' : 'ti-circle-x text-gray-400')} />
+                <span>
+                  {educationFollowUpAvailable
+                    ? (educationEnabled ? 'Education page shown after a user submits' : 'Education follow-up disabled for this campaign')
+                    : 'Education follow-up unavailable'}
+                  {!educationFollowUpAvailable && (
+                    <span className="block text-[11px] text-gray-400 mt-0.5">
+                      Publish this entity&apos;s Flag education page (My Profile → Flags) and sync it to GoPhish first.
+                    </span>
+                  )}
+                </span>
               </div>
-              <Switch checked={quizEnabled} onChange={value => setFollowUp({ quizEnabled: value })} disabled />
+              <Switch
+                checked={educationEnabled}
+                onChange={value => setFollowUp({ educationEnabled: value })}
+                disabled={!educationFollowUpAvailable}
+              />
             </div>
 
-            <div className="flex items-center justify-between gap-2">
-              <div className="flex items-center gap-2 text-xs text-gray-700">
-                <i className={clsx('ti text-base flex-shrink-0', reminderEnabled ? 'ti-circle-check text-emerald-600' : 'ti-circle-x text-gray-400')} />
-                {reminderEnabled ? 'Notify enabled Force Reset Password' : 'Notify disabled Force Reset Password'}
+            <div className="space-y-3 opacity-60 pointer-events-none border-t border-gray-100 pt-3" title="These follow-up settings are still in development — not available yet.">
+              <div className="flex items-center justify-between gap-2">
+                <div className="flex items-center gap-2 text-xs text-gray-700">
+                  <i className={clsx('ti text-base flex-shrink-0', quizEnabled ? 'ti-circle-check text-emerald-600' : 'ti-circle-x text-gray-400')} />
+                  {quizEnabled ? 'Quiz sent to users who click' : 'Quiz disabled for this campaign'}
+                </div>
+                <div className="flex items-center gap-2">
+                  <span className="rounded-full text-[9px] font-semibold px-2 py-0.5 bg-gray-100 text-gray-500">Coming soon</span>
+                  <Switch checked={quizEnabled} onChange={value => setFollowUp({ quizEnabled: value })} disabled />
+                </div>
               </div>
-              <Switch checked={reminderEnabled} onChange={value => setFollowUp({ forceResetPasswordReminderEnabled: value })} disabled />
+
+              <div className="flex items-center justify-between gap-2">
+                <div className="flex items-center gap-2 text-xs text-gray-700">
+                  <i className={clsx('ti text-base flex-shrink-0', reminderEnabled ? 'ti-circle-check text-emerald-600' : 'ti-circle-x text-gray-400')} />
+                  {reminderEnabled ? 'Notify enabled Force Reset Password' : 'Notify disabled Force Reset Password'}
+                </div>
+                <div className="flex items-center gap-2">
+                  <span className="rounded-full text-[9px] font-semibold px-2 py-0.5 bg-gray-100 text-gray-500">Coming soon</span>
+                  <Switch checked={reminderEnabled} onChange={value => setFollowUp({ forceResetPasswordReminderEnabled: value })} disabled />
+                </div>
+              </div>
             </div>
           </div>
         </div>

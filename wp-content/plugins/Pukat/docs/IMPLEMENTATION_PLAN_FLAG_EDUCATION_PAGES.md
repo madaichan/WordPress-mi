@@ -115,9 +115,19 @@ Catatan sejarah (supaya tidak ditemukan ulang): arsitektur sempat **per-kategori
 G1  Klien GoPhish ............................. SELESAI 2026-10-12
 G2  Publish → sync GoPhish Landing Page (base64) . SELESAI 2026-10-12 (verified live)
 G3  Publish → create/refresh master education + edit-lock saat simulasi aktif ... SELESAI 2026-10-12 (verified live)
-G3b Wiring: simulation launch → set next_campaign_id = gophish_master_id ... BELUM (butuh wizard Step 3)
+G3b Wiring: simulation launch → set next_campaign_id = gophish_master_id ... SELESAI 2026-10-13
 G4  Monitoring: GET /campaigns/{simulation}/results, group timeline by rid (Submitted Data (Education|Quiz) tergabung) ... BELUM
 ```
+
+**G3b (as-built, 2026-10-13) — simulation launch menautkan rantai ke master education entity.**
+- **Follow-up flag baru**: `CampaignRunService::sanitize_follow_up()` menambah `education_enabled` (default `false`; frontend yang set). Tersimpan di `follow_up_json`, dibaca balik saat launch.
+- **Linking saat launch (bukan create)**: `CampaignRunService::launch()` memanggil `link_education_follow_up()` setelah campaign GoPhish ada. Bila `education_enabled`, resolve `FlagPageService::published_master_id_for_entity($entity)` (read-only, **tanpa edit-gate** — launcher sudah lolos cek run-level) lalu `GoPhishService::set_next_campaign($sim_id, $master_id)`. Linking di launch (bukan saat create simulation) karena master di-recreate tiap Publish (FR-12) → id-nya harus diresolusi fresh. Audit `campaign_run.education_linked`.
+- **Warn, bukan block** (keputusan 2026-10-13): gagal link (tak ada master published / GoPhish tolak) **tidak** membatalkan launch — campaign GoPhish sudah ada. Hasil dikembalikan sebagai `data.education_link = {ok, message?, campaign_id?}`; frontend toast warning, run bisa di-relaunch/relink.
+- **Wizard Step 3**: baris "education" di kartu "Set The Follow Up" kini **toggle live** (bukan "Coming soon") — aktif hanya bila entity punya education page `status=published` + `gophish_master_id` (dicek via `useFlagPage(runEntity)`; admin kirim `entity`). Default **on bila tersedia** (keputusan 2026-10-13); bila tak tersedia → disabled + hint "Publish Flag education page dulu", dan payload tidak mengirim `education_enabled=true`. Quiz & Force-Reset tetap placeholder "Coming soon" disabled.
+- Alir data FE: `followUp.educationEnabled` → `campaignLaunch.js` `education_enabled` → `withEffectiveEducation()` di `Campaigns.jsx` meng-fold ketersediaan sebelum build payload (launch & save-draft). `launchRunWithGuardrailRetry()` kini mengembalikan run (bukan bool) agar `surfaceEducationLinkResult()` bisa baca `education_link`.
+- QA: `php -l` bersih (`CampaignRunService.php`, `FlagPageService.php`); `npm run lint` bersih di file fitur (2 warning pra-ada `ManageView`/`Performing`); `npm run test` 91 lulus (`campaignLaunch.test.js` diperluas untuk `education_enabled`).
+- **Smoke test live SELESAI 2026-10-13** (entity ibaraki, operator `pukatopr`, semua objek buangan dibersihkan): `published_master_id_for_entity('ibaraki')`=52, entity tak dikenal→0 (warn path). Dibuat simulation buangan (dijadwalkan 2099 → tak kirim email) + group `*.invalid`, row run buangan `education_enabled=true`, lalu `CampaignRunService::launch()` → `education_link.ok=true campaign_id=52`, **GoPhish `sim.next_campaign_id` jadi 52** (diverifikasi via `get_campaign`), audit `campaign_run.education_linked` tercatat. Semua objek (campaign/group/run/audit) dihapus; flag page ibaraki & master 52 tak tersentuh.
+- File diubah: `includes/Services/CampaignRunService.php`, `includes/Services/FlagPageService.php`, `pukat-app/src/features/campaigns/Wizard/Step3.jsx`, `pukat-app/src/pages/Simulation/Campaigns.jsx`, `pukat-app/src/utils/campaignLaunch.js` (+ `campaignLaunch.test.js`).
 
 **G3 (as-built, 2026-10-12, verified live) — master dibuat saat Publish + edit-lock.**
 - **Launch URL**: kolom `launch_url` (migrasi `1.23.0`), dropdown di editor dari `dynamic_domains`, divalidasi server.

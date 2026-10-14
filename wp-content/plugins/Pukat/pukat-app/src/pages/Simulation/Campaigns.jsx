@@ -5,6 +5,7 @@ import { useCampaignList, useCampaignRun } from '../../hooks/queries/useCampaign
 import { useTableRows, useTableSchema } from '../../hooks/queries/useTableQueries.js'
 import { usePlaybooks } from '../../hooks/queries/usePlaybookQueries.js'
 import { useEntityReadiness } from '../../hooks/queries/useEntityQueries.js'
+import { useFlagPage } from '../../hooks/queries/useFlagQueries.js'
 import {
   useMasterDynamicDomains,
   useMasterEmailTemplates,
@@ -64,6 +65,9 @@ function makeInitialForm() {
     timezone: 'WIB',
     followUp: {
       quizEnabled: true,
+      // Default on; Step 3 gates it on the entity actually having a published
+      // education master, and the launch payload drops it when unavailable.
+      educationEnabled: true,
       forceResetPasswordReminderEnabled: false,
     },
   }
@@ -188,6 +192,15 @@ export default function Campaigns() {
   // draft run is created. The backend still enforces it.
   const runEntity = getUserEntity(currentUser) || GENERAL_ENTITY
   const { data: runEntityReadiness } = useEntityReadiness(runEntity)
+  // Education follow-up (G3b) can only be linked when this entity has a
+  // published education page already synced to a GoPhish master. Gate the
+  // wizard toggle on that; the backend re-checks and only links a live master.
+  const { data: runEntityFlagPage } = useFlagPage(
+    isFullAdmin ? { entity: runEntity } : {},
+    { enabled: view === 'new' },
+  )
+  const educationFollowUpAvailable = runEntityFlagPage?.status === 'published'
+    && Boolean(runEntityFlagPage?.gophish_master_id)
   const canUseCustomCampaign = canCreatePlaybook(currentUser, { isFullAdmin, hasCreateCapability: hasPlaybookCreateCapability })
   const defaultEntity = useMemo(() => assetEntityForUser(currentUser), [currentUser])
 
@@ -290,6 +303,7 @@ export default function Campaigns() {
       timezone: regionForTimezone(timezone),
       followUp: {
         quizEnabled: editRunData.follow_up?.quiz_enabled ?? true,
+        educationEnabled: editRunData.follow_up?.education_enabled ?? true,
         forceResetPasswordReminderEnabled: editRunData.follow_up?.force_reset_password_reminder_enabled ?? false,
       },
     }))
@@ -361,12 +375,11 @@ export default function Campaigns() {
   // Launches a run; on a target_email_domain_forbidden guardrail rejection
   // (docs/PRD_ENTITY_PROFILE_AND_GUARDRAILS.md FR-7/FR-8), lists the
   // offending emails and — only for users holding guardrails.bypass — offers
-  // to retry past it. Returns false if launch did not go through (caller
-  // should stop, not reset the wizard/navigate away).
+  // to retry past it. Returns the launched run on success, or false if launch
+  // did not go through (caller should stop, not reset the wizard/navigate).
   const launchRunWithGuardrailRetry = async (runId) => {
     try {
-      await launchCampaignRunMutation.mutateAsync(runId)
-      return true
+      return await launchCampaignRunMutation.mutateAsync(runId)
     } catch (err) {
       if (err.code !== 'target_email_domain_forbidden') {
         throw err
@@ -385,10 +398,33 @@ export default function Campaigns() {
       )
       if (!confirmed) return false
 
-      await launchCampaignRunMutation.mutateAsync({ id: runId, data: { bypass_email_domain_guardrail: true } })
-      return true
+      return await launchCampaignRunMutation.mutateAsync({ id: runId, data: { bypass_email_domain_guardrail: true } })
     }
   }
+
+  // Surface the G3b education-follow-up link result (CampaignRunService::
+  // launch() returns `education_link` only when the run opted in). A link
+  // failure is a warning, not a launch failure — the simulation already ran.
+  const surfaceEducationLinkResult = (launchedRun) => {
+    const link = launchedRun?.education_link
+    if (!link) return
+    if (link.ok) {
+      toast.success('Education follow-up linked to this simulation.')
+    } else {
+      toast.error(link.message || 'Education follow-up could not be linked — the simulation launched without it.')
+    }
+  }
+
+  // Drop education follow-up from the saved run unless this entity actually
+  // has a published education master to chain to (G3b). The toggle defaults on
+  // but is meaningless — and the backend link would just warn — without one.
+  const withEffectiveEducation = (f) => ({
+    ...f,
+    followUp: {
+      ...f.followUp,
+      educationEnabled: educationFollowUpAvailable && (f.followUp?.educationEnabled ?? true),
+    },
+  })
 
   const handleLaunch = async () => {
     if (!form.name.trim()) { toast.error('Campaign name is required.'); return }
@@ -432,7 +468,7 @@ export default function Campaigns() {
         if (!playbookIdForRun) return
       }
 
-      const payload = buildCampaignLaunchPayload({ ...form, playbook: playbookIdForRun }, wizardPlaybooks)
+      const payload = buildCampaignLaunchPayload(withEffectiveEducation({ ...form, playbook: playbookIdForRun }), wizardPlaybooks)
       const run = editingRunId
         ? await updateCampaignRunMutation.mutateAsync({ id: editingRunId, data: payload })
         : await createCampaignRunMutation.mutateAsync(payload)
@@ -443,6 +479,7 @@ export default function Campaigns() {
       setLaunchStage('launching')
       const launched = await launchRunWithGuardrailRetry(run.id)
       if (!launched) return
+      surfaceEducationLinkResult(launched)
 
       resetWizard()
       navigate('/manage-campaigns')
@@ -485,7 +522,7 @@ export default function Campaigns() {
         if (!playbookIdForRun) return
       }
 
-      const payload = buildCampaignLaunchPayload({ ...form, playbook: playbookIdForRun }, wizardPlaybooks)
+      const payload = buildCampaignLaunchPayload(withEffectiveEducation({ ...form, playbook: playbookIdForRun }), wizardPlaybooks)
       let run
       if (editingRunId) {
         run = await updateCampaignRunMutation.mutateAsync({ id: editingRunId, data: payload })
@@ -573,6 +610,7 @@ export default function Campaigns() {
             isEditing={Boolean(editingRunId)}
             entity={runEntity}
             canBypassEmailDomainGuardrail={canBypassEmailDomainGuardrail}
+            educationFollowUpAvailable={educationFollowUpAvailable}
           />
         )}
       </PageShell>

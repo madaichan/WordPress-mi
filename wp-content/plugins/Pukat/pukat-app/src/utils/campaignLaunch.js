@@ -113,6 +113,7 @@ export function buildCampaignLaunchPayload(form, playbooks) {
     target_group_name: form.targetGroupName?.trim() || null,
     follow_up: {
       quiz_enabled: form.followUp?.quizEnabled ?? true,
+      education_enabled: form.followUp?.educationEnabled ?? false,
       force_reset_password_reminder_enabled: form.followUp?.forceResetPasswordReminderEnabled ?? false,
     },
   }

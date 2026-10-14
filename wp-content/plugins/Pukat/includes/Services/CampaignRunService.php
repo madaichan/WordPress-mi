@@ -545,7 +545,80 @@ class CampaignRunService {
 			$id
 		);
 
-		return $this->get( $id ) ?: [];
+		$education_link = $this->link_education_follow_up( $run, $user_id );
+
+		$result = $this->get( $id ) ?: [];
+		if ( null !== $education_link ) {
+			$result['education_link'] = $education_link;
+		}
+
+		return $result;
+	}
+
+	/**
+	 * Chain a launching simulation to its entity's GoPhish education master
+	 * (docs/PRD_FLAG_EDUCATION_PAGES.md §11 G3b) when the run opted into
+	 * education follow-up. The link is set here at launch — not when the
+	 * simulation campaign is created — because the education master is
+	 * recreated (new id) on every Publish of the education page (FR-12), so
+	 * the current id must be resolved fresh at launch. A failure never blocks
+	 * the launch: the GoPhish campaign already exists, so the failure is
+	 * returned as a warning for the UI to surface, and the run can be
+	 * re-linked later.
+	 *
+	 * @param array<string, mixed> $run Latest Campaign Run row (post-sync).
+	 * @return array{ok: bool, message?: string, campaign_id?: int}|null
+	 *         null when education follow-up was not requested for this run.
+	 */
+	private function link_education_follow_up( array $run, int $user_id ): ?array {
+		$follow_up = json_decode( (string) ( $run['follow_up_json'] ?? '' ), true );
+		if ( ! is_array( $follow_up ) || empty( $follow_up['education_enabled'] ) ) {
+			return null;
+		}
+
+		$simulation_id = (int) ( $run['gophish_campaign_id'] ?? 0 );
+		if ( $simulation_id <= 0 ) {
+			return [
+				'ok'      => false,
+				'message' => __( 'The simulation is not synced to GoPhish yet, so education follow-up could not be linked.', 'pukat' ),
+			];
+		}
+
+		$entity    = $this->run_entity( $run );
+		$master_id = ( new FlagPageService() )->published_master_id_for_entity( $entity );
+		if ( $master_id <= 0 ) {
+			return [
+				'ok'      => false,
+				'message' => sprintf(
+					/* translators: %s: entity name. */
+					__( 'Entity "%s" has no published education page synced to GoPhish, so education follow-up was skipped. Publish its Flag education page, then re-launch or re-link.', 'pukat' ),
+					$entity
+				),
+			];
+		}
+
+		$result = ( new GoPhishService() )->set_next_campaign( $simulation_id, $master_id );
+		if ( is_wp_error( $result ) ) {
+			return [
+				'ok'          => false,
+				'campaign_id' => $master_id,
+				'message'     => $result->get_error_message(),
+			];
+		}
+
+		AuditLogService::log(
+			'campaign_run.education_linked',
+			[
+				'campaign_run_id'     => (int) ( $run['id'] ?? 0 ),
+				'gophish_campaign_id' => $simulation_id,
+				'education_master_id' => $master_id,
+			],
+			$user_id,
+			'campaign_run',
+			(int) ( $run['id'] ?? 0 )
+		);
+
+		return [ 'ok' => true, 'campaign_id' => $master_id ];
 	}
 
 	/**
@@ -2202,6 +2275,7 @@ class CampaignRunService {
 	private function sanitize_follow_up( array $input ): string {
 		return (string) wp_json_encode( [
 			'quiz_enabled'                         => array_key_exists( 'quiz_enabled', $input ) ? (bool) $input['quiz_enabled'] : true,
+			'education_enabled'                    => (bool) ( $input['education_enabled'] ?? false ),
 			'force_reset_password_reminder_enabled' => (bool) ( $input['force_reset_password_reminder_enabled'] ?? false ),
 		] );
 	}

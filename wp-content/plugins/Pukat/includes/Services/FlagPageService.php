@@ -266,6 +266,22 @@ class FlagPageService {
 	}
 
 	/**
+	 * The entity's published GoPhish education master id, or 0 when the entity
+	 * has no published page synced to a master yet. Read-only and ungated
+	 * (no edit/view access check): used by CampaignRunService to chain a
+	 * launching simulation to it (docs/PRD_FLAG_EDUCATION_PAGES.md §11 G3b),
+	 * where the caller has already passed its own run-level access checks.
+	 */
+	public function published_master_id_for_entity( string $entity ): int {
+		$row = $this->repository->find_for_entity( $entity );
+		if ( ! $row || self::STATUS_PUBLISHED !== (string) ( $row['status'] ?? '' ) ) {
+			return 0;
+		}
+
+		return empty( $row['gophish_master_id'] ) ? 0 : (int) $row['gophish_master_id'];
+	}
+
+	/**
 	 * Push a row's published HTML to GoPhish and record the page id + time.
 	 * Returns a status array (never throws) so callers can surface it.
 	 *

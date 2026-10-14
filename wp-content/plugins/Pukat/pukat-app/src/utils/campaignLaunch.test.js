@@ -47,6 +47,7 @@ describe('campaignLaunch', () => {
       target_group_name: null,
       follow_up: {
         quiz_enabled: true,
+        education_enabled: false,
         force_reset_password_reminder_enabled: false,
       },
     })
@@ -61,14 +62,14 @@ describe('campaignLaunch', () => {
 
   it('defaults follow-up preferences when unset, and passes through explicit choices', () => {
     expect(buildCampaignLaunchPayload({ name: 'Defaults', timezone: 'WIB' }, [])).toMatchObject({
-      follow_up: { quiz_enabled: true, force_reset_password_reminder_enabled: false },
+      follow_up: { quiz_enabled: true, education_enabled: false, force_reset_password_reminder_enabled: false },
     })
 
     expect(buildCampaignLaunchPayload(
-      { name: 'Custom follow-up', timezone: 'WIB', followUp: { quizEnabled: false, forceResetPasswordReminderEnabled: true } },
+      { name: 'Custom follow-up', timezone: 'WIB', followUp: { quizEnabled: false, educationEnabled: true, forceResetPasswordReminderEnabled: true } },
       []
     )).toMatchObject({
-      follow_up: { quiz_enabled: false, force_reset_password_reminder_enabled: true },
+      follow_up: { quiz_enabled: false, education_enabled: true, force_reset_password_reminder_enabled: true },
     })
   })
 
