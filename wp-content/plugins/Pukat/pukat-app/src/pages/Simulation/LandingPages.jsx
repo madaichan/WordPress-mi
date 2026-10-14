@@ -788,14 +788,14 @@ export default function LandingPages() {
               <div>
                 <h2 className="text-lg font-bold text-gray-900">{previewTitle}</h2>
                 <p className="text-xs text-gray-500 mt-0.5">
-                  Menampilkan simulasi tampilan persis di mata korban target
+                  Preview how the landing page appears to the target.
                 </p>
               </div>
               <button
                 onClick={() => switchTab('list')}
                 className="bg-white border border-gray-200 text-gray-700 hover:bg-gray-50 px-4 py-2 text-sm font-semibold rounded-xl transition-all"
               >
-                Kembali ke daftar
+                Return to List
               </button>
             </div>
 
