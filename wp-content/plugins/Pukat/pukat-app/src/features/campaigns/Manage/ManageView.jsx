@@ -209,6 +209,10 @@ export default function ManageView() {
         ? { ...column, renderer: 'custom', render: row => renderActionsCell(row) }
         : column
     ))
+    // `renderActionsCell` is deliberately not a dependency: its handler dispatches on the
+    // row passed in and only captures stable refs (navigate, mutate, state setters), so the
+    // captured closure can never go stale the way a derived-list lookup would.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   ), [schema])
 
   const selectedCount = selectedRowIds.size

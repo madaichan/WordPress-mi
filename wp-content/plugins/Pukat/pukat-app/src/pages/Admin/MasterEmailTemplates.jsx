@@ -274,8 +274,12 @@ export default function MasterEmailTemplates() {
       }
     })
     return merged
+    // `templates` is a dependency even though it is only read indirectly: the action cell
+    // closes over the row-action handlers of the render that last recomputed this memo, and
+    // the master list resolves long after the table schema. Without it the handlers keep
+    // their empty-list snapshot and Preview/Edit/Duplicate/Delete silently do nothing.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [schema, usersById])
+  }, [schema, templates, usersById])
 
   const clearEditingState = useCallback(() => {
     setEditingId(null)
@@ -339,7 +343,10 @@ export default function MasterEmailTemplates() {
 
   const loadTemplateForWork = useCallback((id) => {
     const template = templates.find(item => item.id === id)
-    if (!template) return null
+    if (!template) {
+      toast.error('Email template master is still loading. Refresh and try again.')
+      return null
+    }
 
     setEditingId(template.id)
     setEditingName(template.name)

@@ -197,8 +197,14 @@ export default function MasterLandingPages() {
       }
     })
     return merged
+    // `pages` and `previewingId` are dependencies even though they are only read
+    // indirectly: the action cell closes over the row-action handlers (and the preview
+    // spinner state) of the render that last recomputed this memo, and the landing page
+    // list resolves after the table schema. Without them the handlers keep their
+    // empty-list snapshot and Edit/Duplicate/Delete silently do nothing, and the Preview
+    // button never shows its loading state.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [schema, usersById])
+  }, [pages, previewingId, schema, usersById])
 
   const resetEditor = useCallback(() => {
     setEditingId(null)

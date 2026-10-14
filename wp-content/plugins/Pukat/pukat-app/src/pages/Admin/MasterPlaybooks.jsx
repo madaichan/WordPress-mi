@@ -698,8 +698,12 @@ export default function MasterPlaybooks() {
       }
     })
     return merged
+    // `richPlaybooks` is a dependency even though it is only read indirectly: the action
+    // cell closes over the row-action handlers of the render that last recomputed this memo,
+    // and the playbook list resolves after the table schema. Without it the handlers keep
+    // their empty-list snapshot and Edit/Duplicate/Delete silently do nothing.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [schema, usersById])
+  }, [richPlaybooks, schema, usersById])
 
   function handleEdit(id) {
     const item = richPlaybooks.find(playbook => playbook.id === String(id))
