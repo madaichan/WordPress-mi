@@ -34,9 +34,21 @@ class CampaignRunService {
 	 */
 	private const RECENT_EVENTS_LIMIT = 30;
 
+	/** GoPhish timeline messages for the chained education/quiz stages. A
+	 * simulation's `/results` auto-merges each target's downstream submissions
+	 * back into its own timeline, rewriting their `rid` to the source entry so
+	 * grouping by recipient already lines them up (docs/api_campaignnew.md
+	 * §3.5.1). `(Chained)` is GoPhish's fallback label for a downstream stage
+	 * that is neither education nor quiz — treated as education here, since our
+	 * chain only has those two stages. */
+	private const EDUCATION_EVENT_TYPES = [ 'Submitted Data (Education)', 'Submitted Data (Chained)' ];
+	private const QUIZ_EVENT_TYPE       = 'Submitted Data (Quiz)';
+
 	/** GoPhish timeline event types worth surfacing in the live feed — "Email
-	 * Sent"/"Email Opened" are too high-volume to be a useful feed. */
-	private const FEED_EVENT_TYPES = [ 'Clicked Link', 'Submitted Data', 'Email Reported' ];
+	 * Sent"/"Email Opened" are too high-volume to be a useful feed. The
+	 * chained education/quiz arrivals (above) are included so the feed shows a
+	 * target reaching the education page / finishing the quiz. */
+	private const FEED_EVENT_TYPES = [ 'Clicked Link', 'Submitted Data', 'Email Reported', 'Submitted Data (Education)', 'Submitted Data (Quiz)', 'Submitted Data (Chained)' ];
 
 	private CampaignRunRepository $repository;
 
@@ -1222,6 +1234,10 @@ class CampaignRunService {
 				'clicked_at'   => null,
 				'submitted_at' => null,
 				'reported_at'  => null,
+				// Chained education/quiz stages (G4) — null unless this target
+				// reached/completed them via next_campaign_id redirect.
+				'education_at' => null,
+				'quiz_at'      => null,
 			];
 			$stage_by_message = [
 				'Email Sent'     => 'sent_at',
@@ -1237,15 +1253,25 @@ class CampaignRunService {
 				}
 
 				$message = (string) ( $event['message'] ?? '' );
-				$stage   = $stage_by_message[ $message ] ?? null;
+				$chained = $this->chained_stage_for_message( $message );
+				$stage   = $stage_by_message[ $message ] ?? $chained;
 				if ( null === $stage ) {
 					continue;
 				}
 
 				$timestamp = strtotime( (string) ( $event['time'] ?? '' ) );
-				if ( false !== $timestamp ) {
-					$stage_at[ $stage ] = gmdate( 'c', $timestamp );
+				if ( false === $timestamp ) {
+					continue;
 				}
+
+				// Original funnel stages keep last-wins (unchanged); chained
+				// education/quiz stages keep the first (earliest) arrival, as a
+				// target can be redirected through them more than once.
+				if ( null !== $chained && null !== $stage_at[ $stage ] && $timestamp >= strtotime( (string) $stage_at[ $stage ] ) ) {
+					continue;
+				}
+
+				$stage_at[ $stage ] = gmdate( 'c', $timestamp );
 			}
 
 			$rows[] = array_merge(
@@ -1265,6 +1291,21 @@ class CampaignRunService {
 	}
 
 	/**
+	 * Map a chained-stage timeline message to its target_details column, or
+	 * null when it isn't a chained education/quiz arrival (G4).
+	 */
+	private function chained_stage_for_message( string $message ): ?string {
+		if ( in_array( $message, self::EDUCATION_EVENT_TYPES, true ) ) {
+			return 'education_at';
+		}
+		if ( self::QUIZ_EVENT_TYPE === $message ) {
+			return 'quiz_at';
+		}
+
+		return null;
+	}
+
+	/**
 	 * @param array<string, mixed> $results GoPhish campaign results.
 	 * @return array<string, mixed>
 	 */
@@ -1276,6 +1317,8 @@ class CampaignRunService {
 		$clicked         = 0;
 		$submitted       = 0;
 		$reported        = 0;
+		$education       = 0;
+		$quiz            = 0;
 		$status_counts   = [];
 		$timeline_counts = [];
 
@@ -1288,6 +1331,8 @@ class CampaignRunService {
 			$target_clicked   = in_array( $status, [ 'Clicked Link', 'Submitted Data' ], true );
 			$target_submitted = 'Submitted Data' === $status;
 			$target_reported  = ! empty( $target['reported'] ) || 'Email Reported' === $status;
+			$target_education = false;
+			$target_quiz      = false;
 
 			foreach ( (array) ( $target['timeline'] ?? [] ) as $event ) {
 				if ( ! is_array( $event ) ) {
@@ -1311,6 +1356,10 @@ class CampaignRunService {
 					$target_submitted = true;
 				} elseif ( 'Email Reported' === $message ) {
 					$target_reported = true;
+				} elseif ( in_array( $message, self::EDUCATION_EVENT_TYPES, true ) ) {
+					$target_education = true;
+				} elseif ( self::QUIZ_EVENT_TYPE === $message ) {
+					$target_quiz = true;
 				}
 			}
 
@@ -1324,21 +1373,31 @@ class CampaignRunService {
 			$clicked   += $target_clicked ? 1 : 0;
 			$submitted += $target_submitted ? 1 : 0;
 			$reported  += $target_reported ? 1 : 0;
+			$education += $target_education ? 1 : 0;
+			$quiz      += $target_quiz ? 1 : 0;
 		}
 
 		return [
-			'total'           => $total,
-			'email_sent'      => $sent,
-			'email_opened'    => $opened,
-			'clicked'         => $clicked,
-			'submitted_data'  => $submitted,
-			'email_reported'  => $reported,
-			'open_rate'       => $total > 0 ? round( ( $opened / $total ) * 100, 1 ) : 0,
-			'click_rate'      => $total > 0 ? round( ( $clicked / $total ) * 100, 1 ) : 0,
-			'submit_rate'     => $total > 0 ? round( ( $submitted / $total ) * 100, 1 ) : 0,
-			'report_rate'     => $total > 0 ? round( ( $reported / $total ) * 100, 1 ) : 0,
-			'status_counts'   => $status_counts,
-			'timeline_counts' => $timeline_counts,
+			'total'                => $total,
+			'email_sent'           => $sent,
+			'email_opened'         => $opened,
+			'clicked'              => $clicked,
+			'submitted_data'       => $submitted,
+			'email_reported'       => $reported,
+			// Chained education/quiz completions (G4) — count each recipient
+			// once, same as the funnel stages above.
+			'education_completed'  => $education,
+			'quiz_completed'       => $quiz,
+			'open_rate'            => $total > 0 ? round( ( $opened / $total ) * 100, 1 ) : 0,
+			'click_rate'           => $total > 0 ? round( ( $clicked / $total ) * 100, 1 ) : 0,
+			'submit_rate'          => $total > 0 ? round( ( $submitted / $total ) * 100, 1 ) : 0,
+			'report_rate'          => $total > 0 ? round( ( $reported / $total ) * 100, 1 ) : 0,
+			// Of those who submitted (and so were redirected into education),
+			// how many actually completed the education page / quiz.
+			'education_rate'       => $submitted > 0 ? round( ( $education / $submitted ) * 100, 1 ) : 0,
+			'quiz_rate'            => $submitted > 0 ? round( ( $quiz / $submitted ) * 100, 1 ) : 0,
+			'status_counts'        => $status_counts,
+			'timeline_counts'      => $timeline_counts,
 		];
 	}
 
@@ -1385,18 +1444,22 @@ class CampaignRunService {
 	 */
 	private function empty_result_stats(): array {
 		return [
-			'total'           => 0,
-			'email_sent'      => 0,
-			'email_opened'    => 0,
-			'clicked'         => 0,
-			'submitted_data'  => 0,
-			'email_reported'  => 0,
-			'open_rate'       => 0,
-			'click_rate'      => 0,
-			'submit_rate'     => 0,
-			'report_rate'     => 0,
-			'status_counts'   => [],
-			'timeline_counts' => [],
+			'total'               => 0,
+			'email_sent'          => 0,
+			'email_opened'        => 0,
+			'clicked'             => 0,
+			'submitted_data'      => 0,
+			'email_reported'      => 0,
+			'education_completed' => 0,
+			'quiz_completed'      => 0,
+			'open_rate'           => 0,
+			'click_rate'          => 0,
+			'submit_rate'         => 0,
+			'report_rate'         => 0,
+			'education_rate'      => 0,
+			'quiz_rate'           => 0,
+			'status_counts'       => [],
+			'timeline_counts'     => [],
 		];
 	}
 

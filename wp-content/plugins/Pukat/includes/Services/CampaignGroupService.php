@@ -210,12 +210,14 @@ class CampaignGroupService {
 	 */
 	private function aggregate( array $runs ): array {
 		$totals = [
-			'total'          => 0,
-			'email_sent'     => 0,
-			'email_opened'   => 0,
-			'clicked'        => 0,
-			'submitted_data' => 0,
-			'email_reported' => 0,
+			'total'               => 0,
+			'email_sent'          => 0,
+			'email_opened'        => 0,
+			'clicked'             => 0,
+			'submitted_data'      => 0,
+			'email_reported'      => 0,
+			'education_completed' => 0,
+			'quiz_completed'      => 0,
 		];
 		$breakdown          = [];
 		$department_totals  = [];
@@ -326,10 +328,13 @@ class CampaignGroupService {
 
 		return [
 			'stats'                 => array_merge( $totals, [
-				'open_rate'   => $total > 0 ? round( ( $totals['email_opened'] / $total ) * 100, 1 ) : 0,
-				'click_rate'  => $total > 0 ? round( ( $totals['clicked'] / $total ) * 100, 1 ) : 0,
-				'submit_rate' => $total > 0 ? round( ( $totals['submitted_data'] / $total ) * 100, 1 ) : 0,
-				'report_rate' => $total > 0 ? round( ( $totals['email_reported'] / $total ) * 100, 1 ) : 0,
+				'open_rate'      => $total > 0 ? round( ( $totals['email_opened'] / $total ) * 100, 1 ) : 0,
+				'click_rate'     => $total > 0 ? round( ( $totals['clicked'] / $total ) * 100, 1 ) : 0,
+				'submit_rate'    => $total > 0 ? round( ( $totals['submitted_data'] / $total ) * 100, 1 ) : 0,
+				'report_rate'    => $total > 0 ? round( ( $totals['email_reported'] / $total ) * 100, 1 ) : 0,
+				// Education/quiz completion among those who submitted (G4).
+				'education_rate' => $totals['submitted_data'] > 0 ? round( ( $totals['education_completed'] / $totals['submitted_data'] ) * 100, 1 ) : 0,
+				'quiz_rate'      => $totals['submitted_data'] > 0 ? round( ( $totals['quiz_completed'] / $totals['submitted_data'] ) * 100, 1 ) : 0,
 			] ),
 			'campaign_runs'         => $breakdown,
 			'department_breakdown'  => $department_breakdown,

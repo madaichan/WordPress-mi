@@ -211,6 +211,24 @@ export default function Performing() {
   const recentEvents = report?.recent_events || []
   const targetDetails = report?.target_details
 
+  // Chained education/quiz follow-up columns/cards (G4) only appear once the
+  // simulation actually has that activity — keeping the view clean for runs
+  // launched without an education follow-up.
+  const hasEducationData = (stats?.education_completed ?? 0) > 0
+  const hasQuizData = (stats?.quiz_completed ?? 0) > 0
+  const statCards = useMemo(() => {
+    const cards = [...STAT_CARDS]
+    if (hasEducationData) cards.push({ key: 'education_completed', label: 'Education viewed', icon: 'ti-book', cls: 'text-emerald-600', rateKey: 'education_rate' })
+    if (hasQuizData) cards.push({ key: 'quiz_completed', label: 'Quiz completed', icon: 'ti-checkbox', cls: 'text-emerald-600', rateKey: 'quiz_rate' })
+    return cards
+  }, [hasEducationData, hasQuizData])
+  const targetSchema = useMemo(() => {
+    const columns = [...TARGET_DETAILS_SCHEMA.columns]
+    if (hasEducationData) columns.push({ key: 'education_at', label: 'Education', sortable: true, renderer: 'datetime' })
+    if (hasQuizData) columns.push({ key: 'quiz_at', label: 'Quiz', sortable: true, renderer: 'datetime' })
+    return { ...TARGET_DETAILS_SCHEMA, columns }
+  }, [hasEducationData, hasQuizData])
+
   // Client-side search/sort/pagination over the report's already-fetched
   // target_details array — mirrors the server-driven DataTable's contract
   // (state/meta shape) without needing a paginated backend endpoint, since
@@ -538,7 +556,7 @@ export default function Performing() {
       <PlaybookPreviewModal preview={preview} onClose={() => setPreview(null)} />
 
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-        {STAT_CARDS.map(card => (
+        {statCards.map(card => (
           <div key={card.key} className="bg-white border border-gray-200 rounded-xl p-4 flex flex-col justify-between">
             <div className="flex items-center gap-1.5 text-xs text-gray-500 font-medium">
               <i className={clsx('ti text-sm', card.icon)} />
@@ -724,7 +742,7 @@ export default function Performing() {
           ) : (
             <DataTable
               tableKey="campaign_run_targets"
-              schema={TARGET_DETAILS_SCHEMA}
+              schema={targetSchema}
               rows={targetPageRows}
               meta={targetTableMeta}
               state={{ ...targetTableState, page: targetPage }}

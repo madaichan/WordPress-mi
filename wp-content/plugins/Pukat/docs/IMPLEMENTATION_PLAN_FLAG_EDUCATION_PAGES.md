@@ -1,6 +1,6 @@
 # Implementation Plan: Flag Education Pages
 
-Status: **Tahap 1 selesai** (2026-10-12) — Tahap 2 belum dibangun
+Status: **Tahap 1 selesai** (2026-10-12) — **Tahap 2 G1–G4 selesai + terverifikasi live** (2026-10-13). Quiz master di luar cakupan.
 Date: 2026-10-09 (diselaraskan dengan kode 2026-10-12)
 Related PRD: `docs/PRD_FLAG_EDUCATION_PAGES.md`
 
@@ -116,8 +116,19 @@ G1  Klien GoPhish ............................. SELESAI 2026-10-12
 G2  Publish → sync GoPhish Landing Page (base64) . SELESAI 2026-10-12 (verified live)
 G3  Publish → create/refresh master education + edit-lock saat simulasi aktif ... SELESAI 2026-10-12 (verified live)
 G3b Wiring: simulation launch → set next_campaign_id = gophish_master_id ... SELESAI 2026-10-13
-G4  Monitoring: GET /campaigns/{simulation}/results, group timeline by rid (Submitted Data (Education|Quiz) tergabung) ... BELUM
+G4  Monitoring: GET /campaigns/{simulation}/results, group timeline by rid (Submitted Data (Education|Quiz) tergabung) ... SELESAI 2026-10-13
 ```
+
+**G4 (as-built, 2026-10-13) — monitoring membaca kedatangan education/quiz dari hasil simulasi.**
+- **Sumber data**: tidak ada endpoint/call baru. `GET /api/campaigns/{simulation}/results` (lewat `get_campaign_results()` yang sudah dipakai `sync_results_for_run()`) **sudah** menggabungkan `Submitted Data (Education)`/`(Quiz)`/`(Chained)` ke timeline sumber dengan `rid` ditulis-ulang ke entry asal (§3.5.1). Grouping per-rid ≈ per-email yang sudah dilakukan `result_targets()`, jadi event hilir otomatis menempel ke target yang benar.
+- **Parsing (`CampaignRunService`)**: konstanta `EDUCATION_EVENT_TYPES` (`(Education)`+`(Chained)` sebagai fallback) & `QUIZ_EVENT_TYPE` (`(Quiz)`); keduanya ditambah ke `FEED_EVENT_TYPES` (muncul di live feed). `chained_stage_for_message()` memetakan message→kolom. `target_details()` dapat `education_at`/`quiz_at` (earliest-wins untuk stage chained; funnel asli tetap last-wins). `aggregate_result_stats()` menghitung `education_completed`/`quiz_completed` (per-recipient sekali) + `education_rate`/`quiz_rate` (relatif terhadap `submitted_data`); `empty_result_stats()` diselaraskan.
+- **Agregasi grup (`CampaignGroupService::aggregate`)**: `education_completed`/`quiz_completed` ikut dijumlah; `education_rate`/`quiz_rate` dihitung di level grup.
+- **Frontend (`Performing.jsx`)**: kartu stat "Education viewed"/"Quiz completed" dan kolom tabel `Education`/`Quiz` muncul **kondisional** (hanya saat ada datanya) — run tanpa education follow-up tetap bersih. `gophish_stats`/`target_details` mengalir apa adanya lewat `useCampaignRunReport` (tanpa perubahan hook).
+- QA: `php -l` bersih (`CampaignRunService.php`, `CampaignGroupService.php`); `npm run lint` bersih di file fitur (2 warning pra-ada); `npm run test` 91 lulus; route report tetap 401 (tak ada fatal).
+- **Smoke test live SELESAI 2026-10-13** (read-only, 14/14 assert lulus terhadap hasil GoPhish nyata): kode G4 asli dijalankan via reflection atas `get_campaign_results()` beberapa campaign chained. Campaign 53 (ibaraki, education-only): `submitted_data=1`, `education_completed=1`, `education_rate=100%`, target punya `education_at` tanpa `quiz_at`, feed memuat `Submitted Data (Education)`. Campaign 36 (3 target): `education_completed=3`, `quiz_completed=3`, ketiganya punya `education_at`+`quiz_at` (bukti merge per-rid). Campaign 37 (full chain): satu target punya kedua stage di timeline sumber dengan `education_at ≤ quiz_at`. Privasi: `result_targets()` membuang `details`/`email`/`rid`, hanya sisakan `message`+`time`.
+- **E2E submit dari nol SELESAI 2026-10-13** (12/12 assert lulus, semua objek buangan dibersihkan): dibuat master education buangan + simulation buangan (chained), lalu **POST langsung ke phish server** `localhost:8081` sebagai target. Alur terbukti utuh: GET landing sim (200, HTML ibaraki) → POST form → **302 redirect** ke education dengan rid baru (chain fired) → GET+POST education → `Submitted Data (Education)` **tergabung balik** ke hasil sim dengan rid sumber (§3.5.1) → `aggregate_result_stats` `education_completed=1` → `sync_results()` menyimpan `metrics_json.stats.education_completed=1`. Dipakai master education buangan (bukan master produksi 52) supaya entry test `.invalid` tidak mengotori data nyata; master 52 & flag page ibaraki terverifikasi tak tersentuh setelahnya.
+- **Sengaja tidak disentuh**: export CSV/PDF responder (`CampaignDataExportService`) — kolomnya eksplisit, `education_at`/`quiz_at` belum ditambahkan ke export (enhancement terpisah). Risk scoring tak berubah (G4 = baca saja).
+- File diubah: `includes/Services/CampaignRunService.php`, `includes/Services/CampaignGroupService.php`, `pukat-app/src/pages/Simulation/Performing.jsx`.
 
 **G3b (as-built, 2026-10-13) — simulation launch menautkan rantai ke master education entity.**
 - **Follow-up flag baru**: `CampaignRunService::sanitize_follow_up()` menambah `education_enabled` (default `false`; frontend yang set). Tersimpan di `follow_up_json`, dibaca balik saat launch.
