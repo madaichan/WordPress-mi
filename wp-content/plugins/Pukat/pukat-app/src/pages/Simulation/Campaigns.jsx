@@ -175,7 +175,7 @@ export default function Campaigns() {
     filters: tableState.filters,
   })
 
-  const { data: playbookRows = [], isLoading: playbooksLoading } = usePlaybooks({
+  const { data: playbookRows = [], isLoading: playbooksLoading, refetch: refetchPlaybooks } = usePlaybooks({
     placeholderData: previous => previous,
   })
 
@@ -191,11 +191,11 @@ export default function Campaigns() {
   // blocked launch (PRD_ENTITY_PROFILE_AND_GUARDRAILS §16) fails before a
   // draft run is created. The backend still enforces it.
   const runEntity = getUserEntity(currentUser) || GENERAL_ENTITY
-  const { data: runEntityReadiness } = useEntityReadiness(runEntity)
+  const { data: runEntityReadiness, refetch: refetchRunEntityReadiness } = useEntityReadiness(runEntity)
   // Education follow-up (G3b) can only be linked when this entity has a
   // published education page already synced to a GoPhish master. Gate the
   // wizard toggle on that; the backend re-checks and only links a live master.
-  const { data: runEntityFlagPage } = useFlagPage(
+  const { data: runEntityFlagPage, refetch: refetchRunEntityFlagPage } = useFlagPage(
     isFullAdmin ? { entity: runEntity } : {},
     { enabled: view === 'new' },
   )
@@ -204,15 +204,44 @@ export default function Campaigns() {
   const canUseCustomCampaign = canCreatePlaybook(currentUser, { isFullAdmin, hasCreateCapability: hasPlaybookCreateCapability })
   const defaultEntity = useMemo(() => assetEntityForUser(currentUser), [currentUser])
 
-  const { data: emailTemplates = [] } = useMasterEmailTemplates()
-  const { data: landingPages = [] } = useMasterLandingPages()
+  const { data: emailTemplates = [], refetch: refetchEmailTemplates } = useMasterEmailTemplates()
+  const { data: landingPages = [], refetch: refetchLandingPages } = useMasterLandingPages()
   const { data: sendingProfiles = [], refetch: refetchSendingProfiles } = useMasterSendingProfiles()
-  const { data: dynamicDomains = [] } = useMasterDynamicDomains()
-  const { data: gophishSmtpProfiles = [] } = useGophishSmtpProfiles()
+  const { data: dynamicDomains = [], refetch: refetchDynamicDomains } = useMasterDynamicDomains()
+  const { data: gophishSmtpProfiles = [], refetch: refetchGophishSmtpProfiles } = useGophishSmtpProfiles()
 
   const componentOptions = useMemo(() => (
     playbookComponentOptions({ emailTemplates, landingPages, sendingProfiles, dynamicDomains, gophishSmtpProfiles })
   ), [emailTemplates, landingPages, sendingProfiles, dynamicDomains, gophishSmtpProfiles])
+
+  // The Step 3 checklist mirrors the server-side launch guards: playbook and
+  // component readiness, entity guardrails, and the education page. Those can
+  // all change in another tab while the wizard sits open, so re-pull every
+  // source it reads instead of making the user restart the wizard. Step 3 owns
+  // the entity email-domain query and refetches that one itself.
+  const refreshChecklistSources = useCallback(async () => {
+    const results = await Promise.all([
+      refetchPlaybooks(),
+      refetchEmailTemplates(),
+      refetchLandingPages(),
+      refetchSendingProfiles(),
+      refetchDynamicDomains(),
+      refetchGophishSmtpProfiles(),
+      refetchRunEntityReadiness(),
+      refetchRunEntityFlagPage(),
+    ])
+
+    return results.find(result => result?.error)?.error || null
+  }, [
+    refetchDynamicDomains,
+    refetchEmailTemplates,
+    refetchGophishSmtpProfiles,
+    refetchLandingPages,
+    refetchPlaybooks,
+    refetchRunEntityFlagPage,
+    refetchRunEntityReadiness,
+    refetchSendingProfiles,
+  ])
 
   const wizardPlaybooks = useMemo(() => (
     Array.isArray(playbookRows)
@@ -611,6 +640,7 @@ export default function Campaigns() {
             entity={runEntity}
             canBypassEmailDomainGuardrail={canBypassEmailDomainGuardrail}
             educationFollowUpAvailable={educationFollowUpAvailable}
+            onRefreshChecklist={refreshChecklistSources}
           />
         )}
       </PageShell>

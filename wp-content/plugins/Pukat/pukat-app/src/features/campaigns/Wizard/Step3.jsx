@@ -1,5 +1,8 @@
+import { useState } from 'react'
 import clsx from 'clsx'
 import { Link } from 'react-router-dom'
+import toast from 'react-hot-toast'
+import Button from '../../../components/UI/Button.jsx'
 import Switch from '../../../components/UI/Switch.jsx'
 import { DEMO_TARGET_TOTAL } from './wizardData.js'
 import { isScheduleSendTimeInvalid } from '../../../utils/campaignLaunch.js'
@@ -12,7 +15,7 @@ const LAUNCH_STAGE_LABELS = {
   launching: 'Launching…',
 }
 
-export default function Step3({ form, setForm, csvData, playbooks = [], componentOptions = EMPTY_PLAYBOOK_COMPONENT_OPTIONS, onBack, onLaunch, onDraft, isLaunching, isSavingDraft, launchStage, isEditing = false, entity = '', canBypassEmailDomainGuardrail = false, educationFollowUpAvailable = false }) {
+export default function Step3({ form, setForm, csvData, playbooks = [], componentOptions = EMPTY_PLAYBOOK_COMPONENT_OPTIONS, onBack, onLaunch, onDraft, onRefreshChecklist, isLaunching, isSavingDraft, launchStage, isEditing = false, entity = '', canBypassEmailDomainGuardrail = false, educationFollowUpAvailable = false }) {
   const quizEnabled = form.followUp?.quizEnabled ?? true
   const reminderEnabled = form.followUp?.forceResetPasswordReminderEnabled ?? false
   // Education follow-up (G3b) is only offered when this entity has a published
@@ -62,7 +65,7 @@ export default function Step3({ form, setForm, csvData, playbooks = [], componen
   // Recipient email-domain guardrail: targets must be on the entity's active
   // allow-list (My Profile > Guardrails). The backend enforces this at launch;
   // this mirrors it so the problem is visible before launching.
-  const { data: entityDomains, isLoading: domainsLoading } = useEntityEmailDomains(entity)
+  const { data: entityDomains, isLoading: domainsLoading, refetch: refetchEntityDomains } = useEntityEmailDomains(entity)
   const { data: entityReadiness } = useEntityReadiness(entity)
   const domainGuardrailRequired = entityReadiness?.email_domain_required !== false
   const allowedDomains = (entityDomains || []).filter(d => d.status === 'active').map(d => String(d.domain).toLowerCase())
@@ -104,6 +107,25 @@ export default function Step3({ form, setForm, csvData, playbooks = [], componen
     waiting:  { ok: false, neutral: true, label: 'Pending' },
   }[domainChecklistItem.status]
   domainChecklistItem = { ...DOMAIN_STATUS, text: domainChecklistItem.text }
+
+  const [refreshing, setRefreshing] = useState(false)
+
+  const handleRefreshChecklist = async () => {
+    setRefreshing(true)
+    const [domainsResult, sourcesError] = await Promise.all([
+      refetchEntityDomains(),
+      onRefreshChecklist ? onRefreshChecklist() : null,
+    ])
+    setRefreshing(false)
+
+    const error = domainsResult?.error || sourcesError
+    if (error) {
+      toast.error(error.message || 'Gagal memuat ulang pre-launch checklist.')
+      return
+    }
+
+    toast.success('Pre-launch checklist refreshed.')
+  }
 
   const scheduleEnabled = form.scheduleEnabled ?? true
   const sendTimeInvalid = isScheduleSendTimeInvalid(form)
@@ -172,7 +194,19 @@ export default function Step3({ form, setForm, csvData, playbooks = [], componen
     <div className="space-y-6">
       {/* Card 1 — Pre-launch checklist */}
       <div className="bg-white border border-gray-200 rounded-xl p-5">
-        <h3 className="text-sm font-semibold text-gray-900 mb-4">Pre-launch checklist</h3>
+        <div className="flex items-center justify-between gap-3 mb-4">
+          <h3 className="text-sm font-semibold text-gray-900">Pre-launch checklist</h3>
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={handleRefreshChecklist}
+            disabled={refreshing}
+            title="Re-check playbook/component readiness, entity guardrails, and the education page"
+          >
+            <i className={clsx('ti ti-refresh text-sm', refreshing && 'animate-spin')} />
+            <span>{refreshing ? 'Refreshing…' : 'Refresh'}</span>
+          </Button>
+        </div>
         <div className="space-y-2">
           {checklist.map(({ ok, warn, neutral, label, text }, i) => (
             <div key={i} className={clsx(
