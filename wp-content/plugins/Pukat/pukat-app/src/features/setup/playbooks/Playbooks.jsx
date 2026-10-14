@@ -656,7 +656,7 @@ function ComponentRow({ component, onPreview }) {
   const hasLivePreview = canPreview && Boolean(livePreviewHtml && livePreviewHtml.trim())
 
   return (
-    <div className="mb-2 flex items-center gap-3 rounded-lg border border-gray-100 bg-white p-3">
+    <div className="flex h-full items-center gap-3 rounded-lg border border-gray-100 bg-white p-3">
       <span
         className="flex h-11 w-14 flex-shrink-0 items-center justify-center overflow-hidden rounded-md border border-gray-100"
         style={hasLivePreview ? undefined : { backgroundColor: component.bg }}
@@ -687,6 +687,50 @@ function ComponentRow({ component, onPreview }) {
       >
         {component.badge}
       </span>
+    </div>
+  )
+}
+
+/**
+ * Wide variant of ComponentRow for the components that carry a rendered
+ * preview (email template and landing page), so the thumbnail is large enough
+ * to read instead of the 14x11 chip used by the compact rows.
+ */
+function ComponentPreviewCard({ component, onPreview }) {
+  const livePreviewHtml = component.preview?.html
+  const hasLivePreview = Boolean(livePreviewHtml && livePreviewHtml.trim())
+
+  return (
+    <div className="flex h-full flex-col overflow-hidden rounded-lg border border-gray-100 bg-white">
+      <div className="relative h-40 flex-shrink-0 border-b border-gray-100">
+        {hasLivePreview ? (
+          <HtmlThumbnail html={livePreviewHtml} className="h-full w-full" />
+        ) : (
+          <span className="flex h-full w-full items-center justify-center" style={{ backgroundColor: component.bg }}>
+            <i className={clsx('ti text-2xl', component.icon)} style={{ color: component.color }} />
+          </span>
+        )}
+        <span
+          className="absolute left-2 top-2 inline-flex rounded-full px-2 py-0.5 text-[10px] font-semibold shadow-sm"
+          style={{ backgroundColor: component.bg, color: component.color }}
+        >
+          {component.badge}
+        </span>
+      </div>
+      <div className="flex flex-1 flex-col gap-2 p-3">
+        <div className="min-w-0">
+          <div className="text-[13px] font-semibold text-gray-800">{component.name}</div>
+          <div className="mt-0.5 text-xs leading-snug text-gray-500">{component.sub}</div>
+        </div>
+        <button
+          type="button"
+          onClick={() => onPreview(component)}
+          className="mt-auto inline-flex w-full items-center justify-center gap-1.5 rounded-lg border border-gray-200 bg-white px-3 py-1.5 text-[11px] font-semibold text-gray-700 transition-colors hover:border-violet-200 hover:bg-violet-50 hover:text-violet-700"
+        >
+          <i className="ti ti-eye" />
+          Preview
+        </button>
+      </div>
     </div>
   )
 }
@@ -942,6 +986,9 @@ function DetailPanel({ playbook, canManage, canSubmitReview, canApprove, onDupli
   }
 
   const difficulty = playbook.diffScore.charAt(0)
+  const components = playbook.components ?? []
+  const previewComponents = components.filter(component => component.type === 'email' || component.type === 'page')
+  const plainComponents = components.filter(component => component.type !== 'email' && component.type !== 'page')
 
   return (
     <section className="min-h-[620px] overflow-y-auto rounded-xl border border-gray-200 bg-white p-6">
@@ -1025,9 +1072,20 @@ function DetailPanel({ playbook, canManage, canSubmitReview, canApprove, onDupli
 
       <div className="mt-6 border-b border-gray-100 pb-5">
         <h3 className="mb-3 text-sm font-bold text-gray-900">Technical components</h3>
-        {playbook.components.map(component => (
-          <ComponentRow key={`${playbook.id}-${component.type}`} component={component} onPreview={onPreviewComponent} />
-        ))}
+        {previewComponents.length > 0 && (
+          <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+            {previewComponents.map(component => (
+              <ComponentPreviewCard key={`${playbook.id}-${component.type}`} component={component} onPreview={onPreviewComponent} />
+            ))}
+          </div>
+        )}
+        {plainComponents.length > 0 && (
+          <div className={clsx('space-y-2', previewComponents.length > 0 && 'mt-3')}>
+            {plainComponents.map(component => (
+              <ComponentRow key={`${playbook.id}-${component.type}`} component={component} onPreview={onPreviewComponent} />
+            ))}
+          </div>
+        )}
       </div>
 
       <div className="mt-6 border-b border-gray-100 pb-5">
