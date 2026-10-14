@@ -12,7 +12,7 @@ import TableActionMenu from '../../components/UI/TableActionMenu.jsx'
 import ViewToggle from '../../components/UI/ViewToggle.jsx'
 import AlertConfirmation from '../../components/UI/AlertConfirmation.jsx'
 import { useMasterEmailTemplates } from '../../hooks/queries/useMasterAssetQueries.js'
-import { useApproveMasterEmailTemplateVersionMutation, useCreateMasterEmailTemplateMutation, useDeleteMasterEmailTemplateMutation, useUpdateMasterEmailTemplateMutation } from '../../hooks/mutations/useMasterAssetMutations.js'
+import { useApproveMasterEmailTemplateVersionMutation, useCreateMasterEmailTemplateMutation, useDeleteMasterEmailTemplateMutation, useDuplicateMasterEmailTemplateMutation, useUpdateMasterEmailTemplateMutation } from '../../hooks/mutations/useMasterAssetMutations.js'
 import useAppStore from '../../store/useAppStore.js'
 import { canManagePukat } from '../../utils/roles.js'
 import { assetEntityForUser, canUserCreateAsset, canUserEditAsset, filterAssetsForUser } from '../../utils/entityAssignmentHelpers.js'
@@ -311,12 +311,14 @@ export default function EmailTemplates() {
   const [editingEntity, setEditingEntity] = useState('')
   const [editingSubject, setEditingSubject] = useState('')
   const [editingHtml, setEditingHtml] = useState('')
+  const [editorOpen, setEditorOpen] = useState(false)
   const [deletingTemplate, setDeletingTemplate] = useState(null)
   const [approvingTemplate, setApprovingTemplate] = useState(null)
 
   const [syncing, setSyncing] = useState(false)
 
   const resetEditorState = useCallback(() => {
+    setEditorOpen(false)
     setEditingId(null)
     setEditingName('')
     setEditingSender('')
@@ -339,6 +341,7 @@ export default function EmailTemplates() {
   const approveMutation = useApproveMasterEmailTemplateVersionMutation({
     onSuccess: () => setApprovingTemplate(null),
   })
+  const duplicateMutation = useDuplicateMasterEmailTemplateMutation({ onSuccess: closeEditor })
   const saving = createMutation.isPending || updateMutation.isPending || deleteMutation.isPending
   const defaultEntity = useMemo(() => assetEntityForUser(currentUser), [currentUser])
   const canCreateAssets = useMemo(() => canUserCreateAsset(currentUser), [currentUser])
@@ -376,7 +379,9 @@ export default function EmailTemplates() {
 
   /* ── Handlers ── */
   const switchTab = useCallback((tab) => {
-    if (tab === 'editor') {
+    // Without an open editor session the Editor pane has nothing to show, and
+    // entering it directly would bypass the entity/lock checks in handleEdit.
+    if (tab === 'editor' && !editorOpen) {
       toast.error('Editor hanya tersedia dari tombol buat atau edit asset yang sesuai entity user.')
       return
     }
@@ -385,7 +390,7 @@ export default function EmailTemplates() {
     if (tab === 'list') {
       resetEditorState()
     }
-  }, [resetEditorState])
+  }, [editorOpen, resetEditorState])
 
   const handleEdit = useCallback((id) => {
     const page = pages.find((p) => p.id === id)
@@ -405,6 +410,7 @@ export default function EmailTemplates() {
       setEditingEntity(page.entity || '')
       setEditingSubject(page.subject || '')
       setEditingHtml(page.html || '')
+      setEditorOpen(true)
       setActiveTab('editor')
     }
   }, [currentUser, pages])
@@ -419,6 +425,7 @@ export default function EmailTemplates() {
       setEditingEntity(page.entity || '')
       setEditingSubject(page.subject || '')
       setEditingHtml(page.html || '')
+      setEditorOpen(false)
       setActiveTab('preview')
     }
   }, [pages])
@@ -435,6 +442,7 @@ export default function EmailTemplates() {
     setEditingEntity(defaultEntity)
     setEditingSubject('Tindakan Diperlukan: Notifikasi Penting')
     setEditingHtml(DEFAULT_HTML)
+    setEditorOpen(true)
     setActiveTab('editor')
   }, [canCreateAssets, defaultEntity])
 
@@ -511,6 +519,51 @@ export default function EmailTemplates() {
     if (!approvingTemplate) return
     approveMutation.mutate(approvingTemplate.versionId)
   }, [approveMutation, approvingTemplate])
+
+  const previewSource = useMemo(
+    () => (editingId ? pages.find((p) => p.id === editingId) : null),
+    [editingId, pages]
+  )
+
+  const previewHasUnsavedEdits = Boolean(
+    editorOpen && previewSource && (
+      editingName !== previewSource.name
+      || editingSender !== (previewSource.sender || 'Admin <admin@company.id>')
+      || editingEntity !== (previewSource.entity || '')
+      || editingSubject !== (previewSource.subject || '')
+      || editingHtml !== (previewSource.html || '')
+    )
+  )
+
+  const handleDuplicate = useCallback(() => {
+    if (!canCreateAssets) {
+      toast.error('User non-admin harus memiliki entity untuk membuat asset.')
+      return
+    }
+
+    if (!previewSource) {
+      toast.error('Pilih template dari daftar terlebih dahulu sebelum menduplikasi.')
+      return
+    }
+
+    if (previewHasUnsavedEdits) {
+      toast.error('Simpan perubahan di Editor dulu — duplicate menyalin versi yang tersimpan.')
+      return
+    }
+
+    const source = previewSource
+
+    // Clone is never blocked by editLocked — it writes a brand-new draft row.
+    // Non-admins must claim the copy for their own entity; the backend forces
+    // that anyway and rejects a General/foreign entity outright.
+    duplicateMutation.mutate({
+      id: source.id,
+      data: {
+        name: `Copy of ${source.name}`,
+        entity: entityLocked ? defaultEntity : (source.entity || ''),
+      },
+    })
+  }, [canCreateAssets, defaultEntity, duplicateMutation, entityLocked, previewHasUnsavedEdits, previewSource])
 
   const handleSync = useCallback(async () => {
     setSyncing(true)
@@ -635,8 +688,8 @@ export default function EmailTemplates() {
             <i className="ti ti-list text-base" />
             <span>Template List</span>
           </button>
-          {activeTab === 'editor' && (
-            <button onClick={() => switchTab('list')} className={tabBtnClass('editor')}>
+          {editorOpen && (
+            <button onClick={() => switchTab('editor')} className={tabBtnClass('editor')}>
               <i className="ti ti-edit text-base" />
               <span>Editor</span>
             </button>
@@ -741,15 +794,30 @@ export default function EmailTemplates() {
               <div>
                 <h2 className="text-lg font-bold text-gray-900">{previewTitle}</h2>
                 <p className="text-xs text-gray-500 mt-0.5">
-                  Menampilkan simulasi tampilan kotak masuk email di klien target
+                  Displays a simulated email inbox for the target client
                 </p>
               </div>
-              <button
-                onClick={() => switchTab('list')}
-                className="bg-white border border-gray-200 text-gray-700 hover:bg-gray-50 px-4 py-2 text-sm font-semibold rounded-xl transition-all"
-              >
-                Kembali ke daftar
-              </button>
+              <div className="flex items-center gap-3">
+                {canCreateAssets && previewSource && (
+                  <Button
+                    variant="outline"
+                    onClick={handleDuplicate}
+                    disabled={duplicateMutation.isPending || previewHasUnsavedEdits}
+                    title={previewHasUnsavedEdits
+                      ? 'Simpan perubahan di Editor dulu — duplicate menyalin versi yang tersimpan.'
+                      : `Duplicate "${previewTitle}" as a new draft`}
+                  >
+                    <i className="ti ti-copy text-base" />
+                    <span>{duplicateMutation.isPending ? 'Menduplikasi...' : 'Duplicate template'}</span>
+                  </Button>
+                )}
+                <button
+                  onClick={() => switchTab('list')}
+                  className="bg-white border border-gray-200 text-gray-700 hover:bg-gray-50 px-4 py-2 text-sm font-semibold rounded-xl transition-all"
+                >
+                  Return to List
+                </button>
+              </div>
             </div>
 
             {/* Simulated Inbox Viewport */}
