@@ -6,13 +6,13 @@ import PageHeader from '../../../components/UI/PageHeader.jsx'
 import PageShell from '../../../components/Layout/PageShell.jsx'
 import Button from '../../../components/UI/Button.jsx'
 import AlertConfirmation from '../../../components/UI/AlertConfirmation.jsx'
-import HtmlThumbnail from '../../assets/components/HtmlThumbnail.jsx'
 import {
   PlaybookComponentSelect as ComponentSelect,
   PlaybookField as Field,
   PlaybookPreviewModal,
   playbookFieldClass as fieldClass,
 } from '../../../components/playbooks/PlaybookFormControls.jsx'
+import PlaybookDetailBody, { Tag } from '../../../components/playbooks/PlaybookDetailBody.jsx'
 import {
   useMasterDynamicDomains,
   useMasterEmailTemplates,
@@ -37,11 +37,17 @@ import { masterAssetLockMessage, playbookDisplayStatus } from '../../../utils/ma
 import {
   EMPTY_PLAYBOOK_COMPONENT_OPTIONS,
   firstOption,
-  latestVersion,
-  optionDescription,
-  optionLabel,
   playbookComponentOptions,
 } from '../../../utils/playbookComponentOptions.js'
+import {
+  CATEGORY_META,
+  CATEGORY_TAG,
+  DIFFICULTY_TAG,
+  DIFFICULTY_TEXT,
+  STATUS_TAG,
+  difficultyNumber,
+  playbookMasterToUiPlaybook,
+} from '../../../utils/playbookUiModel.js'
 import { resolveSendingProfileRefId } from '../../../utils/resolveSendingProfileRef.js'
 import Portal from '../../../components/UI/Portal.jsx'
 
@@ -267,44 +273,6 @@ const INITIAL_PLAYBOOKS = [
   },
 ]
 
-const CATEGORY_TAG = {
-  BEC: 'bg-red-100 text-red-800',
-  Credential: 'bg-blue-100 text-blue-800',
-  Malware: 'bg-amber-100 text-amber-800',
-  Vishing: 'bg-purple-100 text-purple-800',
-}
-
-const DIFFICULTY_TAG = {
-  1: 'bg-sky-100 text-sky-700',
-  2: 'bg-emerald-100 text-emerald-800',
-  3: 'bg-amber-100 text-amber-800',
-  4: 'bg-rose-100 text-rose-800',
-  5: 'bg-pink-100 text-pink-800',
-}
-
-const STATUS_TAG = {
-  Draft: 'bg-gray-100 text-gray-700',
-  Review: 'bg-amber-100 text-amber-800',
-  Published: 'bg-emerald-100 text-emerald-800',
-  Deprecated: 'bg-gray-100 text-gray-500',
-  Archived: 'bg-gray-100 text-gray-400',
-}
-
-const CATEGORY_META = {
-  BEC: { iconBg: '#FEE2E2', iconColor: '#B91C1C', iconName: 'ti-alert-triangle' },
-  Credential: { iconBg: '#DBEAFE', iconColor: '#1D4ED8', iconName: 'ti-lock' },
-  Malware: { iconBg: '#FEF3C7', iconColor: '#92400E', iconName: 'ti-file-alert' },
-  Vishing: { iconBg: '#F3E8FF', iconColor: '#7C3AED', iconName: 'ti-device-mobile' },
-}
-
-const DIFFICULTY_TEXT = {
-  1: 'Very Low (1/5)',
-  2: 'Low (2/5)',
-  3: 'Medium (3/5)',
-  4: 'High (4/5)',
-  5: 'Very High (5/5)',
-}
-
 const DEFAULT_FORM = {
   name: '',
   desc: '',
@@ -325,152 +293,6 @@ function defaultFormForOptions(options) {
     page: firstOption(options, 'page'),
     smtp: firstOption(options, 'smtp'),
     domain: firstOption(options, 'domain'),
-  }
-}
-
-function findAssetById(items, id) {
-  const numericId = Number(id)
-  return items.find(item => Number(item?.id) === numericId)
-}
-
-function findEmailTemplateByVersionId(items, versionId) {
-  const numericId = Number(versionId)
-  return items.find(item => (
-    Number(latestVersion(item)?.id || 0) === numericId
-    || (item.versions || []).some(version => Number(version?.id || 0) === numericId)
-  ))
-}
-
-function findLandingPageByVersionId(items, versionId) {
-  const numericId = Number(versionId)
-  return items.find(item => (
-    Number(latestVersion(item)?.id || 0) === numericId
-    || (item.versions || []).some(version => Number(version?.id || 0) === numericId)
-  ))
-}
-
-function categoryFromText(value) {
-  const text = String(value || '').toLowerCase()
-
-  if (/(bec|invoice|vendor|ceo|payment|billing)/.test(text)) return 'BEC'
-  if (/(malware|attachment|file|policy|hr)/.test(text)) return 'Malware'
-  if (/(vishing|voice|phone|call)/.test(text)) return 'Vishing'
-
-  return 'Credential'
-}
-
-function difficultyNumber(value) {
-  const number = Number(value)
-  if (!Number.isFinite(number)) return 3
-  return Math.min(Math.max(number, 1), 5)
-}
-
-function playbookMasterToUiPlaybook(row, assets, componentOptions) {
-  const emailVersionId = Number(row.default_email_template_version_id || 0)
-  const landingVersionId = Number(row.default_landing_page_version_id || 0)
-  const sendingProfileId = Number(row.default_sending_profile_ref_id || 0)
-  const dynamicDomainId = Number(row.default_dynamic_domain_id || 0)
-  const template = findEmailTemplateByVersionId(assets.emailTemplates, emailVersionId)
-  const emailVersion = latestVersion(template) || row.components?.email_template_version
-  const page = findLandingPageByVersionId(assets.landingPages, landingVersionId)
-  const landingVersion = latestVersion(page) || row.components?.landing_page_version
-  const smtp = findAssetById(assets.sendingProfiles, sendingProfileId) || row.components?.sending_profile_ref
-  const domain = findAssetById(assets.dynamicDomains, dynamicDomainId) || row.components?.dynamic_domain
-  const difficulty = difficultyNumber(row.difficulty)
-  const name = row.name || `Playbook ${row.id}`
-  const description = row.description || 'Reusable Pukat playbook linked to GoPhish assets.'
-  const category = categoryFromText(`${name} ${description} ${row.scenario || ''} ${emailVersion?.subject || ''}`)
-  const meta = CATEGORY_META[category] ?? CATEGORY_META.Credential
-  const entity = row.entity || GENERAL_ENTITY
-  const domainLabel = optionLabel(componentOptions.domain, dynamicDomainId, domain?.domain || 'Not selected')
-  const domainDescription = optionDescription(
-    componentOptions.domain,
-    dynamicDomainId,
-    domain?.authorization_status ? `${domain.authorization_status} · ${domain.dns_status || 'dns unknown'} · ${domain.tls_status || 'tls unknown'}` : 'No dynamic domain selected'
-  )
-  const emailOption = componentOptions.email.find(option => option.value === String(emailVersionId || ''))
-  const landingOption = componentOptions.page.find(option => option.value === String(landingVersionId || ''))
-  const activeCampaignRunCount = Number(row.usage?.active_campaign_run_count || 0)
-  const activeUsageCount = Number(row.usage?.active_usage_count || activeCampaignRunCount || 0)
-
-  return {
-    id: String(row.id),
-    source: 'api',
-    name,
-    desc: description,
-    longDesc: description,
-    category,
-    entity,
-    status: row.status || 'draft',
-    editLocked: Boolean(row.edit_locked) || activeUsageCount > 0 || row.status === 'active',
-    activeCampaignRunCount,
-    activeUsageCount,
-    editLockReason: row.edit_lock_reason || 'This playbook is active or used by a Campaign.',
-    diffScore: `${difficulty}/5`,
-    diffText: DIFFICULTY_TEXT[difficulty] ?? DIFFICULTY_TEXT[3],
-    dept: 'All departments',
-    deptTag: ['All departments'],
-    usedCount: '0x',
-    clickAvg: '0%',
-    submitAvg: '0%',
-    clickSub: 'not tested yet',
-    submitSub: 'not tested yet',
-    iconColor: meta.iconColor,
-    iconBg: meta.iconBg,
-    iconName: meta.iconName,
-    nistInfo: `This playbook uses GoPhish assets with ${DIFFICULTY_TEXT[difficulty] ?? DIFFICULTY_TEXT[3]} difficulty.`,
-    scenarioText: row.objective || row.scenario || description,
-    emailValue: String(emailVersionId || ''),
-    pageValue: String(landingVersionId || ''),
-    smtpValue: String(sendingProfileId || ''),
-    domainValue: String(dynamicDomainId || ''),
-    components: [
-      {
-        type: 'email',
-        name: `Email template — "${template?.name || 'Not selected'}"`,
-        sub: emailVersion?.subject ? `Subject: ${emailVersion.subject}` : 'No email template version selected',
-        badge: 'Master template',
-        bg: '#DBEAFE',
-        icon: 'ti-mail',
-        color: '#1D4ED8',
-        preview: emailOption?.preview,
-      },
-      {
-        type: 'page',
-        name: `Landing page — ${page?.name || 'Not selected'}`,
-        sub: landingVersion?.redirect_settings?.redirect_url ? `Redirects to ${landingVersion.redirect_settings.redirect_url}` : 'No landing page version selected',
-        badge: 'Master page',
-        bg: '#D1FAE5',
-        icon: 'ti-world',
-        color: '#065F46',
-        preview: landingOption?.preview,
-      },
-      {
-        type: 'smtp',
-        name: `SMTP — ${smtp?.name || 'Not selected'}`,
-        sub: smtp?.gophish_sending_profile_id ? `GoPhish ID #${smtp.gophish_sending_profile_id} · From: ${smtp.from_email || '-'}` : 'No sending profile reference selected',
-        badge: 'Sending profile',
-        bg: '#FEF3C7',
-        icon: 'ti-send',
-        color: '#92400E',
-      },
-      {
-        type: 'domain',
-        name: `Domain — ${domainLabel}`,
-        sub: domainDescription || 'No dynamic domain selected',
-        badge: 'Dynamic domain',
-        bg: '#F3E8FF',
-        icon: 'ti-network',
-        color: '#7C3AED',
-      },
-    ],
-    insights: [
-      { text: 'Historical results will appear after this playbook is used', sub: 'No campaign telemetry is linked yet', icon: 'ti-trending-up', color: '#EF4444' },
-      { text: `Visible to entity: ${entity}`, sub: 'Assignment is controlled by the playbook entity field', icon: 'ti-building', color: '#F59E0B' },
-    ],
-    createdBy: row.created_by ?? null,
-    updatedBy: row.updated_by ?? null,
-    raw: row,
   }
 }
 
@@ -496,14 +318,6 @@ function pillClass(active) {
     active
       ? 'bg-gray-950 text-white'
       : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
-  )
-}
-
-function Tag({ children, className }) {
-  return (
-    <span className={clsx('inline-flex items-center rounded px-2 py-0.5 text-[11px] font-semibold', className)}>
-      {children}
-    </span>
   )
 }
 
@@ -637,101 +451,6 @@ function PlaybookListItem({ playbook, selected, onSelect }) {
         <span className="flex-shrink-0">Click rate avg {playbook.clickAvg}</span>
       </div>
     </button>
-  )
-}
-
-function StatMini({ label, value, sub, color }) {
-  return (
-    <div className="rounded-lg border border-gray-200 bg-gray-50 px-4 py-3">
-      <div className="text-[11px] font-bold uppercase tracking-wider text-gray-500">{label}</div>
-      <div className="mt-1 text-xl font-bold text-gray-900">{value}</div>
-      <div className="mt-0.5 text-[11px] font-semibold" style={{ color }}>{sub}</div>
-    </div>
-  )
-}
-
-function ComponentRow({ component, onPreview }) {
-  const canPreview = component.type === 'email' || component.type === 'page'
-  const livePreviewHtml = component.preview?.html
-  const hasLivePreview = canPreview && Boolean(livePreviewHtml && livePreviewHtml.trim())
-
-  return (
-    <div className="flex h-full items-center gap-3 rounded-lg border border-gray-100 bg-white p-3">
-      <span
-        className="flex h-11 w-14 flex-shrink-0 items-center justify-center overflow-hidden rounded-md border border-gray-100"
-        style={hasLivePreview ? undefined : { backgroundColor: component.bg }}
-      >
-        {hasLivePreview ? (
-          <HtmlThumbnail html={livePreviewHtml} className="h-full w-full" />
-        ) : (
-          <i className={clsx('ti text-[13px]', component.icon)} style={{ color: component.color }} />
-        )}
-      </span>
-      <span className="min-w-0 flex-1">
-        <span className="block text-[13px] font-semibold text-gray-800">{component.name}</span>
-        <span className="mt-0.5 block text-xs leading-snug text-gray-500">{component.sub}</span>
-      </span>
-      {canPreview && (
-        <button
-          type="button"
-          onClick={() => onPreview(component)}
-          className="inline-flex flex-shrink-0 items-center gap-1.5 rounded-lg border border-gray-200 bg-white px-3 py-1.5 text-[11px] font-semibold text-gray-700 transition-colors hover:border-violet-200 hover:bg-violet-50 hover:text-violet-700"
-        >
-          <i className="ti ti-eye" />
-          Preview
-        </button>
-      )}
-      <span
-        className="hidden flex-shrink-0 rounded-full px-2 py-0.5 text-[11px] font-semibold sm:inline-flex"
-        style={{ backgroundColor: component.bg, color: component.color }}
-      >
-        {component.badge}
-      </span>
-    </div>
-  )
-}
-
-/**
- * Wide variant of ComponentRow for the components that carry a rendered
- * preview (email template and landing page), so the thumbnail is large enough
- * to read instead of the 14x11 chip used by the compact rows.
- */
-function ComponentPreviewCard({ component, onPreview }) {
-  const livePreviewHtml = component.preview?.html
-  const hasLivePreview = Boolean(livePreviewHtml && livePreviewHtml.trim())
-
-  return (
-    <div className="flex h-full flex-col overflow-hidden rounded-lg border border-gray-100 bg-white">
-      <div className="relative h-40 flex-shrink-0 border-b border-gray-100">
-        {hasLivePreview ? (
-          <HtmlThumbnail html={livePreviewHtml} className="h-full w-full" />
-        ) : (
-          <span className="flex h-full w-full items-center justify-center" style={{ backgroundColor: component.bg }}>
-            <i className={clsx('ti text-2xl', component.icon)} style={{ color: component.color }} />
-          </span>
-        )}
-        <span
-          className="absolute left-2 top-2 inline-flex rounded-full px-2 py-0.5 text-[10px] font-semibold shadow-sm"
-          style={{ backgroundColor: component.bg, color: component.color }}
-        >
-          {component.badge}
-        </span>
-      </div>
-      <div className="flex flex-1 flex-col gap-2 p-3">
-        <div className="min-w-0">
-          <div className="text-[13px] font-semibold text-gray-800">{component.name}</div>
-          <div className="mt-0.5 text-xs leading-snug text-gray-500">{component.sub}</div>
-        </div>
-        <button
-          type="button"
-          onClick={() => onPreview(component)}
-          className="mt-auto inline-flex w-full items-center justify-center gap-1.5 rounded-lg border border-gray-200 bg-white px-3 py-1.5 text-[11px] font-semibold text-gray-700 transition-colors hover:border-violet-200 hover:bg-violet-50 hover:text-violet-700"
-        >
-          <i className="ti ti-eye" />
-          Preview
-        </button>
-      </div>
-    </div>
   )
 }
 
@@ -945,33 +664,6 @@ function PlaybookSlideover({
   )
 }
 
-function DifficultyBlock({ playbook }) {
-  const score = Number(playbook.diffScore.charAt(0))
-
-  return (
-    <div className="flex flex-col gap-4 rounded-lg border border-gray-200 bg-gray-50 p-4 sm:flex-row sm:items-center sm:gap-6">
-      <div className="flex-shrink-0">
-        <div className="mb-1.5 text-[10px] font-semibold text-gray-500">PhishScale NIST</div>
-        <div className="flex gap-1">
-          {[1, 2, 3, 4, 5].map(bar => (
-            <span
-              key={bar}
-              className={clsx(
-                'h-1.5 w-5 rounded-full',
-                bar <= score ? 'bg-red-500' : 'bg-gray-200'
-              )}
-            />
-          ))}
-        </div>
-        <div className="mt-1 text-[11px] font-semibold text-red-700">{playbook.diffText}</div>
-      </div>
-      <p className="border-gray-200 text-xs leading-relaxed text-gray-600 sm:border-l sm:pl-4">
-        {playbook.nistInfo}
-      </p>
-    </div>
-  )
-}
-
 function DetailPanel({ playbook, canManage, canSubmitReview, canApprove, onDuplicate, onEdit, onSubmitReview, onApprove, onPreviewComponent }) {
   if (!playbook) {
     return (
@@ -985,48 +677,13 @@ function DetailPanel({ playbook, canManage, canSubmitReview, canApprove, onDupli
     )
   }
 
-  const difficulty = playbook.diffScore.charAt(0)
-  const components = playbook.components ?? []
-  const previewComponents = components.filter(component => component.type === 'email' || component.type === 'page')
-  const plainComponents = components.filter(component => component.type !== 'email' && component.type !== 'page')
-
   return (
     <section className="min-h-[620px] overflow-y-auto rounded-xl border border-gray-200 bg-white p-6">
-      <div className="space-y-4 border-b border-gray-100 pb-5">
-        <div className="flex items-start gap-4">
-          <span
-            className="flex h-12 w-12 flex-shrink-0 items-center justify-center rounded-lg"
-            style={{ backgroundColor: playbook.iconBg }}
-          >
-            <i className={clsx('ti text-xl', playbook.iconName)} style={{ color: playbook.iconColor }} />
-          </span>
-          <div className="min-w-0 flex-1">
-            <h2 className="text-xl font-bold text-gray-900">{playbook.name}</h2>
-            <p className="mt-1 text-[13px] leading-relaxed text-gray-600">{playbook.longDesc}</p>
-          </div>
-        </div>
-
-        <div className="flex flex-wrap gap-2">
-          {playbook.source === 'api' && (
-            <Tag className={STATUS_TAG[playbookDisplayStatus(playbook.status)] ?? 'bg-gray-100 text-gray-700'}>
-              {playbookDisplayStatus(playbook.status)}
-            </Tag>
-          )}
-          <Tag className={CATEGORY_TAG[playbook.category] ?? 'bg-gray-100 text-gray-700'}>{playbook.category}</Tag>
-          <Tag className={DIFFICULTY_TAG[difficulty] ?? 'bg-gray-100 text-gray-700'}>Difficulty {playbook.diffScore}</Tag>
-          {playbook.deptTag.map(tag => (
-            <Tag key={tag} className="bg-gray-100 text-gray-700">{tag}</Tag>
-          ))}
-          <Tag className="bg-violet-100 text-violet-800">GoPhish</Tag>
-          {playbook.editLocked && (
-            <Tag className="bg-red-50 text-red-700">
-              <i className="ti ti-lock mr-1 text-[10px]" />
-              Locked
-            </Tag>
-          )}
-        </div>
-
-        <div className="flex flex-wrap items-center gap-2">
+      <PlaybookDetailBody
+        playbook={playbook}
+        onPreviewComponent={onPreviewComponent}
+        actions={(
+          <>
           <Link to="/campaigns" className="inline-flex items-center gap-1.5 rounded-lg border border-violet-500 bg-violet-500 px-4 py-2 text-xs font-semibold text-white transition-colors hover:bg-violet-600">
             <i className="ti ti-player-play" />
             Use this playbook
@@ -1061,68 +718,9 @@ function DetailPanel({ playbook, canManage, canSubmitReview, canApprove, onDupli
               Approve
             </button>
           )}
-        </div>
-      </div>
-
-      <div className="mt-6 grid grid-cols-1 gap-4 md:grid-cols-3">
-        <StatMini label="Used" value={playbook.usedCount} sub="since Jan 2025" color="#6C63FF" />
-        <StatMini label="Avg click rate" value={playbook.clickAvg} sub={playbook.clickSub} color="#EF4444" />
-        <StatMini label="Avg submit rate" value={playbook.submitAvg} sub={playbook.submitSub} color="#F59E0B" />
-      </div>
-
-      <div className="mt-6 border-b border-gray-100 pb-5">
-        <h3 className="mb-3 text-sm font-bold text-gray-900">Technical components</h3>
-        {previewComponents.length > 0 && (
-          <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-            {previewComponents.map(component => (
-              <ComponentPreviewCard key={`${playbook.id}-${component.type}`} component={component} onPreview={onPreviewComponent} />
-            ))}
-          </div>
+          </>
         )}
-        {plainComponents.length > 0 && (
-          <div className={clsx('space-y-2', previewComponents.length > 0 && 'mt-3')}>
-            {plainComponents.map(component => (
-              <ComponentRow key={`${playbook.id}-${component.type}`} component={component} onPreview={onPreviewComponent} />
-            ))}
-          </div>
-        )}
-      </div>
-
-      <div className="mt-6 border-b border-gray-100 pb-5">
-        <h3 className="mb-3 text-sm font-bold text-gray-900">Difficulty level</h3>
-        <DifficultyBlock playbook={playbook} />
-      </div>
-
-      <div className="mt-6 border-b border-gray-100 pb-5">
-        <h3 className="mb-3 text-sm font-bold text-gray-900">Attack scenario</h3>
-        <div className="rounded-lg border border-violet-100 bg-violet-50/40 p-4">
-          <div className="mb-1 text-xs font-bold text-violet-800">Narrative shown to the target</div>
-          <p className="text-xs leading-relaxed text-gray-600">{playbook.scenarioText}</p>
-        </div>
-        <div className="mt-3">
-          <div className="mb-1.5 text-[10px] font-semibold text-gray-500">Vulnerable targets</div>
-          <div className="flex flex-wrap gap-1.5">
-            {playbook.deptTag.map(target => (
-              <Tag key={`${playbook.id}-${target}`} className="bg-gray-100 text-gray-700">{target}</Tag>
-            ))}
-          </div>
-        </div>
-      </div>
-
-      <div className="mt-6">
-        <h3 className="mb-3 text-sm font-bold text-gray-900">Insights from previous simulations</h3>
-        <div className="space-y-3">
-          {playbook.insights.map(insight => (
-            <div key={insight.text} className="flex items-start gap-3">
-              <i className={clsx('ti mt-0.5 text-lg', insight.icon)} style={{ color: insight.color }} />
-              <div>
-                <div className="text-xs font-semibold text-gray-800">{insight.text}</div>
-                <div className="mt-0.5 text-[11px] text-gray-500">{insight.sub}</div>
-              </div>
-            </div>
-          ))}
-        </div>
-      </div>
+      />
     </section>
   )
 }

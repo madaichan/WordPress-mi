@@ -11,6 +11,7 @@ export { default as GoPhishStatus } from './GoPhishStatus.jsx'
 
 export { default as Label } from './Label.jsx'
 export { default as Input } from './Input.jsx'
+export { default as SearchInput } from './SearchInput.jsx'
 export { default as Textarea } from './Textarea.jsx'
 export { default as Select } from './Select.jsx'
 export { default as Checkbox } from './Checkbox.jsx'
