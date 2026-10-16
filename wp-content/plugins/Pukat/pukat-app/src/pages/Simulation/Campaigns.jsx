@@ -121,6 +121,12 @@ function playbookMasterToWizardCard(row) {
     statusLabel: status.label,
     statusClass: status.className,
     readiness: row.readiness || { ready: false, errors: [] },
+    // Derived fields the picker searches and sorts on (see utils/playbookPickerState.js).
+    entity: row.entity || GENERAL_ENTITY,
+    scenario: row.objective || row.scenario || '',
+    createdAt: row.created_at || '',
+    updatedAt: row.updated_at || row.created_at || '',
+    ready: Boolean(row.readiness?.ready),
     raw: row,
   }
 }

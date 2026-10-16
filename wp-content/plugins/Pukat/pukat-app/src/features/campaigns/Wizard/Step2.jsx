@@ -5,15 +5,20 @@ import ViewToggle from '../../../components/UI/ViewToggle.jsx'
 import { DataTable } from '../../../components/DataTable/index.js'
 import { PlaybookComponentSelect } from '../../../components/playbooks/PlaybookFormControls.jsx'
 import { EMPTY_PLAYBOOK_COMPONENT_OPTIONS } from '../../../utils/playbookComponentOptions.js'
+import PlaybookPickerToolbar from '../../../components/playbooks/PlaybookPickerToolbar.jsx'
 import { paginateRows } from '../../../utils/clientTableState.js'
+import {
+  DEFAULT_PLAYBOOK_PICKER_STATE,
+  sortOptionValue,
+  stateWithSortOption,
+  visiblePlaybooks,
+} from '../../../utils/playbookPickerState.js'
 import { todayDateString, addDaysToDateString, minSendTimeForDate, isScheduleSendTimeInvalid } from '../../../utils/campaignLaunch.js'
 
 const VIEW_MODE_OPTIONS = [
   { value: 'grid', icon: 'ti-layout-grid', label: 'Grid view' },
   { value: 'table', icon: 'ti-list', label: 'Table view' },
 ]
-
-const PLAYBOOK_TABLE_DEFAULT_STATE = { search: '', sort: 'name', order: 'asc', page: 1, perPage: 10, filters: {} }
 
 const PLAYBOOK_TYPE_TONES = { BEC: 'danger', Credential: 'warning', Malware: 'success', Vishing: 'violet' }
 const PLAYBOOK_STATUS_TONES = { Active: 'success', Approved: 'info', Draft: 'warning', Archived: 'gray' }
@@ -22,7 +27,9 @@ export default function Step2({ form, setForm, playbooks = [], playbooksLoading 
   const scheduleEnabled = form.scheduleEnabled ?? true
   const customComponents = form.customComponents || {}
   const [playbookViewMode, setPlaybookViewMode] = useState('grid')
-  const [playbookTableState, setPlaybookTableState] = useState(PLAYBOOK_TABLE_DEFAULT_STATE)
+  // One picker state for both views, so a search term and the chosen order
+  // survive toggling grid <-> table and both show the same rows.
+  const [playbookPickerState, setPlaybookPickerState] = useState(DEFAULT_PLAYBOOK_PICKER_STATE)
 
   function renderPlaybookSelectCell(row) {
     const selected = String(form.playbook) === String(row.id)
@@ -49,10 +56,24 @@ export default function Step2({ form, setForm, playbooks = [], playbooksLoading 
     { key: 'select', label: '', renderer: 'custom', align: 'right', render: renderPlaybookSelectCell },
   ]
 
-  const { rows: playbookRows, total: playbookTotal } = useMemo(
-    () => paginateRows(playbooks, playbookTableState, { searchFields: ['name', 'desc'] }),
-    [playbooks, playbookTableState],
+  const matchingPlaybooks = useMemo(
+    () => visiblePlaybooks(playbooks, playbookPickerState),
+    [playbooks, playbookPickerState],
   )
+
+  // Search and sort already happened above; paginateRows only slices the page.
+  const { rows: playbookRows, total: playbookTotal } = useMemo(
+    () => paginateRows(matchingPlaybooks, { ...playbookPickerState, search: '', sort: '' }),
+    [matchingPlaybooks, playbookPickerState],
+  )
+
+  function handlePlaybookSearchChange(value) {
+    setPlaybookPickerState(state => ({ ...state, search: value, page: 1 }))
+  }
+
+  function handlePlaybookSortChange(value) {
+    setPlaybookPickerState(state => stateWithSortOption(state, value))
+  }
 
   const today = todayDateString()
   const minDateEnd = addDaysToDateString(form.dateStart || today, 1)
@@ -200,6 +221,20 @@ export default function Step2({ form, setForm, playbooks = [], playbooksLoading 
               <span className="rounded-full text-[10px] font-semibold px-2 py-0.5 bg-amber-100 text-amber-700">gophish</span>
             </div>
           </div>
+
+          {!playbooksLoading && playbooks.length > 0 && (
+            <div className="mb-4">
+              <PlaybookPickerToolbar
+                search={playbookPickerState.search}
+                onSearchChange={handlePlaybookSearchChange}
+                sortValue={sortOptionValue(playbookPickerState)}
+                onSortChange={handlePlaybookSortChange}
+                resultCount={matchingPlaybooks.length}
+                totalCount={playbooks.length}
+              />
+            </div>
+          )}
+
           {playbooksLoading && (
             <div className="rounded-xl border border-gray-200 bg-gray-50 px-4 py-6 text-center text-xs font-medium text-gray-500">
               Loading playbook masters...
@@ -213,44 +248,59 @@ export default function Step2({ form, setForm, playbooks = [], playbooksLoading 
           )}
 
           {!playbooksLoading && playbooks.length > 0 && playbookViewMode === 'grid' && (
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              {playbooks.map(pb => (
+            matchingPlaybooks.length === 0 ? (
+              <div className="rounded-xl border border-dashed border-gray-300 bg-gray-50 px-4 py-6 text-center">
+                <p className="text-xs font-medium text-gray-500">
+                  No playbook matches &ldquo;{playbookPickerState.search.trim()}&rdquo;.
+                </p>
                 <button
-                  key={pb.id}
                   type="button"
-                  onClick={() => setForm(f => ({ ...f, playbook: pb.id }))}
-                  aria-pressed={String(form.playbook) === String(pb.id)}
-                  className={clsx(
-                    'rounded-xl p-4 cursor-pointer select-none text-left transition-all',
-                    String(form.playbook) === String(pb.id) ? 'border-2 border-violet-500 bg-violet-50/20' : 'border border-gray-200 hover:border-gray-300',
-                  )}
+                  onClick={() => handlePlaybookSearchChange('')}
+                  className="mt-2 text-xs font-semibold text-violet-500 hover:text-violet-600"
                 >
-                  <div className="flex items-start justify-between gap-3">
-                    <h4 className="text-xs font-semibold text-gray-900">{pb.name}</h4>
-                    {pb.statusLabel && (
-                      <span className={clsx('shrink-0 rounded-full px-2 py-0.5 text-[9px] font-semibold', pb.statusClass)}>
-                        {pb.statusLabel}
-                      </span>
-                    )}
-                  </div>
-                  <p className="text-[10px] text-gray-500 mt-1 line-clamp-2">{pb.desc}</p>
-                  <div className="flex items-center justify-between mt-3 text-[10px] font-semibold">
-                    <span className={pb.typeColor}>{pb.type}</span>
-                    <span className="text-gray-500">Difficulty {pb.diff}</span>
-                  </div>
+                  Clear search
                 </button>
-              ))}
-            </div>
+              </div>
+            ) : (
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                {matchingPlaybooks.map(pb => (
+                  <button
+                    key={pb.id}
+                    type="button"
+                    onClick={() => setForm(f => ({ ...f, playbook: pb.id }))}
+                    aria-pressed={String(form.playbook) === String(pb.id)}
+                    className={clsx(
+                      'rounded-xl p-4 cursor-pointer select-none text-left transition-all',
+                      String(form.playbook) === String(pb.id) ? 'border-2 border-violet-500 bg-violet-50/20' : 'border border-gray-200 hover:border-gray-300',
+                    )}
+                  >
+                    <div className="flex items-start justify-between gap-3">
+                      <h4 className="text-xs font-semibold text-gray-900">{pb.name}</h4>
+                      {pb.statusLabel && (
+                        <span className={clsx('shrink-0 rounded-full px-2 py-0.5 text-[9px] font-semibold', pb.statusClass)}>
+                          {pb.statusLabel}
+                        </span>
+                      )}
+                    </div>
+                    <p className="text-[10px] text-gray-500 mt-1 line-clamp-2">{pb.desc}</p>
+                    <div className="flex items-center justify-between mt-3 text-[10px] font-semibold">
+                      <span className={pb.typeColor}>{pb.type}</span>
+                      <span className="text-gray-500">Difficulty {pb.diff}</span>
+                    </div>
+                  </button>
+                ))}
+              </div>
+            )
           )}
 
           {!playbooksLoading && playbooks.length > 0 && playbookViewMode === 'table' && (
             <DataTable
               tableKey="wizard_playbooks"
-              schema={{ columns: playbookColumns, search: { placeholder: 'Search playbooks...' } }}
+              schema={{ columns: playbookColumns }}
               rows={playbookRows}
-              meta={{ total: playbookTotal, per_page: playbookTableState.perPage }}
-              state={playbookTableState}
-              onStateChange={setPlaybookTableState}
+              meta={{ total: playbookTotal, per_page: playbookPickerState.perPage }}
+              state={playbookPickerState}
+              onStateChange={setPlaybookPickerState}
             />
           )}
         </div>
