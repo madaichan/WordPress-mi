@@ -6,6 +6,8 @@ import { DataTable } from '../../../components/DataTable/index.js'
 import { PlaybookComponentSelect } from '../../../components/playbooks/PlaybookFormControls.jsx'
 import { EMPTY_PLAYBOOK_COMPONENT_OPTIONS } from '../../../utils/playbookComponentOptions.js'
 import PlaybookPickerToolbar from '../../../components/playbooks/PlaybookPickerToolbar.jsx'
+import PlaybookDetailModal from './PlaybookDetailModal.jsx'
+import { EMPTY_MASTER_ASSETS, playbookMasterToUiPlaybook } from '../../../utils/playbookUiModel.js'
 import { paginateRows } from '../../../utils/clientTableState.js'
 import {
   DEFAULT_PLAYBOOK_PICKER_STATE,
@@ -23,20 +25,34 @@ const VIEW_MODE_OPTIONS = [
 const PLAYBOOK_TYPE_TONES = { BEC: 'danger', Credential: 'warning', Malware: 'success', Vishing: 'violet' }
 const PLAYBOOK_STATUS_TONES = { Active: 'success', Approved: 'info', Draft: 'warning', Archived: 'gray' }
 
-export default function Step2({ form, setForm, playbooks = [], playbooksLoading = false, componentOptions = EMPTY_PLAYBOOK_COMPONENT_OPTIONS, canUseCustom = false, onBack, onNext }) {
+export default function Step2({ form, setForm, playbooks = [], playbooksLoading = false, componentOptions = EMPTY_PLAYBOOK_COMPONENT_OPTIONS, masterAssets = EMPTY_MASTER_ASSETS, canUseCustom = false, onBack, onNext }) {
   const scheduleEnabled = form.scheduleEnabled ?? true
   const customComponents = form.customComponents || {}
   const [playbookViewMode, setPlaybookViewMode] = useState('grid')
   // One picker state for both views, so a search term and the chosen order
   // survive toggling grid <-> table and both show the same rows.
   const [playbookPickerState, setPlaybookPickerState] = useState(DEFAULT_PLAYBOOK_PICKER_STATE)
+  const [previewPlaybookId, setPreviewPlaybookId] = useState(null)
+
+  function renderPlaybookPreviewCell(row) {
+    return (
+      <button
+        type="button"
+        onClick={() => setPreviewPlaybookId(row.id)}
+        className="inline-flex items-center gap-1.5 rounded-lg border border-gray-200 px-3 py-1.5 text-xs font-semibold text-gray-600 transition-all hover:border-violet-300 hover:text-violet-600"
+      >
+        <i className="ti ti-eye text-sm" />
+        Preview
+      </button>
+    )
+  }
 
   function renderPlaybookSelectCell(row) {
     const selected = String(form.playbook) === String(row.id)
     return (
       <button
         type="button"
-        onClick={() => setForm(f => ({ ...f, playbook: row.id }))}
+        onClick={() => selectPlaybook(row.id)}
         aria-pressed={selected}
         className={clsx(
           'inline-flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs font-semibold transition-all',
@@ -53,6 +69,7 @@ export default function Step2({ form, setForm, playbooks = [], playbooksLoading 
     { key: 'type', label: 'Type', renderer: 'badge', toneMap: PLAYBOOK_TYPE_TONES },
     { key: 'diff', label: 'Difficulty', renderer: 'text', sortable: true },
     { key: 'statusLabel', label: 'Status', renderer: 'badge', toneMap: PLAYBOOK_STATUS_TONES },
+    { key: 'preview', label: '', renderer: 'custom', align: 'right', render: renderPlaybookPreviewCell },
     { key: 'select', label: '', renderer: 'custom', align: 'right', render: renderPlaybookSelectCell },
   ]
 
@@ -73,6 +90,21 @@ export default function Step2({ form, setForm, playbooks = [], playbooksLoading 
 
   function handlePlaybookSortChange(value) {
     setPlaybookPickerState(state => stateWithSortOption(state, value))
+  }
+
+  // Only the previewed playbook is mapped into the detail view model — mapping
+  // every row would build HTML previews nobody looks at.
+  const previewCard = previewPlaybookId
+    ? playbooks.find(playbook => String(playbook.id) === String(previewPlaybookId))
+    : null
+  const previewPlaybook = useMemo(
+    () => (previewCard?.raw ? playbookMasterToUiPlaybook(previewCard.raw, masterAssets, componentOptions) : null),
+    [previewCard, masterAssets, componentOptions],
+  )
+
+  function selectPlaybook(id) {
+    setForm(f => ({ ...f, playbook: id }))
+    setPreviewPlaybookId(null)
   }
 
   const today = todayDateString()
@@ -263,32 +295,53 @@ export default function Step2({ form, setForm, playbooks = [], playbooksLoading 
               </div>
             ) : (
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                {matchingPlaybooks.map(pb => (
-                  <button
-                    key={pb.id}
-                    type="button"
-                    onClick={() => setForm(f => ({ ...f, playbook: pb.id }))}
-                    aria-pressed={String(form.playbook) === String(pb.id)}
-                    className={clsx(
-                      'rounded-xl p-4 cursor-pointer select-none text-left transition-all',
-                      String(form.playbook) === String(pb.id) ? 'border-2 border-violet-500 bg-violet-50/20' : 'border border-gray-200 hover:border-gray-300',
-                    )}
-                  >
-                    <div className="flex items-start justify-between gap-3">
-                      <h4 className="text-xs font-semibold text-gray-900">{pb.name}</h4>
-                      {pb.statusLabel && (
-                        <span className={clsx('shrink-0 rounded-full px-2 py-0.5 text-[9px] font-semibold', pb.statusClass)}>
-                          {pb.statusLabel}
-                        </span>
+                {matchingPlaybooks.map(pb => {
+                  const isSelected = String(form.playbook) === String(pb.id)
+
+                  return (
+                    <div
+                      key={pb.id}
+                      className={clsx(
+                        'flex flex-col rounded-xl transition-all',
+                        isSelected ? 'border-2 border-violet-500 bg-violet-50/20' : 'border border-gray-200 hover:border-gray-300',
                       )}
+                    >
+                      <button
+                        type="button"
+                        onClick={() => selectPlaybook(pb.id)}
+                        aria-pressed={isSelected}
+                        className="flex-1 cursor-pointer select-none p-4 text-left"
+                      >
+                        <div className="flex items-start justify-between gap-3">
+                          <h4 className="text-xs font-semibold text-gray-900">{pb.name}</h4>
+                          {pb.statusLabel && (
+                            <span className={clsx('shrink-0 rounded-full px-2 py-0.5 text-[9px] font-semibold', pb.statusClass)}>
+                              {pb.statusLabel}
+                            </span>
+                          )}
+                        </div>
+                        <p className="text-[10px] text-gray-500 mt-1 line-clamp-2">{pb.desc}</p>
+                        <div className="flex items-center justify-between mt-3 text-[10px] font-semibold">
+                          <span className={pb.typeColor}>{pb.type}</span>
+                          <span className="text-gray-500">Difficulty {pb.diff}</span>
+                        </div>
+                      </button>
+                      <div className="flex items-center justify-between gap-2 border-t border-gray-100 px-4 py-2">
+                        <span className="text-[10px] font-semibold text-gray-400">
+                          {pb.ready ? 'Ready to launch' : 'Not ready yet'}
+                        </span>
+                        <button
+                          type="button"
+                          onClick={() => setPreviewPlaybookId(pb.id)}
+                          className="inline-flex items-center gap-1 text-[11px] font-semibold text-violet-500 hover:text-violet-600"
+                        >
+                          <i className="ti ti-eye" />
+                          Preview
+                        </button>
+                      </div>
                     </div>
-                    <p className="text-[10px] text-gray-500 mt-1 line-clamp-2">{pb.desc}</p>
-                    <div className="flex items-center justify-between mt-3 text-[10px] font-semibold">
-                      <span className={pb.typeColor}>{pb.type}</span>
-                      <span className="text-gray-500">Difficulty {pb.diff}</span>
-                    </div>
-                  </button>
-                ))}
+                  )
+                })}
               </div>
             )
           )}
@@ -305,6 +358,14 @@ export default function Step2({ form, setForm, playbooks = [], playbooksLoading 
           )}
         </div>
       )}
+
+      <PlaybookDetailModal
+        playbook={previewPlaybook}
+        readiness={previewCard?.readiness}
+        selected={Boolean(previewCard) && String(form.playbook) === String(previewCard.id)}
+        onSelect={selectPlaybook}
+        onClose={() => setPreviewPlaybookId(null)}
+      />
 
       {/* Card 3 — Sending schedule */}
       <div className="bg-white border border-gray-200 rounded-xl p-5 space-y-4">

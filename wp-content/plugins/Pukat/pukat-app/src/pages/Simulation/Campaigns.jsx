@@ -216,9 +216,18 @@ export default function Campaigns() {
   const { data: dynamicDomains = [], refetch: refetchDynamicDomains } = useMasterDynamicDomains()
   const { data: gophishSmtpProfiles = [], refetch: refetchGophishSmtpProfiles } = useGophishSmtpProfiles()
 
-  const componentOptions = useMemo(() => (
-    playbookComponentOptions({ emailTemplates, landingPages, sendingProfiles, dynamicDomains, gophishSmtpProfiles })
-  ), [emailTemplates, landingPages, sendingProfiles, dynamicDomains, gophishSmtpProfiles])
+  // Same bundle `features/setup/playbooks/Playbooks.jsx` builds: the component
+  // pickers for custom mode read the options, and the wizard playbook preview
+  // reads the raw masters to resolve component names and HTML previews.
+  const masterAssets = useMemo(() => ({
+    emailTemplates,
+    landingPages,
+    sendingProfiles,
+    dynamicDomains,
+    gophishSmtpProfiles,
+  }), [dynamicDomains, emailTemplates, gophishSmtpProfiles, landingPages, sendingProfiles])
+
+  const componentOptions = useMemo(() => playbookComponentOptions(masterAssets), [masterAssets])
 
   // The Step 3 checklist mirrors the server-side launch guards: playbook and
   // component readiness, entity guardrails, and the education page. Those can
@@ -626,6 +635,7 @@ export default function Campaigns() {
             playbooks={wizardPlaybooks}
             playbooksLoading={playbooksLoading}
             componentOptions={componentOptions}
+            masterAssets={masterAssets}
             canUseCustom={canUseCustomCampaign}
             onBack={() => setWizardStep(1)}
             onNext={() => setWizardStep(3)}

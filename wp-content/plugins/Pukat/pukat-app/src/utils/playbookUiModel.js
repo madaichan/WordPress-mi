@@ -10,6 +10,15 @@
 import { GENERAL_ENTITY } from './entityAssignmentHelpers.js'
 import { latestVersion, optionDescription, optionLabel } from './playbookComponentOptions.js'
 
+/** Shape `playbookMasterToUiPlaybook` expects for its master-asset lookups. */
+export const EMPTY_MASTER_ASSETS = {
+  emailTemplates: [],
+  landingPages: [],
+  sendingProfiles: [],
+  dynamicDomains: [],
+  gophishSmtpProfiles: [],
+}
+
 export const CATEGORY_TAG = {
   BEC: 'bg-red-100 text-red-800',
   Credential: 'bg-blue-100 text-blue-800',
@@ -192,4 +201,28 @@ export function playbookMasterToUiPlaybook(row, assets, componentOptions) {
     updatedBy: row.updated_by ?? null,
     raw: row,
   }
+}
+
+export function cleanComponentName(value = '', prefix = '') {
+  return value
+    .replace(prefix, '')
+    .replace(/^["']|["']$/g, '')
+    .trim()
+}
+
+/**
+ * Payload for `PlaybookPreviewModal` from one technical component of the detail
+ * view. Falls back to the component label when no rendered HTML is attached, so
+ * the modal can still show its generic mock preview.
+ */
+export function componentPreviewPanel(component) {
+  const isEmail = component?.type === 'email'
+  const type = isEmail ? 'email' : 'landing'
+  const preview = component?.preview
+
+  if (preview && typeof preview === 'object') {
+    return { ...preview, type: preview.type || type, value: preview.value || preview.label || '' }
+  }
+
+  return { type, value: cleanComponentName(component?.name || '', isEmail ? 'Email template — ' : 'Landing page — ') }
 }
