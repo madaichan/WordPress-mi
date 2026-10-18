@@ -303,7 +303,7 @@ class GoPhishService {
 	 * @return array|WP_Error
 	 */
 	public function update_email_template( int $id, array $data ): array|WP_Error {
-		return $this->put( "/api/templates/{$id}", $data );
+		return $this->put_merged( "/api/templates/{$id}", $data );
 	}
 
 	/**
@@ -357,7 +357,7 @@ class GoPhishService {
 	 * @return array|WP_Error
 	 */
 	public function update_landing_page( int $id, array $data ): array|WP_Error {
-		return $this->put( "/api/pages/{$id}", $data );
+		return $this->put_merged( "/api/pages/{$id}", $data );
 	}
 
 	/**
@@ -411,7 +411,7 @@ class GoPhishService {
 	 * @return array|WP_Error
 	 */
 	public function update_sending_profile( int $id, array $data ): array|WP_Error {
-		return $this->put( "/api/smtp/{$id}", $data );
+		return $this->put_merged( "/api/smtp/{$id}", $data );
 	}
 
 	/**
@@ -544,6 +544,42 @@ class GoPhishService {
 
 		$response = wp_remote_post( $this->base_url . $endpoint, $args );
 		return $this->parse_response( $response );
+	}
+
+	/**
+	 * Read an object from GoPhish, merge the given changes over it, then write
+	 * the whole thing back.
+	 *
+	 * GoPhish's PUT endpoints are full-replace: the body becomes the object.
+	 * Pukat does not own these objects, so any key it leaves out of the body
+	 * would be wiped — either because Pukat strips it on the way to the browser
+	 * (SMTP passwords) or because the GoPhish fork grew a field Pukat has never
+	 * heard of. Merging the caller's changes over the current object makes an
+	 * absent key mean "leave this alone" instead of "delete this", which is the
+	 * only safe default when editing someone else's record.
+	 *
+	 * A key that IS present still wins, empty string included, so callers can
+	 * still clear a field on purpose.
+	 *
+	 * @param string $endpoint API endpoint path of the object being updated.
+	 * @param array  $changes  Fields to write over the current object.
+	 * @return array|WP_Error Decoded JSON array or WP_Error.
+	 */
+	private function put_merged( string $endpoint, array $changes ): array|WP_Error {
+		$current = $this->get( $endpoint );
+		if ( is_wp_error( $current ) ) {
+			return $current;
+		}
+
+		$merged = array_merge( $current, $changes );
+
+		// GoPhish matches the body's id against the URL; the stored one is
+		// authoritative even if a caller passed something else.
+		if ( isset( $current['id'] ) ) {
+			$merged['id'] = $current['id'];
+		}
+
+		return $this->put( $endpoint, $merged );
 	}
 
 	/**
