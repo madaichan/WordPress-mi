@@ -294,7 +294,7 @@ export default function Step2({ form, setForm, playbooks = [], playbooksLoading 
                 </button>
               </div>
             ) : (
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div className="grid max-h-[40rem] grid-cols-1 gap-4 overflow-y-auto pr-1 sm:grid-cols-2 lg:grid-cols-3">
                 {matchingPlaybooks.map(pb => {
                   const isSelected = String(form.playbook) === String(pb.id)
 
