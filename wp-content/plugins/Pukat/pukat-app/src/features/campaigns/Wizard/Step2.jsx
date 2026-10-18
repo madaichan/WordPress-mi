@@ -294,7 +294,9 @@ export default function Step2({ form, setForm, playbooks = [], playbooksLoading 
                 </button>
               </div>
             ) : (
-              <div className="grid max-h-[34rem] grid-cols-1 gap-4 overflow-y-auto pr-1 sm:grid-cols-2 lg:grid-cols-3">
+              /* Fixed row height + a container exactly 3 rows tall (3×11.5rem + 2×1rem gap)
+                 so the 4th row never peeks in half-cut; snap keeps rows aligned while scrolling. */
+              <div className="grid max-h-[36.5rem] auto-rows-[11.5rem] grid-cols-1 gap-4 snap-y snap-mandatory overflow-y-auto pr-1 sm:grid-cols-2 lg:grid-cols-3">
                 {matchingPlaybooks.map(pb => {
                   const isSelected = String(form.playbook) === String(pb.id)
 
@@ -302,7 +304,7 @@ export default function Step2({ form, setForm, playbooks = [], playbooksLoading 
                     <div
                       key={pb.id}
                       className={clsx(
-                        'flex flex-col rounded-xl transition-all',
+                        'flex snap-start flex-col rounded-xl transition-all',
                         isSelected ? 'border-2 border-violet-500 bg-violet-50/20' : 'border border-gray-200 hover:border-gray-300',
                       )}
                     >
