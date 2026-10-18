@@ -655,8 +655,8 @@ class GoPhishProxy extends RestController {
 				return $permission_error;
 			}
 
-			// Passwords are stripped from every GoPhish response before it reaches
-			// the browser, so an unedited form legitimately submits an empty string.
+			// An unedited form sends no password at all (see
+			// build_smtp_profile_payload()), so test the stored one.
 			if ( empty( $payload['password'] ) ) {
 				$payload['password'] = $existing['password'] ?? '';
 			}
@@ -781,10 +781,18 @@ class GoPhishProxy extends RestController {
 			'host'               => $host,
 			'from_address'       => $from,
 			'username'           => sanitize_text_field( (string) $request->get_param( 'username' ) ),
-			'password'           => (string) $request->get_param( 'password' ),
 			'ignore_cert_errors' => filter_var( $request->get_param( 'ignore_cert_errors' ), FILTER_VALIDATE_BOOLEAN ),
 			'headers'            => $headers,
 		];
+
+		// Passwords are stripped from every GoPhish response before it reaches
+		// the browser, so an unedited form legitimately submits an empty string.
+		// Leaving the key out entirely lets GoPhishService::put_merged() keep the
+		// stored password; sending '' would wipe it on every save.
+		$password = (string) $request->get_param( 'password' );
+		if ( '' !== $password ) {
+			$payload['password'] = $password;
+		}
 
 		if ( ! empty( $entity ) ) {
 			$payload['entity'] = $entity;
