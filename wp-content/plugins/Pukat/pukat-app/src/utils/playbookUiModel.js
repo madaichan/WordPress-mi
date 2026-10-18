@@ -9,6 +9,7 @@
 
 import { GENERAL_ENTITY } from './entityAssignmentHelpers.js'
 import { latestVersion, optionDescription, optionLabel } from './playbookComponentOptions.js'
+import { parseServerDate } from './serverDate.js'
 
 /** Shape `playbookMasterToUiPlaybook` expects for its master-asset lookups. */
 export const EMPTY_MASTER_ASSETS = {
@@ -94,6 +95,17 @@ export function difficultyNumber(value) {
   return Math.min(Math.max(number, 1), 5)
 }
 
+/**
+ * "Sep 2026"-style label from a server timestamp, using the same UTC-aware
+ * parser the rest of the app shares so the month/year never drifts by the
+ * viewer's offset. Returns an empty string when the value is missing/invalid.
+ */
+export function formatMonthYear(value) {
+  const date = parseServerDate(value)
+  if (!date) return ''
+  return date.toLocaleDateString('en-US', { month: 'short', year: 'numeric', timeZone: 'UTC' })
+}
+
 export function playbookMasterToUiPlaybook(row, assets, componentOptions) {
   const emailVersionId = Number(row.default_email_template_version_id || 0)
   const landingVersionId = Number(row.default_landing_page_version_id || 0)
@@ -121,6 +133,15 @@ export function playbookMasterToUiPlaybook(row, assets, componentOptions) {
   const landingOption = componentOptions.page.find(option => option.value === String(landingVersionId || ''))
   const activeCampaignRunCount = Number(row.usage?.active_campaign_run_count || 0)
   const activeUsageCount = Number(row.usage?.active_usage_count || activeCampaignRunCount || 0)
+  const stats = row.stats || {}
+  const usedCount = `${Number(stats.used_count || 0)}x`
+  const usedSub = stats.first_launched_at ? `since ${formatMonthYear(stats.first_launched_at)}` : 'no runs yet'
+  const testedRunCount = Number(stats.tested_run_count || 0)
+  const testedSub = testedRunCount > 0
+    ? `across ${testedRunCount} tested ${testedRunCount === 1 ? 'run' : 'runs'}`
+    : 'not tested yet'
+  const clickAvg = testedRunCount > 0 ? `${stats.click_rate}%` : '—'
+  const submitAvg = testedRunCount > 0 ? `${stats.submit_rate}%` : '—'
 
   return {
     id: String(row.id),
@@ -139,11 +160,12 @@ export function playbookMasterToUiPlaybook(row, assets, componentOptions) {
     diffText: DIFFICULTY_TEXT[difficulty] ?? DIFFICULTY_TEXT[3],
     dept: 'All departments',
     deptTag: ['All departments'],
-    usedCount: '0x',
-    clickAvg: '0%',
-    submitAvg: '0%',
-    clickSub: 'not tested yet',
-    submitSub: 'not tested yet',
+    usedCount,
+    usedSub,
+    clickAvg,
+    submitAvg,
+    clickSub: testedSub,
+    submitSub: testedSub,
     iconColor: meta.iconColor,
     iconBg: meta.iconBg,
     iconName: meta.iconName,
