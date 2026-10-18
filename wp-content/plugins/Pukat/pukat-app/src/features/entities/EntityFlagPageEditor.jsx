@@ -226,8 +226,8 @@ function PageForm({ page, examples, requestExtras, canEdit: canEditProp, canPubl
         <div className="flex items-start gap-2 rounded-lg border border-amber-200 bg-amber-50 p-3 text-xs text-amber-800">
           <i className="ti ti-lock mt-0.5 text-base" />
           <div>
-            <span className="font-semibold">Terkunci — simulasi terkait masih aktif.</span>
-            <span className="ml-1">Halaman ini tidak bisa diubah sampai simulasi berikut selesai/dihentikan: {activeSimulations.map(s => `${s.name} (${s.status})`).join(', ') || '—'}.</span>
+            <span className="font-semibold">This page is locked</span>
+            <span className="ml-1">for editing until the next simulation has been completed or stopped: {activeSimulations.map(s => `${s.name} (${s.status})`).join(', ') || '—'}.</span>
           </div>
         </div>
       )}
