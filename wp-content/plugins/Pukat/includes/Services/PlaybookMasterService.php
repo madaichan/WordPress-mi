@@ -9,6 +9,7 @@ declare(strict_types=1);
 
 namespace Pukat\Services;
 
+use Pukat\Repositories\CampaignRunRepository;
 use Pukat\Repositories\PlaybookMasterRepository;
 use WP_Error;
 
@@ -41,17 +42,32 @@ class PlaybookMasterService {
 
 	private PlaybookMasterRepository $repository;
 
-	public function __construct( ?PlaybookMasterRepository $repository = null ) {
-		$this->repository = $repository ?? new PlaybookMasterRepository();
+	private CampaignRunRepository $campaign_run_repository;
+
+	public function __construct(
+		?PlaybookMasterRepository $repository = null,
+		?CampaignRunRepository $campaign_run_repository = null
+	) {
+		$this->repository              = $repository ?? new PlaybookMasterRepository();
+		$this->campaign_run_repository = $campaign_run_repository ?? new CampaignRunRepository();
 	}
 
 	/**
 	 * @return array<int, array<string, mixed>>
 	 */
 	public function list(): array {
+		$playbooks = $this->filter_playbooks_for_current_user( $this->repository->all() );
+		$ids       = array_values(
+			array_filter( array_map( static fn( array $playbook ): int => (int) ( $playbook['id'] ?? 0 ), $playbooks ) )
+		);
+		$stats_map = $this->playbook_stats_map( $ids );
+
 		return array_map(
-			[ $this, 'prepare_playbook' ],
-			$this->filter_playbooks_for_current_user( $this->repository->all() )
+			fn( array $playbook ): array => $this->prepare_playbook(
+				$playbook,
+				$stats_map[ (int) ( $playbook['id'] ?? 0 ) ] ?? null
+			),
+			$playbooks
 		);
 	}
 
@@ -64,7 +80,10 @@ class PlaybookMasterService {
 			return null;
 		}
 
-		return $this->prepare_playbook( $playbook );
+		$id        = (int) ( $playbook['id'] ?? 0 );
+		$stats_map = $this->playbook_stats_map( $id > 0 ? [ $id ] : [] );
+
+		return $this->prepare_playbook( $playbook, $stats_map[ $id ] ?? null );
 	}
 
 	/**
@@ -335,7 +354,7 @@ class PlaybookMasterService {
 	 * @param array<string, mixed> $playbook DB row.
 	 * @return array<string, mixed>
 	 */
-	private function prepare_playbook( array $playbook ): array {
+	private function prepare_playbook( array $playbook, ?array $stats = null ): array {
 		$components = $this->resolve_components( $playbook );
 		$usage      = $this->active_campaign_run_usage( (int) ( $playbook['id'] ?? 0 ) );
 		$status_locked = 'active' === (string) ( $playbook['status'] ?? '' );
@@ -354,6 +373,7 @@ class PlaybookMasterService {
 					'components'       => $components,
 					'readiness'        => $this->readiness_summary( $playbook ),
 					'usage'            => $usage,
+					'stats'            => $stats ?? $this->empty_stats(),
 					'edit_locked'      => $usage_locked || $status_locked,
 					'edit_lock_reason' => $lock_reason,
 					// Assign (entity reassignment) and Clone are never locked — neither the
@@ -442,6 +462,97 @@ class PlaybookMasterService {
 	/**
 	 * @return array{active_campaign_run_count: int, active_statuses: array<int, string>}
 	 */
+	/**
+	 * Aggregate per-playbook campaign-run stats in a single query (no N+1 over
+	 * playbooks). For each playbook id that has launched runs: used_count (runs
+	 * with a launched_at), first_launched_at (earliest), and — pooling the
+	 * clicked/submitted/total counts across every run's metrics_json —
+	 * tested_run_count plus pooled click_rate/submit_rate (null when nothing
+	 * has been tested). Playbooks with no launched runs are simply absent from
+	 * the map; callers fall back to empty_stats().
+	 *
+	 * @param array<int, int> $playbook_ids Empty = every playbook.
+	 * @return array<int, array{used_count:int, first_launched_at:?string, tested_run_count:int, click_rate:?float, submit_rate:?float}>
+	 */
+	private function playbook_stats_map( array $playbook_ids ): array {
+		$grouped = $this->campaign_run_repository->launched_runs_for_playbooks( $playbook_ids );
+		$map     = [];
+
+		foreach ( $grouped as $playbook_id => $group ) {
+			$sum_total     = 0;
+			$sum_clicked   = 0;
+			$sum_submitted = 0;
+			$tested        = 0;
+
+			foreach ( $group['rows'] as $row ) {
+				$counts = $this->metrics_counts( $row['metrics_json'] ?? null );
+				if ( $counts['total'] <= 0 ) {
+					continue;
+				}
+
+				++$tested;
+				$sum_total     += $counts['total'];
+				$sum_clicked   += $counts['clicked'];
+				$sum_submitted += $counts['submitted'];
+			}
+
+			$map[ (int) $playbook_id ] = [
+				'used_count'        => (int) $group['used_count'],
+				'first_launched_at' => $group['first_launched_at'],
+				'tested_run_count'  => $tested,
+				'click_rate'        => $sum_total > 0 ? round( ( $sum_clicked / $sum_total ) * 100, 1 ) : null,
+				'submit_rate'       => $sum_total > 0 ? round( ( $sum_submitted / $sum_total ) * 100, 1 ) : null,
+			];
+		}
+
+		return $map;
+	}
+
+	/**
+	 * Pull total/clicked/submitted out of one run's metrics_json. The result
+	 * sync writes these nested under a `stats` key (see
+	 * CampaignRunService::build_result_metrics()); a flat top-level shape is
+	 * tolerated too for older/other payloads.
+	 *
+	 * @param string|null $metrics_json Raw JSON from the run row.
+	 * @return array{total:int, clicked:int, submitted:int}
+	 */
+	private function metrics_counts( ?string $metrics_json ): array {
+		$empty = [ 'total' => 0, 'clicked' => 0, 'submitted' => 0 ];
+
+		if ( null === $metrics_json || '' === $metrics_json ) {
+			return $empty;
+		}
+
+		$decoded = json_decode( $metrics_json, true );
+		if ( ! is_array( $decoded ) ) {
+			return $empty;
+		}
+
+		$source = ( isset( $decoded['stats'] ) && is_array( $decoded['stats'] ) ) ? $decoded['stats'] : $decoded;
+
+		return [
+			'total'     => (int) ( $source['total'] ?? 0 ),
+			'clicked'   => (int) ( $source['clicked'] ?? 0 ),
+			'submitted' => (int) ( $source['submitted_data'] ?? 0 ),
+		];
+	}
+
+	/**
+	 * Stats placeholder for a playbook with no launched runs.
+	 *
+	 * @return array{used_count:int, first_launched_at:?string, tested_run_count:int, click_rate:?float, submit_rate:?float}
+	 */
+	private function empty_stats(): array {
+		return [
+			'used_count'        => 0,
+			'first_launched_at' => null,
+			'tested_run_count'  => 0,
+			'click_rate'        => null,
+			'submit_rate'       => null,
+		];
+	}
+
 	private function active_campaign_run_usage( int $playbook_id ): array {
 		$count = $playbook_id > 0
 			? $this->repository->count_campaign_runs_for_playbook( $playbook_id )

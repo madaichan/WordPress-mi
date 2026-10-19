@@ -150,6 +150,65 @@ class CampaignRunRepository {
 	}
 
 	/**
+	 * Launched Campaign Runs grouped by Playbook Master — one query for the whole
+	 * set (no N+1 across playbooks), returning only the three columns the stats
+	 * aggregation needs. Numeric aggregation over metrics_json is left to the
+	 * service (business logic); the repository stays thin and just groups rows.
+	 *
+	 * @param array<int, int> $playbook_ids Empty = every playbook.
+	 * @return array<int, array{used_count:int, first_launched_at:?string, rows: array<int, array{metrics_json:?string}>}>
+	 */
+	public function launched_runs_for_playbooks( array $playbook_ids = [] ): array {
+		global $wpdb;
+
+		$table = $this->table( 'campaign_runs' );
+		$where = 'launched_at IS NOT NULL';
+		$ids   = array_values( array_unique( array_filter( array_map( 'intval', $playbook_ids ) ) ) );
+
+		if ( ! empty( $ids ) ) {
+			$placeholders = implode( ',', array_fill( 0, count( $ids ), '%d' ) );
+			$sql          = $wpdb->prepare(
+				"SELECT playbook_master_id, launched_at, metrics_json FROM {$table}
+				 WHERE {$where} AND playbook_master_id IN ({$placeholders})",
+				$ids
+			);
+		} else {
+			$sql = "SELECT playbook_master_id, launched_at, metrics_json FROM {$table} WHERE {$where}";
+		}
+
+		$rows = $wpdb->get_results( $sql, ARRAY_A ) ?: [];
+
+		$grouped = [];
+		foreach ( $rows as $row ) {
+			$playbook_id = (int) ( $row['playbook_master_id'] ?? 0 );
+			if ( $playbook_id <= 0 ) {
+				continue;
+			}
+
+			if ( ! isset( $grouped[ $playbook_id ] ) ) {
+				$grouped[ $playbook_id ] = [
+					'used_count'        => 0,
+					'first_launched_at' => null,
+					'rows'              => [],
+				];
+			}
+
+			++$grouped[ $playbook_id ]['used_count'];
+			$grouped[ $playbook_id ]['rows'][] = [ 'metrics_json' => $row['metrics_json'] ?? null ];
+
+			$launched = isset( $row['launched_at'] ) ? (string) $row['launched_at'] : '';
+			if ( '' !== $launched ) {
+				$current = $grouped[ $playbook_id ]['first_launched_at'];
+				if ( null === $current || $launched < $current ) {
+					$grouped[ $playbook_id ]['first_launched_at'] = $launched;
+				}
+			}
+		}
+
+		return $grouped;
+	}
+
+	/**
 	 * Batched Playbook Master name lookup for a set of Campaign Runs — one
 	 * query for the whole set instead of one per row (used by
 	 * CampaignGroupService::aggregate() to enrich its per-run breakdown).

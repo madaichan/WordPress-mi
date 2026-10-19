@@ -192,7 +192,7 @@ export default function PlaybookDetailBody({ playbook, onPreviewComponent, actio
       </div>
 
       <div className="mt-6 grid grid-cols-1 gap-4 md:grid-cols-3">
-        <StatMini label="Used" value={playbook.usedCount} sub="since Jan 2025" color="#6C63FF" />
+        <StatMini label="Used" value={playbook.usedCount} sub={playbook.usedSub} color="#6C63FF" />
         <StatMini label="Avg click rate" value={playbook.clickAvg} sub={playbook.clickSub} color="#EF4444" />
         <StatMini label="Avg submit rate" value={playbook.submitAvg} sub={playbook.submitSub} color="#F59E0B" />
       </div>
