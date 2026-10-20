@@ -70,7 +70,13 @@ function call( string $method, string $route, array $params = [], ?int $user_id 
 
 do_action( 'rest_api_init' );
 
-$admin_id = 2; // john_editor, pukat_admin
+// Identity resolved by role, not a hardcoded fixture ID — see
+// tools/smoke-identities.php for why.
+require_once __DIR__ . '/smoke-identities.php';
+
+$ephemeral_ids = [];
+$admin_id      = pukat_smoke_resolve_identity( 'pukat_admin', $ephemeral_ids );
+pukat_smoke_print_identities( [ 'admin' => $admin_id ] );
 
 // ── Ephemeral Reviewer fixture — no existing test user holds pukat_reviewer
 // alone (same "no fixture user is a clean single-role holder" gap noted in
@@ -168,6 +174,7 @@ check( "pukat_admin description restored to its original value", $original_descr
 // ── Cleanup ──
 wp_delete_user( $reviewer_id );
 check( 'ephemeral reviewer test user removed', false === get_userdata( $reviewer_id ), $failures );
+check( 'ephemeral identity users removed', [] === pukat_smoke_cleanup_identities( $ephemeral_ids ), $failures );
 
 if ( $failures ) {
 	fwrite( STDERR, "\n" . count( $failures ) . " check(s) failed.\n" );

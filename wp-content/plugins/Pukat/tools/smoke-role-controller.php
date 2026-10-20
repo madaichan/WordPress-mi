@@ -56,14 +56,33 @@ function call( string $method, string $route, array $params = [], ?int $user_id 
 do_action( 'rest_api_init' );
 Activator::maybe_upgrade();
 
-// Fixed test users from the live Docker fixture (same ones used for the
-// sending-profile-admin-only and RBAC seed smoke tests earlier this project).
-$admin_id    = 2; // john_editor, pukat_admin
-$operator_id = 4; // daymon, pukat_operator
-$target_id   = 3; // fika — whatever her current role is gets captured and restored below
+// Identities resolved by role, not by hardcoded fixture IDs — see
+// tools/smoke-identities.php for why.
+require_once __DIR__ . '/smoke-identities.php';
 
-$target_user          = get_userdata( $target_id );
-$target_original_role = $target_user ? array_values( array_intersect( $target_user->roles, [ 'pukat_admin', 'pukat_operator', 'pukat_viewer', 'pukat_reviewer' ] ) )[0] ?? 'none' : 'none';
+$ephemeral_ids = [];
+$admin_id      = pukat_smoke_resolve_identity( 'pukat_admin', $ephemeral_ids );
+$operator_id   = pukat_smoke_resolve_identity( 'pukat_operator', $ephemeral_ids );
+
+// The role-assignment test reassigns this user's role, so it must be a user
+// this script owns: it used to borrow a real fixture user (`$target_id = 3`)
+// and put its role back afterwards, which writes to a live row for no reason.
+$target_login = 'pukat_smoke_target_' . time();
+$target_id    = wp_insert_user( [
+	'user_login' => $target_login,
+	'user_pass'  => wp_generate_password(),
+	'user_email' => $target_login . '@example.test',
+	'role'       => 'pukat_viewer',
+] );
+if ( is_wp_error( $target_id ) ) {
+	fwrite( STDERR, 'Could not create ephemeral target test user: ' . $target_id->get_error_message() . "\n" );
+	exit( 1 );
+}
+$target_id       = (int) $target_id;
+$ephemeral_ids[] = $target_id;
+$target_original_role = 'pukat_viewer';
+
+pukat_smoke_print_identities( [ 'admin' => $admin_id, 'operator' => $operator_id, 'target' => $target_id ] );
 
 echo "=== Permission boundary (operator, no roles.manage) ===\n";
 $res = call( 'GET', '/pukat/v1/roles', [], $operator_id );
@@ -136,9 +155,12 @@ if ( $new_slug ) {
 	$assign = call( 'PUT', "/pukat/v1/users/{$target_id}/role", [ 'pukat_role' => $new_slug ], $admin_id );
 	check( 'assigning the new custom role to a real user is 200', 200 === $assign['status'], $failures );
 
-	$users_list = call( 'GET', '/pukat/v1/users', [ 'search' => 'fika' ], $admin_id );
-	$fika_row   = current( array_filter( $users_list['data']['data']['users'] ?? [], static fn( array $u ): bool => (int) $u['id'] === $target_id ) );
-	check( 'GET /users shows the custom role for the assigned user', ( $fika_row['pukat_role'] ?? null ) === $new_slug, $failures );
+	// Search by the target's own login — this used to search for the fixture
+	// user's name ('fika'), which finds nothing once the target is a user this
+	// script creates itself.
+	$users_list  = call( 'GET', '/pukat/v1/users', [ 'search' => $target_login ], $admin_id );
+	$target_row  = current( array_filter( $users_list['data']['data']['users'] ?? [], static fn( array $u ): bool => (int) $u['id'] === $target_id ) );
+	check( 'GET /users shows the custom role for the assigned user', ( $target_row['pukat_role'] ?? null ) === $new_slug, $failures );
 
 	$delete_in_use = call( 'DELETE', "/pukat/v1/roles/{$new_slug}", [], $admin_id );
 	check( 'DELETE /roles/{slug} while still assigned to a user is 409', 409 === $delete_in_use['status'], $failures );
@@ -179,6 +201,8 @@ check(
 	in_array( $target_original_role, $target_user_after->roles, true ) || ( 'none' === $target_original_role && [] === array_intersect( $target_user_after->roles, [ 'pukat_admin', 'pukat_operator', 'pukat_viewer', 'pukat_reviewer' ] ) ),
 	$failures
 );
+
+check( 'ephemeral test users removed', [] === pukat_smoke_cleanup_identities( $ephemeral_ids ), $failures );
 
 if ( $failures ) {
 	fwrite( STDERR, "\n" . count( $failures ) . " check(s) failed.\n" );

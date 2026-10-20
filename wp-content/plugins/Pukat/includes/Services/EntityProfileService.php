@@ -830,7 +830,11 @@ class EntityProfileService {
 	}
 
 	public function current_user_can_admin_assets(): bool {
-		return current_user_can( 'pukat_manage_settings' ) || current_user_can( 'administrator' );
+		// The registry's `asset_governance.manage_all`, not the legacy
+		// `pukat_manage_settings` this used to read — see that key's doc comment
+		// in PermissionRegistry. `administrator` stays as the anti-lockout net.
+		return current_user_can( PermissionRegistry::capability_for( 'asset_governance.manage_all' ) )
+			|| current_user_can( 'administrator' );
 	}
 
 	private function validation_error( string $message ): WP_Error {

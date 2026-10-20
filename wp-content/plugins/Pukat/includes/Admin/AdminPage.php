@@ -10,6 +10,7 @@ declare(strict_types=1);
 namespace Pukat\Admin;
 
 use Pukat\Services\AssetManifestService;
+use Pukat\Services\PermissionRegistry;
 use Pukat\Services\UserContextService;
 
 /**
@@ -30,13 +31,16 @@ class AdminPage {
 	 * @param string $initial_hash URL hash for the SPA to navigate to on load (e.g. '#/admin/settings').
 	 */
 	public static function render_standalone( string $initial_hash = '' ): void {
-		// Belt-and-suspenders with AdminMenu.php's own 'pukat_manage_settings'
-		// menu-capability gate (which WordPress core enforces before this
-		// method is ever reached in normal navigation) — this is what a
-		// direct URL hit ultimately falls back to. Redirects to the front
-		// page rather than wp_die(), since apps is where every non-admin
-		// role's work actually happens.
-		if ( ! is_user_logged_in() || ! current_user_can( 'pukat_manage_settings' ) ) {
+		// Belt-and-suspenders with AdminMenu.php's own top-level menu-capability
+		// gate (which WordPress core enforces before this method is ever
+		// reached in normal navigation) — this is what a direct URL hit
+		// ultimately falls back to. Same capability as that gate, the
+		// registry's `admin_panel.view`; it was the legacy
+		// `pukat_manage_settings` until
+		// docs/PRD_RBAC_COVERAGE_COMPLETION.md §7 moved both to the registry.
+		// Redirects to the front page rather than wp_die(), since apps is
+		// where every non-admin role's work actually happens.
+		if ( ! is_user_logged_in() || ! current_user_can( PermissionRegistry::capability_for( 'admin_panel.view' ) ) ) {
 			wp_safe_redirect( home_url( '/pukat' ) );
 			exit;
 		}

@@ -116,6 +116,19 @@ foreach ( [ 'master_playbooks', 'master_email_templates', 'master_landing_pages'
 	);
 }
 
+// Page-less menus (`'has_view' => false`) must contribute their action keys
+// without a `.view` key — docs/PRD_RBAC_COVERAGE_COMPLETION.md §6. A `.view`
+// here would be a toggle in the Roles UI that no page and no endpoint reads.
+foreach ( [ 'guardrails', 'asset_governance' ] as $menu ) {
+	check( "{$menu} is page-less: no {$menu}.view key is emitted", ! isset( $all[ "{$menu}.view" ] ), $failures );
+}
+check( 'guardrails.bypass still exists on the page-less guardrails menu', isset( $all['guardrails.bypass'] ), $failures );
+
+// The two keys added by docs/PRD_RBAC_COVERAGE_COMPLETION.md §5, both admin-gated
+// so the upgrade lands them on exactly today's `pukat_manage_settings` holders.
+check( 'admin_panel.view exists and is gated admin', ( $all['admin_panel.view']['gate'] ?? null ) === 'admin', $failures );
+check( 'asset_governance.manage_all exists and is gated admin', ( $all['asset_governance.manage_all']['gate'] ?? null ) === 'admin', $failures );
+
 echo "\n" . count( $all ) . " total permission keys (" . count( $shared ) . " shared, " . count( $operator ) . " operator, " . count( $admin ) . " admin, " . count( $approve ) . " approve).\n";
 
 if ( $failures ) {

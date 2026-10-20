@@ -926,6 +926,69 @@ class Activator {
 			self::ensure_flag_pages_master_column();
 			update_option( 'pukat_db_version', '1.24.0' );
 		}
+
+		// RBAC coverage completion, PR 1 (docs/PRD_RBAC_COVERAGE_COMPLETION.md §9):
+		// the registry gained `admin_panel.view` and `asset_governance.manage_all`
+		// and dropped `guardrails.view`. Both halves are needed, same pairing as
+		// the 1.7.2/1.9.0 blocks above — seed_rbac_defaults() is additive-only, so
+		// new keys reach already-active installs only from here, and a key removed
+		// from the registry keeps sitting on every role until an explicit
+		// remove_cap() run. Nobody's effective access changes: both new keys are
+		// `admin`-gated, which lands them on exactly the roles that already hold
+		// the legacy `pukat_manage_settings` (`pukat_admin` + `administrator`), and
+		// nothing reads either capability yet — the gates move in PR 2/PR 3.
+		//
+		// The cleanup loops over every registered role, not just the 5 system ones
+		// those earlier blocks listed: `guardrails.view` was grantable from the
+		// Roles UI, so a custom role may be holding it too.
+		if ( version_compare( $db_version, '1.25.0', '<' ) ) {
+			self::seed_rbac_defaults();
+
+			foreach ( array_keys( wp_roles()->get_names() ) as $role_slug ) {
+				$role = get_role( (string) $role_slug );
+				if ( ! $role ) {
+					continue;
+				}
+				$role->remove_cap( 'pukat_guardrails_view' );
+			}
+
+			update_option( 'pukat_db_version', '1.25.0' );
+		}
+
+		// RBAC coverage completion, PR 4: `master_email_templates.assign_entity`
+		// and `master_landing_pages.assign_entity` went live (nothing read them
+		// before) and their gate moved from `operator` to `admin` — see those
+		// keys' doc comments in PermissionRegistry. The re-seed grants them to
+		// the admin-gated roles, and the cleanup strips them from everyone else,
+		// including custom roles built from the Roles page: those grants were
+		// dead when they were made, so nobody can have been relying on them, and
+		// leaving them in place would silently turn a no-op checkbox into a real
+		// cross-entity power. An admin who wants a role to hold it can grant it
+		// again, deliberately, from the Roles page.
+		if ( version_compare( $db_version, '1.26.0', '<' ) ) {
+			self::seed_rbac_defaults();
+
+			$admin_gated_keys = [
+				'master_email_templates.assign_entity',
+				'master_landing_pages.assign_entity',
+			];
+			$keep             = [ 'pukat_admin', 'administrator' ];
+
+			foreach ( array_keys( wp_roles()->get_names() ) as $role_slug ) {
+				if ( in_array( (string) $role_slug, $keep, true ) ) {
+					continue;
+				}
+				$role = get_role( (string) $role_slug );
+				if ( ! $role ) {
+					continue;
+				}
+				foreach ( $admin_gated_keys as $key ) {
+					$role->remove_cap( PermissionRegistry::capability_for( $key ) );
+				}
+			}
+
+			update_option( 'pukat_db_version', '1.26.0' );
+		}
 	}
 
 	/**

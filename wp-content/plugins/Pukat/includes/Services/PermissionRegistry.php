@@ -14,6 +14,9 @@ namespace Pukat\Services;
  *
  * Every permission key a role can be granted lives here — a `menu.view` key
  * per sidebar item plus a `menu.action` key per meaningful action within it.
+ * A menu that owns no page at all (`guardrails`, `asset_governance`) sets
+ * `'has_view' => false` and contributes only its action keys, so the Roles UI
+ * never shows a `.view` toggle that nothing reads.
  * Roles only ever grant/revoke keys that already exist in this list (see
  * `docs/PRD_RBAC.md` §5.2); admins cannot invent new permission strings from
  * the UI, only toggle the ones a developer registered here. Each key maps
@@ -95,7 +98,16 @@ class PermissionRegistry {
 				'edit'          => 'operator',
 				'delete'        => 'operator',
 				'approve'       => 'approve',
-				'assign_entity' => 'operator',
+				// Admin, not operator. Until PR 4 of
+				// docs/PRD_RBAC_COVERAGE_COMPLETION.md this key was dead — nothing
+				// read it, and writing another entity's value was refused for every
+				// non-admin by MasterComponentService::enforce_write_entity(). Seeding
+				// it to Operator and then activating it would have handed Operator a
+				// cross-entity power it never actually had, so the gate moved to match
+				// the reality it is replacing (and its already-enforced sibling
+				// `master_sending_profiles.assign_entity`). Admins can still grant it
+				// to any role from the Roles page — deliberately, now.
+				'assign_entity' => 'admin',
 			],
 		],
 		'master_landing_pages'     => [
@@ -107,7 +119,9 @@ class PermissionRegistry {
 				'edit'          => 'operator',
 				'delete'        => 'operator',
 				'approve'       => 'approve',
-				'assign_entity' => 'operator',
+				// Admin-gated for the same reason as
+				// `master_email_templates.assign_entity` above.
+				'assign_entity' => 'admin',
 			],
 		],
 		// Entity Profile — descriptive metadata (contact, description, status)
@@ -193,6 +207,22 @@ class PermissionRegistry {
 				'authorize' => 'operator',
 			],
 		],
+		// The wp-admin panel's front door (`/wp-admin/admin.php?page=pukat_*`):
+		// `AdminMenu`'s top-level menu plus `AdminPage::render_standalone()`.
+		// A PREREQUISITE, not a replacement — every page inside the panel is
+		// still gated by its own key (`settings.view`, `users.view`,
+		// `master_*.view`, ...). WordPress hides the whole submenu tree when
+		// the top-level capability is missing, so a role without this key sees
+		// no Pukat submenu at all even when it holds those page keys.
+		// Admin-gated to reproduce exactly who can open the panel today (the
+		// legacy `pukat_manage_settings` holders: `pukat_admin` + WP
+		// `administrator`) — see docs/PRD_RBAC_COVERAGE_COMPLETION.md §9.
+		'admin_panel'              => [
+			'label'     => 'Admin Panel (wp-admin)',
+			'group'     => 'Admin',
+			'view_gate' => 'admin',
+			'actions'   => [],
+		],
 		'users'                    => [
 			'label'     => 'User Access',
 			'group'     => 'Admin',
@@ -240,11 +270,31 @@ class PermissionRegistry {
 		// some targets fail it. Admin-only by default, on purpose — this isn't a
 		// feature toggle, it's an override of a data-integrity check.
 		'guardrails'               => [
-			'label'     => 'Guardrails',
-			'group'     => 'Simulation',
-			'view_gate' => 'admin',
-			'actions'   => [
+			'label'    => 'Guardrails',
+			'group'    => 'Simulation',
+			'has_view' => false,
+			'actions'  => [
 				'bypass' => 'admin',
+			],
+		],
+		// No page either — the single key behind `current_user_can_admin_assets()`,
+		// duplicated verbatim across 7 services + GoPhishProxy. Grants the
+		// right to cross entity boundaries: write `General` assets and assets
+		// belonging to another entity. Role still decides WHICH FEATURE is
+		// reachable and entity-scoping still decides WHICH ROWS (the split in
+		// docs/PRD_RBAC.md §4 is unchanged) — this key only makes "who may
+		// cross the boundary" configurable instead of hardcoded to the legacy
+		// `pukat_manage_settings` capability.
+		// Blast radius is large by design: admin-gated, and it lands on exactly
+		// the roles that hold `pukat_manage_settings` today, so no one's
+		// effective access changes on upgrade
+		// (docs/PRD_RBAC_COVERAGE_COMPLETION.md §9).
+		'asset_governance'         => [
+			'label'    => 'Asset Governance',
+			'group'    => 'Governance',
+			'has_view' => false,
+			'actions'  => [
+				'manage_all' => 'admin',
 			],
 		],
 		// `monitoring`/`calendar` split out of `campaigns.view` 2026-08-07 so
@@ -329,16 +379,22 @@ class PermissionRegistry {
 		$entries = [];
 
 		foreach ( self::MENUS as $menu => $config ) {
-			$view_key             = "{$menu}.view";
-			$entries[ $view_key ] = [
-				'key'        => $view_key,
-				'capability' => self::capability_for( $view_key ),
-				'menu'       => $menu,
-				'action'     => 'view',
-				'label'      => $config['label'],
-				'group'      => $config['group'],
-				'gate'       => $config['view_gate'],
-			];
+			// Menus with `has_view => false` are registry-only entries that
+			// gate an action without owning a page (see the const's own doc
+			// comment) — they emit no `.view` key at all, instead of emitting
+			// one nothing ever checks.
+			if ( $config['has_view'] ?? true ) {
+				$view_key             = "{$menu}.view";
+				$entries[ $view_key ] = [
+					'key'        => $view_key,
+					'capability' => self::capability_for( $view_key ),
+					'menu'       => $menu,
+					'action'     => 'view',
+					'label'      => $config['label'],
+					'group'      => $config['group'],
+					'gate'       => $config['view_gate'],
+				];
+			}
 
 			foreach ( $config['actions'] as $action => $gate ) {
 				$key             = "{$menu}.{$action}";
