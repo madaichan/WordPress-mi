@@ -230,6 +230,7 @@ class Activator {
 			domain                          VARCHAR(255)    NOT NULL,
 			base_landing_url                VARCHAR(500)    DEFAULT NULL,
 			tracking_url                    VARCHAR(500)    DEFAULT NULL,
+			type                            VARCHAR(50)     NOT NULL DEFAULT 'both',
 			environment                     VARCHAR(50)     NOT NULL DEFAULT 'production',
 			owner_entity                    VARCHAR(255)    NOT NULL DEFAULT 'General',
 			authorization_status            VARCHAR(50)     NOT NULL DEFAULT 'pending',
@@ -246,7 +247,8 @@ class Activator {
 			UNIQUE KEY domain (domain),
 			KEY status (status),
 			KEY owner_entity (owner_entity),
-			KEY authorization_status (authorization_status)
+			KEY authorization_status (authorization_status),
+			KEY type (type)
 		) $charset_collate;";
 
 		// -----------------------------------------------------------------------
@@ -618,6 +620,7 @@ class Activator {
 		self::ensure_campaign_runs_entity_column();
 		self::ensure_role_meta_landing_menu_column();
 		self::ensure_entity_profiles_identity_columns();
+		self::ensure_dynamic_domains_type_column();
 	}
 
 	/**
@@ -989,6 +992,73 @@ class Activator {
 
 			update_option( 'pukat_db_version', '1.26.0' );
 		}
+
+		// Dynamic domains now carry an explicit stored `type`
+		// (sending/landing/both/education/quiz) instead of inferring it from
+		// which URLs happen to be filled in. Existing rows are backfilled from
+		// that same URL-presence heuristic so their displayed type is unchanged
+		// after the column lands; new "education"/quiz types are only reachable
+		// once an admin picks them. See ensure_dynamic_domains_type_column().
+		if ( version_compare( $db_version, '1.27.0', '<' ) ) {
+			self::ensure_dynamic_domains_type_column();
+			self::backfill_dynamic_domains_type();
+			update_option( 'pukat_db_version', '1.27.0' );
+		}
+	}
+
+	/**
+	 * Add the `type` column to pukat_dynamic_domains if missing (idempotent).
+	 */
+	private static function ensure_dynamic_domains_type_column(): void {
+		global $wpdb;
+
+		$table = $wpdb->prefix . 'pukat_dynamic_domains';
+
+		$column = $wpdb->get_var(
+			$wpdb->prepare( "SHOW COLUMNS FROM {$table} LIKE %s", 'type' )
+		);
+
+		if ( ! $column ) {
+			$wpdb->query( "ALTER TABLE {$table} ADD type VARCHAR(50) NOT NULL DEFAULT 'both' AFTER tracking_url" );
+		}
+
+		$index = $wpdb->get_var(
+			$wpdb->prepare( "SHOW INDEX FROM {$table} WHERE Key_name = %s", 'type' )
+		);
+
+		if ( ! $index ) {
+			$wpdb->query( "ALTER TABLE {$table} ADD INDEX type (type)" );
+		}
+	}
+
+	/**
+	 * Backfill the `type` column for pre-existing domains from the same
+	 * base_landing_url/tracking_url heuristic the list endpoint used before
+	 * the column existed, so displayed types don't change for old rows. Only
+	 * touches rows still on the 'both' default (the ADD COLUMN default), so
+	 * it's safe to re-run and never overwrites an admin's explicit choice.
+	 */
+	private static function backfill_dynamic_domains_type(): void {
+		global $wpdb;
+
+		$table = $wpdb->prefix . 'pukat_dynamic_domains';
+
+		// landing only: has a landing URL but no tracking URL.
+		$wpdb->query(
+			"UPDATE {$table}
+			SET type = 'landing'
+			WHERE type = 'both'
+			AND COALESCE(base_landing_url, '') <> ''
+			AND COALESCE(tracking_url, '') = ''"
+		);
+
+		// sending only: no landing URL (tracking URL optional).
+		$wpdb->query(
+			"UPDATE {$table}
+			SET type = 'sending'
+			WHERE type = 'both'
+			AND COALESCE(base_landing_url, '') = ''"
+		);
 	}
 
 	/**
