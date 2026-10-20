@@ -132,60 +132,17 @@ abstract class RestController {
 		return $response;
 	}
 
-	// ---------------------------------------------------------------------------
-	// Permission callbacks
-	// ---------------------------------------------------------------------------
-
-	/**
-	 * Permission: user must be logged in and have read access.
-	 *
-	 * @return bool|WP_Error
-	 */
-	public function permission_read(): bool|WP_Error {
-		if ( ! is_user_logged_in() ) {
-			return new WP_Error(
-				'rest_forbidden',
-				__( 'You must be logged in to access Pukat.', 'pukat' ),
-				[ 'status' => 401 ]
-			);
-		}
-		if ( ! current_user_can( 'pukat_view_reports' ) && ! current_user_can( 'pukat_manage_campaigns' ) && ! current_user_can( 'administrator' ) ) {
-			return new WP_Error(
-				'rest_forbidden',
-				__( 'You do not have permission to view this resource.', 'pukat' ),
-				[ 'status' => 403 ]
-			);
-		}
-		return true;
-	}
-
-	/**
-	 * Permission: manage campaigns (admin + operator).
-	 *
-	 * @return bool|WP_Error
-	 */
-	public function permission_manage(): bool|WP_Error {
-		if ( ! is_user_logged_in() ) {
-			return new WP_Error( 'rest_forbidden', __( 'Authentication required.', 'pukat' ), [ 'status' => 401 ] );
-		}
-		if ( ! current_user_can( 'pukat_manage_campaigns' ) ) {
-			return new WP_Error( 'rest_forbidden', __( 'Insufficient permissions.', 'pukat' ), [ 'status' => 403 ] );
-		}
-		return true;
-	}
-
-	/**
-	 * Permission: admin only.
-	 *
-	 * @return bool|WP_Error
-	 */
-	public function permission_admin(): bool|WP_Error {
-		if ( ! is_user_logged_in() ) {
-			return new WP_Error( 'rest_forbidden', __( 'Authentication required.', 'pukat' ), [ 'status' => 401 ] );
-		}
-		if ( ! current_user_can( 'pukat_manage_settings' ) ) {
-			return new WP_Error( 'rest_forbidden', __( 'Admin access required.', 'pukat' ), [ 'status' => 403 ] );
-		}
-		return true;
-	}
+	// The 3 blanket permission callbacks that used to live here
+	// (`permission_read()`/`permission_manage()`/`permission_admin()`) are gone.
+	// Phase 3 of docs/IMPLEMENTATION_PLAN_RBAC.md migrated every route to a
+	// granular Permission Registry capability, leaving these with no callers,
+	// and docs/PRD_RBAC_COVERAGE_COMPLETION.md §15.6 removed them. They were the
+	// last readers of the legacy `pukat_view_reports`/`pukat_manage_campaigns`/
+	// `pukat_manage_settings` capabilities; those are still granted by
+	// `Activator::add_roles()` on purpose, in case anything outside this plugin
+	// relies on them.
+	//
+	// New routes gate on a registry key instead:
+	// `current_user_can( PermissionRegistry::capability_for( '<menu>.<action>' ) )`,
+	// as every controller in includes/Api/ now does.
 }

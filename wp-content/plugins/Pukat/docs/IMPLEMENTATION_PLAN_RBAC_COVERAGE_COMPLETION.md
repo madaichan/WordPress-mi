@@ -1,6 +1,6 @@
 # Implementation Plan: RBAC Coverage Completion
 
-Status: PR 1-5 selesai; PR 6 belum (opsional)
+Status: PR 1-5 selesai; PR 6 separuh (gate generik dihapus, capability legacy sengaja dipertahankan)
 Date: 2026-10-20
 PRD: `docs/PRD_RBAC_COVERAGE_COMPLETION.md`
 Lanjutan dari: `docs/IMPLEMENTATION_PLAN_RBAC.md` (selesai)
@@ -193,6 +193,8 @@ Dikerjakan hanya setelah PR 5 lulus, dan hanya kalau disetujui saat itu.
    ```
    (yang tersisa harus hanya nama method milik controller lain seperti `permission_manage_roles`/`permission_manage_quiz` — itu method berbeda, jangan ikut dihapus.)
 2. `Activator::add_roles()`: hentikan grant 4 capability legacy. Perlu blok migration baru + `remove_cap()` eksplisit, dan **harus** dipastikan tidak ada hook/snippet milik user yang masih bergantung padanya — ini satu-satunya langkah di seluruh rencana yang bisa memecahkan kode di luar plugin, karena itu dipisah dan opsional.
+
+**Status (2026-10-20): langkah 1 dikerjakan, langkah 2 sengaja TIDAK.** Ketiga gate generik dihapus dari `RestController.php` setelah diverifikasi nol pemanggil (yang tersisa di grep hanya komentar sejarah di controller lain, dan method lain yang namanya berawalan sama seperti `permission_manage_roles`/`permission_manage_quiz` — bukan method ini). Keempat capability legacy tetap di-grant `Activator::add_roles()`: manfaat mencabutnya kecil, sementara risikonya memecahkan kode di luar plugin yang tidak bisa diverifikasi dari dalam repo ini. Setelah penghapusan ini tidak ada lagi kode Pukat yang MEMBACA capability legacy tersebut — jadi mencabut grant-nya bisa dilakukan kapan saja nanti tanpa menyentuh logika permission.
 
 ## 11. Urutan PR
 
