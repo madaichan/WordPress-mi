@@ -4,6 +4,7 @@ import AppFrontend from './AppFrontend.jsx'
 import PageLoader from './components/UI/PageLoader.jsx'
 import { useMyPermissions } from './hooks/queries/usePermissionQueries.js'
 import useAppStore from './store/useAppStore.js'
+import { applyTheme, subscribeToSystemTheme } from './utils/theme.js'
 
 /**
  * App — Root context switcher.
@@ -25,7 +26,16 @@ export default function App() {
   const { data, isError } = useMyPermissions()
   const [permissionsHydrated, setPermissionsHydrated] = useState(false)
   const setPermissions = useAppStore((s) => s.setPermissions)
+  const theme = useAppStore((s) => s.theme)
+  const syncSystemTheme = useAppStore((s) => s.syncSystemTheme)
   const permissionsReady = Boolean(data) || isError
+
+  // Paint the stored preference, then keep 'system' in step with the OS.
+  // Runs above the permission gate so the loader is already themed.
+  useEffect(() => {
+    applyTheme(theme)
+    return subscribeToSystemTheme(syncSystemTheme)
+  }, [theme, syncSystemTheme])
 
   useEffect(() => {
     if (data?.permissions) {

@@ -1,5 +1,12 @@
 import { create } from 'zustand'
 import { canManagePukat, canOperatePukat, normalizePukatRole } from '../utils/roles.js'
+import {
+  applyTheme,
+  nextTheme,
+  readStoredTheme,
+  resolveTheme,
+  storeTheme,
+} from '../utils/theme.js'
 
 const injectedUser = window.PukatData?.user
 const fallbackUser = {
@@ -35,6 +42,32 @@ const useAppStore = create((set, get) => ({
   // ── Sidebar collapsed state ────────────────────────────────────
   sidebarCollapsed: false,
   toggleSidebar: () => set((s) => ({ sidebarCollapsed: !s.sidebarCollapsed })),
+
+  // ── Theme ──────────────────────────────────────────────────────
+  // `theme` is the user's preference ('light' | 'dark' | 'system');
+  // `resolvedTheme` is what is actually painted. Nothing touches the DOM
+  // at module scope — App.jsx applies and subscribes on mount, and the
+  // PHP shell pre-applies the class so there is no flash before that.
+  theme: readStoredTheme(),
+  resolvedTheme: resolveTheme(readStoredTheme()),
+
+  setTheme: (preference) => {
+    storeTheme(preference)
+    set({ theme: preference, resolvedTheme: applyTheme(preference) })
+  },
+
+  toggleTheme: () => {
+    const { theme, setTheme } = get()
+    setTheme(nextTheme(theme))
+  },
+
+  /** Re-resolve after an OS theme change; only 'system' is affected. */
+  syncSystemTheme: () => {
+    if (get().theme !== 'system') return
+    set({ resolvedTheme: applyTheme('system') })
+  },
+
+  isDarkTheme: () => get().resolvedTheme === 'dark',
 
   // ── Global toast queue (react-hot-toast handles this) ─────────
   // Nothing needed here — react-hot-toast has its own context.

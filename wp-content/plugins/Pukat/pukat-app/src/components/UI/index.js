@@ -8,6 +8,7 @@ export { default as AlertConfirmation } from './AlertConfirmation.jsx'
 export { default as PageLoader } from './PageLoader.jsx'
 export { default as AppToaster } from './AppToaster.jsx'
 export { default as GoPhishStatus } from './GoPhishStatus.jsx'
+export { default as ThemeToggle } from './ThemeToggle.jsx'
 
 export { default as Label } from './Label.jsx'
 export { default as Input } from './Input.jsx'
