@@ -3,7 +3,7 @@ export default function AssetLockBadge({ locked, reason }) {
 
   return (
     <span
-      className="inline-flex items-center gap-1 rounded-full bg-red-50 px-2 py-0.5 text-[10px] font-semibold text-red-700"
+      className="inline-flex items-center gap-1 rounded-full bg-red-500/10 px-2 py-0.5 text-[10px] font-semibold text-red-700 dark:text-red-300"
       title={reason}
     >
       <i className="ti ti-lock text-[10px]" />

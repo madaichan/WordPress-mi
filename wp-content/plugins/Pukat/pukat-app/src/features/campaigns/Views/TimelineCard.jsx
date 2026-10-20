@@ -14,18 +14,18 @@ const TIMELINE_EVENTS = [
 
 export default function TimelineCard() {
   return (
-    <div className="bg-white border border-gray-200 rounded-xl p-5 space-y-4">
-      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 border-b border-gray-100 pb-3">
-        <h3 className="text-sm font-semibold text-gray-900">Today&apos;s event timeline</h3>
+    <div className="bg-panel border border-line rounded-xl p-5 space-y-4">
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 border-b border-line-soft pb-3">
+        <h3 className="text-sm font-semibold text-ink">Today&apos;s event timeline</h3>
         <div className="flex items-center gap-3">
           <div className="flex gap-1.5">
             {['All', 'Click', 'Submit', 'Open'].map((label, index) => (
-              <button key={label} className={clsx('px-2.5 py-0.5 rounded-full text-xs font-semibold', index === 0 ? 'bg-violet-500 text-white' : 'bg-gray-100 text-gray-600 hover:bg-gray-200')}>
+              <button key={label} className={clsx('px-2.5 py-0.5 rounded-full text-xs font-semibold', index === 0 ? 'bg-violet-500 text-white' : 'bg-panel-muted text-ink-muted hover:bg-panel-strong')}>
                 {label}
               </button>
             ))}
           </div>
-          <button onClick={() => toast.success('Log export is being prepared.')} className="bg-white border border-gray-200 text-gray-700 hover:bg-gray-50 px-3 py-1 text-xs font-semibold rounded-lg transition-all">
+          <button onClick={() => toast.success('Log export is being prepared.')} className="bg-panel border border-line text-ink-soft hover:bg-panel-subtle px-3 py-1 text-xs font-semibold rounded-lg transition-all">
             Export Log
           </button>
         </div>
@@ -36,14 +36,14 @@ export default function TimelineCard() {
           <div key={column} className="space-y-4">
             {TIMELINE_EVENTS.filter((_, index) => index % 2 === column).map(event => (
               <div key={`${event.time}-${event.title}`} className="flex gap-3">
-                <span className="w-10 text-right text-gray-400 text-[11px] mt-0.5 flex-shrink-0">{event.time}</span>
+                <span className="w-10 text-right text-ink-faint text-[11px] mt-0.5 flex-shrink-0">{event.time}</span>
                 <div className="flex flex-col items-center flex-shrink-0 mt-1">
                   <span className={clsx('w-[9px] h-[9px] rounded-full flex-shrink-0', event.color)} />
-                  <div className="w-px bg-gray-200 flex-grow h-10 mt-1" />
+                  <div className="w-px bg-panel-strong flex-grow h-10 mt-1" />
                 </div>
                 <div>
-                  <h4 className="text-xs font-medium text-gray-900">{event.title}</h4>
-                  <p className="text-[11px] text-gray-400 mt-0.5">{event.meta}</p>
+                  <h4 className="text-xs font-medium text-ink">{event.title}</h4>
+                  <p className="text-[11px] text-ink-faint mt-0.5">{event.meta}</p>
                 </div>
               </div>
             ))}

@@ -91,9 +91,9 @@ export default function TableActionMenu({ items, triggerTitle = 'More Actions', 
         aria-haspopup="menu"
         aria-expanded={open}
         className={clsx(
-          'inline-flex h-7 w-7 items-center justify-center rounded-lg border border-gray-200 bg-white text-gray-500 transition-all',
-          'hover:border-violet-500 hover:bg-violet-50 hover:text-violet-500 focus:outline-none focus:ring-2 focus:ring-violet-400/40',
-          open && 'border-violet-500 bg-violet-50 text-violet-500'
+          'inline-flex h-7 w-7 items-center justify-center rounded-lg border border-line bg-panel text-ink-muted transition-all',
+          'hover:border-violet-500 hover:bg-violet-500/10 hover:text-violet-500 focus:outline-none focus:ring-2 focus:ring-violet-400/40',
+          open && 'border-violet-500 bg-violet-500/10 text-violet-500'
         )}
       >
         <i className="ti ti-dots-vertical text-xs" />
@@ -104,7 +104,7 @@ export default function TableActionMenu({ items, triggerTitle = 'More Actions', 
           ref={menuRef}
           role="menu"
           style={{ position: 'fixed', visibility: style ? 'visible' : 'hidden', ...(style || { top: 0, left: 0 }) }}
-          className="z-50 min-w-[170px] overflow-hidden rounded-xl border border-gray-200 bg-white py-1 shadow-lg"
+          className="z-50 min-w-[170px] overflow-hidden rounded-xl border border-line bg-panel py-1 shadow-lg"
         >
           {items.map(item => (
             <button
@@ -119,7 +119,7 @@ export default function TableActionMenu({ items, triggerTitle = 'More Actions', 
               }}
               className={clsx(
                 'flex w-full items-center gap-2 px-3 py-2 text-left text-xs font-medium transition-colors',
-                item.disabled ? 'cursor-not-allowed text-gray-300' : 'text-gray-700 hover:bg-gray-50'
+                item.disabled ? 'cursor-not-allowed text-ink-faint' : 'text-ink-soft hover:bg-panel-subtle'
               )}
             >
               <i className={clsx('ti text-sm', item.icon)} />

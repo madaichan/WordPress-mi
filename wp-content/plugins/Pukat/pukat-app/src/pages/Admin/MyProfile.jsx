@@ -110,7 +110,7 @@ export default function MyProfile() {
     return (
       <PageShell spacing="space-y-4" animated={false} className="max-w-2xl">
         {[...Array(2)].map((_, i) => (
-          <Card key={i} className="h-40 animate-pulse bg-gray-100" />
+          <Card key={i} className="h-40 animate-pulse bg-panel-muted" />
         ))}
       </PageShell>
     )
@@ -126,10 +126,10 @@ export default function MyProfile() {
           <img
             src={profile?.avatar_url}
             alt="Avatar"
-            className="h-14 w-14 rounded-full bg-gray-100"
+            className="h-14 w-14 rounded-full bg-panel-muted"
           />
           <div>
-            <p className="text-sm font-semibold text-gray-900">{profile?.display_name}</p>
+            <p className="text-sm font-semibold text-ink">{profile?.display_name}</p>
             <div className="mt-1 flex items-center gap-2">
               <Badge tone="violet">{profile?.role}</Badge>
               {profile?.entity && <Badge tone="gray">{profile.entity}</Badge>}
@@ -149,8 +149,8 @@ export default function MyProfile() {
             {/* Profile info */}
             <Card>
               <form onSubmit={handleSaveProfile}>
-                <h2 className="text-sm font-semibold text-gray-900 mb-1">Profile Information</h2>
-                <p className="text-xs text-gray-500 mb-4">Update your display name, email, and phone number.</p>
+                <h2 className="text-sm font-semibold text-ink mb-1">Profile Information</h2>
+                <p className="text-xs text-ink-muted mb-4">Update your display name, email, and phone number.</p>
 
                 <div className="space-y-4">
                   <div>
@@ -192,8 +192,8 @@ export default function MyProfile() {
             {/* Change password */}
             <Card>
               <form onSubmit={handleChangePassword}>
-                <h2 className="text-sm font-semibold text-gray-900 mb-1">Change Password</h2>
-                <p className="text-xs text-gray-500 mb-4">
+                <h2 className="text-sm font-semibold text-ink mb-1">Change Password</h2>
+                <p className="text-xs text-ink-muted mb-4">
                   You will be logged out and need to sign in again after changing your password.
                 </p>
 
@@ -260,12 +260,12 @@ export default function MyProfile() {
 
           {activeTab === 'entity' && entityName && (
             <Card>
-              <h2 className="mb-1 text-sm font-semibold text-gray-900">Entity Profile</h2>
-              <p className="mb-4 text-xs text-gray-500">
+              <h2 className="mb-1 text-sm font-semibold text-ink">Entity Profile</h2>
+              <p className="mb-4 text-xs text-ink-muted">
                 {canEditEntity ? 'Description and contact details for your entity.' : 'Read-only — only an admin can edit this entity.'}
               </p>
               {isLoadingEntities ? (
-                <p className="text-sm text-gray-400">Loading...</p>
+                <p className="text-sm text-ink-faint">Loading...</p>
               ) : ownEntityProfile ? (
                 <EntityProfileForm profile={ownEntityProfile} canEdit={canEditEntity} />
               ) : (
@@ -281,11 +281,11 @@ export default function MyProfile() {
           {activeTab === 'guardrails' && entityName && (
             <>
               <Card>
-                <h2 className="mb-3 text-sm font-semibold text-gray-900">Landing page domains</h2>
+                <h2 className="mb-3 text-sm font-semibold text-ink">Landing page domains</h2>
                 <EntityLandingDomainsPanel entityName={entityName} canManage={canManageLanding} />
               </Card>
               <Card>
-                <h2 className="mb-3 text-sm font-semibold text-gray-900">Company email domains</h2>
+                <h2 className="mb-3 text-sm font-semibold text-ink">Company email domains</h2>
                 <EntityEmailDomainsPanel entityName={entityName} canManage={canEditEntity} canToggle={canEditEntity} />
               </Card>
             </>
@@ -293,8 +293,8 @@ export default function MyProfile() {
 
           {activeTab === 'report' && entityName && (
             <Card>
-              <h2 className="mb-1 text-sm font-semibold text-gray-900">Call Center Report</h2>
-              <p className="mb-4 text-xs text-gray-500">
+              <h2 className="mb-1 text-sm font-semibold text-ink">Call Center Report</h2>
+              <p className="mb-4 text-xs text-ink-muted">
                 {canEditEntity
                   ? 'Who employees of your entity should contact to report a suspicious email.'
                   : 'Read-only — only an admin can edit this entity.'}
@@ -305,11 +305,11 @@ export default function MyProfile() {
 
           {activeTab === 'flags' && entityName && (
             <Card>
-              <h2 className="mb-1 text-sm font-semibold text-gray-900">Flags</h2>
-              <p className="mb-3 text-xs text-gray-500">
+              <h2 className="mb-1 text-sm font-semibold text-ink">Flags</h2>
+              <p className="mb-3 text-xs text-ink-muted">
                 Build the education page your colleagues see after a simulation, one per Flag category. Write the page in the Editor, check it in Preview, and upload annotated example screenshots in Images.
               </p>
-              {!canManageFlags && !canEditFlagPage && <p className="mb-3 text-xs text-gray-500">Read-only — you can view but not change this entity&apos;s education pages and examples.</p>}
+              {!canManageFlags && !canEditFlagPage && <p className="mb-3 text-xs text-ink-muted">Read-only — you can view but not change this entity&apos;s education pages and examples.</p>}
               {/* Admins would otherwise get every entity's data; pin to their own. */}
               <div className="mt-3">
                 <EntityFlagsPanel

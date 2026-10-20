@@ -4,18 +4,18 @@ import Portal from '../UI/Portal.jsx'
 import HtmlThumbnail from '../../features/assets/components/HtmlThumbnail.jsx'
 
 export function playbookFieldClass() {
-  return 'w-full rounded-md border border-gray-300 bg-white px-3 py-2 text-[13px] text-gray-800 outline-none transition-colors focus:border-violet-500'
+  return 'w-full rounded-md border border-line-strong bg-panel px-3 py-2 text-[13px] text-ink-soft outline-none transition-colors focus:border-violet-500'
 }
 
 export function PlaybookField({ label, required, children, hint }) {
   return (
     <label className="block space-y-1.5">
-      <span className="text-xs font-semibold text-gray-700">
+      <span className="text-xs font-semibold text-ink-soft">
         {label}
         {required && <span className="text-red-500"> *</span>}
       </span>
       {children}
-      {hint && <span className="block text-[10px] leading-relaxed text-gray-400">{hint}</span>}
+      {hint && <span className="block text-[10px] leading-relaxed text-ink-faint">{hint}</span>}
     </label>
   )
 }
@@ -48,10 +48,10 @@ export function PlaybookComponentSelect({ icon, bg, color, label, value, options
   const hasLivePreview = Boolean(livePreviewHtml && livePreviewHtml.trim())
 
   return (
-    <div className="overflow-hidden rounded-lg border border-gray-200 bg-white">
+    <div className="overflow-hidden rounded-lg border border-line bg-panel">
       <div className="flex items-center gap-3 p-3">
         <span
-          className="flex h-11 w-14 flex-shrink-0 items-center justify-center overflow-hidden rounded-md border border-gray-100"
+          className="flex h-11 w-14 flex-shrink-0 items-center justify-center overflow-hidden rounded-md border border-line-soft"
           style={hasLivePreview ? undefined : { backgroundColor: bg }}
         >
           {hasLivePreview ? (
@@ -61,22 +61,22 @@ export function PlaybookComponentSelect({ icon, bg, color, label, value, options
           )}
         </span>
         <span className="min-w-0 flex-1">
-          <span className="block text-[13px] font-semibold text-gray-800">{label}</span>
-          <span className="block truncate text-xs font-medium text-gray-500">{displayLabel}</span>
-          {displayDescription && <span className="block truncate text-[10px] font-medium text-gray-400">{displayDescription}</span>}
+          <span className="block text-[13px] font-semibold text-ink-soft">{label}</span>
+          <span className="block truncate text-xs font-medium text-ink-muted">{displayLabel}</span>
+          {displayDescription && <span className="block truncate text-[10px] font-medium text-ink-faint">{displayDescription}</span>}
         </span>
         {canPreview && (
           <button
             type="button"
             onClick={() => onPreview(currentOption)}
-            className="inline-flex flex-shrink-0 items-center gap-1 text-[11px] font-semibold text-violet-500 hover:text-violet-600"
+            className="inline-flex flex-shrink-0 items-center gap-1 text-[11px] font-semibold text-violet-500 hover:text-violet-600 dark:hover:text-violet-400"
           >
             <i className="ti ti-eye" />
             Preview
           </button>
         )}
       </div>
-      <div className="border-t border-gray-200 bg-gray-50 p-3">
+      <div className="border-t border-line bg-panel-subtle p-3">
         <select value={value} onChange={event => onChange(event.target.value)} className={playbookFieldClass()} disabled={disabled}>
           {hasEmptyOption && <option value="">{emptyLabel}</option>}
           {disabled && <option value="">No data in database</option>}
@@ -134,29 +134,29 @@ export function EmailPreview({ value }) {
   }
 
   return (
-    <div className="w-full max-w-2xl rounded-xl border border-gray-200 bg-white shadow-sm">
-      <div className="border-b border-gray-100 p-4">
+    <div className="w-full max-w-2xl rounded-xl border border-line bg-panel shadow-sm">
+      <div className="border-b border-line-soft p-4">
         <div className="flex flex-wrap items-center justify-between gap-2 text-xs">
           <div className="flex items-center gap-2">
-            <span className="font-bold text-gray-900">{sender}</span>
-            <span className="font-mono text-gray-400">&lt;notification@corp-sim.local&gt;</span>
+            <span className="font-bold text-ink">{sender}</span>
+            <span className="font-mono text-ink-faint">&lt;notification@corp-sim.local&gt;</span>
           </div>
-          <span className="text-gray-400">Today, 10:24 AM</span>
+          <span className="text-ink-faint">Today, 10:24 AM</span>
         </div>
         <div className="mt-3 text-xs">
-          <span className="text-gray-400">Subject: </span>
-          <span className="font-semibold text-gray-900">{subject}</span>
+          <span className="text-ink-faint">Subject: </span>
+          <span className="font-semibold text-ink">{subject}</span>
         </div>
       </div>
       <div className="p-7">
-        <div className="mx-auto max-w-lg border border-gray-100 p-6 text-xs leading-relaxed text-gray-700">
-          <div className="mb-4 flex items-center gap-2 font-bold text-gray-700">
+        <div className="mx-auto max-w-lg border border-line-soft p-6 text-xs leading-relaxed text-ink-soft">
+          <div className="mb-4 flex items-center gap-2 font-bold text-ink-soft">
             <span className="h-5 w-5 rounded" style={{ backgroundColor: accent }} />
             <span>{sender}</span>
           </div>
-          <h3 className="text-base font-semibold text-gray-900">{title}</h3>
+          <h3 className="text-base font-semibold text-ink">{title}</h3>
           <p className="mt-3">{body}</p>
-          <div className="mt-5 rounded-lg bg-gray-50 p-3 text-[11px] text-gray-600">
+          <div className="mt-5 rounded-lg bg-panel-subtle p-3 text-[11px] text-ink-muted">
             Request ID: SIM-2025-0428<br />
             Recipient: {'{{.Email}}'}
           </div>
@@ -183,18 +183,18 @@ export function LandingPreview({ value }) {
 
   if (isInvoice) {
     return (
-      <div className="w-full max-w-md rounded-lg border border-gray-200 bg-white p-7 shadow-sm">
+      <div className="w-full max-w-md rounded-lg border border-line bg-panel p-7 shadow-sm">
         <div className="mb-6 flex items-center justify-between">
           <div>
-            <div className="text-sm font-bold text-gray-900">Invoice Approval Portal</div>
-            <div className="text-xs text-gray-500">Finance workflow confirmation</div>
+            <div className="text-sm font-bold text-ink">Invoice Approval Portal</div>
+            <div className="text-xs text-ink-muted">Finance workflow confirmation</div>
           </div>
-          <span className="rounded bg-red-100 px-2 py-1 text-[10px] font-bold text-red-700">URGENT</span>
+          <span className="rounded bg-red-500/15 px-2 py-1 text-[10px] font-bold text-red-700 dark:text-red-300">URGENT</span>
         </div>
         <div className="space-y-3">
-          <input disabled value="INV-2025-0892" className="w-full rounded border border-gray-200 px-3 py-2 text-xs text-gray-700" />
-          <input disabled placeholder="Corporate email" className="w-full rounded border border-gray-200 px-3 py-2 text-xs" />
-          <input disabled placeholder="Approval note" className="w-full rounded border border-gray-200 px-3 py-2 text-xs" />
+          <input disabled value="INV-2025-0892" className="w-full rounded border border-line px-3 py-2 text-xs text-ink-soft" />
+          <input disabled placeholder="Corporate email" className="w-full rounded border border-line px-3 py-2 text-xs" />
+          <input disabled placeholder="Approval note" className="w-full rounded border border-line px-3 py-2 text-xs" />
         </div>
         <button type="button" className="mt-5 w-full rounded bg-red-600 py-2 text-xs font-bold text-white">Submit approval</button>
       </div>
@@ -203,13 +203,13 @@ export function LandingPreview({ value }) {
 
   if (isFile) {
     return (
-      <div className="w-full max-w-md rounded-lg border border-gray-200 bg-white p-7 text-center shadow-sm">
-        <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-lg bg-amber-100 text-amber-700">
+      <div className="w-full max-w-md rounded-lg border border-line bg-panel p-7 text-center shadow-sm">
+        <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-lg bg-amber-500/15 text-amber-700 dark:text-amber-300">
           <i className="ti ti-file-download text-xl" />
         </div>
-        <h3 className="mt-4 text-base font-bold text-gray-900">HR Policy Document</h3>
-        <p className="mt-1 text-xs text-gray-500">Benefit_Update_2025.xlsm</p>
-        <div className="mt-5 rounded-lg border border-gray-200 bg-gray-50 p-3 text-left text-[11px] text-gray-500">
+        <h3 className="mt-4 text-base font-bold text-ink">HR Policy Document</h3>
+        <p className="mt-1 text-xs text-ink-muted">Benefit_Update_2025.xlsm</p>
+        <div className="mt-5 rounded-lg border border-line bg-panel-subtle p-3 text-left text-[11px] text-ink-muted">
           File size: 428 KB<br />
           Source: HR benefits portal
         </div>
@@ -220,18 +220,18 @@ export function LandingPreview({ value }) {
 
   if (isHr) {
     return (
-      <div className="w-full max-w-md rounded-lg border border-gray-200 bg-white p-7 shadow-sm">
+      <div className="w-full max-w-md rounded-lg border border-line bg-panel p-7 shadow-sm">
         <div className="text-center">
-          <div className="mx-auto flex h-11 w-11 items-center justify-center rounded-lg bg-emerald-100 text-emerald-700">
+          <div className="mx-auto flex h-11 w-11 items-center justify-center rounded-lg bg-emerald-500/15 text-emerald-700 dark:text-emerald-300">
             <i className="ti ti-id-badge-2 text-xl" />
           </div>
-          <h3 className="mt-3 text-base font-bold text-gray-900">HR Employee Portal</h3>
-          <p className="text-xs text-gray-500">Update employee data</p>
+          <h3 className="mt-3 text-base font-bold text-ink">HR Employee Portal</h3>
+          <p className="text-xs text-ink-muted">Update employee data</p>
         </div>
         <div className="mt-5 space-y-3">
-          <input disabled placeholder="Employee ID" className="w-full rounded border border-gray-200 px-3 py-2 text-xs" />
-          <input disabled placeholder="Corporate email" className="w-full rounded border border-gray-200 px-3 py-2 text-xs" />
-          <input disabled placeholder="Phone number" className="w-full rounded border border-gray-200 px-3 py-2 text-xs" />
+          <input disabled placeholder="Employee ID" className="w-full rounded border border-line px-3 py-2 text-xs" />
+          <input disabled placeholder="Corporate email" className="w-full rounded border border-line px-3 py-2 text-xs" />
+          <input disabled placeholder="Phone number" className="w-full rounded border border-line px-3 py-2 text-xs" />
         </div>
         <button type="button" className="mt-5 w-full rounded bg-emerald-600 py-2 text-xs font-bold text-white">Update data</button>
       </div>
@@ -240,17 +240,17 @@ export function LandingPreview({ value }) {
 
   if (isReset || isPrize) {
     return (
-      <div className="w-full max-w-md rounded-lg border border-gray-200 bg-white p-7 shadow-sm">
+      <div className="w-full max-w-md rounded-lg border border-line bg-panel p-7 shadow-sm">
         <div className="text-center">
-          <div className="mx-auto flex h-11 w-11 items-center justify-center rounded-lg bg-blue-100 text-blue-700">
+          <div className="mx-auto flex h-11 w-11 items-center justify-center rounded-lg bg-blue-500/15 text-blue-700 dark:text-blue-300">
             <i className={clsx('ti text-xl', isPrize ? 'ti-gift' : 'ti-key')} />
           </div>
-          <h3 className="mt-3 text-base font-bold text-gray-900">{isPrize ? 'Prize Claim Portal' : 'IT Self-Service Password Reset'}</h3>
-          <p className="text-xs text-gray-500">{isPrize ? 'Corporate reward verification' : 'Active Directory verification'}</p>
+          <h3 className="mt-3 text-base font-bold text-ink">{isPrize ? 'Prize Claim Portal' : 'IT Self-Service Password Reset'}</h3>
+          <p className="text-xs text-ink-muted">{isPrize ? 'Corporate reward verification' : 'Active Directory verification'}</p>
         </div>
         <div className="mt-5 space-y-3">
-          <input disabled placeholder="Username / Email" className="w-full rounded border border-gray-200 px-3 py-2 text-xs" />
-          <input disabled placeholder="Password" type="password" className="w-full rounded border border-gray-200 px-3 py-2 text-xs" />
+          <input disabled placeholder="Username / Email" className="w-full rounded border border-line px-3 py-2 text-xs" />
+          <input disabled placeholder="Password" type="password" className="w-full rounded border border-line px-3 py-2 text-xs" />
         </div>
         <button type="button" className="mt-5 w-full rounded bg-blue-600 py-2 text-xs font-bold text-white">{isPrize ? 'Claim reward' : 'Reset password'}</button>
       </div>
@@ -258,8 +258,8 @@ export function LandingPreview({ value }) {
   }
 
   return (
-    <div className="w-full max-w-sm rounded border border-gray-300 bg-white p-8 shadow-sm">
-      <div className="mb-5 flex items-center gap-2 font-semibold text-gray-500">
+    <div className="w-full max-w-sm rounded border border-line-strong bg-panel p-8 shadow-sm">
+      <div className="mb-5 flex items-center gap-2 font-semibold text-ink-muted">
         <div className="grid h-4 w-4 grid-cols-2 gap-0.5">
           <span className="bg-[#f25022]" />
           <span className="bg-[#7fba00]" />
@@ -268,8 +268,8 @@ export function LandingPreview({ value }) {
         </div>
         <span>Microsoft</span>
       </div>
-      <h3 className="text-base font-semibold text-gray-900">Sign in</h3>
-      <input disabled placeholder="Email, phone, or Skype" className="mt-5 w-full border-b border-gray-400 bg-transparent py-2 text-xs outline-none" />
+      <h3 className="text-base font-semibold text-ink">Sign in</h3>
+      <input disabled placeholder="Email, phone, or Skype" className="mt-5 w-full border-b border-line-strong bg-transparent py-2 text-xs outline-none" />
       <div className="mt-6 flex justify-end">
         <button type="button" className="rounded bg-[#0067b8] px-6 py-1.5 text-xs font-semibold text-white">Next</button>
       </div>
@@ -279,23 +279,23 @@ export function LandingPreview({ value }) {
 
 function LandingHtmlPreview({ html, redirectUrl }) {
   return (
-    <div className="flex w-full max-w-5xl flex-col overflow-hidden rounded-xl border border-gray-200 bg-white shadow-sm">
-      <div className="flex items-center gap-3 border-b border-gray-200 bg-gray-50 px-4 py-3">
+    <div className="flex w-full max-w-5xl flex-col overflow-hidden rounded-xl border border-line bg-panel shadow-sm">
+      <div className="flex items-center gap-3 border-b border-line bg-panel-subtle px-4 py-3">
         <div className="flex flex-shrink-0 items-center gap-1.5">
           <span className="h-3 w-3 rounded-full bg-red-400" />
           <span className="h-3 w-3 rounded-full bg-yellow-400" />
           <span className="h-3 w-3 rounded-full bg-green-400" />
         </div>
-        <div className="flex flex-1 select-none items-center gap-2 rounded-lg border border-gray-200 bg-white px-3 py-1.5 font-mono text-xs text-gray-500">
-          <i className="ti ti-lock text-emerald-600" />
+        <div className="flex flex-1 select-none items-center gap-2 rounded-lg border border-line bg-panel px-3 py-1.5 font-mono text-xs text-ink-muted">
+          <i className="ti ti-lock text-emerald-600 dark:text-emerald-400" />
           <span className="truncate">{redirectUrl || 'https://portal.office.com'}</span>
         </div>
       </div>
-      <div className="flex min-h-[500px] w-full items-center justify-center bg-gray-50 p-4">
+      <div className="flex min-h-[500px] w-full items-center justify-center bg-panel-subtle p-4">
         <iframe
           srcDoc={html || '<h3>No HTML content</h3>'}
           title="Landing Page Preview"
-          className="min-h-[480px] w-full rounded-lg border border-gray-200/80 bg-white shadow-sm"
+          className="min-h-[480px] w-full rounded-lg border border-line/80 bg-panel shadow-sm"
           sandbox="allow-scripts"
         />
       </div>
@@ -315,11 +315,11 @@ export function PlaybookPreviewModal({ preview, onClose, offsetForSlideover = fa
     <Portal>
       <section
         className={clsx(
-          'fixed bottom-6 left-6 right-6 top-6 z-[60] flex flex-col overflow-hidden rounded-xl border border-gray-200 bg-white shadow-2xl',
+          'fixed bottom-6 left-6 right-6 top-6 z-[60] flex flex-col overflow-hidden rounded-xl border border-line bg-panel shadow-2xl',
           offsetForSlideover && 'lg:right-[500px]'
         )}
       >
-        <header className="flex flex-shrink-0 items-center gap-3 border-b border-gray-200 px-5 py-4">
+        <header className="flex flex-shrink-0 items-center gap-3 border-b border-line px-5 py-4">
           <span
             className="flex h-9 w-9 items-center justify-center rounded-lg"
             style={{ backgroundColor: isEmail ? '#DBEAFE' : '#D1FAE5', color: isEmail ? '#1D4ED8' : '#065F46' }}
@@ -327,19 +327,19 @@ export function PlaybookPreviewModal({ preview, onClose, offsetForSlideover = fa
             <i className={clsx('ti', isEmail ? 'ti-mail' : 'ti-world')} />
           </span>
           <div className="min-w-0 flex-1">
-            <h2 className="truncate text-sm font-bold text-gray-900">{isEmail ? 'Preview email' : 'Preview landing page'}</h2>
-            <p className="truncate text-xs text-gray-500">{displayValue}</p>
+            <h2 className="truncate text-sm font-bold text-ink">{isEmail ? 'Preview email' : 'Preview landing page'}</h2>
+            <p className="truncate text-xs text-ink-muted">{displayValue}</p>
           </div>
           <button
             type="button"
             onClick={onClose}
-            className="flex h-8 w-8 items-center justify-center rounded-lg text-gray-400 hover:bg-gray-100 hover:text-gray-700"
+            className="flex h-8 w-8 items-center justify-center rounded-lg text-ink-faint hover:bg-panel-muted hover:text-ink-soft"
             aria-label="Close preview"
           >
             <i className="ti ti-x text-lg" />
           </button>
         </header>
-        <div className="flex flex-1 items-center justify-center overflow-y-auto bg-gray-100 p-6">
+        <div className="flex flex-1 items-center justify-center overflow-y-auto bg-panel-muted p-6">
           {isEmail && hasHtml && (
             <ClientPreview
               html={html}

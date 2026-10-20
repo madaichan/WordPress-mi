@@ -25,16 +25,16 @@ const REPORT_REFRESH_INTERVAL_MS = 30000
 // CampaignRunService::department_risk_level() (click_rate >= 40 High,
 // >= 15 Med, else Low).
 const RISK_STYLE = {
-  High: { bar: 'bg-red-500', text: 'text-red-600', badge: 'bg-red-100 text-red-700' },
-  Med: { bar: 'bg-amber-500', text: 'text-amber-600', badge: 'bg-amber-100 text-amber-700' },
-  Low: { bar: 'bg-emerald-500', text: 'text-emerald-600', badge: 'bg-emerald-100 text-emerald-700' },
+  High: { bar: 'bg-red-500', text: 'text-red-600 dark:text-red-400', badge: 'bg-red-500/15 text-red-700 dark:text-red-300' },
+  Med: { bar: 'bg-amber-500', text: 'text-amber-600 dark:text-amber-400', badge: 'bg-amber-500/15 text-amber-700 dark:text-amber-300' },
+  Low: { bar: 'bg-emerald-500', text: 'text-emerald-600 dark:text-emerald-400', badge: 'bg-emerald-500/15 text-emerald-700 dark:text-emerald-300' },
 }
 
 // Styling per live-feed event message (CampaignRunService::FEED_EVENT_TYPES).
 const EVENT_META = {
-  'Clicked Link': { icon: 'ti-pointer', tone: 'bg-red-100 text-red-600', label: 'Clicked phishing link' },
-  'Submitted Data': { icon: 'ti-forms', tone: 'bg-red-100 text-red-600', label: 'Submitted data — credential harvested' },
-  'Email Reported': { icon: 'ti-shield-check', tone: 'bg-emerald-100 text-emerald-600', label: 'Reported as phishing' },
+  'Clicked Link': { icon: 'ti-pointer', tone: 'bg-red-500/15 text-red-600 dark:text-red-400', label: 'Clicked phishing link' },
+  'Submitted Data': { icon: 'ti-forms', tone: 'bg-red-500/15 text-red-600 dark:text-red-400', label: 'Submitted data — credential harvested' },
+  'Email Reported': { icon: 'ti-shield-check', tone: 'bg-emerald-500/15 text-emerald-600 dark:text-emerald-400', label: 'Reported as phishing' },
 }
 
 // Column schema for the "Target details" DataTable — same shape TableRegistry
@@ -70,21 +70,21 @@ const TARGET_DETAILS_SCHEMA = {
 const TARGET_DETAILS_DEFAULT_STATE = { search: '', sort: 'name', order: 'asc', page: 1, perPage: 25 }
 
 const STAT_CARDS = [
-  { key: 'email_sent', label: 'Sent', icon: 'ti-send', cls: 'text-gray-500' },
-  { key: 'email_opened', label: 'Opened', icon: 'ti-eye', cls: 'text-amber-600', rateKey: 'open_rate' },
-  { key: 'clicked', label: 'Link clicks', icon: 'ti-pointer', cls: 'text-red-600', rateKey: 'click_rate' },
-  { key: 'submitted_data', label: 'Data submitted', icon: 'ti-forms', cls: 'text-red-600', rateKey: 'submit_rate' },
+  { key: 'email_sent', label: 'Sent', icon: 'ti-send', cls: 'text-ink-muted' },
+  { key: 'email_opened', label: 'Opened', icon: 'ti-eye', cls: 'text-amber-600 dark:text-amber-400', rateKey: 'open_rate' },
+  { key: 'clicked', label: 'Link clicks', icon: 'ti-pointer', cls: 'text-red-600 dark:text-red-400', rateKey: 'click_rate' },
+  { key: 'submitted_data', label: 'Data submitted', icon: 'ti-forms', cls: 'text-red-600 dark:text-red-400', rateKey: 'submit_rate' },
 ]
 
 // Mirrors the campaign_runs toneMap in TableRegistry.php.
 const STATUS_META = {
-  draft_run: { label: 'Draft', cls: 'bg-gray-100 text-gray-600' },
-  ready_for_sync: { label: 'Ready to sync', cls: 'bg-gray-100 text-gray-600' },
-  synced: { label: 'Synced', cls: 'bg-blue-100 text-blue-700' },
-  scheduled: { label: 'Scheduled', cls: 'bg-blue-100 text-blue-700' },
-  running: { label: 'Running', cls: 'bg-blue-100 text-blue-700' },
-  completed: { label: 'Completed', cls: 'bg-emerald-100 text-emerald-700' },
-  cancelled: { label: 'Cancelled', cls: 'bg-amber-100 text-amber-700' },
+  draft_run: { label: 'Draft', cls: 'bg-panel-muted text-ink-muted' },
+  ready_for_sync: { label: 'Ready to sync', cls: 'bg-panel-muted text-ink-muted' },
+  synced: { label: 'Synced', cls: 'bg-blue-500/15 text-blue-700 dark:text-blue-300' },
+  scheduled: { label: 'Scheduled', cls: 'bg-blue-500/15 text-blue-700 dark:text-blue-300' },
+  running: { label: 'Running', cls: 'bg-blue-500/15 text-blue-700 dark:text-blue-300' },
+  completed: { label: 'Completed', cls: 'bg-emerald-500/15 text-emerald-700 dark:text-emerald-300' },
+  cancelled: { label: 'Cancelled', cls: 'bg-amber-500/15 text-amber-700 dark:text-amber-300' },
 }
 
 function formatDateTime(value) {
@@ -96,8 +96,8 @@ function formatDateTime(value) {
 function InfoField({ label, value }) {
   return (
     <div>
-      <span className="block text-[10px] font-semibold uppercase tracking-wide text-gray-400">{label}</span>
-      <span className="mt-0.5 block font-semibold text-gray-800">{value}</span>
+      <span className="block text-[10px] font-semibold uppercase tracking-wide text-ink-faint">{label}</span>
+      <span className="mt-0.5 block font-semibold text-ink-soft">{value}</span>
     </div>
   )
 }
@@ -115,7 +115,7 @@ function formatEventTime(value) {
 }
 
 function EmptySection({ children }) {
-  return <p className="py-6 text-center text-xs text-gray-400">{children}</p>
+  return <p className="py-6 text-center text-xs text-ink-faint">{children}</p>
 }
 
 // One row of a Campaign Run summary — name/status, playbook/launch/targets/
@@ -123,23 +123,23 @@ function EmptySection({ children }) {
 // list (under Simulation funnel) and the "Campaign funnel" section (inside
 // Live event feed) so both stay visually identical.
 function CampaignSummaryRow({ run, onView }) {
-  const meta = STATUS_META[run.status] || { label: run.status, cls: 'bg-gray-100 text-gray-600' }
+  const meta = STATUS_META[run.status] || { label: run.status, cls: 'bg-panel-muted text-ink-muted' }
 
   return (
-    <div className="flex items-center justify-between gap-3 border-b border-gray-50 px-3 py-2 last:border-0 hover:bg-gray-50">
+    <div className="flex items-center justify-between gap-3 border-b border-line-soft px-3 py-2 last:border-0 hover:bg-panel-subtle">
       <div className="min-w-0">
         <div className="flex min-w-0 items-center gap-2">
-          <span className="truncate text-xs font-semibold text-gray-800">{run.name}</span>
+          <span className="truncate text-xs font-semibold text-ink-soft">{run.name}</span>
           <span className={clsx('shrink-0 rounded-full px-1.5 py-0.5 text-[9px] font-bold uppercase tracking-wide', meta.cls)}>
             {meta.label}
           </span>
         </div>
-        <div className="mt-0.5 flex flex-wrap items-center gap-x-3 gap-y-0.5 text-[10px] text-gray-500">
+        <div className="mt-0.5 flex flex-wrap items-center gap-x-3 gap-y-0.5 text-[10px] text-ink-muted">
           <span>{run.playbook_name || 'No playbook'}</span>
           <span>{formatDateTime(run.launched_at || run.schedule_at)}</span>
           <span>{(run.target_count ?? 0).toLocaleString('en-US')} targets</span>
           <span>{(run.stats?.clicked ?? 0).toLocaleString('en-US')} clicked ({run.stats?.click_rate ?? 0}%)</span>
-          <span className="italic text-gray-400" title="Monitoring isn't live — this is from the last GoPhish sync, not real-time">
+          <span className="italic text-ink-faint" title="Monitoring isn't live — this is from the last GoPhish sync, not real-time">
             {run.synced_at ? `Synced ${formatEventTime(run.synced_at)}` : 'Never synced'}
           </span>
         </div>
@@ -147,7 +147,7 @@ function CampaignSummaryRow({ run, onView }) {
       <button
         type="button"
         onClick={onView}
-        className="inline-flex shrink-0 items-center gap-1 rounded-lg border border-gray-200 px-2 py-1 text-[10px] font-semibold text-gray-600 hover:border-violet-300 hover:text-violet-600"
+        className="inline-flex shrink-0 items-center gap-1 rounded-lg border border-line px-2 py-1 text-[10px] font-semibold text-ink-muted hover:border-violet-300 hover:text-violet-600 dark:hover:text-violet-400"
       >
         <i className="ti ti-eye text-xs" /> View
       </button>
@@ -218,8 +218,8 @@ export default function Performing() {
   const hasQuizData = (stats?.quiz_completed ?? 0) > 0
   const statCards = useMemo(() => {
     const cards = [...STAT_CARDS]
-    if (hasEducationData) cards.push({ key: 'education_completed', label: 'Education viewed', icon: 'ti-book', cls: 'text-emerald-600', rateKey: 'education_rate' })
-    if (hasQuizData) cards.push({ key: 'quiz_completed', label: 'Quiz completed', icon: 'ti-checkbox', cls: 'text-emerald-600', rateKey: 'quiz_rate' })
+    if (hasEducationData) cards.push({ key: 'education_completed', label: 'Education viewed', icon: 'ti-book', cls: 'text-emerald-600 dark:text-emerald-400', rateKey: 'education_rate' })
+    if (hasQuizData) cards.push({ key: 'quiz_completed', label: 'Quiz completed', icon: 'ti-checkbox', cls: 'text-emerald-600 dark:text-emerald-400', rateKey: 'quiz_rate' })
     return cards
   }, [hasEducationData, hasQuizData])
   const targetSchema = useMemo(() => {
@@ -285,7 +285,7 @@ export default function Performing() {
     }, null)
   }, [campaignRuns])
 
-  const statusMeta = runDetail ? (STATUS_META[runDetail.status] || { label: runDetail.status, cls: 'bg-gray-100 text-gray-600' }) : null
+  const statusMeta = runDetail ? (STATUS_META[runDetail.status] || { label: runDetail.status, cls: 'bg-panel-muted text-ink-muted' }) : null
   const runGroupName = runDetail?.campaign_group_id
     ? groups.find(group => String(group.id) === String(runDetail.campaign_group_id))?.name || `Group #${runDetail.campaign_group_id}`
     : 'Ungrouped'
@@ -397,7 +397,7 @@ export default function Performing() {
                 <select
                   value={selectedGroupId}
                   onChange={e => setSelectedGroupId(e.target.value)}
-                  className="bg-white border border-gray-200 text-gray-700 text-xs font-semibold px-3 py-2 rounded-xl focus:outline-none focus:border-violet-500"
+                  className="bg-panel border border-line text-ink-soft text-xs font-semibold px-3 py-2 rounded-xl focus:outline-none focus:border-violet-500"
                 >
                   <option value="active">All active groups</option>
                   <option value="0">Ungrouped</option>
@@ -406,7 +406,7 @@ export default function Performing() {
                   ))}
                 </select>
                 <span
-                  className="text-[10px] italic text-gray-400"
+                  className="text-[10px] italic text-ink-faint"
                   title="Oldest data point across the campaigns in this selection — each is only as fresh as its own last GoPhish pull"
                 >
                   {lastSyncedAt ? `Last synced ${formatEventTime(lastSyncedAt)}` : 'Never synced'}
@@ -439,13 +439,13 @@ export default function Performing() {
               {showExportDataMenu && (
                 <div
                   role="menu"
-                  className="absolute right-0 top-full z-20 mt-1 min-w-[160px] overflow-hidden rounded-xl border border-gray-200 bg-white py-1 shadow-lg"
+                  className="absolute right-0 top-full z-20 mt-1 min-w-[160px] overflow-hidden rounded-xl border border-line bg-panel py-1 shadow-lg"
                 >
                   <button
                     type="button"
                     role="menuitem"
                     onClick={() => handleExportData('csv')}
-                    className="flex w-full items-center gap-2 px-3 py-2 text-left text-xs font-medium text-gray-700 hover:bg-gray-50"
+                    className="flex w-full items-center gap-2 px-3 py-2 text-left text-xs font-medium text-ink-soft hover:bg-panel-subtle"
                   >
                     <i className="ti ti-file-type-csv text-sm" /> CSV
                   </button>
@@ -453,7 +453,7 @@ export default function Performing() {
                     type="button"
                     role="menuitem"
                     onClick={() => handleExportData('xlsx')}
-                    className="flex w-full items-center gap-2 px-3 py-2 text-left text-xs font-medium text-gray-700 hover:bg-gray-50"
+                    className="flex w-full items-center gap-2 px-3 py-2 text-left text-xs font-medium text-ink-soft hover:bg-panel-subtle"
                   >
                     <i className="ti ti-file-type-xls text-sm" /> Excel (.xlsx)
                   </button>
@@ -465,11 +465,11 @@ export default function Performing() {
       />
 
       {runId && runDetail && (
-        <div className="bg-white border border-gray-200 rounded-xl p-5">
+        <div className="bg-panel border border-line rounded-xl p-5">
           <div className="flex flex-wrap items-start justify-between gap-3">
             <div className="min-w-0">
               <div className="flex flex-wrap items-center gap-2">
-                <h3 className="text-base font-semibold text-gray-900">{runDetail.name}</h3>
+                <h3 className="text-base font-semibold text-ink">{runDetail.name}</h3>
                 {statusMeta && (
                   <span className={clsx('rounded-full px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide', statusMeta.cls)}>
                     {statusMeta.label}
@@ -477,7 +477,7 @@ export default function Performing() {
                 )}
               </div>
               {runDetail.source_playbook?.description && (
-                <p className="mt-1 max-w-2xl text-xs text-gray-500">{runDetail.source_playbook.description}</p>
+                <p className="mt-1 max-w-2xl text-xs text-ink-muted">{runDetail.source_playbook.description}</p>
               )}
             </div>
           </div>
@@ -497,53 +497,53 @@ export default function Performing() {
             />
           </div>
 
-          <div className="mt-4 grid grid-cols-1 gap-3 border-t border-gray-100 pt-4 sm:grid-cols-2">
-            <div className="flex items-center justify-between gap-3 rounded-lg border border-gray-100 px-3 py-2.5">
+          <div className="mt-4 grid grid-cols-1 gap-3 border-t border-line-soft pt-4 sm:grid-cols-2">
+            <div className="flex items-center justify-between gap-3 rounded-lg border border-line-soft px-3 py-2.5">
               <div className="min-w-0">
-                <span className="block text-[10px] font-semibold uppercase tracking-wide text-gray-400">Email template used</span>
+                <span className="block text-[10px] font-semibold uppercase tracking-wide text-ink-faint">Email template used</span>
                 {emailTemplate ? (
                   <>
-                    <span className="mt-0.5 block truncate text-xs font-semibold text-gray-800">
+                    <span className="mt-0.5 block truncate text-xs font-semibold text-ink-soft">
                       {emailTemplate.name || emailTemplate.subject || `Template #${emailTemplate.master_id}`}
                     </span>
-                    <span className="block truncate text-[10px] text-gray-400">v{emailTemplate.version} · {emailTemplate.subject || 'No subject'}</span>
+                    <span className="block truncate text-[10px] text-ink-faint">v{emailTemplate.version} · {emailTemplate.subject || 'No subject'}</span>
                   </>
                 ) : (
-                  <span className="mt-0.5 block text-xs text-gray-400">Not available until launch</span>
+                  <span className="mt-0.5 block text-xs text-ink-faint">Not available until launch</span>
                 )}
               </div>
               {emailTemplate && (
                 <button
                   type="button"
                   onClick={viewEmailTemplate}
-                  className="inline-flex shrink-0 items-center gap-1 rounded-lg border border-gray-200 px-2 py-1 text-[10px] font-semibold text-gray-600 hover:border-violet-300 hover:text-violet-600"
+                  className="inline-flex shrink-0 items-center gap-1 rounded-lg border border-line px-2 py-1 text-[10px] font-semibold text-ink-muted hover:border-violet-300 hover:text-violet-600 dark:hover:text-violet-400"
                 >
                   <i className="ti ti-eye text-xs" /> View
                 </button>
               )}
             </div>
 
-            <div className="flex items-center justify-between gap-3 rounded-lg border border-gray-100 px-3 py-2.5">
+            <div className="flex items-center justify-between gap-3 rounded-lg border border-line-soft px-3 py-2.5">
               <div className="min-w-0">
-                <span className="block text-[10px] font-semibold uppercase tracking-wide text-gray-400">Landing page used</span>
+                <span className="block text-[10px] font-semibold uppercase tracking-wide text-ink-faint">Landing page used</span>
                 {landingPage ? (
                   <>
-                    <span className="mt-0.5 block truncate text-xs font-semibold text-gray-800">
+                    <span className="mt-0.5 block truncate text-xs font-semibold text-ink-soft">
                       {landingPage.name || `Landing page #${landingPage.master_id}`}
                     </span>
-                    <span className="block truncate text-[10px] text-gray-400">
+                    <span className="block truncate text-[10px] text-ink-faint">
                       v{landingPage.version}{landingPage.redirect_settings?.redirect_url ? ` · redirects to ${landingPage.redirect_settings.redirect_url}` : ''}
                     </span>
                   </>
                 ) : (
-                  <span className="mt-0.5 block text-xs text-gray-400">Not available until launch</span>
+                  <span className="mt-0.5 block text-xs text-ink-faint">Not available until launch</span>
                 )}
               </div>
               {landingPage && (
                 <button
                   type="button"
                   onClick={viewLandingPage}
-                  className="inline-flex shrink-0 items-center gap-1 rounded-lg border border-gray-200 px-2 py-1 text-[10px] font-semibold text-gray-600 hover:border-violet-300 hover:text-violet-600"
+                  className="inline-flex shrink-0 items-center gap-1 rounded-lg border border-line px-2 py-1 text-[10px] font-semibold text-ink-muted hover:border-violet-300 hover:text-violet-600 dark:hover:text-violet-400"
                 >
                   <i className="ti ti-eye text-xs" /> View
                 </button>
@@ -557,12 +557,12 @@ export default function Performing() {
 
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
         {statCards.map(card => (
-          <div key={card.key} className="bg-white border border-gray-200 rounded-xl p-4 flex flex-col justify-between">
-            <div className="flex items-center gap-1.5 text-xs text-gray-500 font-medium">
+          <div key={card.key} className="bg-panel border border-line rounded-xl p-4 flex flex-col justify-between">
+            <div className="flex items-center gap-1.5 text-xs text-ink-muted font-medium">
               <i className={clsx('ti text-sm', card.icon)} />
               <span>{card.label}</span>
             </div>
-            <span className="text-2xl font-bold text-gray-900 mt-2">
+            <span className="text-2xl font-bold text-ink mt-2">
               {isLoading ? '—' : (stats?.[card.key] ?? 0).toLocaleString('en-US')}
             </span>
             <span className={clsx('text-xs font-semibold mt-1', card.cls)}>
@@ -573,41 +573,41 @@ export default function Performing() {
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-5 gap-6">
-        <div className="bg-white border border-gray-200 rounded-xl p-5 lg:col-span-3 space-y-6">
+        <div className="bg-panel border border-line rounded-xl p-5 lg:col-span-3 space-y-6">
           <div>
-            <h3 className="text-base font-semibold text-gray-900">Simulation funnel</h3>
+            <h3 className="text-base font-semibold text-ink">Simulation funnel</h3>
           </div>
 
           <div className="space-y-3">
             {[
-              { label: 'Emails sent', value: stats?.email_sent ?? 0, pct: 100, cls: 'bg-violet-100 text-violet-700' },
-              { label: 'Emails opened', value: stats?.email_opened ?? 0, pct: stats?.open_rate ?? 0, cls: 'bg-amber-200 text-amber-700' },
-              { label: 'Link clicks', value: stats?.clicked ?? 0, pct: stats?.click_rate ?? 0, cls: 'bg-red-200 text-red-700' },
+              { label: 'Emails sent', value: stats?.email_sent ?? 0, pct: 100, cls: 'bg-violet-500/15 text-violet-700 dark:text-violet-300' },
+              { label: 'Emails opened', value: stats?.email_opened ?? 0, pct: stats?.open_rate ?? 0, cls: 'bg-amber-500/25 text-amber-700 dark:text-amber-300' },
+              { label: 'Link clicks', value: stats?.clicked ?? 0, pct: stats?.click_rate ?? 0, cls: 'bg-red-500/25 text-red-700 dark:text-red-300' },
               { label: 'Data Submitted', value: stats?.submitted_data ?? 0, pct: stats?.submit_rate ?? 0, cls: 'bg-red-400 text-white' },
             ].map(row => (
               <div key={row.label} className="flex items-center gap-3 text-xs">
-                <span className="min-w-[100px] font-semibold text-gray-600">{row.label}</span>
-                <div className="flex-grow bg-gray-100 h-6 rounded overflow-hidden relative">
+                <span className="min-w-[100px] font-semibold text-ink-muted">{row.label}</span>
+                <div className="flex-grow bg-panel-muted h-6 rounded overflow-hidden relative">
                   <div className={clsx('absolute inset-y-0 left-0 flex items-center px-3 font-bold transition-all duration-300', row.cls)} style={{ width: `${row.pct}%` }}>
                     {row.value.toLocaleString('en-US')}
                   </div>
                 </div>
-                <span className="font-bold text-gray-500 w-10 text-right">{row.pct}%</span>
+                <span className="font-bold text-ink-muted w-10 text-right">{row.pct}%</span>
               </div>
             ))}
           </div>
 
-          <hr className="border-gray-100" />
+          <hr className="border-line-soft" />
 
-          <h3 className="text-base font-semibold text-gray-900">By department</h3>
+          <h3 className="text-base font-semibold text-ink">By department</h3>
           {departmentBreakdown.length === 0 ? (
             <EmptySection>No results synced yet — department breakdown appears once GoPhish results are pulled in.</EmptySection>
           ) : (
-            <div className="overflow-hidden rounded-2xl border border-gray-200 bg-white shadow-sm">
+            <div className="overflow-hidden rounded-2xl border border-line bg-panel shadow-sm">
               <div className="overflow-x-auto">
                 <table className="w-full border-collapse text-left text-xs">
                   <thead>
-                    <tr className="border-b border-gray-100 bg-gray-50 text-[10px] font-semibold uppercase tracking-wider text-gray-500">
+                    <tr className="border-b border-line-soft bg-panel-subtle text-[10px] font-semibold uppercase tracking-wider text-ink-muted">
                       <th className="p-4">Dept</th>
                       <th className="p-4">Target</th>
                       <th className="p-4">Click</th>
@@ -615,14 +615,14 @@ export default function Performing() {
                       <th className="p-4">Risk</th>
                     </tr>
                   </thead>
-                  <tbody className="divide-y divide-gray-100">
+                  <tbody className="divide-y divide-line-soft">
                     {departmentBreakdown.map(row => {
                       const style = RISK_STYLE[row.risk_level] || RISK_STYLE.Low
                       return (
-                        <tr key={row.department} className="transition-colors hover:bg-gray-50/70">
-                          <td className="p-4 font-semibold text-gray-900">{row.department}</td>
-                          <td className="p-4 text-gray-700">{row.total}</td>
-                          <td className="p-4 text-gray-700">{row.clicked}</td>
+                        <tr key={row.department} className="transition-colors hover:bg-panel-subtle/70">
+                          <td className="p-4 font-semibold text-ink">{row.department}</td>
+                          <td className="p-4 text-ink-soft">{row.total}</td>
+                          <td className="p-4 text-ink-soft">{row.clicked}</td>
                           <td className="p-4">
                             <div className={clsx('h-1.5 rounded-full inline-block mr-1', style.bar)} style={{ width: `${row.click_rate}px` }} />
                             <span className={clsx('font-semibold align-middle', style.text)}>{row.click_rate}%</span>
@@ -641,8 +641,8 @@ export default function Performing() {
         </div>
 
         <div className="lg:col-span-2 space-y-6 flex flex-col">
-          <div className="bg-white border border-gray-200 rounded-xl p-5">
-            <h3 className="text-sm font-semibold text-gray-900 mb-3">Activity per hour</h3>
+          <div className="bg-panel border border-line rounded-xl p-5">
+            <h3 className="text-sm font-semibold text-ink mb-3">Activity per hour</h3>
             {!hourlyActivity.some(value => value > 0) ? (
               <EmptySection>No click activity yet.</EmptySection>
             ) : (
@@ -651,13 +651,13 @@ export default function Performing() {
                   {hourlyActivity.map((value, hour) => (
                     <div
                       key={hour}
-                      className={clsx('flex-1 rounded-t transition-all duration-300', value === maxHourly && value > 0 ? 'bg-red-500' : 'bg-gray-200')}
+                      className={clsx('flex-1 rounded-t transition-all duration-300', value === maxHourly && value > 0 ? 'bg-red-500' : 'bg-panel-strong')}
                       title={`${String(hour).padStart(2, '0')}:00 — ${value} click${value === 1 ? '' : 's'}`}
                       style={{ height: `${(value / maxHourly) * 100}%` }}
                     />
                   ))}
                 </div>
-                <div className="flex justify-between text-[9px] text-gray-400 font-semibold px-0.5">
+                <div className="flex justify-between text-[9px] text-ink-faint font-semibold px-0.5">
                   <span>00:00</span>
                   <span>06:00</span>
                   <span>12:00</span>
@@ -668,54 +668,54 @@ export default function Performing() {
             )}
           </div>
 
-          <div className="bg-white border border-gray-200 rounded-xl p-5 flex-grow">
+          <div className="bg-panel border border-line rounded-xl p-5 flex-grow">
             {!runId && campaignRuns.length > 0 && (
               <>
-                <h3 className="text-sm font-semibold text-gray-900">Campaign funnel</h3>
-                <p className="text-xs text-gray-500 mt-0.5 mb-3">
+                <h3 className="text-sm font-semibold text-ink">Campaign funnel</h3>
+                <p className="text-xs text-ink-muted mt-0.5 mb-3">
                   {campaignRuns.length} campaign{campaignRuns.length === 1 ? '' : 's'} in this selection
                 </p>
                 <div className="relative mb-2">
-                  <i className="ti ti-search pointer-events-none absolute left-2.5 top-1/2 -translate-y-1/2 text-xs text-gray-400" />
+                  <i className="ti ti-search pointer-events-none absolute left-2.5 top-1/2 -translate-y-1/2 text-xs text-ink-faint" />
                   <input
                     type="text"
                     value={funnelCampaignSearch}
                     onChange={e => setFunnelCampaignSearch(e.target.value)}
                     placeholder="Search campaigns..."
-                    className="w-full rounded-lg border border-gray-200 py-1.5 pl-7 pr-3 text-xs focus:border-violet-500 focus:outline-none"
+                    className="w-full rounded-lg border border-line py-1.5 pl-7 pr-3 text-xs focus:border-violet-500 focus:outline-none"
                   />
                 </div>
-                <div className="max-h-56 space-y-1 overflow-y-auto rounded-lg border border-gray-100">
+                <div className="max-h-56 space-y-1 overflow-y-auto rounded-lg border border-line-soft">
                   {funnelCampaignRuns.length === 0 ? (
-                    <p className="px-3 py-4 text-center text-[11px] text-gray-400">No campaigns match &quot;{funnelCampaignSearch}&quot;.</p>
+                    <p className="px-3 py-4 text-center text-[11px] text-ink-faint">No campaigns match &quot;{funnelCampaignSearch}&quot;.</p>
                   ) : (
                     funnelCampaignRuns.map(run => (
                       <CampaignSummaryRow key={run.campaign_run_id} run={run} onView={() => navigate(`/monitoring?run=${run.campaign_run_id}`)} />
                     ))
                   )}
                 </div>
-                <hr className="my-4 border-gray-100" />
+                <hr className="my-4 border-line-soft" />
               </>
             )}
 
-            <h3 className="text-sm font-semibold text-gray-900 mb-4">Live event feed</h3>
+            <h3 className="text-sm font-semibold text-ink mb-4">Live event feed</h3>
             {recentEvents.length === 0 ? (
               <EmptySection>No clicks, submissions, or reports yet.</EmptySection>
             ) : (
               <div className="space-y-3.5 max-h-[280px] overflow-y-auto pr-1">
                 {recentEvents.map((event, index) => {
-                  const meta = EVENT_META[event.message] || { icon: 'ti-activity', tone: 'bg-gray-100 text-gray-600', label: event.message }
+                  const meta = EVENT_META[event.message] || { icon: 'ti-activity', tone: 'bg-panel-muted text-ink-muted', label: event.message }
                   return (
-                    <div key={`${event.email || event.name}-${index}`} className={clsx('flex gap-3 text-sm pb-2', index < recentEvents.length - 1 && 'border-b border-gray-50')}>
+                    <div key={`${event.email || event.name}-${index}`} className={clsx('flex gap-3 text-sm pb-2', index < recentEvents.length - 1 && 'border-b border-line-soft')}>
                       <div className={clsx('w-6 h-6 rounded-full flex items-center justify-center flex-shrink-0 mt-0.5', meta.tone)}>
                         <i className={clsx('ti text-xs', meta.icon)} />
                       </div>
                       <div>
-                        <p className="text-gray-800 text-xs">
-                          <strong className="font-semibold text-gray-900">{event.name}</strong> {meta.label}
+                        <p className="text-ink-soft text-xs">
+                          <strong className="font-semibold text-ink">{event.name}</strong> {meta.label}
                           {event.department && event.department !== 'Unassigned' ? ` — ${event.department}` : ''}
                         </p>
-                        <span className="text-gray-400 text-[10px] block mt-0.5">{formatEventTime(event.time)}</span>
+                        <span className="text-ink-faint text-[10px] block mt-0.5">{formatEventTime(event.time)}</span>
                       </div>
                     </div>
                   )
@@ -727,11 +727,11 @@ export default function Performing() {
       </div>
 
       {runId && (
-        <div className="bg-white border border-gray-200 rounded-xl p-5">
+        <div className="bg-panel border border-line rounded-xl p-5">
           <div className="flex flex-wrap items-center justify-between gap-3 mb-4">
             <div>
-              <h3 className="text-base font-semibold text-gray-900">Target details</h3>
-              <p className="text-xs text-gray-500 mt-0.5">
+              <h3 className="text-base font-semibold text-ink">Target details</h3>
+              <p className="text-xs text-ink-muted mt-0.5">
                 {(targetDetails || []).length} target{(targetDetails || []).length === 1 ? '' : 's'} in this campaign
               </p>
             </div>

@@ -16,7 +16,7 @@ export default function GoPhishStatus({ collapsed = false }) {
   return (
     <div className="flex items-center gap-2 px-1">
       <span className={clsx('w-2 h-2 rounded-full flex-shrink-0', dotColor)} />
-      <span className="text-xs text-gray-500 truncate">{label}</span>
+      <span className="text-xs text-ink-muted truncate">{label}</span>
     </div>
   )
 }

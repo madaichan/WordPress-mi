@@ -2,11 +2,11 @@ import clsx from 'clsx'
 import { Link } from 'react-router-dom'
 
 const toneClass = {
-  violet: 'hover:border-violet-500 hover:text-violet-500 hover:bg-violet-50',
-  blue: 'hover:border-blue-600 hover:text-blue-600 hover:bg-blue-50',
-  green: 'hover:border-green-600 hover:text-green-600 hover:bg-green-50',
-  amber: 'hover:border-amber-600 hover:text-amber-600 hover:bg-amber-50',
-  red: 'hover:border-red-600 hover:text-red-600 hover:bg-red-50',
+  violet: 'hover:border-violet-500 hover:text-violet-500 hover:bg-violet-500/10',
+  blue: 'hover:border-blue-600 hover:text-blue-600 dark:hover:text-blue-400 hover:bg-blue-500/10',
+  green: 'hover:border-green-600 hover:text-green-600 dark:hover:text-green-400 hover:bg-green-500/10',
+  amber: 'hover:border-amber-600 hover:text-amber-600 dark:hover:text-amber-400 hover:bg-amber-500/10',
+  red: 'hover:border-red-600 hover:text-red-600 dark:hover:text-red-400 hover:bg-red-500/10',
 }
 
 const sizeClass = {
@@ -27,9 +27,9 @@ export default function TableActionButton({
   className,
 }) {
   const classes = clsx(
-    'inline-flex items-center justify-center rounded-lg text-gray-500 transition-all focus:outline-none focus:ring-2 focus:ring-violet-400/40',
+    'inline-flex items-center justify-center rounded-lg text-ink-muted transition-all focus:outline-none focus:ring-2 focus:ring-violet-400/40',
     sizeClass[size],
-    framed ? 'border border-gray-200 bg-white' : 'border border-transparent bg-transparent',
+    framed ? 'border border-line bg-panel' : 'border border-transparent bg-transparent',
     disabled && 'cursor-not-allowed opacity-50',
     !disabled && toneClass[tone],
     className

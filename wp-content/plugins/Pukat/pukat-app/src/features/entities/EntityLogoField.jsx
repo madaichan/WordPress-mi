@@ -54,11 +54,11 @@ export default function EntityLogoField({ profile, canEdit }) {
   return (
     <div className="space-y-2">
       <div className="flex items-center gap-4">
-        <div className="flex h-20 w-20 shrink-0 items-center justify-center overflow-hidden rounded-lg border border-gray-200 bg-gray-50">
+        <div className="flex h-20 w-20 shrink-0 items-center justify-center overflow-hidden rounded-lg border border-line bg-panel-subtle">
           {profile.logo_url ? (
             <img src={profile.logo_url} alt={`${profile.display_name || profile.entity_name} logo`} className="h-full w-full object-contain" />
           ) : (
-            <i className="ti ti-building text-2xl text-gray-300" />
+            <i className="ti ti-building text-2xl text-ink-faint" />
           )}
         </div>
 
@@ -74,7 +74,7 @@ export default function EntityLogoField({ profile, canEdit }) {
                 </Button>
               )}
             </div>
-            <p className="text-xs text-gray-500">PNG, JPEG or WebP. Resized to at most 512 px.</p>
+            <p className="text-xs text-ink-muted">PNG, JPEG or WebP. Resized to at most 512 px.</p>
             <input
               ref={fileInputRef}
               type="file"

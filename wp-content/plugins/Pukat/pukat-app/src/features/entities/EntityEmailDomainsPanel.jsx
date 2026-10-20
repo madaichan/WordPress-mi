@@ -46,7 +46,7 @@ export default function EntityEmailDomainsPanel({ entityName, canManage = false,
 
   return (
     <div className="space-y-3">
-      <p className="text-xs text-gray-500">
+      <p className="text-xs text-ink-muted">
         Campaign targets whose email domain is not on the active list are rejected when a Campaign Run is launched.
         {activeCount === 0 && (required
           ? <strong className="text-danger"> No active domain yet — campaigns for this entity cannot be launched until one is added.</strong>
@@ -66,22 +66,22 @@ export default function EntityEmailDomainsPanel({ entityName, canManage = false,
       )}
 
       {isLoading ? (
-        <p className="text-sm text-gray-400">Loading...</p>
+        <p className="text-sm text-ink-faint">Loading...</p>
       ) : domains.length === 0 ? (
-        <p className="text-sm text-gray-400">No email domains registered.</p>
+        <p className="text-sm text-ink-faint">No email domains registered.</p>
       ) : (
         <ul className="space-y-2">
           {domains.map(d => (
-            <li key={d.id} className="flex items-center justify-between gap-3 rounded-lg border border-gray-100 px-3 py-2">
+            <li key={d.id} className="flex items-center justify-between gap-3 rounded-lg border border-line-soft px-3 py-2">
               <div className="flex items-center gap-2">
-                <span className="text-sm font-medium text-gray-700">{d.domain}</span>
+                <span className="text-sm font-medium text-ink-soft">{d.domain}</span>
                 <Badge tone={d.status === 'active' ? 'success' : 'gray'}>{d.status === 'active' ? 'Enabled' : 'Disabled'}</Badge>
               </div>
               <div className="flex items-center gap-3">
                 {canToggle && (
                   <button
                     type="button"
-                    className="text-xs font-semibold text-violet-600 hover:underline"
+                    className="text-xs font-semibold text-violet-600 dark:text-violet-400 hover:underline"
                     onClick={() => statusMutation.mutate({ entityName, id: d.id, status: d.status === 'active' ? 'inactive' : 'active' })}
                     disabled={statusMutation.isPending}
                   >

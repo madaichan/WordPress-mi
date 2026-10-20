@@ -24,7 +24,7 @@ export default function PlaybookPickerToolbar({
         maxLength={PLAYBOOK_SEARCH_MAX_LENGTH}
         wrapperClassName="relative w-full max-w-xs"
       />
-      <label className="flex items-center gap-2 text-xs font-semibold text-gray-600">
+      <label className="flex items-center gap-2 text-xs font-semibold text-ink-muted">
         <span>Sort</span>
         <Select value={sortValue} onChange={event => onSortChange?.(event.target.value)} className="w-auto">
           {!sortValue && <option value="">Custom</option>}
@@ -33,7 +33,7 @@ export default function PlaybookPickerToolbar({
           ))}
         </Select>
       </label>
-      <span className="ml-auto text-[11px] font-semibold text-gray-500">
+      <span className="ml-auto text-[11px] font-semibold text-ink-muted">
         {resultCount === totalCount
           ? `${totalCount} ${totalCount === 1 ? 'playbook' : 'playbooks'}`
           : `${resultCount} of ${totalCount} playbooks`}

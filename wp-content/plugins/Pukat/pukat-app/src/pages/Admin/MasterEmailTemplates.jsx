@@ -60,7 +60,7 @@ const DEFAULT_TABLE_STATE = { search: '', sort: 'name', order: 'asc', page: 1, p
 
 function PreviewFallback() {
   return (
-    <div className="space-y-2 py-12 text-center text-gray-400">
+    <div className="space-y-2 py-12 text-center text-ink-faint">
       <i className="ti ti-mail-opened text-3xl" />
       <p className="text-xs font-medium">
         Select a template from the list or open the editor to preview an email.
@@ -96,12 +96,12 @@ function EditorPane({
     <div className="space-y-6 animate-fade-in">
       <div className="flex items-center justify-between">
         <div>
-          <h2 className="text-lg font-bold text-gray-900">{title}</h2>
-          <p className="mt-0.5 text-xs text-gray-500">Configure master metadata and the versioned email HTML source.</p>
+          <h2 className="text-lg font-bold text-ink">{title}</h2>
+          <p className="mt-0.5 text-xs text-ink-muted">Configure master metadata and the versioned email HTML source.</p>
         </div>
         <div className="flex items-center gap-3">
           {canApprove && (
-            <Button variant="outline" className="border-emerald-200 text-emerald-700 hover:bg-emerald-50" onClick={onApprove}>
+            <Button variant="outline" className="border-emerald-500/30 text-emerald-700 dark:text-emerald-300 hover:bg-emerald-500/10" onClick={onApprove}>
               <i className="ti ti-shield-check text-base" />
               <span>Approve</span>
             </Button>
@@ -114,17 +114,17 @@ function EditorPane({
       </div>
 
       <div className="grid grid-cols-1 gap-6 lg:grid-cols-5">
-        <div className="space-y-4 rounded-xl border border-gray-200 bg-white p-5 shadow-sm lg:col-span-2">
-          <h3 className="border-b border-gray-100 pb-2 text-sm font-semibold text-gray-900">Envelope headers</h3>
+        <div className="space-y-4 rounded-xl border border-line bg-panel p-5 shadow-sm lg:col-span-2">
+          <h3 className="border-b border-line-soft pb-2 text-sm font-semibold text-ink">Envelope headers</h3>
           <div className="space-y-3 text-xs">
             <label className="block space-y-1">
-              <span className="block font-semibold text-gray-700">Template name *</span>
-              <input value={name} onChange={event => setName(event.target.value)} placeholder="Example: Microsoft O365 Alert" className="w-full rounded-lg border border-gray-200 bg-white px-3 py-2 text-gray-950 outline-none focus:border-violet-500" />
+              <span className="block font-semibold text-ink-soft">Template name *</span>
+              <input value={name} onChange={event => setName(event.target.value)} placeholder="Example: Microsoft O365 Alert" className="w-full rounded-lg border border-line bg-panel px-3 py-2 text-ink outline-none focus:border-violet-500" />
             </label>
             <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
               <label className="block space-y-1">
-                <span className="block font-semibold text-gray-700">Category</span>
-                <select value={category} onChange={event => setCategory(event.target.value)} className="w-full rounded-lg border border-gray-200 bg-white px-3 py-2 text-gray-950 outline-none focus:border-violet-500">
+                <span className="block font-semibold text-ink-soft">Category</span>
+                <select value={category} onChange={event => setCategory(event.target.value)} className="w-full rounded-lg border border-line bg-panel px-3 py-2 text-ink outline-none focus:border-violet-500">
                   <option value="alert">Security alert</option>
                   <option value="info">Internal info</option>
                   <option value="urgent">Urgent notification</option>
@@ -132,7 +132,7 @@ function EditorPane({
               </label>
               {editingName && currentTemplate && (
                 <div className="block space-y-1">
-                  <span className="block font-semibold text-gray-700">Status</span>
+                  <span className="block font-semibold text-ink-soft">Status</span>
                   <div className="pt-1.5">
                     <Badge tone={currentTemplate.status === 'Published' ? 'success' : 'gray'}>{currentTemplate.status}</Badge>
                   </div>
@@ -140,23 +140,23 @@ function EditorPane({
               )}
             </div>
             <label className="block space-y-1">
-              <span className="block font-semibold text-gray-700">Preview sender</span>
-              <input value={sender} onChange={event => setSender(event.target.value)} placeholder="Example: Admin <admin@company.id>" className="w-full rounded-lg border border-gray-200 bg-white px-3 py-2 text-gray-950 outline-none focus:border-violet-500" />
+              <span className="block font-semibold text-ink-soft">Preview sender</span>
+              <input value={sender} onChange={event => setSender(event.target.value)} placeholder="Example: Admin <admin@company.id>" className="w-full rounded-lg border border-line bg-panel px-3 py-2 text-ink outline-none focus:border-violet-500" />
             </label>
             <label className="block space-y-1">
-              <span className="block font-semibold text-gray-700">Entity</span>
+              <span className="block font-semibold text-ink-soft">Entity</span>
               <EntityNameField value={entity} onChange={setEntity} placeholder="Example: EntityA" inputClassName="w-full" />
             </label>
             <label className="block space-y-1">
-              <span className="block font-semibold text-gray-700">Subject *</span>
-              <input value={subject} onChange={event => setSubject(event.target.value)} placeholder="Email subject" className="w-full rounded-lg border border-gray-200 bg-white px-3 py-2 text-gray-950 outline-none focus:border-violet-500" />
+              <span className="block font-semibold text-ink-soft">Subject *</span>
+              <input value={subject} onChange={event => setSubject(event.target.value)} placeholder="Email subject" className="w-full rounded-lg border border-line bg-panel px-3 py-2 text-ink outline-none focus:border-violet-500" />
             </label>
             <div className="pt-2">
-              <span className="mb-1.5 block font-semibold text-gray-900">Dynamic variables</span>
-              <p className="text-[10px] leading-relaxed text-gray-400">Use these GoPhish placeholders for automatic personalization:</p>
-              <div className="mt-2 grid select-all grid-cols-2 gap-1.5 font-mono text-[9px] text-gray-600">
+              <span className="mb-1.5 block font-semibold text-ink">Dynamic variables</span>
+              <p className="text-[10px] leading-relaxed text-ink-faint">Use these GoPhish placeholders for automatic personalization:</p>
+              <div className="mt-2 grid select-all grid-cols-2 gap-1.5 font-mono text-[9px] text-ink-muted">
                 {['{{.FirstName}}', '{{.Email}}', '{{.URL}} (Phish Link)', '{{.Position}}'].map(variable => (
-                  <div key={variable} className="rounded border border-gray-100 bg-gray-50 px-1.5 py-0.5 text-center">
+                  <div key={variable} className="rounded border border-line-soft bg-panel-subtle px-1.5 py-0.5 text-center">
                     {variable}
                   </div>
                 ))}
@@ -517,22 +517,22 @@ export default function MasterEmailTemplates() {
       />
 
       <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
-        <div className="flex items-center gap-4 rounded-xl border border-gray-200 bg-white p-4 shadow-sm">
-          <div className="flex h-12 w-12 flex-shrink-0 items-center justify-center rounded-xl bg-emerald-100 text-emerald-700">
+        <div className="flex items-center gap-4 rounded-xl border border-line bg-panel p-4 shadow-sm">
+          <div className="flex h-12 w-12 flex-shrink-0 items-center justify-center rounded-xl bg-emerald-500/15 text-emerald-700 dark:text-emerald-300">
             <i className="ti ti-mail text-xl" />
           </div>
           <div>
-            <div className="text-2xl font-bold text-gray-900">{templates.length}</div>
-            <div className="text-xs font-semibold text-gray-500">Master assets</div>
+            <div className="text-2xl font-bold text-ink">{templates.length}</div>
+            <div className="text-xs font-semibold text-ink-muted">Master assets</div>
           </div>
         </div>
-        <div className="rounded-xl border border-gray-200 bg-white p-4 shadow-sm">
-          <div className="text-2xl font-bold text-gray-900">{entityCount}</div>
-          <div className="mt-1 text-xs font-semibold text-gray-500">Entities</div>
+        <div className="rounded-xl border border-line bg-panel p-4 shadow-sm">
+          <div className="text-2xl font-bold text-ink">{entityCount}</div>
+          <div className="mt-1 text-xs font-semibold text-ink-muted">Entities</div>
         </div>
-        <div className="rounded-xl border border-gray-200 bg-white p-4 shadow-sm">
-          <div className="text-2xl font-bold text-gray-900">{noEntityCount}</div>
-          <div className="mt-1 text-xs font-semibold text-gray-500">Without entity</div>
+        <div className="rounded-xl border border-line bg-panel p-4 shadow-sm">
+          <div className="text-2xl font-bold text-ink">{noEntityCount}</div>
+          <div className="mt-1 text-xs font-semibold text-ink-muted">Without entity</div>
         </div>
       </div>
 
@@ -583,12 +583,12 @@ export default function MasterEmailTemplates() {
           <div className="space-y-6 animate-fade-in">
             <div className="flex items-center justify-between">
               <div>
-                <h2 className="text-lg font-bold text-gray-900">{previewTitle}</h2>
-                <p className="mt-0.5 text-xs text-gray-500">Preview how this template appears in the target email client.</p>
+                <h2 className="text-lg font-bold text-ink">{previewTitle}</h2>
+                <p className="mt-0.5 text-xs text-ink-muted">Preview how this template appears in the target email client.</p>
               </div>
               <Button variant="outline" onClick={() => switchTab('list')}>Back to list</Button>
             </div>
-            <div className="flex min-h-[450px] flex-col overflow-hidden rounded-xl border border-gray-200 bg-gray-50 p-4 md:p-6">
+            <div className="flex min-h-[450px] flex-col overflow-hidden rounded-xl border border-line bg-panel-subtle p-4 md:p-6">
               {editingHtml ? (
                 <ClientPreview
                   html={editingHtml}

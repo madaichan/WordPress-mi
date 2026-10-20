@@ -10,7 +10,7 @@ export default function Select({ error, errorMessage, className, children, ...pr
         >
           {children}
         </select>
-        <i className="ti ti-chevron-down pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-xs text-gray-400" />
+        <i className="ti ti-chevron-down pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-xs text-ink-faint" />
       </div>
       {errorMessage && <p className="mt-1 text-xs text-danger">{errorMessage}</p>}
     </>

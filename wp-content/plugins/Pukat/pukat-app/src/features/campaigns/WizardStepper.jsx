@@ -6,9 +6,9 @@ export default function WizardStepper({ step, onStepChange }) {
   const progress = ((step - 1) / (WIZARD_STEPS.length - 1)) * 100
 
   return (
-    <div className="bg-white border border-gray-200 rounded-xl p-5">
+    <div className="bg-panel border border-line rounded-xl p-5">
       <div className="relative flex items-center justify-between w-full px-12 sm:px-24">
-        <div className="absolute left-20 right-20 sm:left-32 sm:right-32 top-4 h-0.5 bg-gray-200 z-0">
+        <div className="absolute left-20 right-20 sm:left-32 sm:right-32 top-4 h-0.5 bg-panel-strong z-0">
           <div
             className="h-full bg-emerald-500 transition-all duration-300"
             style={{ width: `${progress}%` }}
@@ -26,17 +26,17 @@ export default function WizardStepper({ step, onStepChange }) {
             >
               <div className={clsx(
                 'w-8 h-8 rounded-full flex items-center justify-center font-semibold text-sm transition-all duration-300',
-                done && 'bg-emerald-100 text-emerald-700 border border-emerald-200',
+                done && 'bg-emerald-500/15 text-emerald-700 dark:text-emerald-300 border border-emerald-500/30',
                 current && 'bg-violet-500 text-white',
-                !done && !current && 'bg-gray-100 text-gray-400 border border-gray-200',
+                !done && !current && 'bg-panel-muted text-ink-faint border border-line',
               )}>
                 {done ? <i className="ti ti-check text-base" /> : i + 1}
               </div>
               <span className={clsx(
                 'text-xs mt-2 transition-all duration-300',
-                done && 'font-semibold text-emerald-700',
+                done && 'font-semibold text-emerald-700 dark:text-emerald-300',
                 current && 'font-semibold text-violet-500',
-                !done && !current && 'font-medium text-gray-400',
+                !done && !current && 'font-medium text-ink-faint',
               )}>{label}</span>
             </button>
           )

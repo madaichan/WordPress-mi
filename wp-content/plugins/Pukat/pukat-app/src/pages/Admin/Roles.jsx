@@ -218,15 +218,15 @@ export default function Roles() {
         label: 'Role',
         renderer: 'custom',
         sortable: true,
-        render: row => <span className="font-semibold text-gray-900">{row.display_name}</span>,
+        render: row => <span className="font-semibold text-ink">{row.display_name}</span>,
       },
       {
         key: 'description',
         label: 'Description',
         renderer: 'custom',
         render: row => row.description
-          ? <span className="text-gray-500">{row.description}</span>
-          : <span className="text-gray-300">—</span>,
+          ? <span className="text-ink-muted">{row.description}</span>
+          : <span className="text-ink-faint">—</span>,
       },
       {
         key: 'type',
@@ -242,13 +242,13 @@ export default function Roles() {
         key: 'landing_menu',
         label: 'Lands on',
         renderer: 'custom',
-        render: row => <span className="text-gray-500">{landingPageLabel(row.landing_menu)}</span>,
+        render: row => <span className="text-ink-muted">{landingPageLabel(row.landing_menu)}</span>,
       },
       {
         key: 'user_count',
         label: 'Users',
         renderer: 'custom',
-        render: row => <span className="text-gray-500">{row.user_count}</span>,
+        render: row => <span className="text-ink-muted">{row.user_count}</span>,
       },
       {
         key: 'actions',
@@ -336,21 +336,21 @@ export default function Roles() {
                 <option key={menu} value={menu}>{label}</option>
               ))}
             </Select>
-            <p className="mt-1 text-xs text-gray-400">Where this role&rsquo;s users land right after logging in.</p>
+            <p className="mt-1 text-xs text-ink-faint">Where this role&rsquo;s users land right after logging in.</p>
           </div>
 
           <div>
             <Label>Permissions</Label>
             <div className="mt-2 space-y-4">
               {groupNames.map((groupName) => (
-                <div key={groupName} className="rounded-xl border border-gray-200 p-4">
-                  <h4 className="mb-3 text-xs font-bold uppercase tracking-wide text-gray-500">{groupName}</h4>
+                <div key={groupName} className="rounded-xl border border-line p-4">
+                  <h4 className="mb-3 text-xs font-bold uppercase tracking-wide text-ink-muted">{groupName}</h4>
                   <div className="space-y-3">
                     {groupEntriesByMenu(registry[groupName]).map(({ menu, label, entries }) => {
                       const allChecked = entries.every((entry) => form.permissions.includes(entry.key))
                       return (
                         <div key={menu} className="flex flex-wrap items-center gap-x-4 gap-y-1.5">
-                          <span className="w-40 flex-shrink-0 text-xs font-semibold text-gray-700">{label}</span>
+                          <span className="w-40 flex-shrink-0 text-xs font-semibold text-ink-soft">{label}</span>
                           <Checkbox
                             label="All"
                             checked={allChecked}

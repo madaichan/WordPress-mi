@@ -86,27 +86,27 @@ export function getSmtpStatusClasses(status) {
   if (status === 'Error') {
     return {
       dot: 'bg-red-500',
-      tag: 'bg-red-100 text-red-800',
+      tag: 'bg-red-500/15 text-red-800 dark:text-red-300',
     }
   }
 
   if (status === 'Not tested') {
     return {
       dot: 'bg-amber-500 animate-pulse',
-      tag: 'bg-amber-100 text-amber-800',
+      tag: 'bg-amber-500/15 text-amber-800 dark:text-amber-300',
     }
   }
 
   if (['Draft', 'Inactive', 'Deprecated', 'Archived'].includes(status)) {
     return {
-      dot: 'bg-gray-400',
-      tag: 'bg-gray-100 text-gray-700',
+      dot: 'bg-ink-faint',
+      tag: 'bg-panel-muted text-ink-soft',
     }
   }
 
   return {
     dot: 'bg-emerald-500',
-    tag: 'bg-emerald-100 text-emerald-800',
+    tag: 'bg-emerald-500/15 text-emerald-800 dark:text-emerald-300',
   }
 }
 
@@ -122,8 +122,8 @@ function displayMasterSendingStatus(status) {
 
 export function getSmtpEncryptionClass(encryption) {
   return encryption === 'None'
-    ? 'bg-gray-100 text-gray-700'
-    : 'bg-blue-100 text-blue-800'
+    ? 'bg-panel-muted text-ink-soft'
+    : 'bg-blue-500/15 text-blue-800 dark:text-blue-300'
 }
 
 export function hasDuplicateSmtpProfileName(profiles, name, currentId) {

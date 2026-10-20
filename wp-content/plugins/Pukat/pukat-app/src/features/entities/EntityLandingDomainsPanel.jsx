@@ -58,7 +58,7 @@ export default function EntityLandingDomainsPanel({ entityName, canManage = fals
 
   return (
     <div className="space-y-3">
-      <p className="text-xs text-gray-500">
+      <p className="text-xs text-ink-muted">
         Domains used to host this entity&apos;s simulation landing pages. New domains start as pending until an admin authorizes them.
       </p>
 
@@ -75,24 +75,24 @@ export default function EntityLandingDomainsPanel({ entityName, canManage = fals
       )}
 
       {isLoading ? (
-        <p className="text-sm text-gray-400">Loading...</p>
+        <p className="text-sm text-ink-faint">Loading...</p>
       ) : domains.length === 0 ? (
-        <p className="text-sm text-gray-400">No landing page domains registered for this entity.</p>
+        <p className="text-sm text-ink-faint">No landing page domains registered for this entity.</p>
       ) : (
         <ul className="space-y-2">
           {domains.map(d => (
-            <li key={d.id} className="flex flex-wrap items-center justify-between gap-3 rounded-lg border border-gray-100 px-3 py-2">
+            <li key={d.id} className="flex flex-wrap items-center justify-between gap-3 rounded-lg border border-line-soft px-3 py-2">
               <div className="flex flex-wrap items-center gap-2">
-                <span className="text-sm font-medium text-gray-700">{d.domain}</span>
+                <span className="text-sm font-medium text-ink-soft">{d.domain}</span>
                 <Badge tone={AUTH_TONE[d.authorization_status] || 'gray'}>{d.authorization_status || 'pending'}</Badge>
                 <Badge tone={d.status === 'active' ? 'success' : 'gray'}>{d.status || 'draft'}</Badge>
-                <span className="text-[11px] text-gray-400">DNS: {d.dns_status || 'unknown'} · TLS: {d.tls_status || 'unknown'}</span>
+                <span className="text-[11px] text-ink-faint">DNS: {d.dns_status || 'unknown'} · TLS: {d.tls_status || 'unknown'}</span>
               </div>
               {canManage && (
                 <div className="flex items-center gap-3">
                   <button
                     type="button"
-                    className="text-xs font-semibold text-violet-600 hover:underline"
+                    className="text-xs font-semibold text-violet-600 dark:text-violet-400 hover:underline"
                     onClick={() => healthCheckMutation.mutate(d.id)}
                     disabled={healthCheckMutation.isPending}
                   >

@@ -15,23 +15,23 @@ export default function UploadProgress({ fileName, fileSize, percent = 0, phase 
   const isProcessing = phase === 'processing'
 
   return (
-    <div className="space-y-2 rounded-lg border border-violet-200 bg-violet-50 p-3" role="status" aria-live="polite">
+    <div className="space-y-2 rounded-lg border border-violet-500/30 bg-violet-500/10 p-3" role="status" aria-live="polite">
       <div className="flex items-center gap-2 text-xs">
         <span className="h-3.5 w-3.5 shrink-0 animate-spin rounded-full border-2 border-violet-500 border-t-transparent" />
-        <span className="min-w-0 flex-1 truncate font-semibold text-violet-700">
+        <span className="min-w-0 flex-1 truncate font-semibold text-violet-700 dark:text-violet-300">
           {isProcessing ? 'Processing on the server…' : `Uploading… ${percent}%`}
         </span>
         <span className="shrink-0 tabular-nums text-violet-500">{elapsedSeconds}s</span>
       </div>
 
-      <div className="h-1.5 overflow-hidden rounded-full bg-violet-100">
+      <div className="h-1.5 overflow-hidden rounded-full bg-violet-500/15">
         <div
           className={clsx('h-full rounded-full bg-violet-500 transition-all duration-300', isProcessing && 'animate-pulse')}
           style={{ width: `${isProcessing ? 100 : percent}%` }}
         />
       </div>
 
-      <div className="flex items-center justify-between gap-2 text-[11px] text-violet-600">
+      <div className="flex items-center justify-between gap-2 text-[11px] text-violet-600 dark:text-violet-400">
         <span className="truncate">{fileName}{fileSize ? ` · ${formatSize(fileSize)}` : ''}</span>
         {isProcessing && processingHint && <span className="shrink-0">{processingHint}</span>}
       </div>

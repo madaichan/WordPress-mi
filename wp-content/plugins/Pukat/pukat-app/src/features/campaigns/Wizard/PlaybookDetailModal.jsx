@@ -38,7 +38,7 @@ export default function PlaybookDetailModal({ playbook, readiness, selected = fa
             <button
               type="button"
               onClick={onClose}
-              className="rounded-xl border border-gray-200 bg-white px-4 py-2 text-sm font-semibold text-gray-700 transition-all hover:bg-gray-50"
+              className="rounded-xl border border-line bg-panel px-4 py-2 text-sm font-semibold text-ink-soft transition-all hover:bg-panel-subtle"
             >
               Close
             </button>
@@ -54,12 +54,12 @@ export default function PlaybookDetailModal({ playbook, readiness, selected = fa
         )}
       >
         {notReady && (
-          <div className="mb-5 rounded-lg border border-amber-200 bg-amber-50 p-4">
-            <div className="flex items-center gap-2 text-xs font-bold text-amber-800">
+          <div className="mb-5 rounded-lg border border-amber-500/30 bg-amber-500/10 p-4">
+            <div className="flex items-center gap-2 text-xs font-bold text-amber-800 dark:text-amber-300">
               <i className="ti ti-alert-triangle" />
               This playbook is not ready to launch yet
             </div>
-            <ul className="mt-2 list-disc space-y-1 pl-5 text-[11px] leading-relaxed text-amber-900">
+            <ul className="mt-2 list-disc space-y-1 pl-5 text-[11px] leading-relaxed text-amber-900 dark:text-amber-300">
               {errors.map(error => <li key={error}>{error}</li>)}
             </ul>
           </div>

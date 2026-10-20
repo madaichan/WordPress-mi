@@ -224,8 +224,8 @@ export default function ManageView() {
       <Card>
         <div className="flex flex-wrap items-center justify-between gap-3">
           <div>
-            <h3 className="text-base font-semibold text-gray-900">Campaign groups</h3>
-            <p className="mt-0.5 text-xs text-gray-500">Group campaigns by project/period to filter the Monitoring dashboard.</p>
+            <h3 className="text-base font-semibold text-ink">Campaign groups</h3>
+            <p className="mt-0.5 text-xs text-ink-muted">Group campaigns by project/period to filter the Monitoring dashboard.</p>
           </div>
           <Button variant="primary" size="sm" onClick={openCreateGroup}>
             <i className="ti ti-plus text-sm" /> New group
@@ -257,7 +257,7 @@ export default function ManageView() {
                 />
               ))}
               {groups.length === 0 && (
-                <span className="py-1 text-xs text-gray-400">No groups yet — create one to start organizing campaigns.</span>
+                <span className="py-1 text-xs text-ink-faint">No groups yet — create one to start organizing campaigns.</span>
               )}
             </div>
           )}
@@ -265,11 +265,11 @@ export default function ManageView() {
       </Card>
 
       <Card className="p-0">
-        <div className="flex items-center justify-between gap-3 border-b border-gray-100 p-5">
+        <div className="flex items-center justify-between gap-3 border-b border-line-soft p-5">
           <div>
-            <h3 className="text-base font-semibold text-gray-900">All campaigns</h3>
-            <p className="mt-0.5 text-xs text-gray-500">Complete campaigns one at a time or in bulk, and move them between groups.</p>
-            <p className="mt-0.5 text-xs text-gray-400">Data refreshes automatically every minute.</p>
+            <h3 className="text-base font-semibold text-ink">All campaigns</h3>
+            <p className="mt-0.5 text-xs text-ink-muted">Complete campaigns one at a time or in bulk, and move them between groups.</p>
+            <p className="mt-0.5 text-xs text-ink-faint">Data refreshes automatically every minute.</p>
           </div>
           {selectedCount > 0 && (
             <div className="flex items-center gap-2">
@@ -338,7 +338,7 @@ export default function ManageView() {
             />
           </div>
           {groupDrawerMode === 'edit' && (
-            <p className="text-xs text-gray-400">
+            <p className="text-xs text-ink-faint">
               Entity and status aren&apos;t editable here — entity always matches who created the group, and status is
               computed automatically from the campaigns inside it.
             </p>
@@ -435,7 +435,7 @@ function GroupPill({ label, status, active, onClick, onEdit, onDelete }) {
     <div
       className={clsx(
         'inline-flex items-center gap-0.5 rounded-full border pl-1 pr-1 py-1 text-xs font-semibold transition-colors',
-        active ? 'border-violet-500 bg-violet-50 text-violet-700' : 'border-gray-200 bg-white text-gray-600 hover:border-gray-300'
+        active ? 'border-violet-500 bg-violet-500/10 text-violet-700 dark:text-violet-300' : 'border-line bg-panel text-ink-muted hover:border-line-strong'
       )}
     >
       <button type="button" onClick={onClick} className="inline-flex items-center gap-1.5 rounded-full px-2 py-1">
@@ -444,7 +444,7 @@ function GroupPill({ label, status, active, onClick, onEdit, onDelete }) {
           <span
             className={clsx(
               'rounded-full px-1.5 py-0.5 text-[9px] font-bold uppercase tracking-wide',
-              status === 'active' ? 'bg-emerald-100 text-emerald-700' : 'bg-gray-100 text-gray-500'
+              status === 'active' ? 'bg-emerald-500/15 text-emerald-700 dark:text-emerald-300' : 'bg-panel-muted text-ink-muted'
             )}
           >
             {status === 'active' ? 'Active' : 'Selesai'}
@@ -452,12 +452,12 @@ function GroupPill({ label, status, active, onClick, onEdit, onDelete }) {
         )}
       </button>
       {onEdit && (
-        <button type="button" onClick={onEdit} className="rounded-full p-1.5 text-gray-400 hover:text-gray-700" aria-label={`Edit ${label}`}>
+        <button type="button" onClick={onEdit} className="rounded-full p-1.5 text-ink-faint hover:text-ink-soft" aria-label={`Edit ${label}`}>
           <i className="ti ti-edit text-[11px]" />
         </button>
       )}
       {onDelete && (
-        <button type="button" onClick={onDelete} className="rounded-full p-1.5 text-gray-400 hover:text-red-600" aria-label={`Delete ${label}`}>
+        <button type="button" onClick={onDelete} className="rounded-full p-1.5 text-ink-faint hover:text-red-600 dark:hover:text-red-400" aria-label={`Delete ${label}`}>
           <i className="ti ti-trash text-[11px]" />
         </button>
       )}
@@ -510,16 +510,16 @@ function GroupNavigator({ groups, selectedGroupId, onSelect, onEdit, onDelete })
       <button
         type="button"
         onClick={() => setOpen(current => !current)}
-        className="inline-flex items-center gap-2 rounded-lg border border-gray-200 bg-white px-3 py-2 text-sm font-medium text-gray-700 hover:border-gray-300"
+        className="inline-flex items-center gap-2 rounded-lg border border-line bg-panel px-3 py-2 text-sm font-medium text-ink-soft hover:border-line-strong"
       >
-        <i className="ti ti-folder text-sm text-gray-400" />
+        <i className="ti ti-folder text-sm text-ink-faint" />
         <span className="max-w-[14rem] truncate">{selectedLabel}</span>
-        <i className="ti ti-chevron-down text-xs text-gray-400" />
+        <i className="ti ti-chevron-down text-xs text-ink-faint" />
       </button>
 
       {open && (
-        <div className="absolute left-0 top-full z-20 mt-2 w-72 rounded-lg border border-gray-200 bg-white shadow-lg">
-          <div className="border-b border-gray-100 p-2">
+        <div className="absolute left-0 top-full z-20 mt-2 w-72 rounded-lg border border-line bg-panel shadow-lg">
+          <div className="border-b border-line-soft p-2">
             <Input
               autoFocus
               value={query}
@@ -532,8 +532,8 @@ function GroupNavigator({ groups, selectedGroupId, onSelect, onEdit, onDelete })
               type="button"
               onClick={() => choose('')}
               className={clsx(
-                'block w-full rounded-md px-3 py-2 text-left text-sm hover:bg-gray-50',
-                selectedGroupId === '' ? 'bg-violet-50 font-semibold text-violet-700' : 'text-gray-700'
+                'block w-full rounded-md px-3 py-2 text-left text-sm hover:bg-panel-subtle',
+                selectedGroupId === '' ? 'bg-violet-500/10 font-semibold text-violet-700 dark:text-violet-300' : 'text-ink-soft'
               )}
             >
               All
@@ -542,15 +542,15 @@ function GroupNavigator({ groups, selectedGroupId, onSelect, onEdit, onDelete })
               type="button"
               onClick={() => choose('0')}
               className={clsx(
-                'block w-full rounded-md px-3 py-2 text-left text-sm hover:bg-gray-50',
-                String(selectedGroupId) === '0' ? 'bg-violet-50 font-semibold text-violet-700' : 'text-gray-700'
+                'block w-full rounded-md px-3 py-2 text-left text-sm hover:bg-panel-subtle',
+                String(selectedGroupId) === '0' ? 'bg-violet-500/10 font-semibold text-violet-700 dark:text-violet-300' : 'text-ink-soft'
               )}
             >
               Ungrouped
             </button>
 
             {filteredGroups.length === 0 && query.trim() !== '' && (
-              <p className="px-3 py-2 text-xs text-gray-400">No groups match &quot;{query}&quot;.</p>
+              <p className="px-3 py-2 text-xs text-ink-faint">No groups match &quot;{query}&quot;.</p>
             )}
 
             {filteredGroups.map(group => (
@@ -558,7 +558,7 @@ function GroupNavigator({ groups, selectedGroupId, onSelect, onEdit, onDelete })
                 key={group.id}
                 className={clsx(
                   'group flex items-center gap-0.5 rounded-md px-0.5',
-                  String(selectedGroupId) === String(group.id) ? 'bg-violet-50' : 'hover:bg-gray-50'
+                  String(selectedGroupId) === String(group.id) ? 'bg-violet-500/10' : 'hover:bg-panel-subtle'
                 )}
               >
                 <button
@@ -566,15 +566,15 @@ function GroupNavigator({ groups, selectedGroupId, onSelect, onEdit, onDelete })
                   onClick={() => choose(String(group.id))}
                   className={clsx(
                     'flex flex-1 items-center gap-2 rounded-md px-2.5 py-2 text-left text-sm',
-                    String(selectedGroupId) === String(group.id) ? 'font-semibold text-violet-700' : 'text-gray-700'
+                    String(selectedGroupId) === String(group.id) ? 'font-semibold text-violet-700 dark:text-violet-300' : 'text-ink-soft'
                   )}
                 >
                   <span className="truncate">{group.name}</span>
-                  <span className="shrink-0 text-xs text-gray-400">({group.member_count})</span>
+                  <span className="shrink-0 text-xs text-ink-faint">({group.member_count})</span>
                   <span
                     className={clsx(
                       'ml-auto shrink-0 rounded-full px-1.5 py-0.5 text-[9px] font-bold uppercase tracking-wide',
-                      group.status === 'active' ? 'bg-emerald-100 text-emerald-700' : 'bg-gray-100 text-gray-500'
+                      group.status === 'active' ? 'bg-emerald-500/15 text-emerald-700 dark:text-emerald-300' : 'bg-panel-muted text-ink-muted'
                     )}
                   >
                     {group.status === 'active' ? 'Active' : 'Selesai'}
@@ -583,7 +583,7 @@ function GroupNavigator({ groups, selectedGroupId, onSelect, onEdit, onDelete })
                 <button
                   type="button"
                   onClick={() => { onEdit(group); setOpen(false) }}
-                  className="rounded p-1.5 text-gray-400 opacity-0 hover:text-gray-700 group-hover:opacity-100"
+                  className="rounded p-1.5 text-ink-faint opacity-0 hover:text-ink-soft group-hover:opacity-100"
                   aria-label={`Edit ${group.name}`}
                 >
                   <i className="ti ti-edit text-[11px]" />
@@ -591,7 +591,7 @@ function GroupNavigator({ groups, selectedGroupId, onSelect, onEdit, onDelete })
                 <button
                   type="button"
                   onClick={() => { onDelete(group); setOpen(false) }}
-                  className="rounded p-1.5 text-gray-400 opacity-0 hover:text-red-600 group-hover:opacity-100"
+                  className="rounded p-1.5 text-ink-faint opacity-0 hover:text-red-600 dark:hover:text-red-400 group-hover:opacity-100"
                   aria-label={`Delete ${group.name}`}
                 >
                   <i className="ti ti-trash text-[11px]" />

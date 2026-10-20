@@ -94,19 +94,19 @@ export default function Preparation() {
                 step === i + 1
                   ? 'bg-violet-500 text-white'
                   : step > i + 1
-                  ? 'bg-violet-100 text-violet-700'
-                  : 'text-gray-500 hover:text-gray-700'
+                  ? 'bg-violet-500/15 text-violet-700 dark:text-violet-300'
+                  : 'text-ink-muted hover:text-ink-soft'
               )}
             >
               <span className={clsx(
                 'w-5 h-5 rounded-full text-xs flex items-center justify-center font-bold',
-                step === i + 1 ? 'bg-white text-violet-600' : step > i + 1 ? 'bg-violet-500 text-white' : 'bg-gray-200 text-gray-500'
+                step === i + 1 ? 'bg-panel text-violet-600 dark:text-violet-400' : step > i + 1 ? 'bg-violet-500 text-white' : 'bg-panel-strong text-ink-muted'
               )}>
                 {step > i + 1 ? <i className="ti ti-check text-xs" /> : i + 1}
               </span>
               {s}
             </button>
-            {i < 2 && <i className="ti ti-chevron-right text-gray-300 mx-1" />}
+            {i < 2 && <i className="ti ti-chevron-right text-ink-faint mx-1" />}
           </React.Fragment>
         ))}
       </div>
@@ -115,9 +115,9 @@ export default function Preparation() {
       {step === 1 && (
         <Card className="space-y-4">
           <div>
-            <h2 className="text-sm font-semibold text-gray-900">Import Targets via CSV</h2>
-            <p className="text-xs text-gray-500 mt-0.5">
-              Upload a CSV with columns: <code className="bg-gray-100 px-1 rounded">email, first_name, last_name, department, position</code>
+            <h2 className="text-sm font-semibold text-ink">Import Targets via CSV</h2>
+            <p className="text-xs text-ink-muted mt-0.5">
+              Upload a CSV with columns: <code className="bg-panel-muted px-1 rounded">email, first_name, last_name, department, position</code>
             </p>
           </div>
 
@@ -142,22 +142,22 @@ export default function Preparation() {
             id="csv-dropzone"
             className={clsx(
               'border-2 border-dashed rounded-xl p-10 text-center cursor-pointer transition-all',
-              isDragActive ? 'border-violet-500 bg-violet-50' : 'border-gray-200 hover:border-violet-300 hover:bg-gray-50'
+              isDragActive ? 'border-violet-500 bg-violet-500/10' : 'border-line hover:border-violet-300 hover:bg-panel-subtle'
             )}
           >
             <input {...getInputProps()} id="csv-file-input" />
-            <i className="ti ti-file-spreadsheet text-4xl text-gray-300 mb-2" />
-            <p className="text-sm font-medium text-gray-600">
+            <i className="ti ti-file-spreadsheet text-4xl text-ink-faint mb-2" />
+            <p className="text-sm font-medium text-ink-muted">
               {isDragActive ? 'Drop CSV here...' : 'Drag & drop CSV, or click to browse'}
             </p>
-            <p className="text-xs text-gray-400 mt-1">Supports up to 10,000 rows</p>
+            <p className="text-xs text-ink-faint mt-1">Supports up to 10,000 rows</p>
           </div>
 
           {/* Preview */}
           {csvData.length > 0 && (
             <div>
               <div className="flex items-center justify-between mb-2">
-                <p className="text-sm font-semibold text-gray-800">Preview ({csvData.length} targets)</p>
+                <p className="text-sm font-semibold text-ink-soft">Preview ({csvData.length} targets)</p>
                 <Button variant="primary" size="sm" onClick={handleImport} id="btn-import-targets">
                   <i className="ti ti-upload" /> Import
                 </Button>
@@ -178,12 +178,12 @@ export default function Preparation() {
                     </tr>
                   ))}
                   {csvData.length > 20 && (
-                    <tr><td colSpan={4} className="text-center text-gray-400">...and {csvData.length - 20} more</td></tr>
+                    <tr><td colSpan={4} className="text-center text-ink-faint">...and {csvData.length - 20} more</td></tr>
                   )}
                 </tbody>
               </Table>
               {csvErrors.length > 0 && (
-                <div className="mt-2 p-2 bg-amber-50 rounded text-xs text-amber-700">
+                <div className="mt-2 p-2 bg-amber-500/10 rounded text-xs text-amber-700 dark:text-amber-300">
                   <strong>{csvErrors.length} rows skipped:</strong> {csvErrors.slice(0,3).join(', ')}
                 </div>
               )}
@@ -202,8 +202,8 @@ export default function Preparation() {
       {step === 2 && (
         <Card className="space-y-6">
           <div>
-            <h2 className="text-sm font-semibold text-gray-900">Select GoPhish Templates</h2>
-            <p className="text-xs text-gray-500 mt-0.5">Choose email template, landing page, and SMTP sending profile.</p>
+            <h2 className="text-sm font-semibold text-ink">Select GoPhish Templates</h2>
+            <p className="text-xs text-ink-muted mt-0.5">Choose email template, landing page, and SMTP sending profile.</p>
           </div>
 
           {/* Email Templates */}
@@ -211,7 +211,7 @@ export default function Preparation() {
             <Label>Email Template</Label>
             <div className="grid gap-2">
               {emailTemplates.length === 0 ? (
-                <p className="text-xs text-gray-400 p-3 bg-gray-50 rounded-lg">No email templates found in GoPhish. Create one in GoPhish admin first.</p>
+                <p className="text-xs text-ink-faint p-3 bg-panel-subtle rounded-lg">No email templates found in GoPhish. Create one in GoPhish admin first.</p>
               ) : emailTemplates.map(t => (
                 <button
                   key={t.id}
@@ -220,12 +220,12 @@ export default function Preparation() {
                   className={clsx(
                     'text-left p-3 rounded-lg border transition-all',
                     selectedTemplate === t.id
-                      ? 'border-violet-500 bg-violet-50 text-violet-700'
-                      : 'border-gray-200 hover:border-violet-200'
+                      ? 'border-violet-500 bg-violet-500/10 text-violet-700 dark:text-violet-300'
+                      : 'border-line hover:border-violet-500/30'
                   )}
                 >
                   <p className="text-sm font-medium">{t.name}</p>
-                  <p className="text-xs text-gray-500 mt-0.5">{t.subject || 'No subject'}</p>
+                  <p className="text-xs text-ink-muted mt-0.5">{t.subject || 'No subject'}</p>
                 </button>
               ))}
             </div>
@@ -236,7 +236,7 @@ export default function Preparation() {
             <Label>Landing Page</Label>
             <div className="grid gap-2">
               {landingPages.length === 0 ? (
-                <p className="text-xs text-gray-400 p-3 bg-gray-50 rounded-lg">No landing pages found in GoPhish. Create one in GoPhish admin first.</p>
+                <p className="text-xs text-ink-faint p-3 bg-panel-subtle rounded-lg">No landing pages found in GoPhish. Create one in GoPhish admin first.</p>
               ) : landingPages.map(page => (
                 <button
                   key={page.id}
@@ -245,12 +245,12 @@ export default function Preparation() {
                   className={clsx(
                     'text-left p-3 rounded-lg border transition-all',
                     selectedLandingPage === page.id
-                      ? 'border-violet-500 bg-violet-50 text-violet-700'
-                      : 'border-gray-200 hover:border-violet-200'
+                      ? 'border-violet-500 bg-violet-500/10 text-violet-700 dark:text-violet-300'
+                      : 'border-line hover:border-violet-500/30'
                   )}
                 >
                   <p className="text-sm font-medium">{page.name}</p>
-                  <p className="text-xs text-gray-500 mt-0.5">
+                  <p className="text-xs text-ink-muted mt-0.5">
                     {page.capture_credentials ? 'Captures credentials' : 'No credential capture'}
                     {page.redirect_url ? ` · Redirects after submit` : ''}
                   </p>
@@ -267,7 +267,7 @@ export default function Preparation() {
               {smtpProfiles.map(s => <option key={s.id} value={s.id}>{s.name}</option>)}
             </Select>
             {smtpProfiles.length === 0 && (
-              <p className="text-xs text-amber-700 bg-amber-50 rounded-lg p-3 mt-2">
+              <p className="text-xs text-amber-700 dark:text-amber-300 bg-amber-500/10 rounded-lg p-3 mt-2">
                 No SMTP profiles found in GoPhish. Create a sending profile in GoPhish before launching.
               </p>
             )}
@@ -287,54 +287,54 @@ export default function Preparation() {
       {/* Step 3: Review */}
       {step === 3 && (
         <Card className="space-y-4">
-          <h2 className="text-sm font-semibold text-gray-900">Review Configuration</h2>
+          <h2 className="text-sm font-semibold text-ink">Review Configuration</h2>
           <div className="space-y-3 text-sm">
-            <div className="flex justify-between py-2 border-b border-gray-50">
-              <span className="text-gray-500">Targets</span>
-              <span className="font-medium text-gray-800">
+            <div className="flex justify-between py-2 border-b border-line-soft">
+              <span className="text-ink-muted">Targets</span>
+              <span className="font-medium text-ink-soft">
                 {csvData.length} loaded {targetsSynced ? 'and synced' : ''}
               </span>
             </div>
-            <div className="flex justify-between py-2 border-b border-gray-50">
-              <span className="text-gray-500">Campaign</span>
-              <span className="font-medium text-gray-800">
+            <div className="flex justify-between py-2 border-b border-line-soft">
+              <span className="text-ink-muted">Campaign</span>
+              <span className="font-medium text-ink-soft">
                 {campaigns.find(c => String(c.id) === String(selectedCampaign))?.name || '—'}
               </span>
             </div>
-            <div className="flex justify-between py-2 border-b border-gray-50">
-              <span className="text-gray-500">Email Template</span>
-              <span className="font-medium text-gray-800">
+            <div className="flex justify-between py-2 border-b border-line-soft">
+              <span className="text-ink-muted">Email Template</span>
+              <span className="font-medium text-ink-soft">
                 {emailTemplates.find(t => t.id === selectedTemplate)?.name || '—'}
               </span>
             </div>
             <div className="flex justify-between py-2">
-              <span className="text-gray-500">Landing Page</span>
-              <span className="font-medium text-gray-800">
+              <span className="text-ink-muted">Landing Page</span>
+              <span className="font-medium text-ink-soft">
                 {landingPages.find(page => page.id === selectedLandingPage)?.name || '—'}
               </span>
             </div>
-            <div className="flex justify-between py-2 border-t border-gray-50">
-              <span className="text-gray-500">SMTP Profile</span>
-              <span className="font-medium text-gray-800">
+            <div className="flex justify-between py-2 border-t border-line-soft">
+              <span className="text-ink-muted">SMTP Profile</span>
+              <span className="font-medium text-ink-soft">
                 {smtpProfiles.find(s => String(s.id) === String(selectedSmtp))?.name || '—'}
               </span>
             </div>
           </div>
 
           {csvData.length === 0 && (
-            <div className="p-3 bg-amber-50 rounded-lg text-xs text-amber-700">
+            <div className="p-3 bg-amber-500/10 rounded-lg text-xs text-amber-700 dark:text-amber-300">
               <i className="ti ti-alert-triangle mr-1" /> No targets imported yet. Go back to Step 1.
             </div>
           )}
 
           {csvData.length > 0 && !targetsSynced && (
-            <div className="p-3 bg-amber-50 rounded-lg text-xs text-amber-700">
+            <div className="p-3 bg-amber-500/10 rounded-lg text-xs text-amber-700 dark:text-amber-300">
               <i className="ti ti-alert-triangle mr-1" /> Targets are loaded locally but have not been imported to GoPhish yet.
             </div>
           )}
 
           {(!selectedTemplate || !selectedLandingPage || !selectedSmtp) && (
-            <div className="p-3 bg-amber-50 rounded-lg text-xs text-amber-700">
+            <div className="p-3 bg-amber-500/10 rounded-lg text-xs text-amber-700 dark:text-amber-300">
               <i className="ti ti-alert-triangle mr-1" /> Complete the GoPhish template, landing page, and SMTP selections before launch.
             </div>
           )}

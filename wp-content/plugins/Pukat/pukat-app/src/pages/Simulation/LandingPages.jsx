@@ -38,7 +38,7 @@ function CaptureBadge({ label }) {
     <span
       className={clsx(
         'rounded-full text-[9px] font-semibold px-1.5 py-0.5',
-        isPass ? 'bg-red-100 text-red-700' : 'bg-emerald-100 text-emerald-700'
+        isPass ? 'bg-red-500/15 text-red-700 dark:text-red-300' : 'bg-emerald-500/15 text-emerald-700 dark:text-emerald-300'
       )}
     >
       {label} ✓
@@ -48,24 +48,24 @@ function CaptureBadge({ label }) {
 
 function ThumbnailMockup({ page }) {
   return (
-    <div className="h-32 rounded-lg border border-gray-200 relative flex flex-col overflow-hidden select-none">
+    <div className="h-32 rounded-lg border border-line relative flex flex-col overflow-hidden select-none">
       {/* Category badge */}
       <span
         className={clsx(
-          'absolute top-2 left-2 z-10 w-6 h-6 rounded-full flex items-center justify-center text-xs shadow-sm bg-white',
-          page.thumbnail?.bg?.split(' ')[1] || 'text-violet-600'
+          'absolute top-2 left-2 z-10 w-6 h-6 rounded-full flex items-center justify-center text-xs shadow-sm bg-panel',
+          page.thumbnail?.bg?.split(' ')[1] || 'text-violet-600 dark:text-violet-400'
         )}
       >
         <i className={clsx('ti', page.thumbnail?.icon || 'ti-forms')} />
       </span>
 
       {/* Master badge */}
-      <span className="absolute top-2 right-2 z-10 rounded-full text-[9px] font-semibold px-2 py-0.5 bg-amber-100 text-amber-700 shadow-sm">
+      <span className="absolute top-2 right-2 z-10 rounded-full text-[9px] font-semibold px-2 py-0.5 bg-amber-500/15 text-amber-700 dark:text-amber-300 shadow-sm">
         Master
       </span>
 
       {/* Live preview */}
-      <div className="relative flex-1 min-h-0 bg-white">
+      <div className="relative flex-1 min-h-0 bg-panel">
         <HtmlThumbnail html={page.html} />
       </div>
 
@@ -132,7 +132,7 @@ function LandingPageCard({ page, canEdit, canApprove, onEdit, onPreview, onDelet
       actions={actions}
       statusBadge={{
         label: page.status,
-        cls: page.status === 'Published' ? 'bg-emerald-100 text-emerald-700' : 'bg-gray-100 text-gray-600',
+        cls: page.status === 'Published' ? 'bg-emerald-500/15 text-emerald-700 dark:text-emerald-300' : 'bg-panel-muted text-ink-muted',
       }}
     />
   )
@@ -142,9 +142,9 @@ function LandingPageEntityCell({ page }) {
   return (
     <div className="flex flex-wrap items-center gap-1.5">
       {page.entity ? (
-        <span className="inline-flex rounded-full bg-gray-100 px-2 py-0.5 text-[10px] font-semibold text-gray-600">{page.entity}</span>
+        <span className="inline-flex rounded-full bg-panel-muted px-2 py-0.5 text-[10px] font-semibold text-ink-muted">{page.entity}</span>
       ) : (
-        <span className="text-gray-300">—</span>
+        <span className="text-ink-faint">—</span>
       )}
       <AssetLockBadge locked={page.editLocked} reason={masterAssetLockMessage(page, 'Landing page')} />
     </div>
@@ -152,7 +152,7 @@ function LandingPageEntityCell({ page }) {
 }
 
 function LandingPageCaptureCell({ page }) {
-  if (!page.badges?.length) return <span className="text-gray-300">—</span>
+  if (!page.badges?.length) return <span className="text-ink-faint">—</span>
   return (
     <div className="flex flex-wrap items-center gap-1.5">
       {page.badges.map((badge) => (
@@ -164,7 +164,7 @@ function LandingPageCaptureCell({ page }) {
 
 function PreviewFallback() {
   return (
-    <div className="text-center text-gray-400 space-y-2 py-12">
+    <div className="text-center text-ink-faint space-y-2 py-12">
       <i className="ti ti-eye-off text-3xl" />
       <p className="text-xs font-medium">
         Silakan klik &quot;Preview&quot; pada salah satu landing page di daftar atau klik tab &quot;Editor&quot; untuk mengedit template
@@ -220,15 +220,15 @@ function EditorPane({
     <div className="space-y-6 animate-fade-in">
       <div className="flex items-center justify-between">
         <div>
-          <h2 className="text-lg font-bold text-gray-900">{title}</h2>
-          <p className="text-xs text-gray-500 mt-0.5">
+          <h2 className="text-lg font-bold text-ink">{title}</h2>
+          <p className="text-xs text-ink-muted mt-0.5">
             HTML template configuration to capture simulated credential input
           </p>
         </div>
         <div className="flex items-center gap-3">
           <button
             onClick={onBack}
-            className="bg-white border border-gray-200 text-gray-700 hover:bg-gray-50 px-4 py-2 text-sm font-semibold rounded-xl transition-all"
+            className="bg-panel border border-line text-ink-soft hover:bg-panel-subtle px-4 py-2 text-sm font-semibold rounded-xl transition-all"
           >
             Cancel
           </button>
@@ -244,24 +244,24 @@ function EditorPane({
 
       <div className="grid grid-cols-1 lg:grid-cols-5 gap-6">
         {/* Left settings panel (2 cols) */}
-        <div className="lg:col-span-2 bg-white border border-gray-200 rounded-xl p-5 space-y-4">
-          <h3 className="text-sm font-semibold text-gray-900 border-b border-gray-100 pb-2">
+        <div className="lg:col-span-2 bg-panel border border-line rounded-xl p-5 space-y-4">
+          <h3 className="text-sm font-semibold text-ink border-b border-line-soft pb-2">
             Konfigurasi template
           </h3>
 
           <div className="space-y-3 text-xs">
             <div className="space-y-1">
-              <label className="block font-semibold text-gray-700">Nama template *</label>
+              <label className="block font-semibold text-ink-soft">Nama template *</label>
               <input
                 type="text"
                 value={name}
                 onChange={(e) => setName(e.target.value)}
                 placeholder="Contoh: Microsoft 365 Login"
-                className="w-full bg-white border border-gray-200 rounded-lg px-3 py-2 text-gray-950 focus:outline-none focus:border-violet-500"
+                className="w-full bg-panel border border-line rounded-lg px-3 py-2 text-ink focus:outline-none focus:border-violet-500"
               />
             </div>
             <div className="space-y-1">
-              <label className="block font-semibold text-gray-700">
+              <label className="block font-semibold text-ink-soft">
                 Redirect URL (setelah submit)
               </label>
               <input
@@ -269,11 +269,11 @@ function EditorPane({
                 value={redirectUrl}
                 onChange={(e) => setRedirectUrl(e.target.value)}
                 placeholder="https://..."
-                className="w-full bg-white border border-gray-200 rounded-lg px-3 py-2 text-gray-950 focus:outline-none focus:border-violet-500"
+                className="w-full bg-panel border border-line rounded-lg px-3 py-2 text-ink focus:outline-none focus:border-violet-500"
               />
             </div>
             <div className="space-y-1">
-              <label className="block font-semibold text-gray-700">Entity</label>
+              <label className="block font-semibold text-ink-soft">Entity</label>
               <input
                 type="text"
                 value={entity}
@@ -281,8 +281,8 @@ function EditorPane({
                 disabled={entityLocked}
                 placeholder="Contoh: EntityA"
                 className={clsx(
-                  'w-full border border-gray-200 rounded-lg px-3 py-2 text-gray-950 focus:outline-none focus:border-violet-500',
-                  entityLocked ? 'bg-gray-50 text-gray-500' : 'bg-white'
+                  'w-full border border-line rounded-lg px-3 py-2 text-ink focus:outline-none focus:border-violet-500',
+                  entityLocked ? 'bg-panel-subtle text-ink-muted' : 'bg-panel'
                 )}
               />
             </div>
@@ -293,11 +293,11 @@ function EditorPane({
                   type="checkbox"
                   checked={captureData}
                   onChange={(e) => setCaptureData(e.target.checked)}
-                  className="mt-0.5 text-violet-600 border-gray-300 rounded focus:ring-violet-500"
+                  className="mt-0.5 text-violet-600 dark:text-violet-400 border-line-strong rounded focus:ring-violet-500"
                 />
                 <div>
-                  <span className="block font-semibold text-gray-900">Capture submitted data</span>
-                  <span className="block text-[10px] text-gray-400 mt-0.5">
+                  <span className="block font-semibold text-ink">Capture submitted data</span>
+                  <span className="block text-[10px] text-ink-faint mt-0.5">
                     Tangkap data parameter input yang dimasukkan user target
                   </span>
                 </div>
@@ -308,11 +308,11 @@ function EditorPane({
                   type="checkbox"
                   checked={capturePass}
                   onChange={(e) => setCapturePass(e.target.checked)}
-                  className="mt-0.5 text-violet-600 border-gray-300 rounded focus:ring-violet-500"
+                  className="mt-0.5 text-violet-600 dark:text-violet-400 border-line-strong rounded focus:ring-violet-500"
                 />
                 <div>
-                  <span className="block font-semibold text-gray-900">Capture passwords</span>
-                  <span className="block text-[10px] text-gray-400 mt-0.5">
+                  <span className="block font-semibold text-ink">Capture passwords</span>
+                  <span className="block text-[10px] text-ink-faint mt-0.5">
                     Tangkap input password (direkomendasikan dalam mode terenkripsi)
                   </span>
                 </div>
@@ -621,7 +621,7 @@ export default function LandingPages() {
       'landing-tab-btn flex items-center gap-2 py-3 px-1 border-b-2 font-semibold text-sm transition-all focus:outline-none select-none',
       activeTab === tab
         ? 'border-violet-500 text-violet-500'
-        : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+        : 'border-transparent text-ink-muted hover:text-ink-soft hover:border-line-strong'
     )
 
   /* ── Filter pill classes ── */
@@ -629,8 +629,8 @@ export default function LandingPages() {
     clsx(
       'landing-filter-pill px-4 py-1.5 rounded-full text-xs font-semibold transition-all select-none',
       activeFilter === key
-        ? 'bg-gray-950 text-white'
-        : 'bg-white border border-gray-200 text-gray-600 hover:bg-gray-50'
+        ? 'bg-ink text-canvas'
+        : 'bg-panel border border-line text-ink-muted hover:bg-panel-subtle'
     )
 
   return (
@@ -644,7 +644,7 @@ export default function LandingPages() {
             {/* Search bar (table view has its own, in the DataTable toolbar) */}
             {viewMode === 'grid' && (
               <div className="relative w-64">
-                <span className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none text-gray-400">
+                <span className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none text-ink-faint">
                   <i className="ti ti-search text-base" />
                 </span>
                 <input
@@ -652,7 +652,7 @@ export default function LandingPages() {
                   value={searchQuery}
                   onChange={(e) => setSearchQuery(e.target.value)}
                   placeholder="Cari landing page..."
-                  className="w-full bg-white border border-gray-200 rounded-xl pl-9 pr-4 py-2 text-sm text-gray-950 placeholder-gray-400 focus:outline-none focus:border-violet-500 transition-colors"
+                  className="w-full bg-panel border border-line rounded-xl pl-9 pr-4 py-2 text-sm text-ink placeholder-ink-faint focus:outline-none focus:border-violet-500 transition-colors"
                 />
               </div>
             )}
@@ -673,7 +673,7 @@ export default function LandingPages() {
       />
 
       {/* ── Sub Tab Bar ── */}
-      <div className="border-b border-gray-200">
+      <div className="border-b border-line">
         <nav className="flex gap-6 -mb-px" aria-label="Landing page subtabs">
           <button onClick={() => switchTab('list')} className={tabBtnClass('list')}>
             <i className="ti ti-list text-base" />
@@ -715,7 +715,7 @@ export default function LandingPages() {
             </div>
 
             {isLoading && (
-              <div className="bg-white border border-gray-200 rounded-xl p-8 text-center text-sm text-gray-400">
+              <div className="bg-panel border border-line rounded-xl p-8 text-center text-sm text-ink-faint">
                 Memuat landing page dari master database...
               </div>
             )}
@@ -786,21 +786,21 @@ export default function LandingPages() {
           <div className="space-y-6 animate-fade-in">
             <div className="flex items-center justify-between">
               <div>
-                <h2 className="text-lg font-bold text-gray-900">{previewTitle}</h2>
-                <p className="text-xs text-gray-500 mt-0.5">
+                <h2 className="text-lg font-bold text-ink">{previewTitle}</h2>
+                <p className="text-xs text-ink-muted mt-0.5">
                   Preview how the landing page appears to the target.
                 </p>
               </div>
               <button
                 onClick={() => switchTab('list')}
-                className="bg-white border border-gray-200 text-gray-700 hover:bg-gray-50 px-4 py-2 text-sm font-semibold rounded-xl transition-all"
+                className="bg-panel border border-line text-ink-soft hover:bg-panel-subtle px-4 py-2 text-sm font-semibold rounded-xl transition-all"
               >
                 Return to List
               </button>
             </div>
 
             {/* Preview Viewport */}
-            <div className="border border-gray-200 rounded-xl overflow-hidden bg-gray-100 flex flex-col items-center justify-center p-6 min-h-[450px]">
+            <div className="border border-line rounded-xl overflow-hidden bg-panel-muted flex flex-col items-center justify-center p-6 min-h-[450px]">
               {editingHtml ? (
                 <BrowserPreview html={editingHtml} redirectUrl={editingRedirectUrl} />
               ) : (

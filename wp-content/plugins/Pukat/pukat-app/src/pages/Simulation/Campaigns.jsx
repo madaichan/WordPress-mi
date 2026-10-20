@@ -74,10 +74,10 @@ function makeInitialForm() {
 }
 
 const PLAYBOOK_TYPE_COLORS = {
-  BEC: 'text-red-700',
-  Credential: 'text-amber-700',
-  Malware: 'text-emerald-700',
-  Vishing: 'text-purple-700',
+  BEC: 'text-red-700 dark:text-red-300',
+  Credential: 'text-amber-700 dark:text-amber-300',
+  Malware: 'text-emerald-700 dark:text-emerald-300',
+  Vishing: 'text-purple-700 dark:text-purple-300',
 }
 
 function difficultyNumber(value) {
@@ -99,11 +99,11 @@ function playbookTypeFromRow(row) {
 function statusMeta(status) {
   const normalized = String(status || 'draft').toLowerCase()
 
-  if (normalized === 'active') return { label: 'Active', className: 'bg-emerald-100 text-emerald-700' }
-  if (normalized === 'approved') return { label: 'Approved', className: 'bg-blue-100 text-blue-700' }
-  if (normalized === 'archived') return { label: 'Archived', className: 'bg-gray-100 text-gray-600' }
+  if (normalized === 'active') return { label: 'Active', className: 'bg-emerald-500/15 text-emerald-700 dark:text-emerald-300' }
+  if (normalized === 'approved') return { label: 'Approved', className: 'bg-blue-500/15 text-blue-700 dark:text-blue-300' }
+  if (normalized === 'archived') return { label: 'Archived', className: 'bg-panel-muted text-ink-muted' }
 
-  return { label: 'Draft', className: 'bg-amber-100 text-amber-700' }
+  return { label: 'Draft', className: 'bg-amber-500/15 text-amber-700 dark:text-amber-300' }
 }
 
 function playbookMasterToWizardCard(row) {
@@ -602,7 +602,7 @@ export default function Campaigns() {
       return (
         <PageShell>
           <PageHeader title="Edit draft campaign" subtitle="Simulation / Edit campaign" />
-          <div className="rounded-xl border border-gray-200 bg-white p-8 text-center text-sm text-gray-500">
+          <div className="rounded-xl border border-line bg-panel p-8 text-center text-sm text-ink-muted">
             Loading draft…
           </div>
         </PageShell>

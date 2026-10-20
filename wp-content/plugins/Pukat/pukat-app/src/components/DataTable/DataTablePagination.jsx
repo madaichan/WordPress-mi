@@ -8,8 +8,8 @@ export default function DataTablePagination({ page, perPage, total, hasNext, onP
   const canGoNext = totalPages ? page < totalPages : Boolean(hasNext)
 
   return (
-    <div className="flex flex-wrap items-center justify-between gap-3 border-t border-gray-100 bg-gray-50/40 px-4 py-3 text-xs">
-      <div className="flex items-center gap-2 text-gray-500">
+    <div className="flex flex-wrap items-center justify-between gap-3 border-t border-line-soft bg-panel-subtle/40 px-4 py-3 text-xs">
+      <div className="flex items-center gap-2 text-ink-muted">
         <span>Rows per page</span>
         <Select value={perPage} onChange={event => onPerPageChange?.(Number(event.target.value))} className="w-auto py-1">
           {PER_PAGE_OPTIONS.map(option => (
@@ -17,7 +17,7 @@ export default function DataTablePagination({ page, perPage, total, hasNext, onP
           ))}
         </Select>
       </div>
-      <div className="flex items-center gap-3 text-gray-500">
+      <div className="flex items-center gap-3 text-ink-muted">
         <span>
           {totalPages ? `Page ${page} of ${totalPages}` : `Page ${page}`}
           {typeof total === 'number' && ` · ${total} rows`}
@@ -28,7 +28,7 @@ export default function DataTablePagination({ page, perPage, total, hasNext, onP
             onClick={() => onPageChange?.(page - 1)}
             disabled={!canGoPrev}
             aria-label="Previous page"
-            className="rounded-lg border border-gray-200 bg-white px-2.5 py-1.5 font-semibold text-gray-600 transition-all hover:bg-gray-50 disabled:cursor-not-allowed disabled:opacity-50"
+            className="rounded-lg border border-line bg-panel px-2.5 py-1.5 font-semibold text-ink-muted transition-all hover:bg-panel-subtle disabled:cursor-not-allowed disabled:opacity-50"
           >
             <i className="ti ti-chevron-left text-xs" />
           </button>
@@ -37,7 +37,7 @@ export default function DataTablePagination({ page, perPage, total, hasNext, onP
             onClick={() => onPageChange?.(page + 1)}
             disabled={!canGoNext}
             aria-label="Next page"
-            className="rounded-lg border border-gray-200 bg-white px-2.5 py-1.5 font-semibold text-gray-600 transition-all hover:bg-gray-50 disabled:cursor-not-allowed disabled:opacity-50"
+            className="rounded-lg border border-line bg-panel px-2.5 py-1.5 font-semibold text-ink-muted transition-all hover:bg-panel-subtle disabled:cursor-not-allowed disabled:opacity-50"
           >
             <i className="ti ti-chevron-right text-xs" />
           </button>

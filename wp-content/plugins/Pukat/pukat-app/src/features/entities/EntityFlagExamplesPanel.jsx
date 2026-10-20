@@ -103,12 +103,12 @@ export default function EntityFlagExamplesPanel({ canManage = false, adminEntity
   }
 
   if (activeFlags.length === 0) {
-    return <p className="text-sm text-gray-400">No active Flag categories. An admin needs to create one first.</p>
+    return <p className="text-sm text-ink-faint">No active Flag categories. An admin needs to create one first.</p>
   }
 
   return (
     <div className="space-y-4">
-      <p className="text-xs text-gray-500">
+      <p className="text-xs text-ink-muted">
         Annotated screenshots showing what each warning sign looks like in your email environment. Annotate images before uploading.
       </p>
 
@@ -122,25 +122,25 @@ export default function EntityFlagExamplesPanel({ canManage = false, adminEntity
             title={isUploading ? 'Wait for the current upload to finish' : undefined}
             className={clsx(
               'flex items-center gap-1.5 rounded-full border px-3 py-1 text-xs font-semibold transition-colors disabled:cursor-not-allowed disabled:opacity-60',
-              flag.id === flagId ? 'border-violet-500 bg-violet-50 text-violet-600' : 'border-gray-200 text-gray-600 hover:border-gray-300'
+              flag.id === flagId ? 'border-violet-500 bg-violet-500/10 text-violet-600 dark:text-violet-400' : 'border-line text-ink-muted hover:border-line-strong'
             )}
           >
             {flag.label}
-            <span className="rounded-full bg-gray-100 px-1.5 text-[10px] text-gray-500">{countByFlag[flag.id] || 0}</span>
+            <span className="rounded-full bg-panel-muted px-1.5 text-[10px] text-ink-muted">{countByFlag[flag.id] || 0}</span>
           </button>
         ))}
       </div>
 
       {canManage && (
-        <div className="space-y-2 rounded-lg border border-dashed border-gray-200 p-3">
-          <div className="text-xs font-semibold text-gray-700">Add a {selectedFlag?.label} example</div>
+        <div className="space-y-2 rounded-lg border border-dashed border-line p-3">
+          <div className="text-xs font-semibold text-ink-soft">Add a {selectedFlag?.label} example</div>
           <input
             ref={fileInputRef}
             type="file"
             accept={ACCEPT}
             onChange={e => setFile(e.target.files?.[0] || null)}
             disabled={isUploading}
-            className="block w-full text-xs text-gray-600 file:mr-3 file:rounded-md file:border-0 file:bg-violet-50 file:px-3 file:py-1.5 file:text-xs file:font-semibold file:text-violet-600"
+            className="block w-full text-xs text-ink-muted file:mr-3 file:rounded-md file:border-0 file:bg-violet-500/10 file:px-3 file:py-1.5 file:text-xs file:font-semibold file:text-violet-600 dark:file:text-violet-400"
           />
           <div className="flex gap-2">
             <Input value={caption} onChange={e => setCaption(e.target.value)} placeholder="Short caption (optional)" maxLength={255} disabled={isUploading} />
@@ -158,7 +158,7 @@ export default function EntityFlagExamplesPanel({ canManage = false, adminEntity
               processingHint="Large images can take up to ~20 s"
             />
           )}
-          <p className="text-[11px] text-gray-400">
+          <p className="text-[11px] text-ink-faint">
             PNG, JPEG or WebP{maxBytes ? `, up to ${Math.floor(maxBytes / 1024 / 1024)} MB` : ''}
             {data?.max_megapixels ? ` and ${data.max_megapixels} megapixels` : ''}.
             {data?.max_dimension ? ` Larger images are resized to ${data.max_dimension} px on the longest side.` : ''}
@@ -167,18 +167,18 @@ export default function EntityFlagExamplesPanel({ canManage = false, adminEntity
       )}
 
       {isLoading ? (
-        <p className="text-sm text-gray-400">Loading...</p>
+        <p className="text-sm text-ink-faint">Loading...</p>
       ) : visible.length === 0 ? (
-        <p className="text-sm text-gray-400">No {selectedFlag?.label} examples yet.</p>
+        <p className="text-sm text-ink-faint">No {selectedFlag?.label} examples yet.</p>
       ) : (
         <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
           {visible.map(example => (
-            <figure key={example.id} className="overflow-hidden rounded-lg border border-gray-100 bg-white">
+            <figure key={example.id} className="overflow-hidden rounded-lg border border-line-soft bg-panel">
               <a href={example.image_url} target="_blank" rel="noopener noreferrer">
-                <img src={example.thumbnail_url} alt={example.caption || example.flag_label} className="h-32 w-full bg-gray-50 object-cover" loading="lazy" />
+                <img src={example.thumbnail_url} alt={example.caption || example.flag_label} className="h-32 w-full bg-panel-subtle object-cover" loading="lazy" />
               </a>
               <figcaption className="flex items-start justify-between gap-2 p-2">
-                <span className="text-xs text-gray-600">{example.caption || <span className="text-gray-300">No caption</span>}</span>
+                <span className="text-xs text-ink-muted">{example.caption || <span className="text-ink-faint">No caption</span>}</span>
                 {canManage && (
                   <button
                     type="button"

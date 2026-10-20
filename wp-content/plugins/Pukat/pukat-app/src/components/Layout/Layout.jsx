@@ -8,7 +8,7 @@ export default function Layout({ children }) {
   const collapsed = useAppStore((s) => s.sidebarCollapsed)
 
   return (
-    <div className="flex min-h-screen bg-gray-50">
+    <div className="flex min-h-screen bg-canvas">
       {/* Fixed sidebar */}
       <Sidebar />
 

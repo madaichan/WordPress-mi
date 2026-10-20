@@ -193,9 +193,9 @@ export default function Step3({ form, setForm, csvData, playbooks = [], componen
   return (
     <div className="space-y-6">
       {/* Card 1 — Pre-launch checklist */}
-      <div className="bg-white border border-gray-200 rounded-xl p-5">
+      <div className="bg-panel border border-line rounded-xl p-5">
         <div className="flex items-center justify-between gap-3 mb-4">
-          <h3 className="text-sm font-semibold text-gray-900">Pre-launch checklist</h3>
+          <h3 className="text-sm font-semibold text-ink">Pre-launch checklist</h3>
           <Button
             variant="outline"
             size="sm"
@@ -211,17 +211,17 @@ export default function Step3({ form, setForm, csvData, playbooks = [], componen
           {checklist.map(({ ok, warn, neutral, label, text }, i) => (
             <div key={i} className={clsx(
               'rounded-lg px-4 py-2.5 text-xs font-medium flex items-center justify-between',
-              ok ? 'bg-emerald-50 text-emerald-800 border border-emerald-100'
-                : warn ? 'bg-amber-50 text-amber-800 border border-amber-100'
-                  : neutral ? 'bg-gray-50 text-gray-600 border border-gray-200'
-                  : 'bg-red-50 text-red-800 border border-red-100',
+              ok ? 'bg-emerald-500/10 text-emerald-800 dark:text-emerald-300 border border-emerald-500/20'
+                : warn ? 'bg-amber-500/10 text-amber-800 dark:text-amber-300 border border-amber-500/20'
+                  : neutral ? 'bg-panel-subtle text-ink-muted border border-line'
+                  : 'bg-red-500/10 text-red-800 dark:text-red-300 border border-red-500/20',
             )}>
               <span>{ok ? '✓' : warn ? '⚠' : neutral ? '…' : '✗'} {text}</span>
               {label && <span className="ml-4 whitespace-nowrap rounded-full bg-white/70 px-2 py-0.5 text-[10px] font-semibold">{label}</span>}
             </div>
           ))}
           {/* Static warning */}
-          <div className="bg-amber-50 text-amber-800 border border-amber-100 rounded-lg px-4 py-2.5 text-xs font-medium flex items-center justify-between">
+          <div className="bg-amber-500/10 text-amber-800 dark:text-amber-300 border border-amber-500/20 rounded-lg px-4 py-2.5 text-xs font-medium flex items-center justify-between">
             <span>⚠ Pre-simulation announcement has not been sent to all targets</span>
             <Link to="/pre/socialization" className="underline font-semibold whitespace-nowrap ml-4">Send now</Link>
           </div>
@@ -231,8 +231,8 @@ export default function Step3({ form, setForm, csvData, playbooks = [], componen
       {/* Card 2 — Summary + Post-launch */}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
         {/* Summary */}
-        <div className="bg-white border border-gray-200 rounded-xl p-5">
-          <h3 className="text-sm font-semibold text-gray-900 mb-4">Campaign summary</h3>
+        <div className="bg-panel border border-line rounded-xl p-5">
+          <h3 className="text-sm font-semibold text-ink mb-4">Campaign summary</h3>
           <div className="space-y-3 text-sm">
             {[
               { label: 'Name', value: form.name || '—' },
@@ -257,33 +257,33 @@ export default function Step3({ form, setForm, csvData, playbooks = [], componen
               ...(isCustomMode ? [] : [{ label: 'Difficulty', value: selectedPlaybook?.diff ? `${selectedPlaybook.diff}/5 (NIST)` : '—', red: true }]),
             ].map(({ label, value, red }) => (
               <div key={label} className="flex items-baseline justify-between">
-                <span className="text-xs text-gray-500 w-32 flex-shrink-0">{label}</span>
-                <span className={clsx('text-xs font-bold text-right', red ? 'text-red-600' : 'text-gray-900')}>{value}</span>
+                <span className="text-xs text-ink-muted w-32 flex-shrink-0">{label}</span>
+                <span className={clsx('text-xs font-bold text-right', red ? 'text-red-600 dark:text-red-400' : 'text-ink')}>{value}</span>
               </div>
             ))}
           </div>
         </div>
 
         {/* After running */}
-        <div className="bg-white border border-gray-200 rounded-xl p-5">
-          <h3 className="text-sm font-semibold text-gray-900 mb-4">Set The Follow Up</h3>
+        <div className="bg-panel border border-line rounded-xl p-5">
+          <h3 className="text-sm font-semibold text-ink mb-4">Set The Follow Up</h3>
           <div className="space-y-3">
-            <div className="flex items-center gap-2 text-xs text-gray-700">
-              <i className="ti ti-circle-check text-emerald-600 text-base flex-shrink-0" />
+            <div className="flex items-center gap-2 text-xs text-ink-soft">
+              <i className="ti ti-circle-check text-emerald-600 dark:text-emerald-400 text-base flex-shrink-0" />
               Monitoring real-time enabled automatically
             </div>
 
             {/* Education follow-up (G3b) — live when the entity has a published
                 education page synced to GoPhish, otherwise gated off. */}
             <div className="flex items-center justify-between gap-2">
-              <div className="flex items-start gap-2 text-xs text-gray-700">
-                <i className={clsx('ti text-base flex-shrink-0', educationEnabled ? 'ti-circle-check text-emerald-600' : 'ti-circle-x text-gray-400')} />
+              <div className="flex items-start gap-2 text-xs text-ink-soft">
+                <i className={clsx('ti text-base flex-shrink-0', educationEnabled ? 'ti-circle-check text-emerald-600 dark:text-emerald-400' : 'ti-circle-x text-ink-faint')} />
                 <span>
                   {educationFollowUpAvailable
                     ? (educationEnabled ? 'Education page shown after a user submits' : 'Education follow-up disabled for this campaign')
                     : 'Education follow-up unavailable'}
                   {!educationFollowUpAvailable && (
-                    <span className="block text-[11px] text-gray-400 mt-0.5">
+                    <span className="block text-[11px] text-ink-faint mt-0.5">
                       Publish this entity&apos;s Flag education page (My Profile → Flags) and sync it to GoPhish first.
                     </span>
                   )}
@@ -296,25 +296,25 @@ export default function Step3({ form, setForm, csvData, playbooks = [], componen
               />
             </div>
 
-            <div className="space-y-3 opacity-60 pointer-events-none border-t border-gray-100 pt-3" title="These follow-up settings are still in development — not available yet.">
+            <div className="space-y-3 opacity-60 pointer-events-none border-t border-line-soft pt-3" title="These follow-up settings are still in development — not available yet.">
               <div className="flex items-center justify-between gap-2">
-                <div className="flex items-center gap-2 text-xs text-gray-700">
-                  <i className={clsx('ti text-base flex-shrink-0', quizEnabled ? 'ti-circle-check text-emerald-600' : 'ti-circle-x text-gray-400')} />
+                <div className="flex items-center gap-2 text-xs text-ink-soft">
+                  <i className={clsx('ti text-base flex-shrink-0', quizEnabled ? 'ti-circle-check text-emerald-600 dark:text-emerald-400' : 'ti-circle-x text-ink-faint')} />
                   {quizEnabled ? 'Quiz sent to users who click' : 'Quiz disabled for this campaign'}
                 </div>
                 <div className="flex items-center gap-2">
-                  <span className="rounded-full text-[9px] font-semibold px-2 py-0.5 bg-gray-100 text-gray-500">Coming soon</span>
+                  <span className="rounded-full text-[9px] font-semibold px-2 py-0.5 bg-panel-muted text-ink-muted">Coming soon</span>
                   <Switch checked={quizEnabled} onChange={value => setFollowUp({ quizEnabled: value })} disabled />
                 </div>
               </div>
 
               <div className="flex items-center justify-between gap-2">
-                <div className="flex items-center gap-2 text-xs text-gray-700">
-                  <i className={clsx('ti text-base flex-shrink-0', reminderEnabled ? 'ti-circle-check text-emerald-600' : 'ti-circle-x text-gray-400')} />
+                <div className="flex items-center gap-2 text-xs text-ink-soft">
+                  <i className={clsx('ti text-base flex-shrink-0', reminderEnabled ? 'ti-circle-check text-emerald-600 dark:text-emerald-400' : 'ti-circle-x text-ink-faint')} />
                   {reminderEnabled ? 'Notify enabled Force Reset Password' : 'Notify disabled Force Reset Password'}
                 </div>
                 <div className="flex items-center gap-2">
-                  <span className="rounded-full text-[9px] font-semibold px-2 py-0.5 bg-gray-100 text-gray-500">Coming soon</span>
+                  <span className="rounded-full text-[9px] font-semibold px-2 py-0.5 bg-panel-muted text-ink-muted">Coming soon</span>
                   <Switch checked={reminderEnabled} onChange={value => setFollowUp({ forceResetPasswordReminderEnabled: value })} disabled />
                 </div>
               </div>
@@ -324,14 +324,14 @@ export default function Step3({ form, setForm, csvData, playbooks = [], componen
       </div>
 
       {/* Footer */}
-      <div className="flex items-center justify-between pt-4 border-t border-gray-100">
-        <button onClick={onBack} className="bg-white border border-gray-200 text-gray-700 hover:bg-gray-50 px-4 py-2 text-sm font-semibold rounded-xl transition-all">
+      <div className="flex items-center justify-between pt-4 border-t border-line-soft">
+        <button onClick={onBack} className="bg-panel border border-line text-ink-soft hover:bg-panel-subtle px-4 py-2 text-sm font-semibold rounded-xl transition-all">
           ← Back
         </button>
         <div className="flex items-center gap-2">
           <button onClick={onDraft} disabled={isSavingDraft || isLaunching || sendTimeInvalid}
             title={sendTimeInvalid ? 'Fix the sending schedule — Send time must be at least 5 minutes from now.' : undefined}
-            className="bg-white border border-gray-200 text-gray-700 hover:bg-gray-50 disabled:opacity-50 px-4 py-2 text-sm font-semibold rounded-xl transition-all">
+            className="bg-panel border border-line text-ink-soft hover:bg-panel-subtle disabled:opacity-50 px-4 py-2 text-sm font-semibold rounded-xl transition-all">
             {isSavingDraft ? 'Saving…' : isEditing ? 'Update draft' : 'Save as draft'}
           </button>
           <button onClick={onLaunch} disabled={isLaunching || isSavingDraft || sendTimeInvalid || domainBlocked}

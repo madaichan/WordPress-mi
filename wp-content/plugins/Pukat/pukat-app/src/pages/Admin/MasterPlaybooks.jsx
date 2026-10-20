@@ -214,23 +214,23 @@ function richPlaybookFromRow(row, users) {
 function PlaybookAssignmentEditor({ form, users, onChange, onToggleUser }) {
   return (
     <section className="space-y-3">
-      <div className="text-[11px] font-bold uppercase tracking-wider text-gray-500">Assignment</div>
+      <div className="text-[11px] font-bold uppercase tracking-wider text-ink-muted">Assignment</div>
       <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
         <button
           type="button"
           onClick={() => onChange('assignedTo', 'all')}
-          className={clsx('rounded-lg border p-3 text-left transition-all', form.assignedTo === 'all' ? 'border-violet-300 bg-violet-50' : 'border-gray-200 hover:bg-gray-50')}
+          className={clsx('rounded-lg border p-3 text-left transition-all', form.assignedTo === 'all' ? 'border-violet-300 bg-violet-500/10' : 'border-line hover:bg-panel-subtle')}
         >
-          <span className="block text-sm font-semibold text-gray-900">All users</span>
-          <span className="mt-0.5 block text-xs text-gray-500">Available to everyone.</span>
+          <span className="block text-sm font-semibold text-ink">All users</span>
+          <span className="mt-0.5 block text-xs text-ink-muted">Available to everyone.</span>
         </button>
         <button
           type="button"
           onClick={() => onChange('assignedTo', 'specific')}
-          className={clsx('rounded-lg border p-3 text-left transition-all', form.assignedTo === 'specific' ? 'border-violet-300 bg-violet-50' : 'border-gray-200 hover:bg-gray-50')}
+          className={clsx('rounded-lg border p-3 text-left transition-all', form.assignedTo === 'specific' ? 'border-violet-300 bg-violet-500/10' : 'border-line hover:bg-panel-subtle')}
         >
-          <span className="block text-sm font-semibold text-gray-900">Specific users</span>
-          <span className="mt-0.5 block text-xs text-gray-500">Limit visibility.</span>
+          <span className="block text-sm font-semibold text-ink">Specific users</span>
+          <span className="mt-0.5 block text-xs text-ink-muted">Limit visibility.</span>
         </button>
       </div>
 
@@ -248,24 +248,24 @@ function PlaybookAssignmentEditor({ form, users, onChange, onToggleUser }) {
                   onToggleUser(user.id)
                 }
               }}
-              className="flex cursor-pointer items-center gap-3 rounded-lg border border-gray-100 p-3 hover:bg-gray-50"
+              className="flex cursor-pointer items-center gap-3 rounded-lg border border-line-soft p-3 hover:bg-panel-subtle"
             >
               <Checkbox
                 checked={form.users.includes(user.id)}
                 onClick={event => event.stopPropagation()}
                 onChange={() => onToggleUser(user.id)}
               />
-              <span className="flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-full bg-violet-100 text-xs font-bold text-violet-700">
+              <span className="flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-full bg-violet-500/15 text-xs font-bold text-violet-700 dark:text-violet-300">
                 {user.name.charAt(0).toUpperCase()}
               </span>
               <span className="min-w-0">
-                <span className="block truncate text-sm font-semibold text-gray-900">{user.name}</span>
-                <span className="block truncate text-xs text-gray-500">{user.email}</span>
+                <span className="block truncate text-sm font-semibold text-ink">{user.name}</span>
+                <span className="block truncate text-xs text-ink-muted">{user.email}</span>
               </span>
             </div>
           ))}
           {users.length === 0 && (
-            <div className="rounded-lg border border-dashed border-gray-200 p-4 text-center text-xs font-medium text-gray-400">
+            <div className="rounded-lg border border-dashed border-line p-4 text-center text-xs font-medium text-ink-faint">
               No users available.
             </div>
           )}
@@ -356,19 +356,19 @@ function PlaybookDrawer({
           if (event.target === event.currentTarget) onClose()
         }}
       >
-        <aside className="flex h-full w-full max-w-[460px] flex-col bg-white shadow-2xl animate-slide-in">
-          <header className="flex flex-shrink-0 items-center gap-3 border-b border-gray-200 px-6 py-5">
-            <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-violet-100 text-violet-600">
+        <aside className="flex h-full w-full max-w-[460px] flex-col bg-panel shadow-2xl animate-slide-in">
+          <header className="flex flex-shrink-0 items-center gap-3 border-b border-line px-6 py-5">
+            <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-violet-500/15 text-violet-600 dark:text-violet-400">
               <i className={clsx('ti', isEdit ? 'ti-edit' : 'ti-plus')} />
             </div>
             <div className="min-w-0 flex-1">
-              <h2 className="text-base font-bold text-gray-900">{isEdit ? 'Edit playbook' : 'Create playbook'}</h2>
-              <p className="text-xs text-gray-500">{isEdit ? 'Update the master playbook and assignment.' : 'Create a master playbook and choose who can use it.'}</p>
+              <h2 className="text-base font-bold text-ink">{isEdit ? 'Edit playbook' : 'Create playbook'}</h2>
+              <p className="text-xs text-ink-muted">{isEdit ? 'Update the master playbook and assignment.' : 'Create a master playbook and choose who can use it.'}</p>
             </div>
             <button
               type="button"
               onClick={onClose}
-              className="flex h-8 w-8 items-center justify-center rounded-lg text-gray-400 transition-colors hover:bg-gray-100 hover:text-gray-700"
+              className="flex h-8 w-8 items-center justify-center rounded-lg text-ink-faint transition-colors hover:bg-panel-muted hover:text-ink-soft"
               aria-label="Close playbook form"
             >
               <i className="ti ti-x text-lg" />
@@ -377,7 +377,7 @@ function PlaybookDrawer({
 
           <div className="flex-1 space-y-5 overflow-y-auto p-6">
             <section className="space-y-3">
-              <div className="text-[11px] font-bold uppercase tracking-wider text-gray-500">Basic information</div>
+              <div className="text-[11px] font-bold uppercase tracking-wider text-ink-muted">Basic information</div>
               <PlaybookField label="Playbook name" required>
                 <input
                   value={form.name}
@@ -432,21 +432,21 @@ function PlaybookDrawer({
                     {[1, 2, 3, 4, 5].map(score => (
                       <span
                         key={score}
-                        className={clsx('h-1.5 w-8 rounded-full', score <= difficultyScore ? 'bg-red-500' : 'bg-gray-200')}
+                        className={clsx('h-1.5 w-8 rounded-full', score <= difficultyScore ? 'bg-red-500' : 'bg-panel-strong')}
                       />
                     ))}
                   </div>
-                  <span className="text-[11px] font-semibold text-red-700">
+                  <span className="text-[11px] font-semibold text-red-700 dark:text-red-300">
                     {difficultyLabelFromValue(form.difficulty)}
                   </span>
                 </div>
               </PlaybookField>
             </section>
 
-            <div className="h-px bg-gray-100" />
+            <div className="h-px bg-panel-muted" />
 
             <section className="space-y-3">
-              <div className="text-[11px] font-bold uppercase tracking-wider text-gray-500">Technical components</div>
+              <div className="text-[11px] font-bold uppercase tracking-wider text-ink-muted">Technical components</div>
               {PLAYBOOK_COMPONENT_FIELDS.map(component => (
                 <PlaybookComponentSelect
                   key={component.field}
@@ -463,10 +463,10 @@ function PlaybookDrawer({
               ))}
             </section>
 
-            <div className="h-px bg-gray-100" />
+            <div className="h-px bg-panel-muted" />
 
             <section className="space-y-3">
-              <div className="text-[11px] font-bold uppercase tracking-wider text-gray-500">Scenario</div>
+              <div className="text-[11px] font-bold uppercase tracking-wider text-ink-muted">Scenario</div>
               <PlaybookField label="Narrative shown to the target" required hint="This text appears in the playbook details after saving.">
                 <textarea
                   value={form.scenario}
@@ -478,7 +478,7 @@ function PlaybookDrawer({
               </PlaybookField>
             </section>
 
-            <div className="h-px bg-gray-100" />
+            <div className="h-px bg-panel-muted" />
 
             <PlaybookAssignmentEditor
               form={form}
@@ -488,11 +488,11 @@ function PlaybookDrawer({
             />
           </div>
 
-          <footer className="flex flex-shrink-0 items-center gap-3 border-t border-gray-200 bg-gray-50 px-6 py-5">
+          <footer className="flex flex-shrink-0 items-center gap-3 border-t border-line bg-panel-subtle px-6 py-5">
             <button
               type="button"
               onClick={onClose}
-              className="ml-auto rounded-lg border border-gray-200 bg-white px-4 py-2 text-xs font-semibold text-gray-700 transition-colors hover:bg-gray-50"
+              className="ml-auto rounded-lg border border-line bg-panel px-4 py-2 text-xs font-semibold text-ink-soft transition-colors hover:bg-panel-subtle"
             >
               Cancel
             </button>
@@ -672,11 +672,11 @@ export default function MasterPlaybooks() {
           renderer: 'custom',
           render: row => (
             <div className="min-w-0">
-              <div className="truncate font-semibold text-gray-900">{row.name}</div>
-              <div className="flex flex-wrap items-center gap-1.5 text-xs text-gray-400">
+              <div className="truncate font-semibold text-ink">{row.name}</div>
+              <div className="flex flex-wrap items-center gap-1.5 text-xs text-ink-faint">
                 <span>#{row.id}</span>
                 {row.edit_locked && (
-                  <span className="inline-flex items-center gap-1 rounded-full bg-red-50 px-2 py-0.5 text-[10px] font-semibold text-red-700" title={row.edit_lock_reason}>
+                  <span className="inline-flex items-center gap-1 rounded-full bg-red-500/10 px-2 py-0.5 text-[10px] font-semibold text-red-700 dark:text-red-300" title={row.edit_lock_reason}>
                     <i className="ti ti-lock text-[10px]" />
                     Locked
                   </span>
@@ -820,21 +820,21 @@ export default function MasterPlaybooks() {
 
       <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
         <Card className="flex items-center gap-4 p-4">
-          <div className="flex h-11 w-11 items-center justify-center rounded-xl bg-violet-100 text-lg text-violet-700">
+          <div className="flex h-11 w-11 items-center justify-center rounded-xl bg-violet-500/15 text-lg text-violet-700 dark:text-violet-300">
             <i className="ti ti-book" />
           </div>
           <div>
-            <div className="text-2xl font-bold text-gray-900">{richPlaybooks.length}</div>
-            <div className="text-xs font-semibold text-gray-500">Master assets</div>
+            <div className="text-2xl font-bold text-ink">{richPlaybooks.length}</div>
+            <div className="text-xs font-semibold text-ink-muted">Master assets</div>
           </div>
         </Card>
         <Card className="p-4">
-          <div className="text-2xl font-bold text-gray-900">{allAssigned}</div>
-          <div className="text-xs font-semibold text-gray-500">Available to all users</div>
+          <div className="text-2xl font-bold text-ink">{allAssigned}</div>
+          <div className="text-xs font-semibold text-ink-muted">Available to all users</div>
         </Card>
         <Card className="p-4">
-          <div className="text-2xl font-bold text-gray-900">{specificAssigned}</div>
-          <div className="text-xs font-semibold text-gray-500">Assigned to specific users</div>
+          <div className="text-2xl font-bold text-ink">{specificAssigned}</div>
+          <div className="text-xs font-semibold text-ink-muted">Assigned to specific users</div>
         </Card>
       </div>
 

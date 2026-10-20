@@ -61,7 +61,7 @@ export default function EntityProfileForm({ profile, canEdit }) {
             placeholder={profile.entity_name}
             disabled={!canEdit}
           />
-          <p className="mt-1 text-xs text-gray-500">Shown in reports. Falls back to the entity name.</p>
+          <p className="mt-1 text-xs text-ink-muted">Shown in reports. Falls back to the entity name.</p>
         </div>
       </div>
       <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">

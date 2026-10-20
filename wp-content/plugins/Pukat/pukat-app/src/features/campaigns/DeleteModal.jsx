@@ -7,8 +7,8 @@ export default function DeleteModal({ campaign, onConfirm, onCancel, isPending }
       onClose={onCancel}
       className="max-w-sm"
       icon={
-        <div className="flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-xl bg-red-100">
-          <i className="ti ti-trash text-lg text-red-600" />
+        <div className="flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-xl bg-red-500/15">
+          <i className="ti ti-trash text-lg text-red-600 dark:text-red-400" />
         </div>
       }
       title="Delete campaign?"
@@ -21,8 +21,8 @@ export default function DeleteModal({ campaign, onConfirm, onCancel, isPending }
         </>
       }
     >
-      <p className="text-xs text-gray-500">
-        <strong className="text-gray-700">{campaign.name}</strong> will be permanently deleted.
+      <p className="text-xs text-ink-muted">
+        <strong className="text-ink-soft">{campaign.name}</strong> will be permanently deleted.
       </p>
     </Modal>
   )

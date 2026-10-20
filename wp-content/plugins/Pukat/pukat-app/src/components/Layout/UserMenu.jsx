@@ -50,21 +50,21 @@ export default function UserMenu() {
         onClick={() => setOpen(v => !v)}
         aria-haspopup="menu"
         aria-expanded={open}
-        className="flex items-center gap-2 rounded-full py-1 pl-1 pr-2 transition-colors hover:bg-gray-100"
+        className="flex items-center gap-2 rounded-full py-1 pl-1 pr-2 transition-colors hover:bg-panel-muted"
       >
-        <span className="flex h-7 w-7 select-none items-center justify-center rounded-full bg-gray-100 text-xs font-bold text-gray-700">
+        <span className="flex h-7 w-7 select-none items-center justify-center rounded-full bg-panel-muted text-xs font-bold text-ink-soft">
           {initialsFromName(user?.displayName)}
         </span>
-        <span className="max-w-[140px] truncate text-sm font-medium text-gray-700">
+        <span className="max-w-[140px] truncate text-sm font-medium text-ink-soft">
           {user?.displayName || 'Unknown'}
         </span>
-        <i className={clsx('ti ti-chevron-down text-xs text-gray-400 transition-transform', open && 'rotate-180')} />
+        <i className={clsx('ti ti-chevron-down text-xs text-ink-faint transition-transform', open && 'rotate-180')} />
       </button>
 
       {open && (
         <div
           role="menu"
-          className="absolute right-0 top-full z-30 mt-2 w-48 overflow-hidden rounded-xl border border-gray-200 bg-white py-1 shadow-lg"
+          className="absolute right-0 top-full z-30 mt-2 w-48 overflow-hidden rounded-xl border border-line bg-panel py-1 shadow-lg"
         >
           {MENU_ITEMS.map(item => (
             <a
@@ -74,7 +74,7 @@ export default function UserMenu() {
               onClick={() => setOpen(false)}
               className={clsx(
                 'flex items-center gap-2.5 px-4 py-2 text-sm transition-colors',
-                item.danger ? 'text-red-600 hover:bg-red-50' : 'text-gray-700 hover:bg-gray-50'
+                item.danger ? 'text-red-600 dark:text-red-400 hover:bg-red-500/10' : 'text-ink-soft hover:bg-panel-subtle'
               )}
             >
               <i className={clsx('ti text-base', item.icon)} />

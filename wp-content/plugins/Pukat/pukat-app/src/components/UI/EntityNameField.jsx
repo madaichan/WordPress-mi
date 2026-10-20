@@ -45,7 +45,7 @@ export default function EntityNameField({ value, onChange, disabled, placeholder
         {!disabled && (
           <button
             type="button"
-            className="whitespace-nowrap text-xs font-semibold text-violet-600 hover:underline"
+            className="whitespace-nowrap text-xs font-semibold text-violet-600 dark:text-violet-400 hover:underline"
             onClick={() => setCustomMode(false)}
           >
             Choose from list

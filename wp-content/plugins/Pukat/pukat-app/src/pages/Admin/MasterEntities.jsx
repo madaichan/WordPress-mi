@@ -37,7 +37,7 @@ function CountCell({ value, total, label }) {
   return (
     <div className="flex items-center gap-2">
       <Badge tone={tone}>{value}/{total}</Badge>
-      <span className="text-xs text-gray-400">{label}</span>
+      <span className="text-xs text-ink-faint">{label}</span>
     </div>
   )
 }
@@ -60,7 +60,7 @@ function CreateEntityDrawer({ open, form, isSaving, onChange, onClose, onSubmit 
       <div>
         <Label required>Entity name</Label>
         <Input value={form.entity_name} onChange={e => onChange('entity_name', e.target.value)} placeholder="e.g. Finance" />
-        <p className="mt-1 text-xs text-gray-400">Must match the entity assigned to its users. Cannot be renamed later.</p>
+        <p className="mt-1 text-xs text-ink-faint">Must match the entity assigned to its users. Cannot be renamed later.</p>
       </div>
       <div>
         <Label>Description</Label>
@@ -82,18 +82,18 @@ function GuardrailsDrawer({ entity, landingDomains, onClose }) {
     >
       <section className="space-y-3">
         <div className="flex items-center justify-between">
-          <div className="text-xs font-semibold uppercase tracking-wider text-gray-500">Landing page domains</div>
-          <Link to="/master/domains" className="text-xs font-semibold text-violet-600 hover:underline">
+          <div className="text-xs font-semibold uppercase tracking-wider text-ink-muted">Landing page domains</div>
+          <Link to="/master/domains" className="text-xs font-semibold text-violet-600 dark:text-violet-400 hover:underline">
             Authorize / enable in Domain Management
           </Link>
         </div>
         {landingDomains.length === 0 ? (
-          <p className="text-sm text-gray-400">No landing page domains registered.</p>
+          <p className="text-sm text-ink-faint">No landing page domains registered.</p>
         ) : (
           <ul className="space-y-2">
             {landingDomains.map(d => (
-              <li key={d.id} className="flex flex-wrap items-center gap-2 rounded-lg border border-gray-100 px-3 py-2">
-                <span className="text-sm font-medium text-gray-700">{d.domain}</span>
+              <li key={d.id} className="flex flex-wrap items-center gap-2 rounded-lg border border-line-soft px-3 py-2">
+                <span className="text-sm font-medium text-ink-soft">{d.domain}</span>
                 <Badge tone={AUTH_TONE[d.authorization_status] || 'gray'}>{d.authorization_status || 'pending'}</Badge>
                 <Badge tone={d.status === 'active' ? 'success' : 'gray'}>{d.status || 'draft'}</Badge>
               </li>
@@ -103,14 +103,14 @@ function GuardrailsDrawer({ entity, landingDomains, onClose }) {
       </section>
 
       <section className="space-y-3">
-        <div className="text-xs font-semibold uppercase tracking-wider text-gray-500">Company email domains</div>
+        <div className="text-xs font-semibold uppercase tracking-wider text-ink-muted">Company email domains</div>
         {/* Admin can also add: with the §16 guardrail on, an entity only admin
             may edit (e.g. General) would otherwise have no way to become launchable. */}
         <EntityEmailDomainsPanel entityName={entity.entity_name} canManage canToggle />
       </section>
 
       <section className="space-y-3">
-        <div className="text-xs font-semibold uppercase tracking-wider text-gray-500">Flag examples</div>
+        <div className="text-xs font-semibold uppercase tracking-wider text-ink-muted">Flag examples</div>
         <EntityFlagExamplesPanel adminEntity={entity.entity_name} />
       </section>
     </Drawer>
@@ -215,16 +215,16 @@ export default function MasterEntities() {
         sortable: true,
         render: row => (
           <div className="flex min-w-0 items-center gap-3">
-            <div className="flex h-8 w-8 shrink-0 items-center justify-center overflow-hidden rounded-md border border-gray-100 bg-gray-50">
+            <div className="flex h-8 w-8 shrink-0 items-center justify-center overflow-hidden rounded-md border border-line-soft bg-panel-subtle">
               {row.logo_url
                 ? <img src={row.logo_url} alt="" className="h-full w-full object-contain" />
-                : <i className="ti ti-building text-sm text-gray-300" />}
+                : <i className="ti ti-building text-sm text-ink-faint" />}
             </div>
           <div className="min-w-0">
             <div className="flex items-center gap-2">
-              <span className="truncate font-semibold text-gray-900">{row.display_name || row.entity_name}</span>
+              <span className="truncate font-semibold text-ink">{row.display_name || row.entity_name}</span>
               {row.display_name && row.display_name !== row.entity_name && (
-                <span className="truncate text-[11px] text-gray-400">{row.entity_name}</span>
+                <span className="truncate text-[11px] text-ink-faint">{row.entity_name}</span>
               )}
               {!row.has_profile && (
                 <span title="This entity's users registered guardrails, but no admin has created its profile yet.">
@@ -232,7 +232,7 @@ export default function MasterEntities() {
                 </span>
               )}
             </div>
-            {row.description && <div className="truncate text-[11px] text-gray-400">{row.description}</div>}
+            {row.description && <div className="truncate text-[11px] text-ink-faint">{row.description}</div>}
           </div>
           </div>
         ),
@@ -244,12 +244,12 @@ export default function MasterEntities() {
         render: row => (
           row.sector || row.employee_count != null || row.location ? (
             <div className="min-w-0 text-xs">
-              <div className="truncate text-gray-600">{row.sector_label || '—'}</div>
-              <div className="truncate text-[11px] text-gray-400">
+              <div className="truncate text-ink-muted">{row.sector_label || '—'}</div>
+              <div className="truncate text-[11px] text-ink-faint">
                 {[row.employee_count != null && `${row.employee_count.toLocaleString()} employees`, row.location].filter(Boolean).join(' · ')}
               </div>
             </div>
-          ) : <span className="text-gray-300">Not filled</span>
+          ) : <span className="text-ink-faint">Not filled</span>
         ),
       },
       {
@@ -258,8 +258,8 @@ export default function MasterEntities() {
         renderer: 'custom',
         render: row => (
           row.contact_email || row.contact_name
-            ? <span className="text-gray-500">{row.contact_email || row.contact_name}</span>
-            : <span className="text-gray-300">Not filled</span>
+            ? <span className="text-ink-muted">{row.contact_email || row.contact_name}</span>
+            : <span className="text-ink-faint">Not filled</span>
         ),
       },
       {
@@ -379,9 +379,9 @@ export default function MasterEntities() {
       />
 
       <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
-        <Card><div className="text-2xl font-bold text-gray-900">{summary.entities}</div><div className="text-xs font-semibold text-gray-500">Entities</div></Card>
-        <Card><div className="text-2xl font-bold text-gray-900">{summary.withoutLandingDomain}</div><div className="text-xs font-semibold text-gray-500">Without an authorized landing domain</div></Card>
-        <Card><div className="text-2xl font-bold text-gray-900">{summary.cannotLaunch}</div><div className="text-xs font-semibold text-gray-500">Cannot launch campaigns (no active email domain)</div></Card>
+        <Card><div className="text-2xl font-bold text-ink">{summary.entities}</div><div className="text-xs font-semibold text-ink-muted">Entities</div></Card>
+        <Card><div className="text-2xl font-bold text-ink">{summary.withoutLandingDomain}</div><div className="text-xs font-semibold text-ink-muted">Without an authorized landing domain</div></Card>
+        <Card><div className="text-2xl font-bold text-ink">{summary.cannotLaunch}</div><div className="text-xs font-semibold text-ink-muted">Cannot launch campaigns (no active email domain)</div></Card>
       </div>
 
       <DataTable

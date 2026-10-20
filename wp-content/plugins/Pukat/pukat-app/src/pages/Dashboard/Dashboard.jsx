@@ -10,25 +10,25 @@ import { useRiskScores } from '../../hooks/queries/useReportQueries.js'
 
 // Static data for sections without live API endpointsts yet
 const DEPT_RATES = [
-  { dept: 'Finance', pct: 52, color: 'bg-red-500', text: 'text-red-600' },
-  { dept: 'HR', pct: 40, color: 'bg-amber-500', text: 'text-amber-600' },
-  { dept: 'Marketing', pct: 24, color: 'bg-amber-500', text: 'text-amber-600' },
-  { dept: 'Engineering', pct: 6, color: 'bg-emerald-500', text: 'text-emerald-600' },
-  { dept: 'Legal', pct: 4, color: 'bg-emerald-500', text: 'text-emerald-600' },
+  { dept: 'Finance', pct: 52, color: 'bg-red-500', text: 'text-red-600 dark:text-red-400' },
+  { dept: 'HR', pct: 40, color: 'bg-amber-500', text: 'text-amber-600 dark:text-amber-400' },
+  { dept: 'Marketing', pct: 24, color: 'bg-amber-500', text: 'text-amber-600 dark:text-amber-400' },
+  { dept: 'Engineering', pct: 6, color: 'bg-emerald-500', text: 'text-emerald-600 dark:text-emerald-400' },
+  { dept: 'Legal', pct: 4, color: 'bg-emerald-500', text: 'text-emerald-600 dark:text-emerald-400' },
 ]
 
 const ACTIVITY = [
-  { icon: 'ti-forms', bg: 'bg-red-100', fg: 'text-red-600', actor: 'Budi Santoso', action: 'submit form phishing', meta: ['Finance', '2 minutes ago'] },
-  { icon: 'ti-pointer', bg: 'bg-red-100', fg: 'text-red-600', actor: 'Sari Dewi', action: 'menglink click phishing', meta: ['HR', '14 minutes ago'] },
-  { icon: 'ti-check', bg: 'bg-emerald-100', fg: 'text-emerald-600', actor: '38 user', action: 'completed the simulation quiz', meta: ['1 hour ago'] },
-  { icon: 'ti-school', bg: 'bg-amber-100', fg: 'text-amber-600', actor: '42 user', action: 'were assigned coaching modules', meta: ['3 hours ago'] },
+  { icon: 'ti-forms', bg: 'bg-red-500/15', fg: 'text-red-600 dark:text-red-400', actor: 'Budi Santoso', action: 'submit form phishing', meta: ['Finance', '2 minutes ago'] },
+  { icon: 'ti-pointer', bg: 'bg-red-500/15', fg: 'text-red-600 dark:text-red-400', actor: 'Sari Dewi', action: 'menglink click phishing', meta: ['HR', '14 minutes ago'] },
+  { icon: 'ti-check', bg: 'bg-emerald-500/15', fg: 'text-emerald-600 dark:text-emerald-400', actor: '38 user', action: 'completed the simulation quiz', meta: ['1 hour ago'] },
+  { icon: 'ti-school', bg: 'bg-amber-500/15', fg: 'text-amber-600 dark:text-amber-400', actor: '42 user', action: 'were assigned coaching modules', meta: ['3 hours ago'] },
 ]
 
 const HIGH_RISK = [
-  { initials: 'BS', name: 'Budi Santoso', dept: 'Finance', risk: 'High', ab: 'bg-red-100', af: 'text-red-600', bb: 'bg-red-100', bf: 'text-red-700' },
-  { initials: 'SD', name: 'Sari Dewi', dept: 'HR', risk: 'High', ab: 'bg-red-100', af: 'text-red-600', bb: 'bg-red-100', bf: 'text-red-700' },
-  { initials: 'AP', name: 'Andi Pratama', dept: 'Marketing', risk: 'Medium', ab: 'bg-amber-100', af: 'text-amber-600', bb: 'bg-amber-100', bf: 'text-amber-700' },
-  { initials: 'RW', name: 'Rina Wijaya', dept: 'Legal', risk: 'Low', ab: 'bg-emerald-100', af: 'text-emerald-600', bb: 'bg-emerald-100', bf: 'text-emerald-700' },
+  { initials: 'BS', name: 'Budi Santoso', dept: 'Finance', risk: 'High', ab: 'bg-red-500/15', af: 'text-red-600 dark:text-red-400', bb: 'bg-red-500/15', bf: 'text-red-700 dark:text-red-300' },
+  { initials: 'SD', name: 'Sari Dewi', dept: 'HR', risk: 'High', ab: 'bg-red-500/15', af: 'text-red-600 dark:text-red-400', bb: 'bg-red-500/15', bf: 'text-red-700 dark:text-red-300' },
+  { initials: 'AP', name: 'Andi Pratama', dept: 'Marketing', risk: 'Medium', ab: 'bg-amber-500/15', af: 'text-amber-600 dark:text-amber-400', bb: 'bg-amber-500/15', bf: 'text-amber-700 dark:text-amber-300' },
+  { initials: 'RW', name: 'Rina Wijaya', dept: 'Legal', risk: 'Low', ab: 'bg-emerald-500/15', af: 'text-emerald-600 dark:text-emerald-400', bb: 'bg-emerald-500/15', bf: 'text-emerald-700 dark:text-emerald-300' },
 ]
 
 const STATIC_CAMPAIGNS = [
@@ -84,55 +84,55 @@ export default function Dashboard() {
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
         <StatCard
           icon="ti-player-play-filled"
-          iconBg="bg-violet-50"
+          iconBg="bg-violet-500/10"
           iconColor="text-violet-500"
           label="Active campaigns"
           value={isLoading ? null : activeCampaigns}
           sub="+1 from last month"
-          subColor="text-emerald-600"
+          subColor="text-emerald-600 dark:text-emerald-400"
         />
         <StatCard
           icon="ti-users"
-          iconBg="bg-blue-50"
+          iconBg="bg-blue-500/10"
           iconColor="text-blue-500"
           label="Total targets"
           value={isLoading ? null : (totalTargets > 0 ? totalTargets.toLocaleString('en-US') : '1,240')}
           sub={`Active in ${isLoading ? '—' : activeCampaigns} campaign`}
-          subColor="text-gray-500"
+          subColor="text-ink-muted"
         />
         <StatCard
           icon="ti-pointer"
-          iconBg="bg-amber-50"
+          iconBg="bg-amber-500/10"
           iconColor="text-amber-500"
           label="Click rate"
           value="18%"
           sub="▲ 3% vs previous simulation"
-          subColor="text-red-600"
+          subColor="text-red-600 dark:text-red-400"
         />
         <StatCard
           icon="ti-alert-triangle"
-          iconBg="bg-red-50"
+          iconBg="bg-red-500/10"
           iconColor="text-red-500"
           label="High-risk users"
           value={scores.length > 0 ? highRiskCount : 42}
           sub="Coaching incomplete"
-          subColor="text-amber-600"
+          subColor="text-amber-600 dark:text-amber-400"
         />
       </div>
 
       {/* ── 3. Active campaign status card ── */}
-      <div className="bg-white border border-gray-200 rounded-xl p-5">
+      <div className="bg-panel border border-line rounded-xl p-5">
         <div className="flex items-start justify-between mb-6">
           <div>
-            <h3 className="text-base font-semibold text-gray-900">Status active campaigns</h3>
-            <p className="text-xs text-gray-500 mt-0.5">Q2 phishing wave — finance</p>
+            <h3 className="text-base font-semibold text-ink">Status active campaigns</h3>
+            <p className="text-xs text-ink-muted mt-0.5">Q2 phishing wave — finance</p>
           </div>
-          <span className="rounded-full text-xs font-semibold px-2 py-0.5 bg-blue-100 text-blue-700">Running</span>
+          <span className="rounded-full text-xs font-semibold px-2 py-0.5 bg-blue-500/15 text-blue-700 dark:text-blue-300">Running</span>
         </div>
 
         {/* Stepper */}
         <div className="relative flex items-center justify-between w-full px-4 mb-8">
-          <div className="absolute left-10 right-10 top-4 h-0.5 bg-gray-200 z-0">
+          <div className="absolute left-10 right-10 top-4 h-0.5 bg-panel-strong z-0">
             <div className="h-full bg-emerald-500" style={{ width: '50%' }} />
           </div>
           {STEPS.map((label, i) => {
@@ -142,17 +142,17 @@ export default function Dashboard() {
               <div key={label} className="flex flex-col items-center z-10 flex-1">
                 <div className={clsx(
                   'w-8 h-8 rounded-full flex items-center justify-center font-semibold text-sm',
-                  done && 'bg-emerald-100 text-emerald-700 border border-emerald-200',
+                  done && 'bg-emerald-500/15 text-emerald-700 dark:text-emerald-300 border border-emerald-500/30',
                   current && 'bg-[#6C63FF] text-white',
-                  !done && !current && 'bg-gray-100 text-gray-400 border border-gray-200',
+                  !done && !current && 'bg-panel-muted text-ink-faint border border-line',
                 )}>
                   {done ? <i className="ti ti-check text-base" /> : i + 1}
                 </div>
                 <span className={clsx(
                   'text-xs mt-2',
-                  done && 'font-medium text-gray-600',
+                  done && 'font-medium text-ink-muted',
                   current && 'font-semibold text-[#6C63FF]',
-                  !done && !current && 'font-medium text-gray-400',
+                  !done && !current && 'font-medium text-ink-faint',
                 )}>{label}</span>
               </div>
             )
@@ -162,14 +162,14 @@ export default function Dashboard() {
         {/* Mini stats */}
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
           {[
-            { label: 'Emails sent', value: '1,118', sub: '90% of targets', subCls: 'text-emerald-600' },
-            { label: 'Link clicks', value: '201', sub: '18% click rate', subCls: 'text-amber-600' },
-            { label: 'Data submitted', value: '87', sub: '43% of clickers', subCls: 'text-red-600' },
+            { label: 'Emails sent', value: '1,118', sub: '90% of targets', subCls: 'text-emerald-600 dark:text-emerald-400' },
+            { label: 'Link clicks', value: '201', sub: '18% click rate', subCls: 'text-amber-600 dark:text-amber-400' },
+            { label: 'Data submitted', value: '87', sub: '43% of clickers', subCls: 'text-red-600 dark:text-red-400' },
           ].map(({ label, value, sub, subCls }) => (
-            <div key={label} className="bg-gray-50 border border-gray-100 rounded-xl p-4 flex flex-col justify-between">
-              <span className="text-xs font-medium text-gray-500">{label}</span>
+            <div key={label} className="bg-panel-subtle border border-line-soft rounded-xl p-4 flex flex-col justify-between">
+              <span className="text-xs font-medium text-ink-muted">{label}</span>
               <div className="flex items-baseline gap-2 mt-1">
-                <span className="text-xl font-bold text-gray-900">{value}</span>
+                <span className="text-xl font-bold text-ink">{value}</span>
                 <span className={clsx('text-xs font-semibold', subCls)}>{sub}</span>
               </div>
             </div>
@@ -181,16 +181,16 @@ export default function Dashboard() {
       <div className="grid grid-cols-1 lg:grid-cols-5 gap-6">
 
         {/* Click rate bars (3fr) */}
-        <div className="bg-white border border-gray-200 rounded-xl p-5 lg:col-span-3 flex flex-col">
-          <h3 className="text-base font-semibold text-gray-900 mb-4">Click rate by department</h3>
+        <div className="bg-panel border border-line rounded-xl p-5 lg:col-span-3 flex flex-col">
+          <h3 className="text-base font-semibold text-ink mb-4">Click rate by department</h3>
           <div className="space-y-4 flex-1">
             {DEPT_RATES.map(({ dept, pct, color, text }) => (
               <div key={dept} className="space-y-1.5">
                 <div className="flex items-center justify-between text-xs font-medium">
-                  <span className="text-gray-700">{dept}</span>
+                  <span className="text-ink-soft">{dept}</span>
                   <span className={clsx('font-bold', text)}>{pct}%</span>
                 </div>
-                <div className="w-full bg-gray-100 h-2 rounded-full overflow-hidden">
+                <div className="w-full bg-panel-muted h-2 rounded-full overflow-hidden">
                   <div className={clsx('h-full rounded-full', color)} style={{ width: `${pct}%` }} />
                 </div>
               </div>
@@ -199,12 +199,12 @@ export default function Dashboard() {
         </div>
 
         {/* Campaign list (2fr) */}
-        <div className="bg-white border border-gray-200 rounded-xl p-5 lg:col-span-2 flex flex-col">
+        <div className="bg-panel border border-line rounded-xl p-5 lg:col-span-2 flex flex-col">
           <div className="flex items-center justify-between mb-4">
-            <h3 className="text-base font-semibold text-gray-900">Campaigns</h3>
+            <h3 className="text-base font-semibold text-ink">Campaigns</h3>
             <Link
               to="/campaigns"
-              className="w-8 h-8 rounded-lg flex items-center justify-center text-violet-500 hover:bg-violet-50 transition-colors"
+              className="w-8 h-8 rounded-lg flex items-center justify-center text-violet-500 hover:bg-violet-500/10 transition-colors"
             >
               <i className="ti ti-plus text-lg" />
             </Link>
@@ -213,7 +213,7 @@ export default function Dashboard() {
           <div className="flex flex-col gap-4 flex-1">
             {isLoading
               ? [...Array(3)].map((_, i) => (
-                <div key={i} className="h-12 bg-gray-100 rounded-lg animate-pulse" />
+                <div key={i} className="h-12 bg-panel-muted rounded-lg animate-pulse" />
               ))
               : campaignRows.map(({ name, date, status }, i) => {
                 const { label, cls } = statusLabel(status)
@@ -222,14 +222,14 @@ export default function Dashboard() {
                     key={name}
                     className={clsx(
                       'flex items-center justify-between pb-3',
-                      i < campaignRows.length - 1 && 'border-b border-gray-100',
+                      i < campaignRows.length - 1 && 'border-b border-line-soft',
                     )}
                   >
                     <div className="flex items-start gap-2.5">
                       <span className={clsx('w-2 h-2 rounded-full mt-1.5 flex-shrink-0', dotColor(status))} />
                       <div>
-                        <h4 className="text-sm font-medium text-gray-900">{name}</h4>
-                        <span className="text-xs text-gray-500">{date}</span>
+                        <h4 className="text-sm font-medium text-ink">{name}</h4>
+                        <span className="text-xs text-ink-muted">{date}</span>
                       </div>
                     </div>
                     <span className={clsx('rounded-full text-xs font-semibold px-2 py-0.5 whitespace-nowrap', cls)}>
@@ -247,8 +247,8 @@ export default function Dashboard() {
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
 
         {/* Recent activity */}
-        <div className="bg-white border border-gray-200 rounded-xl p-5 flex flex-col">
-          <h3 className="text-base font-semibold text-gray-900 mb-4">Recent activity</h3>
+        <div className="bg-panel border border-line rounded-xl p-5 flex flex-col">
+          <h3 className="text-base font-semibold text-ink mb-4">Recent activity</h3>
           <div className="space-y-4 flex-1">
             {ACTIVITY.map(({ icon, bg, fg, actor, action, meta }) => (
               <div key={actor + action} className="flex gap-3 text-sm">
@@ -256,11 +256,11 @@ export default function Dashboard() {
                   <i className={clsx('ti text-base', icon)} />
                 </div>
                 <div className="flex-grow">
-                  <p className="text-gray-800">
-                    <strong className="font-semibold text-gray-950">{actor}</strong>
+                  <p className="text-ink-soft">
+                    <strong className="font-semibold text-ink">{actor}</strong>
                     {' '}{action}
                   </p>
-                  <div className="flex items-center gap-1.5 mt-1 text-xs text-gray-400">
+                  <div className="flex items-center gap-1.5 mt-1 text-xs text-ink-faint">
                     {meta.map((m, j) => (
                       <span key={j} className="flex items-center gap-1.5">
                         {j > 0 && <span>•</span>}
@@ -275,8 +275,8 @@ export default function Dashboard() {
         </div>
 
         {/* High-risk users */}
-        <div className="bg-white border border-gray-200 rounded-xl p-5 flex flex-col">
-          <h3 className="text-base font-semibold text-gray-900 mb-4">High-risk users</h3>
+        <div className="bg-panel border border-line rounded-xl p-5 flex flex-col">
+          <h3 className="text-base font-semibold text-ink mb-4">High-risk users</h3>
           <div className="space-y-4 flex-1">
             {HIGH_RISK.map(({ initials, name, dept, risk, ab, af, bb, bf }) => (
               <div key={name} className="flex items-center justify-between">
@@ -288,8 +288,8 @@ export default function Dashboard() {
                     {initials}
                   </div>
                   <div>
-                    <h4 className="text-sm font-semibold text-gray-900">{name}</h4>
-                    <span className="text-xs text-gray-500">{dept}</span>
+                    <h4 className="text-sm font-semibold text-ink">{name}</h4>
+                    <span className="text-xs text-ink-muted">{dept}</span>
                   </div>
                 </div>
                 <span className={clsx('rounded-full text-xs font-semibold px-2 py-0.5', bb, bf)}>{risk}</span>

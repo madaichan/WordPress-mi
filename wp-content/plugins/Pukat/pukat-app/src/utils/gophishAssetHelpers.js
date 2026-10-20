@@ -20,20 +20,20 @@ export function emailTemplateThumbnail(category) {
   if (category === 'urgent') {
     return {
       icon: 'ti-alert-triangle',
-      bg: 'bg-amber-100 text-amber-600',
+      bg: 'bg-amber-500/15 text-amber-600 dark:text-amber-400',
     }
   }
 
   if (category === 'info') {
     return {
       icon: 'ti-receipt',
-      bg: 'bg-emerald-100 text-emerald-600',
+      bg: 'bg-emerald-500/15 text-emerald-600 dark:text-emerald-400',
     }
   }
 
   return {
     icon: 'ti-mail-opened',
-    bg: 'bg-rose-100 text-rose-600',
+    bg: 'bg-rose-500/15 text-rose-600 dark:text-rose-400',
   }
 }
 
@@ -108,20 +108,20 @@ export function landingPageThumbnail(category) {
   if (category === 'redirect') {
     return {
       icon: 'ti-arrow-forward-up',
-      bg: 'bg-sky-100 text-sky-600',
+      bg: 'bg-sky-500/15 text-sky-600 dark:text-sky-400',
     }
   }
 
   if (category === 'login') {
     return {
       icon: 'ti-lock',
-      bg: 'bg-rose-100 text-rose-600',
+      bg: 'bg-rose-500/15 text-rose-600 dark:text-rose-400',
     }
   }
 
   return {
     icon: 'ti-forms',
-    bg: 'bg-violet-100 text-violet-600',
+    bg: 'bg-violet-500/15 text-violet-600 dark:text-violet-400',
   }
 }
 

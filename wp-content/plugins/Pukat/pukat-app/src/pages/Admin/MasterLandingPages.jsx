@@ -445,22 +445,22 @@ export default function MasterLandingPages() {
       />
 
       <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
-        <div className="flex items-center gap-4 rounded-xl border border-gray-200 bg-white p-4 shadow-sm">
-          <div className="flex h-12 w-12 flex-shrink-0 items-center justify-center rounded-xl bg-emerald-100 text-emerald-700">
+        <div className="flex items-center gap-4 rounded-xl border border-line bg-panel p-4 shadow-sm">
+          <div className="flex h-12 w-12 flex-shrink-0 items-center justify-center rounded-xl bg-emerald-500/15 text-emerald-700 dark:text-emerald-300">
             <i className="ti ti-browser text-xl" />
           </div>
           <div>
-            <div className="text-2xl font-bold text-gray-900">{pages.length}</div>
-            <div className="text-xs font-semibold text-gray-500">Master assets</div>
+            <div className="text-2xl font-bold text-ink">{pages.length}</div>
+            <div className="text-xs font-semibold text-ink-muted">Master assets</div>
           </div>
         </div>
-        <div className="rounded-xl border border-gray-200 bg-white p-4 shadow-sm">
-          <div className="text-2xl font-bold text-gray-900">{entityCount}</div>
-          <div className="mt-1 text-xs font-semibold text-gray-500">Entities</div>
+        <div className="rounded-xl border border-line bg-panel p-4 shadow-sm">
+          <div className="text-2xl font-bold text-ink">{entityCount}</div>
+          <div className="mt-1 text-xs font-semibold text-ink-muted">Entities</div>
         </div>
-        <div className="rounded-xl border border-gray-200 bg-white p-4 shadow-sm">
-          <div className="text-2xl font-bold text-gray-900">{noEntityCount}</div>
-          <div className="mt-1 text-xs font-semibold text-gray-500">Without entity</div>
+        <div className="rounded-xl border border-line bg-panel p-4 shadow-sm">
+          <div className="text-2xl font-bold text-ink">{noEntityCount}</div>
+          <div className="mt-1 text-xs font-semibold text-ink-muted">Without entity</div>
         </div>
       </div>
 
@@ -487,12 +487,12 @@ export default function MasterLandingPages() {
           <div className="space-y-6 animate-fade-in">
             <div className="flex items-center justify-between">
               <div>
-                <h2 className="text-lg font-bold text-gray-900">{editingId ? `Edit: ${editingName}` : 'Create landing page'}</h2>
-                <p className="mt-0.5 text-xs text-gray-500">Configure the HTML template and capture behavior.</p>
+                <h2 className="text-lg font-bold text-ink">{editingId ? `Edit: ${editingName}` : 'Create landing page'}</h2>
+                <p className="mt-0.5 text-xs text-ink-muted">Configure the HTML template and capture behavior.</p>
               </div>
               <div className="flex items-center gap-3">
                 {canApproveEditingPage && (
-                  <Button variant="outline" className="border-emerald-200 text-emerald-700 hover:bg-emerald-50" onClick={() => handleApprove(editingId)}>
+                  <Button variant="outline" className="border-emerald-500/30 text-emerald-700 dark:text-emerald-300 hover:bg-emerald-500/10" onClick={() => handleApprove(editingId)}>
                     <i className="ti ti-shield-check text-base" />
                     <span>Approve</span>
                   </Button>
@@ -504,23 +504,23 @@ export default function MasterLandingPages() {
               </div>
             </div>
             <div className="grid grid-cols-1 gap-6 lg:grid-cols-5">
-              <div className="space-y-4 rounded-xl border border-gray-200 bg-white p-5 lg:col-span-2">
-                <h3 className="border-b border-gray-100 pb-2 text-sm font-semibold text-gray-900">Template configuration</h3>
+              <div className="space-y-4 rounded-xl border border-line bg-panel p-5 lg:col-span-2">
+                <h3 className="border-b border-line-soft pb-2 text-sm font-semibold text-ink">Template configuration</h3>
                 <label className="block space-y-1 text-xs">
-                  <span className="font-semibold text-gray-700">Template name *</span>
-                  <input value={editingName} onChange={event => setEditingName(event.target.value)} placeholder="Example: Microsoft 365 Login" className="w-full rounded-lg border border-gray-200 bg-white px-3 py-2 text-gray-950 outline-none focus:border-violet-500" />
+                  <span className="font-semibold text-ink-soft">Template name *</span>
+                  <input value={editingName} onChange={event => setEditingName(event.target.value)} placeholder="Example: Microsoft 365 Login" className="w-full rounded-lg border border-line bg-panel px-3 py-2 text-ink outline-none focus:border-violet-500" />
                 </label>
                 <label className="block space-y-1 text-xs">
-                  <span className="font-semibold text-gray-700">Redirect URL after submit</span>
-                  <input value={editingRedirectUrl} onChange={event => setEditingRedirectUrl(event.target.value)} placeholder="https://..." className="w-full rounded-lg border border-gray-200 bg-white px-3 py-2 text-gray-950 outline-none focus:border-violet-500" />
+                  <span className="font-semibold text-ink-soft">Redirect URL after submit</span>
+                  <input value={editingRedirectUrl} onChange={event => setEditingRedirectUrl(event.target.value)} placeholder="https://..." className="w-full rounded-lg border border-line bg-panel px-3 py-2 text-ink outline-none focus:border-violet-500" />
                 </label>
                 <label className="block space-y-1 text-xs">
-                  <span className="font-semibold text-gray-700">Entity</span>
+                  <span className="font-semibold text-ink-soft">Entity</span>
                   <EntityNameField value={editingEntity} onChange={setEditingEntity} placeholder="Example: EntityA" inputClassName="w-full" />
                 </label>
                 {editingId && editingPage && (
                   <div className="block space-y-1 text-xs">
-                    <span className="font-semibold text-gray-700">Status</span>
+                    <span className="font-semibold text-ink-soft">Status</span>
                     <div className="pt-1.5">
                       <Badge tone={editingPage.status === 'Published' ? 'success' : 'gray'}>{editingPage.status}</Badge>
                     </div>
@@ -528,17 +528,17 @@ export default function MasterLandingPages() {
                 )}
                 <div className="space-y-3 pt-2 text-xs">
                   <label className="flex cursor-pointer items-start gap-2.5">
-                    <input type="checkbox" checked={editingCaptureData} onChange={event => setEditingCaptureData(event.target.checked)} className="mt-0.5 rounded border-gray-300 text-violet-600 focus:ring-violet-500" />
+                    <input type="checkbox" checked={editingCaptureData} onChange={event => setEditingCaptureData(event.target.checked)} className="mt-0.5 rounded border-line-strong text-violet-600 dark:text-violet-400 focus:ring-violet-500" />
                     <span>
-                      <span className="block font-semibold text-gray-900">Capture submitted data</span>
-                      <span className="mt-0.5 block text-[10px] text-gray-400">Capture parameters entered by the target user.</span>
+                      <span className="block font-semibold text-ink">Capture submitted data</span>
+                      <span className="mt-0.5 block text-[10px] text-ink-faint">Capture parameters entered by the target user.</span>
                     </span>
                   </label>
                   <label className="flex cursor-pointer items-start gap-2.5">
-                    <input type="checkbox" checked={editingCapturePass} onChange={event => setEditingCapturePass(event.target.checked)} className="mt-0.5 rounded border-gray-300 text-violet-600 focus:ring-violet-500" />
+                    <input type="checkbox" checked={editingCapturePass} onChange={event => setEditingCapturePass(event.target.checked)} className="mt-0.5 rounded border-line-strong text-violet-600 dark:text-violet-400 focus:ring-violet-500" />
                     <span>
-                      <span className="block font-semibold text-gray-900">Capture passwords</span>
-                      <span className="mt-0.5 block text-[10px] text-gray-400">Capture password inputs for controlled simulations.</span>
+                      <span className="block font-semibold text-ink">Capture passwords</span>
+                      <span className="mt-0.5 block text-[10px] text-ink-faint">Capture password inputs for controlled simulations.</span>
                     </span>
                   </label>
                 </div>
@@ -554,16 +554,16 @@ export default function MasterLandingPages() {
           <div className="space-y-6 animate-fade-in">
             <div className="flex items-center justify-between">
               <div>
-                <h2 className="text-lg font-bold text-gray-900">{previewTitle}</h2>
-                <p className="mt-0.5 text-xs text-gray-500">Preview how the landing page appears to the target.</p>
+                <h2 className="text-lg font-bold text-ink">{previewTitle}</h2>
+                <p className="mt-0.5 text-xs text-ink-muted">Preview how the landing page appears to the target.</p>
               </div>
               <Button variant="outline" onClick={() => switchTab('list')}>Back to list</Button>
             </div>
-            <div className="flex min-h-[450px] flex-col items-center justify-center overflow-hidden rounded-xl border border-gray-200 bg-gray-100 p-6">
+            <div className="flex min-h-[450px] flex-col items-center justify-center overflow-hidden rounded-xl border border-line bg-panel-muted p-6">
               {editingHtml ? (
                 <BrowserPreview html={editingHtml} redirectUrl={editingRedirectUrl} />
               ) : (
-                <div className="space-y-2 py-12 text-center text-gray-400">
+                <div className="space-y-2 py-12 text-center text-ink-faint">
                   <i className="ti ti-eye-off text-3xl" />
                   <p className="text-xs font-medium">Select a landing page to preview or open the editor.</p>
                 </div>

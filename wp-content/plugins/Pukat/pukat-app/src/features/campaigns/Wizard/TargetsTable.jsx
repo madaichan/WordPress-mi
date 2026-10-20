@@ -29,10 +29,10 @@ export default function TargetsTable({ rows, onEdit, onDelete, pageSize: initial
   }
 
   return (
-    <div className="border border-gray-200 rounded-xl overflow-hidden">
-      <Table className="w-full text-left text-[11px] text-gray-700" wrapperClassName="overflow-x-auto">
+    <div className="border border-line rounded-xl overflow-hidden">
+      <Table className="w-full text-left text-[11px] text-ink-soft" wrapperClassName="overflow-x-auto">
         <thead>
-          <tr className="bg-gray-50 border-b border-gray-200 text-[10px] font-bold text-gray-500 uppercase tracking-wider">
+          <tr className="bg-panel-subtle border-b border-line text-[10px] font-bold text-ink-muted uppercase tracking-wider">
             <th className="py-2 px-4">First name</th>
             <th className="py-2 px-4">Last name</th>
             <th className="py-2 px-4">Email</th>
@@ -45,8 +45,8 @@ export default function TargetsTable({ rows, onEdit, onDelete, pageSize: initial
           {pageRows.map((row, i) => {
             const index = start + i
             return (
-              <tr key={index} className="border-b border-gray-100">
-                <td className="py-2 px-4 font-semibold text-gray-900">{row.first_name || row.firstname || ''}</td>
+              <tr key={index} className="border-b border-line-soft">
+                <td className="py-2 px-4 font-semibold text-ink">{row.first_name || row.firstname || ''}</td>
                 <td className="py-2 px-4">{row.last_name || row.lastname || ''}</td>
                 <td className="py-2 px-4">{row.email}</td>
                 <td className="py-2 px-4">{row.position || '—'}</td>

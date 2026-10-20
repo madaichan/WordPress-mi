@@ -56,24 +56,24 @@ const EMAIL_TEMPLATES = []
 
 function ThumbnailMockup({ page }) {
   return (
-    <div className="h-32 rounded-lg border border-gray-200 relative flex flex-col overflow-hidden select-none">
+    <div className="h-32 rounded-lg border border-line relative flex flex-col overflow-hidden select-none">
       <span
         className={clsx(
-          'absolute top-2 left-2 z-10 w-6 h-6 rounded-full flex items-center justify-center text-xs shadow-sm bg-white',
-          page.thumbnail?.bg?.split(' ')[1] || 'text-violet-600'
+          'absolute top-2 left-2 z-10 w-6 h-6 rounded-full flex items-center justify-center text-xs shadow-sm bg-panel',
+          page.thumbnail?.bg?.split(' ')[1] || 'text-violet-600 dark:text-violet-400'
         )}
       >
         <i className={clsx('ti', page.thumbnail?.icon || 'ti-mail')} />
       </span>
-      <span className="absolute top-2 right-2 z-10 rounded-full text-[9px] font-semibold px-2 py-0.5 bg-amber-100 text-amber-700 shadow-sm">
+      <span className="absolute top-2 right-2 z-10 rounded-full text-[9px] font-semibold px-2 py-0.5 bg-amber-500/15 text-amber-700 dark:text-amber-300 shadow-sm">
         Master
       </span>
-      <div className="relative flex-1 min-h-0 bg-white">
+      <div className="relative flex-1 min-h-0 bg-panel">
         <HtmlThumbnail html={page.html} />
       </div>
-      <div className="flex-shrink-0 border-t border-gray-100 bg-gray-50 px-2.5 py-1.5">
-        <p className="truncate text-[10px] font-semibold text-gray-700">{page.sender || 'Tanpa pengirim'}</p>
-        <p className="truncate text-[9px] text-gray-400">{page.subject || 'Tanpa subjek'}</p>
+      <div className="flex-shrink-0 border-t border-line-soft bg-panel-subtle px-2.5 py-1.5">
+        <p className="truncate text-[10px] font-semibold text-ink-soft">{page.sender || 'Tanpa pengirim'}</p>
+        <p className="truncate text-[9px] text-ink-faint">{page.subject || 'Tanpa subjek'}</p>
       </div>
     </div>
   )
@@ -128,7 +128,7 @@ function EmailTemplateCard({ page, canEdit, canApprove, onEdit, onPreview, onDel
       actions={actions}
       statusBadge={{
         label: page.status,
-        cls: page.status === 'Published' ? 'bg-emerald-100 text-emerald-700' : 'bg-gray-100 text-gray-600',
+        cls: page.status === 'Published' ? 'bg-emerald-500/15 text-emerald-700 dark:text-emerald-300' : 'bg-panel-muted text-ink-muted',
       }}
     />
   )
@@ -138,9 +138,9 @@ function EmailTemplateEntityCell({ page }) {
   return (
     <div className="flex flex-wrap items-center gap-1.5">
       {page.entity ? (
-        <span className="inline-flex rounded-full bg-gray-100 px-2 py-0.5 text-[10px] font-semibold text-gray-600">{page.entity}</span>
+        <span className="inline-flex rounded-full bg-panel-muted px-2 py-0.5 text-[10px] font-semibold text-ink-muted">{page.entity}</span>
       ) : (
-        <span className="text-gray-300">—</span>
+        <span className="text-ink-faint">—</span>
       )}
       <AssetLockBadge locked={page.editLocked} reason={masterAssetLockMessage(page, 'Email template')} />
     </div>
@@ -151,7 +151,7 @@ function EmailTemplateEntityCell({ page }) {
 
 function PreviewFallback() {
   return (
-    <div className="text-center text-gray-400 space-y-2 py-12">
+    <div className="text-center text-ink-faint space-y-2 py-12">
       <i className="ti ti-mail-opened text-3xl" />
       <p className="text-xs font-medium">
         Silakan klik &quot;Preview&quot; pada salah satu template email di daftar atau klik tab &quot;Editor&quot; untuk mengedit template
@@ -185,15 +185,15 @@ function EditorPane({
     <div className="space-y-6">
       <div className="flex items-center justify-between">
         <div>
-          <h2 className="text-lg font-bold text-gray-900">{title}</h2>
-          <p className="text-xs text-gray-500 mt-0.5">
+          <h2 className="text-lg font-bold text-ink">{title}</h2>
+          <p className="text-xs text-ink-muted mt-0.5">
             Phishing email header configuration and HTML code
           </p>
         </div>
         <div className="flex items-center gap-3">
           <button
             onClick={onBack}
-            className="bg-white border border-gray-200 text-gray-700 hover:bg-gray-50 px-4 py-2 text-sm font-semibold rounded-xl transition-all"
+            className="bg-panel border border-line text-ink-soft hover:bg-panel-subtle px-4 py-2 text-sm font-semibold rounded-xl transition-all"
           >
             Cancel
           </button>
@@ -209,34 +209,34 @@ function EditorPane({
 
       <div className="grid grid-cols-1 lg:grid-cols-5 gap-6">
         {/* Left settings panel */}
-        <div className="lg:col-span-2 bg-white border border-gray-200 rounded-xl p-5 space-y-4 shadow-sm">
-          <h3 className="text-sm font-semibold text-gray-900 border-b border-gray-100 pb-2">
+        <div className="lg:col-span-2 bg-panel border border-line rounded-xl p-5 space-y-4 shadow-sm">
+          <h3 className="text-sm font-semibold text-ink border-b border-line-soft pb-2">
             Envelope headers
           </h3>
 
           <div className="space-y-3 text-xs">
             <div className="space-y-1">
-              <label className="block font-semibold text-gray-700">Nama template *</label>
+              <label className="block font-semibold text-ink-soft">Nama template *</label>
               <input
                 type="text"
                 value={name}
                 onChange={(e) => setName(e.target.value)}
                 placeholder="Contoh: Microsoft O365 Alert"
-                className="w-full bg-white border border-gray-200 rounded-lg px-3 py-2 text-gray-950 focus:outline-none focus:border-violet-500"
+                className="w-full bg-panel border border-line rounded-lg px-3 py-2 text-ink focus:outline-none focus:border-violet-500"
               />
             </div>
             <div className="space-y-1">
-              <label className="block font-semibold text-gray-700">Pengirim (Envelope From) *</label>
+              <label className="block font-semibold text-ink-soft">Pengirim (Envelope From) *</label>
               <input
                 type="text"
                 value={sender}
                 onChange={(e) => setSender(e.target.value)}
                 placeholder="Contoh: Admin <admin@company.id>"
-                className="w-full bg-white border border-gray-200 rounded-lg px-3 py-2 text-gray-950 focus:outline-none focus:border-violet-500"
+                className="w-full bg-panel border border-line rounded-lg px-3 py-2 text-ink focus:outline-none focus:border-violet-500"
               />
             </div>
             <div className="space-y-1">
-              <label className="block font-semibold text-gray-700">Entity</label>
+              <label className="block font-semibold text-ink-soft">Entity</label>
               <input
                 type="text"
                 value={entity}
@@ -244,38 +244,38 @@ function EditorPane({
                 disabled={entityLocked}
                 placeholder="Contoh: EntityA"
                 className={clsx(
-                  'w-full border border-gray-200 rounded-lg px-3 py-2 text-gray-950 focus:outline-none focus:border-violet-500',
-                  entityLocked ? 'bg-gray-50 text-gray-500' : 'bg-white'
+                  'w-full border border-line rounded-lg px-3 py-2 text-ink focus:outline-none focus:border-violet-500',
+                  entityLocked ? 'bg-panel-subtle text-ink-muted' : 'bg-panel'
                 )}
               />
             </div>
             <div className="space-y-1">
-              <label className="block font-semibold text-gray-700">Subjek Email *</label>
+              <label className="block font-semibold text-ink-soft">Subjek Email *</label>
               <input
                 type="text"
                 value={subject}
                 onChange={(e) => setSubject(e.target.value)}
                 placeholder="Subjek email phishing"
-                className="w-full bg-white border border-gray-200 rounded-lg px-3 py-2 text-gray-950 focus:outline-none focus:border-violet-500"
+                className="w-full bg-panel border border-line rounded-lg px-3 py-2 text-ink focus:outline-none focus:border-violet-500"
               />
             </div>
 
             <div className="pt-2">
-              <span className="block font-semibold text-gray-900 mb-1.5">Variabel dinamis</span>
-              <p className="text-[10px] text-gray-400 leading-relaxed">
+              <span className="block font-semibold text-ink mb-1.5">Variabel dinamis</span>
+              <p className="text-[10px] text-ink-faint leading-relaxed">
                 Gunakan placeholder GoPhish berikut untuk personalisasi otomatis:
               </p>
-              <div className="grid grid-cols-2 gap-1.5 mt-2 font-mono text-[9px] text-gray-600 select-all">
-                <div className="bg-gray-50 border border-gray-100 rounded px-1.5 py-0.5 text-center">
+              <div className="grid grid-cols-2 gap-1.5 mt-2 font-mono text-[9px] text-ink-muted select-all">
+                <div className="bg-panel-subtle border border-line-soft rounded px-1.5 py-0.5 text-center">
                   {"{{.FirstName}}"}
                 </div>
-                <div className="bg-gray-50 border border-gray-100 rounded px-1.5 py-0.5 text-center">
+                <div className="bg-panel-subtle border border-line-soft rounded px-1.5 py-0.5 text-center">
                   {"{{.Email}}"}
                 </div>
-                <div className="bg-gray-50 border border-gray-100 rounded px-1.5 py-0.5 text-center">
+                <div className="bg-panel-subtle border border-line-soft rounded px-1.5 py-0.5 text-center">
                   {"{{.URL}} (Phish Link)"}
                 </div>
-                <div className="bg-gray-50 border border-gray-100 rounded px-1.5 py-0.5 text-center">
+                <div className="bg-panel-subtle border border-line-soft rounded px-1.5 py-0.5 text-center">
                   {"{{.Position}}"}
                 </div>
               </div>
@@ -630,7 +630,7 @@ export default function EmailTemplates() {
       'email-tab-btn flex items-center gap-2 py-3 px-1 border-b-2 font-semibold text-sm transition-all focus:outline-none select-none',
       activeTab === tab
         ? 'border-violet-500 text-violet-500'
-        : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+        : 'border-transparent text-ink-muted hover:text-ink-soft hover:border-line-strong'
     )
 
   /* ── Filter pill classes ── */
@@ -638,8 +638,8 @@ export default function EmailTemplates() {
     clsx(
       'email-filter-pill px-4 py-1.5 rounded-full text-xs font-semibold transition-all select-none',
       activeFilter === key
-        ? 'bg-gray-950 text-white'
-        : 'bg-white border border-gray-200 text-gray-600 hover:bg-gray-50'
+        ? 'bg-ink text-canvas'
+        : 'bg-panel border border-line text-ink-muted hover:bg-panel-subtle'
     )
 
   return (
@@ -653,7 +653,7 @@ export default function EmailTemplates() {
             {/* Search bar (table view has its own, in the DataTable toolbar) */}
             {viewMode === 'grid' && (
               <div className="relative w-64">
-                <span className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none text-gray-400">
+                <span className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none text-ink-faint">
                   <i className="ti ti-search text-base" />
                 </span>
                 <input
@@ -661,7 +661,7 @@ export default function EmailTemplates() {
                   value={searchQuery}
                   onChange={(e) => setSearchQuery(e.target.value)}
                   placeholder="Cari template..."
-                  className="w-full bg-white border border-gray-200 rounded-xl pl-9 pr-4 py-2 text-sm text-gray-950 placeholder-gray-400 focus:outline-none focus:border-violet-500 transition-colors"
+                  className="w-full bg-panel border border-line rounded-xl pl-9 pr-4 py-2 text-sm text-ink placeholder-ink-faint focus:outline-none focus:border-violet-500 transition-colors"
                 />
               </div>
             )}
@@ -682,7 +682,7 @@ export default function EmailTemplates() {
       />
 
       {/* ── Sub Tab Bar ── */}
-      <div className="border-b border-gray-200">
+      <div className="border-b border-line">
         <nav className="flex gap-6 -mb-px" aria-label="Email template subtabs">
           <button onClick={() => switchTab('list')} className={tabBtnClass('list')}>
             <i className="ti ti-list text-base" />
@@ -723,7 +723,7 @@ export default function EmailTemplates() {
             </div>
 
             {isLoading && (
-              <div className="bg-white border border-gray-200 rounded-xl p-8 text-center text-sm text-gray-400">
+              <div className="bg-panel border border-line rounded-xl p-8 text-center text-sm text-ink-faint">
                 Memuat email template dari master database...
               </div>
             )}
@@ -792,8 +792,8 @@ export default function EmailTemplates() {
           <div className="space-y-6 animate-fade-in">
             <div className="flex items-center justify-between">
               <div>
-                <h2 className="text-lg font-bold text-gray-900">{previewTitle}</h2>
-                <p className="text-xs text-gray-500 mt-0.5">
+                <h2 className="text-lg font-bold text-ink">{previewTitle}</h2>
+                <p className="text-xs text-ink-muted mt-0.5">
                   Displays a simulated email inbox for the target client
                 </p>
               </div>
@@ -813,7 +813,7 @@ export default function EmailTemplates() {
                 )}
                 <button
                   onClick={() => switchTab('list')}
-                  className="bg-white border border-gray-200 text-gray-700 hover:bg-gray-50 px-4 py-2 text-sm font-semibold rounded-xl transition-all"
+                  className="bg-panel border border-line text-ink-soft hover:bg-panel-subtle px-4 py-2 text-sm font-semibold rounded-xl transition-all"
                 >
                   Return to List
                 </button>
@@ -821,7 +821,7 @@ export default function EmailTemplates() {
             </div>
 
             {/* Simulated Inbox Viewport */}
-            <div className="border border-gray-200 rounded-xl bg-gray-50 overflow-hidden flex flex-col p-4 md:p-6 min-h-[450px]">
+            <div className="border border-line rounded-xl bg-panel-subtle overflow-hidden flex flex-col p-4 md:p-6 min-h-[450px]">
               {editingHtml ? (
                 <ClientPreview
                   html={editingHtml}

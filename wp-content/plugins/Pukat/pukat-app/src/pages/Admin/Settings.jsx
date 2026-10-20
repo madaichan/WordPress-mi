@@ -84,7 +84,7 @@ export default function Settings() {
     return (
       <PageShell spacing="space-y-4" animated={false}>
         {[...Array(3)].map((_, i) => (
-          <Card key={i} className="h-32 animate-pulse bg-gray-100" />
+          <Card key={i} className="h-32 animate-pulse bg-panel-muted" />
         ))}
       </PageShell>
     )
@@ -95,8 +95,8 @@ export default function Settings() {
 
       {/* Organization */}
       <Card>
-        <h2 className="text-sm font-semibold text-gray-900 mb-1">Organization</h2>
-        <p className="text-xs text-gray-500 mb-4">General settings for your organization.</p>
+        <h2 className="text-sm font-semibold text-ink mb-1">Organization</h2>
+        <p className="text-xs text-ink-muted mb-4">General settings for your organization.</p>
 
         <div className="space-y-4">
           <div>
@@ -130,15 +130,15 @@ export default function Settings() {
               value={form.pukat_quiz_pass_score}
               onChange={e => update('pukat_quiz_pass_score', Number(e.target.value))}
             />
-            <p className="text-xs text-gray-400 mt-1">Minimum score to pass a post-simulation quiz.</p>
+            <p className="text-xs text-ink-faint mt-1">Minimum score to pass a post-simulation quiz.</p>
           </div>
         </div>
       </Card>
 
       {/* GoPhish Connection */}
       <Card>
-        <h2 className="text-sm font-semibold text-gray-900 mb-1">GoPhish Connection</h2>
-        <p className="text-xs text-gray-500 mb-4">
+        <h2 className="text-sm font-semibold text-ink mb-1">GoPhish Connection</h2>
+        <p className="text-xs text-ink-muted mb-4">
           Connect to your GoPhish instance. The API key is stored encrypted and never exposed to the browser.
         </p>
 
@@ -146,7 +146,7 @@ export default function Settings() {
         {testResult && (
           <div className={clsx(
             'flex items-center gap-2 p-3 rounded-lg mb-4 text-sm',
-            testResult === 'success' ? 'bg-green-50 text-success border border-green-100' : 'bg-red-50 text-danger border border-red-100'
+            testResult === 'success' ? 'bg-green-500/10 text-success border border-green-500/20' : 'bg-red-500/10 text-danger border border-red-500/20'
           )}>
             <i className={clsx('ti', testResult === 'success' ? 'ti-check-circle' : 'ti-alert-circle')} />
             {testResult === 'success' ? 'Connected successfully!' : 'Connection failed. Check URL and API key.'}
@@ -181,7 +181,7 @@ export default function Settings() {
               placeholder={settings?.has_api_key ? '••••••••••••• (leave blank to keep current)' : 'Paste your GoPhish API key'}
               autoComplete="new-password"
             />
-            <p className="text-xs text-gray-400 mt-1">
+            <p className="text-xs text-ink-faint mt-1">
               Find this in GoPhish → Account Settings → API Key.
             </p>
           </div>
@@ -196,7 +196,7 @@ export default function Settings() {
           >
             {isTestingConnection ? (
               <>
-                <span className="w-4 h-4 border-2 border-gray-400 border-t-transparent rounded-full animate-spin" />
+                <span className="w-4 h-4 border-2 border-line-strong border-t-transparent rounded-full animate-spin" />
                 Testing connection...
               </>
             ) : (
@@ -211,8 +211,8 @@ export default function Settings() {
 
       {/* Automation */}
       <Card>
-        <h2 className="text-sm font-semibold text-gray-900 mb-1">Automation</h2>
-        <p className="text-xs text-gray-500 mb-4">Control how often Pukat pulls fresh results from GoPhish.</p>
+        <h2 className="text-sm font-semibold text-ink mb-1">Automation</h2>
+        <p className="text-xs text-ink-muted mb-4">Control how often Pukat pulls fresh results from GoPhish.</p>
 
         <div>
           <Label>Sync GoPhish results every</Label>
@@ -225,7 +225,7 @@ export default function Settings() {
               <option key={minutes} value={minutes}>{minutes === 1 ? 'minute' : `${minutes} minutes`}</option>
             ))}
           </Select>
-          <p className="text-xs text-gray-400 mt-1">
+          <p className="text-xs text-ink-faint mt-1">
             A shorter interval means fresher data on the Monitoring dashboard, but more frequent calls to your GoPhish server.
           </p>
         </div>
@@ -233,15 +233,15 @@ export default function Settings() {
 
       {/* Guardrails — docs/PRD_ENTITY_PROFILE_AND_GUARDRAILS.md §16 */}
       <Card>
-        <h2 className="text-sm font-semibold text-gray-900 mb-1">Guardrails</h2>
-        <p className="text-xs text-gray-500 mb-4">Safety checks applied when a Campaign Run is launched.</p>
+        <h2 className="text-sm font-semibold text-ink mb-1">Guardrails</h2>
+        <p className="text-xs text-ink-muted mb-4">Safety checks applied when a Campaign Run is launched.</p>
 
         <Switch
           checked={form.pukat_require_email_domain_guardrail}
           onChange={value => update('pukat_require_email_domain_guardrail', value)}
           label="Require company email domains before launch"
         />
-        <p className="text-xs text-gray-400 mt-1">
+        <p className="text-xs text-ink-faint mt-1">
           On: an entity with no active company email domain cannot launch campaigns (including General).
           Off: such entities skip the target email-domain check entirely. Changes are recorded in the audit log.
         </p>

@@ -32,8 +32,8 @@ export default function EntityReadinessCard({ entityName, onOpenTab, compact = f
     <Card className="space-y-3">
       <div className="flex flex-wrap items-center justify-between gap-2">
         <div>
-          <h2 className="text-sm font-semibold text-gray-900">Entity readiness</h2>
-          <p className="text-xs text-gray-500">{doneCount}/{items.length} complete</p>
+          <h2 className="text-sm font-semibold text-ink">Entity readiness</h2>
+          <p className="text-xs text-ink-muted">{doneCount}/{items.length} complete</p>
         </div>
         <Badge tone={data.can_launch ? 'success' : 'danger'}>
           {data.can_launch ? 'Ready to launch campaigns' : 'Campaigns cannot be launched'}
@@ -50,22 +50,22 @@ export default function EntityReadinessCard({ entityName, onOpenTab, compact = f
                 type="button"
                 onClick={() => meta.tab && onOpenTab?.(meta.tab)}
                 className={clsx(
-                  'flex w-full items-start gap-2 rounded-lg border px-3 py-2 text-left transition hover:bg-gray-50',
-                  blocking ? 'border-red-200 bg-red-50' : 'border-gray-100'
+                  'flex w-full items-start gap-2 rounded-lg border px-3 py-2 text-left transition hover:bg-panel-subtle',
+                  blocking ? 'border-red-500/30 bg-red-500/10' : 'border-line-soft'
                 )}
               >
                 <i className={clsx(
                   'ti mt-0.5 text-base',
-                  item.done ? 'ti-circle-check text-emerald-500' : blocking ? 'ti-alert-circle text-danger' : 'ti-circle-dashed text-gray-300'
+                  item.done ? 'ti-circle-check text-emerald-500' : blocking ? 'ti-alert-circle text-danger' : 'ti-circle-dashed text-ink-faint'
                 )} />
                 <span className="min-w-0 flex-1">
                   <span className="flex flex-wrap items-center gap-1.5">
-                    <span className="text-sm font-medium text-gray-700">{meta.label}</span>
-                    <span className={clsx('text-[10px] font-semibold uppercase', item.level === 'required' ? 'text-danger' : 'text-gray-400')}>
+                    <span className="text-sm font-medium text-ink-soft">{meta.label}</span>
+                    <span className={clsx('text-[10px] font-semibold uppercase', item.level === 'required' ? 'text-danger' : 'text-ink-faint')}>
                       {LEVEL_LABEL[item.level] || item.level}
                     </span>
                   </span>
-                  <span className="block text-xs text-gray-500">{meta.hint}</span>
+                  <span className="block text-xs text-ink-muted">{meta.hint}</span>
                 </span>
               </button>
             </li>

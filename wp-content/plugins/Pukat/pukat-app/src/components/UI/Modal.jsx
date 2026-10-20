@@ -19,8 +19,8 @@ export default function Modal({ open = true, onClose, title, subtitle, icon, foo
               <div className="flex items-center gap-3">
                 {icon}
                 <div className="min-w-0">
-                  <h2 className="text-base font-bold text-gray-900">{title}</h2>
-                  {subtitle && <p className="mt-0.5 text-xs text-gray-500">{subtitle}</p>}
+                  <h2 className="text-base font-bold text-ink">{title}</h2>
+                  {subtitle && <p className="mt-0.5 text-xs text-ink-muted">{subtitle}</p>}
                 </div>
               </div>
               {onClose && (

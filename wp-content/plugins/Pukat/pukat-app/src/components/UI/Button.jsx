@@ -2,10 +2,10 @@ import clsx from 'clsx'
 
 const variantClass = {
   primary: 'bg-violet-500 text-white hover:bg-violet-600 focus:ring-violet-400 active:scale-95',
-  secondary: 'bg-gray-100 text-gray-700 hover:bg-gray-200 focus:ring-gray-300 active:scale-95',
-  outline: 'border border-gray-200 bg-white text-gray-700 hover:bg-gray-50 focus:ring-gray-300 active:scale-95',
+  secondary: 'bg-panel-muted text-ink-soft hover:bg-panel-strong focus:ring-line-strong active:scale-95',
+  outline: 'border border-line bg-panel text-ink-soft hover:bg-panel-subtle focus:ring-line-strong active:scale-95',
   danger: 'bg-danger/10 text-danger hover:bg-danger hover:text-white focus:ring-danger/40 active:scale-95',
-  ghost: 'bg-transparent text-gray-600 hover:bg-gray-100 focus:ring-gray-200',
+  ghost: 'bg-transparent text-ink-muted hover:bg-panel-muted focus:ring-line',
 }
 
 const sizeClass = {
@@ -51,7 +51,7 @@ export function IconButton({
       aria-label={label}
       title={title}
       className={clsx(
-        'inline-flex h-8 w-8 items-center justify-center rounded-lg text-gray-400 transition-colors hover:bg-gray-50 hover:text-gray-700 focus:outline-none focus:ring-2 focus:ring-violet-400/40',
+        'inline-flex h-8 w-8 items-center justify-center rounded-lg text-ink-faint transition-colors hover:bg-panel-subtle hover:text-ink-soft focus:outline-none focus:ring-2 focus:ring-violet-400/40',
         className
       )}
       {...props}

@@ -21,26 +21,26 @@ export const EMPTY_MASTER_ASSETS = {
 }
 
 export const CATEGORY_TAG = {
-  BEC: 'bg-red-100 text-red-800',
-  Credential: 'bg-blue-100 text-blue-800',
-  Malware: 'bg-amber-100 text-amber-800',
-  Vishing: 'bg-purple-100 text-purple-800',
+  BEC: 'bg-red-500/15 text-red-800 dark:text-red-300',
+  Credential: 'bg-blue-500/15 text-blue-800 dark:text-blue-300',
+  Malware: 'bg-amber-500/15 text-amber-800 dark:text-amber-300',
+  Vishing: 'bg-purple-500/15 text-purple-800 dark:text-purple-300',
 }
 
 export const DIFFICULTY_TAG = {
-  1: 'bg-sky-100 text-sky-700',
-  2: 'bg-emerald-100 text-emerald-800',
-  3: 'bg-amber-100 text-amber-800',
-  4: 'bg-rose-100 text-rose-800',
-  5: 'bg-pink-100 text-pink-800',
+  1: 'bg-sky-500/15 text-sky-700 dark:text-sky-300',
+  2: 'bg-emerald-500/15 text-emerald-800 dark:text-emerald-300',
+  3: 'bg-amber-500/15 text-amber-800 dark:text-amber-300',
+  4: 'bg-rose-500/15 text-rose-800 dark:text-rose-300',
+  5: 'bg-pink-500/15 text-pink-800 dark:text-pink-300',
 }
 
 export const STATUS_TAG = {
-  Draft: 'bg-gray-100 text-gray-700',
-  Review: 'bg-amber-100 text-amber-800',
-  Published: 'bg-emerald-100 text-emerald-800',
-  Deprecated: 'bg-gray-100 text-gray-500',
-  Archived: 'bg-gray-100 text-gray-400',
+  Draft: 'bg-panel-muted text-ink-soft',
+  Review: 'bg-amber-500/15 text-amber-800 dark:text-amber-300',
+  Published: 'bg-emerald-500/15 text-emerald-800 dark:text-emerald-300',
+  Deprecated: 'bg-panel-muted text-ink-muted',
+  Archived: 'bg-panel-muted text-ink-faint',
 }
 
 export const CATEGORY_META = {

@@ -4,11 +4,11 @@ const TABLE_KEY = 'campaigns'
 
 export default function CampaignTable({ schema, rows, meta, tableState, onTableStateChange, loading, refetching, onNew, onRowAction }) {
   return (
-    <div className="bg-white border border-gray-200 rounded-xl overflow-hidden">
-      <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-3 p-5 border-b border-gray-100">
+    <div className="bg-panel border border-line rounded-xl overflow-hidden">
+      <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-3 p-5 border-b border-line-soft">
         <div>
-          <h3 className="text-base font-semibold text-gray-900">All campaigns</h3>
-          <p className="text-xs text-gray-500 mt-0.5">Manage draft, scheduled, running, and completed campaigns.</p>
+          <h3 className="text-base font-semibold text-ink">All campaigns</h3>
+          <p className="text-xs text-ink-muted mt-0.5">Manage draft, scheduled, running, and completed campaigns.</p>
         </div>
         <button
           onClick={onNew}

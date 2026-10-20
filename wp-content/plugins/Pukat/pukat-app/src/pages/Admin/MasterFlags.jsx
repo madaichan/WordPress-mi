@@ -135,7 +135,7 @@ export default function MasterFlags() {
         key: 'flag_key',
         label: 'Key',
         renderer: 'custom',
-        render: row => <span className="font-mono text-xs text-gray-500">{row.flag_key}</span>,
+        render: row => <span className="font-mono text-xs text-ink-muted">{row.flag_key}</span>,
       },
       {
         key: 'status',

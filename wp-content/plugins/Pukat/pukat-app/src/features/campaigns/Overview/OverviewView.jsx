@@ -25,10 +25,10 @@ export default function OverviewView({
   return (
     <div className="space-y-6">
       <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-4">
-        <MetricCard label="Active campaigns" value={activeCount} helper="+1 from last month" helperClass="text-emerald-600" icon="ti-player-play-filled" />
+        <MetricCard label="Active campaigns" value={activeCount} helper="+1 from last month" helperClass="text-emerald-600 dark:text-emerald-400" icon="ti-player-play-filled" />
         <MetricCard label="Total targets" value={totalTargets.toLocaleString('en-US')} helper={`Active in ${activeCount} campaign`} icon="ti-users" />
-        <MetricCard label="Click rate" value="18%" helper="▲ 3% vs previous simulation" helperClass="text-red-600" icon="ti-pointer" />
-        <MetricCard label="High-risk users" value="42" helper="Coaching incomplete" helperClass="text-amber-600" icon="ti-alert-triangle" />
+        <MetricCard label="Click rate" value="18%" helper="▲ 3% vs previous simulation" helperClass="text-red-600 dark:text-red-400" icon="ti-pointer" />
+        <MetricCard label="High-risk users" value="42" helper="Coaching incomplete" helperClass="text-amber-600 dark:text-amber-400" icon="ti-alert-triangle" />
       </div>
 
       <CampaignStatusCard activeCampaign={activeCampaign} />

@@ -39,7 +39,7 @@ export default function Step2({ form, setForm, playbooks = [], playbooksLoading 
       <button
         type="button"
         onClick={() => setPreviewPlaybookId(row.id)}
-        className="inline-flex items-center gap-1.5 rounded-lg border border-gray-200 px-3 py-1.5 text-xs font-semibold text-gray-600 transition-all hover:border-violet-300 hover:text-violet-600"
+        className="inline-flex items-center gap-1.5 rounded-lg border border-line px-3 py-1.5 text-xs font-semibold text-ink-muted transition-all hover:border-violet-300 hover:text-violet-600 dark:hover:text-violet-400"
       >
         <i className="ti ti-eye text-sm" />
         Preview
@@ -56,7 +56,7 @@ export default function Step2({ form, setForm, playbooks = [], playbooksLoading 
         aria-pressed={selected}
         className={clsx(
           'inline-flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs font-semibold transition-all',
-          selected ? 'bg-violet-500 text-white' : 'border border-gray-200 text-gray-600 hover:border-violet-300 hover:text-violet-600',
+          selected ? 'bg-violet-500 text-white' : 'border border-line text-ink-muted hover:border-violet-300 hover:text-violet-600 dark:hover:text-violet-400',
         )}
       >
         {selected ? (<><i className="ti ti-check text-sm" /> Selected</>) : 'Select'}
@@ -141,8 +141,8 @@ export default function Step2({ form, setForm, playbooks = [], playbooksLoading 
   return (
     <div className="space-y-6">
       {/* Card 1 — Campaign mode */}
-      <div className="bg-white border border-gray-200 rounded-xl p-5">
-        <h3 className="text-sm font-semibold text-gray-900 mb-4">Campaign mode</h3>
+      <div className="bg-panel border border-line rounded-xl p-5">
+        <h3 className="text-sm font-semibold text-ink mb-4">Campaign mode</h3>
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           <button
             type="button"
@@ -150,17 +150,17 @@ export default function Step2({ form, setForm, playbooks = [], playbooksLoading 
             aria-pressed={form.mode === 'playbook'}
             className={clsx(
               'rounded-xl p-4 cursor-pointer select-none text-left transition-all',
-              form.mode === 'playbook' ? 'border-2 border-violet-500 bg-violet-50/20' : 'border border-gray-200 hover:border-gray-300',
+              form.mode === 'playbook' ? 'border-2 border-violet-500 bg-violet-50/20' : 'border border-line hover:border-line-strong',
             )}
           >
             <div className="flex items-center justify-between mb-2">
-              <h4 className="text-sm font-semibold text-gray-900">Use playbook</h4>
+              <h4 className="text-sm font-semibold text-ink">Use playbook</h4>
               <div className="flex gap-1.5">
-                <span className="rounded-full text-[9px] font-semibold px-2 py-0.5 bg-violet-100 text-violet-700">Fast</span>
-                <span className="rounded-full text-[9px] font-semibold px-2 py-0.5 bg-emerald-100 text-emerald-700">Recommendation</span>
+                <span className="rounded-full text-[9px] font-semibold px-2 py-0.5 bg-violet-500/15 text-violet-700 dark:text-violet-300">Fast</span>
+                <span className="rounded-full text-[9px] font-semibold px-2 py-0.5 bg-emerald-500/15 text-emerald-700 dark:text-emerald-300">Recommendation</span>
               </div>
             </div>
-            <p className="text-xs text-gray-500 leading-relaxed">Choose a ready-made simulation scenario and launch quickly.</p>
+            <p className="text-xs text-ink-muted leading-relaxed">Choose a ready-made simulation scenario and launch quickly.</p>
           </button>
           <button
             type="button"
@@ -171,33 +171,33 @@ export default function Step2({ form, setForm, playbooks = [], playbooksLoading 
             title={canUseCustom ? undefined : 'You need the "Create Playbook Master" permission to use Custom campaign.'}
             className={clsx(
               'rounded-xl p-4 text-left transition-all',
-              !canUseCustom && 'border border-gray-200 opacity-60 cursor-not-allowed',
+              !canUseCustom && 'border border-line opacity-60 cursor-not-allowed',
               canUseCustom && form.mode === 'custom' && 'border-2 border-violet-500 bg-violet-50/20 cursor-pointer select-none',
-              canUseCustom && form.mode !== 'custom' && 'border border-gray-200 hover:border-gray-300 cursor-pointer select-none',
+              canUseCustom && form.mode !== 'custom' && 'border border-line hover:border-line-strong cursor-pointer select-none',
             )}
           >
             <div className="flex items-center justify-between mb-2">
-              <h4 className="text-sm font-semibold text-gray-900">Custom campaign</h4>
+              <h4 className="text-sm font-semibold text-ink">Custom campaign</h4>
               <span className={clsx(
                 'rounded-full text-[9px] font-semibold px-2 py-0.5',
-                canUseCustom ? 'bg-amber-100 text-amber-700' : 'bg-gray-100 text-gray-500',
+                canUseCustom ? 'bg-amber-500/15 text-amber-700 dark:text-amber-300' : 'bg-panel-muted text-ink-muted',
               )}>
                 {canUseCustom ? 'Flexible' : 'Permission required'}
               </span>
             </div>
-            <p className="text-xs text-gray-500 leading-relaxed">Configure the email template, landing page, and SMTP relay manually.</p>
+            <p className="text-xs text-ink-muted leading-relaxed">Configure the email template, landing page, and SMTP relay manually.</p>
           </button>
         </div>
       </div>
 
       {form.mode === 'custom' ? (
         /* Card 2 — Configure components (custom mode) */
-        <div className="bg-white border border-gray-200 rounded-xl p-5 space-y-3">
+        <div className="bg-panel border border-line rounded-xl p-5 space-y-3">
           <div className="flex items-center justify-between mb-1">
-            <h3 className="text-sm font-semibold text-gray-900">Configure components</h3>
-            <span className="rounded-full text-[10px] font-semibold px-2 py-0.5 bg-amber-100 text-amber-700">gophish</span>
+            <h3 className="text-sm font-semibold text-ink">Configure components</h3>
+            <span className="rounded-full text-[10px] font-semibold px-2 py-0.5 bg-amber-500/15 text-amber-700 dark:text-amber-300">gophish</span>
           </div>
-          <p className="text-xs text-gray-500 -mt-2 mb-2">
+          <p className="text-xs text-ink-muted -mt-2 mb-2">
             Pick the technical components for this campaign directly — the same ones used when creating a Playbook Master.
           </p>
           <PlaybookComponentSelect
@@ -243,14 +243,14 @@ export default function Step2({ form, setForm, playbooks = [], playbooksLoading 
         </div>
       ) : (
         /* Card 2 — Select playbook */
-        <div className="bg-white border border-gray-200 rounded-xl p-5">
+        <div className="bg-panel border border-line rounded-xl p-5">
           <div className="flex items-center justify-between mb-4">
-            <h3 className="text-sm font-semibold text-gray-900">Select playbook</h3>
+            <h3 className="text-sm font-semibold text-ink">Select playbook</h3>
             <div className="flex items-center gap-2">
               {!playbooksLoading && playbooks.length > 0 && (
                 <ViewToggle value={playbookViewMode} onChange={setPlaybookViewMode} options={VIEW_MODE_OPTIONS} />
               )}
-              <span className="rounded-full text-[10px] font-semibold px-2 py-0.5 bg-amber-100 text-amber-700">gophish</span>
+              <span className="rounded-full text-[10px] font-semibold px-2 py-0.5 bg-amber-500/15 text-amber-700 dark:text-amber-300">gophish</span>
             </div>
           </div>
 
@@ -268,27 +268,27 @@ export default function Step2({ form, setForm, playbooks = [], playbooksLoading 
           )}
 
           {playbooksLoading && (
-            <div className="rounded-xl border border-gray-200 bg-gray-50 px-4 py-6 text-center text-xs font-medium text-gray-500">
+            <div className="rounded-xl border border-line bg-panel-subtle px-4 py-6 text-center text-xs font-medium text-ink-muted">
               Loading playbook masters...
             </div>
           )}
 
           {!playbooksLoading && playbooks.length === 0 && (
-            <div className="rounded-xl border border-dashed border-gray-300 bg-gray-50 px-4 py-6 text-center text-xs font-medium text-gray-500">
+            <div className="rounded-xl border border-dashed border-line-strong bg-panel-subtle px-4 py-6 text-center text-xs font-medium text-ink-muted">
               No playbook masters found in database.
             </div>
           )}
 
           {!playbooksLoading && playbooks.length > 0 && playbookViewMode === 'grid' && (
             matchingPlaybooks.length === 0 ? (
-              <div className="rounded-xl border border-dashed border-gray-300 bg-gray-50 px-4 py-6 text-center">
-                <p className="text-xs font-medium text-gray-500">
+              <div className="rounded-xl border border-dashed border-line-strong bg-panel-subtle px-4 py-6 text-center">
+                <p className="text-xs font-medium text-ink-muted">
                   No playbook matches &ldquo;{playbookPickerState.search.trim()}&rdquo;.
                 </p>
                 <button
                   type="button"
                   onClick={() => handlePlaybookSearchChange('')}
-                  className="mt-2 text-xs font-semibold text-violet-500 hover:text-violet-600"
+                  className="mt-2 text-xs font-semibold text-violet-500 hover:text-violet-600 dark:hover:text-violet-400"
                 >
                   Clear search
                 </button>
@@ -305,7 +305,7 @@ export default function Step2({ form, setForm, playbooks = [], playbooksLoading 
                       key={pb.id}
                       className={clsx(
                         'flex snap-start flex-col rounded-xl transition-all',
-                        isSelected ? 'border-2 border-violet-500 bg-violet-50/20' : 'border border-gray-200 hover:border-gray-300',
+                        isSelected ? 'border-2 border-violet-500 bg-violet-50/20' : 'border border-line hover:border-line-strong',
                       )}
                     >
                       <button
@@ -315,27 +315,27 @@ export default function Step2({ form, setForm, playbooks = [], playbooksLoading 
                         className="flex-1 cursor-pointer select-none p-4 text-left"
                       >
                         <div className="flex items-start justify-between gap-3">
-                          <h4 className="text-xs font-semibold text-gray-900">{pb.name}</h4>
+                          <h4 className="text-xs font-semibold text-ink">{pb.name}</h4>
                           {pb.statusLabel && (
                             <span className={clsx('shrink-0 rounded-full px-2 py-0.5 text-[9px] font-semibold', pb.statusClass)}>
                               {pb.statusLabel}
                             </span>
                           )}
                         </div>
-                        <p className="text-[10px] text-gray-500 mt-1 line-clamp-2">{pb.desc}</p>
+                        <p className="text-[10px] text-ink-muted mt-1 line-clamp-2">{pb.desc}</p>
                         <div className="flex items-center justify-between mt-3 text-[10px] font-semibold">
                           <span className={pb.typeColor}>{pb.type}</span>
-                          <span className="text-gray-500">Difficulty {pb.diff}</span>
+                          <span className="text-ink-muted">Difficulty {pb.diff}</span>
                         </div>
                       </button>
-                      <div className="flex items-center justify-between gap-2 border-t border-gray-100 px-4 py-2">
-                        <span className="text-[10px] font-semibold text-gray-400">
+                      <div className="flex items-center justify-between gap-2 border-t border-line-soft px-4 py-2">
+                        <span className="text-[10px] font-semibold text-ink-faint">
                           {pb.ready ? 'Ready to launch' : 'Not ready yet'}
                         </span>
                         <button
                           type="button"
                           onClick={() => setPreviewPlaybookId(pb.id)}
-                          className="inline-flex items-center gap-1 text-[11px] font-semibold text-violet-500 hover:text-violet-600"
+                          className="inline-flex items-center gap-1 text-[11px] font-semibold text-violet-500 hover:text-violet-600 dark:hover:text-violet-400"
                         >
                           <i className="ti ti-eye" />
                           Preview
@@ -370,9 +370,9 @@ export default function Step2({ form, setForm, playbooks = [], playbooksLoading 
       />
 
       {/* Card 3 — Sending schedule */}
-      <div className="bg-white border border-gray-200 rounded-xl p-5 space-y-4">
+      <div className="bg-panel border border-line rounded-xl p-5 space-y-4">
         <div className="flex items-center justify-between">
-          <h3 className="text-sm font-semibold text-gray-900">Sending schedule</h3>
+          <h3 className="text-sm font-semibold text-ink">Sending schedule</h3>
           <Switch
             checked={scheduleEnabled}
             onChange={value => setForm(f => ({ ...f, scheduleEnabled: value }))}
@@ -381,12 +381,12 @@ export default function Step2({ form, setForm, playbooks = [], playbooksLoading 
         </div>
         <div className={clsx('grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4', !scheduleEnabled && 'opacity-50')}>
           <div className="space-y-1">
-            <label className="block text-xs font-semibold text-gray-600">Start date {scheduleEnabled && '*'}</label>
+            <label className="block text-xs font-semibold text-ink-muted">Start date {scheduleEnabled && '*'}</label>
             <input type="date" disabled={!scheduleEnabled} min={today} value={form.dateStart} onChange={e => handleDateStartChange(e.target.value)}
-              className="w-full bg-white border border-gray-200 rounded-xl px-4 py-2 text-sm focus:outline-none focus:border-violet-500 disabled:bg-gray-50 disabled:cursor-not-allowed" />
+              className="w-full bg-panel border border-line rounded-xl px-4 py-2 text-sm focus:outline-none focus:border-violet-500 disabled:bg-panel-subtle disabled:cursor-not-allowed" />
           </div>
           <div className="space-y-1">
-            <label className="block text-xs font-semibold text-gray-600">Send time {scheduleEnabled && '*'}</label>
+            <label className="block text-xs font-semibold text-ink-muted">Send time {scheduleEnabled && '*'}</label>
             <input
               type="time"
               disabled={!scheduleEnabled}
@@ -394,8 +394,8 @@ export default function Step2({ form, setForm, playbooks = [], playbooksLoading 
               value={form.sendTime || '09:00'}
               onChange={e => setForm(f => ({ ...f, sendTime: e.target.value }))}
               className={clsx(
-                'w-full bg-white border rounded-xl px-4 py-2 text-sm focus:outline-none disabled:bg-gray-50 disabled:cursor-not-allowed',
-                sendTimeInvalid ? 'border-red-400 focus:border-red-400' : 'border-gray-200 focus:border-violet-500',
+                'w-full bg-panel border rounded-xl px-4 py-2 text-sm focus:outline-none disabled:bg-panel-subtle disabled:cursor-not-allowed',
+                sendTimeInvalid ? 'border-red-400 focus:border-red-400' : 'border-line focus:border-violet-500',
               )}
             />
             {sendTimeInvalid && (
@@ -403,21 +403,21 @@ export default function Step2({ form, setForm, playbooks = [], playbooksLoading 
             )}
           </div>
           <div className="space-y-1">
-            <label className="block text-xs font-semibold text-gray-600">End date {scheduleEnabled && '*'}</label>
+            <label className="block text-xs font-semibold text-ink-muted">End date {scheduleEnabled && '*'}</label>
             <input type="date" disabled={!scheduleEnabled} min={minDateEnd} value={form.dateEnd} onChange={e => handleDateEndChange(e.target.value)}
-              className="w-full bg-white border border-gray-200 rounded-xl px-4 py-2 text-sm focus:outline-none focus:border-violet-500 disabled:bg-gray-50 disabled:cursor-not-allowed" />
+              className="w-full bg-panel border border-line rounded-xl px-4 py-2 text-sm focus:outline-none focus:border-violet-500 disabled:bg-panel-subtle disabled:cursor-not-allowed" />
           </div>
           <div className="space-y-1">
-            <label className="block text-xs font-semibold text-gray-600">Timezone</label>
+            <label className="block text-xs font-semibold text-ink-muted">Timezone</label>
             <select disabled={!scheduleEnabled} value={form.timezone} onChange={e => setForm(f => ({ ...f, timezone: e.target.value }))}
-              className="w-full bg-white border border-gray-200 rounded-xl px-4 py-2 text-sm focus:outline-none focus:border-violet-500 disabled:bg-gray-50 disabled:cursor-not-allowed">
+              className="w-full bg-panel border border-line rounded-xl px-4 py-2 text-sm focus:outline-none focus:border-violet-500 disabled:bg-panel-subtle disabled:cursor-not-allowed">
               <option value="WIB">WIB (Asia/Jakarta)</option>
               <option value="WITA">WITA (Asia/Makassar)</option>
               <option value="WIT">WIT (Asia/Jayapura)</option>
             </select>
           </div>
         </div>
-        <p className="text-[10px] text-gray-500">
+        <p className="text-[10px] text-ink-muted">
           {scheduleEnabled
             ? 'Campaign emails start sending at this time on the start date, in the selected timezone.'
             : 'Sending schedule is off — the campaign will start sending immediately once launched.'}
@@ -425,8 +425,8 @@ export default function Step2({ form, setForm, playbooks = [], playbooksLoading 
       </div>
 
       {/* Footer */}
-      <div className="flex items-center justify-between pt-4 border-t border-gray-100">
-        <button type="button" onClick={onBack} className="bg-white border border-gray-200 text-gray-700 hover:bg-gray-50 px-4 py-2 text-sm font-semibold rounded-xl transition-all">
+      <div className="flex items-center justify-between pt-4 border-t border-line-soft">
+        <button type="button" onClick={onBack} className="bg-panel border border-line text-ink-soft hover:bg-panel-subtle px-4 py-2 text-sm font-semibold rounded-xl transition-all">
           ← Back
         </button>
         <button

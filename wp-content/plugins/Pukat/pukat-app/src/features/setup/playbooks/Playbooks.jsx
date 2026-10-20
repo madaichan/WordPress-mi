@@ -316,8 +316,8 @@ function pillClass(active) {
   return clsx(
     'rounded-full px-3 py-1 text-xs font-semibold transition-all select-none',
     active
-      ? 'bg-gray-950 text-white'
-      : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
+      ? 'bg-ink text-canvas'
+      : 'bg-panel-muted text-ink-muted hover:bg-panel-strong'
   )
 }
 
@@ -407,10 +407,10 @@ function PlaybookListItem({ playbook, selected, onSelect }) {
       type="button"
       onClick={onSelect}
       className={clsx(
-        'w-full rounded-lg border bg-white p-3.5 text-left transition-all',
+        'w-full rounded-lg border bg-panel p-3.5 text-left transition-all',
         selected
           ? 'border-violet-500 bg-violet-50/40'
-          : 'border-gray-200 hover:border-gray-300 hover:bg-gray-50'
+          : 'border-line hover:border-line-strong hover:bg-panel-subtle'
       )}
     >
       <div className="flex gap-3">
@@ -421,31 +421,31 @@ function PlaybookListItem({ playbook, selected, onSelect }) {
           <i className={clsx('ti text-[15px]', playbook.iconName)} style={{ color: playbook.iconColor }} />
         </span>
         <span className="min-w-0">
-          <span className="block text-sm font-bold text-gray-900">{playbook.name}</span>
-          <span className="mt-0.5 block text-xs leading-snug text-gray-500">{playbook.desc}</span>
+          <span className="block text-sm font-bold text-ink">{playbook.name}</span>
+          <span className="mt-0.5 block text-xs leading-snug text-ink-muted">{playbook.desc}</span>
         </span>
       </div>
 
       <div className="mt-3 flex flex-wrap gap-1.5">
         {playbook.source === 'api' && (
-          <Tag className={STATUS_TAG[playbookDisplayStatus(playbook.status)] ?? 'bg-gray-100 text-gray-700'}>
+          <Tag className={STATUS_TAG[playbookDisplayStatus(playbook.status)] ?? 'bg-panel-muted text-ink-soft'}>
             {playbookDisplayStatus(playbook.status)}
           </Tag>
         )}
-        <Tag className={CATEGORY_TAG[playbook.category] ?? 'bg-gray-100 text-gray-700'}>{playbook.category}</Tag>
-        <Tag className={DIFFICULTY_TAG[difficulty] ?? 'bg-gray-100 text-gray-700'}>Difficulty {playbook.diffScore}</Tag>
-        <Tag className="bg-gray-100 text-gray-700">{playbook.dept}</Tag>
+        <Tag className={CATEGORY_TAG[playbook.category] ?? 'bg-panel-muted text-ink-soft'}>{playbook.category}</Tag>
+        <Tag className={DIFFICULTY_TAG[difficulty] ?? 'bg-panel-muted text-ink-soft'}>Difficulty {playbook.diffScore}</Tag>
+        <Tag className="bg-panel-muted text-ink-soft">{playbook.dept}</Tag>
         {playbook.editLocked && (
-          <Tag className="bg-red-50 text-red-700">
+          <Tag className="bg-red-500/10 text-red-700 dark:text-red-300">
             <i className="ti ti-lock mr-1 text-[10px]" />
             Locked
           </Tag>
         )}
       </div>
 
-      <div className="mt-3 flex items-center gap-2 text-[11px] text-gray-500">
+      <div className="mt-3 flex items-center gap-2 text-[11px] text-ink-muted">
         <span className="flex-shrink-0">Used {playbook.usedCount}</span>
-        <span className="h-1 flex-1 overflow-hidden rounded-full bg-gray-200">
+        <span className="h-1 flex-1 overflow-hidden rounded-full bg-panel-strong">
           <span className="block h-full rounded-full bg-violet-500" style={{ width: `${rate}%` }} />
         </span>
         <span className="flex-shrink-0">Click rate avg {playbook.clickAvg}</span>
@@ -480,17 +480,17 @@ function PlaybookSlideover({
           if (event.target === event.currentTarget) onClose()
         }}
       >
-        <aside className="flex h-full w-full max-w-[460px] flex-col bg-white shadow-2xl">
-          <header className="flex flex-shrink-0 items-center gap-3 border-b border-gray-200 px-6 py-5">
-            <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-violet-100 text-violet-600">
+        <aside className="flex h-full w-full max-w-[460px] flex-col bg-panel shadow-2xl">
+          <header className="flex flex-shrink-0 items-center gap-3 border-b border-line px-6 py-5">
+            <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-violet-500/15 text-violet-600 dark:text-violet-400">
               <i className={clsx('ti', isEdit ? 'ti-edit' : 'ti-plus')} />
             </div>
             <div className="min-w-0 flex-1">
-              <h2 className="text-base font-bold text-gray-900">{isEdit ? 'Edit playbook' : 'Create playbook'}</h2>
-              <p className="text-xs text-gray-500">Configure a GoPhish simulation playbook</p>
+              <h2 className="text-base font-bold text-ink">{isEdit ? 'Edit playbook' : 'Create playbook'}</h2>
+              <p className="text-xs text-ink-muted">Configure a GoPhish simulation playbook</p>
             </div>
             {dirty && (
-              <span className="inline-flex items-center gap-1.5 rounded-full bg-amber-100 px-2 py-0.5 text-[10px] font-semibold text-amber-700">
+              <span className="inline-flex items-center gap-1.5 rounded-full bg-amber-500/15 px-2 py-0.5 text-[10px] font-semibold text-amber-700 dark:text-amber-300">
                 <span className="h-1.5 w-1.5 rounded-full bg-amber-500" />
                 Unsaved changes
               </span>
@@ -498,7 +498,7 @@ function PlaybookSlideover({
             <button
               type="button"
               onClick={onClose}
-              className="flex h-8 w-8 items-center justify-center rounded-lg text-gray-400 transition-colors hover:bg-gray-100 hover:text-gray-700"
+              className="flex h-8 w-8 items-center justify-center rounded-lg text-ink-faint transition-colors hover:bg-panel-muted hover:text-ink-soft"
               aria-label="Close playbook form"
             >
               <i className="ti ti-x text-lg" />
@@ -507,7 +507,7 @@ function PlaybookSlideover({
 
           <div className="flex-1 space-y-5 overflow-y-auto p-6">
             <section className="space-y-3">
-              <div className="text-[11px] font-bold uppercase tracking-wider text-gray-500">Basic information</div>
+              <div className="text-[11px] font-bold uppercase tracking-wider text-ink-muted">Basic information</div>
               <Field label="Playbook name" required>
                 <input
                   value={form.name}
@@ -558,21 +558,21 @@ function PlaybookSlideover({
                     {[1, 2, 3, 4, 5].map(score => (
                       <span
                         key={score}
-                        className={clsx('h-1.5 w-8 rounded-full', score <= difficultyScore ? 'bg-red-500' : 'bg-gray-200')}
+                        className={clsx('h-1.5 w-8 rounded-full', score <= difficultyScore ? 'bg-red-500' : 'bg-panel-strong')}
                       />
                     ))}
                   </div>
-                  <span className="text-[11px] font-semibold text-red-700">
+                  <span className="text-[11px] font-semibold text-red-700 dark:text-red-300">
                     {DIFFICULTY_TEXT[form.difficulty] ?? DIFFICULTY_TEXT[3]}
                   </span>
                 </div>
               </Field>
             </section>
 
-            <div className="h-px bg-gray-100" />
+            <div className="h-px bg-panel-muted" />
 
             <section className="space-y-3">
-              <div className="text-[11px] font-bold uppercase tracking-wider text-gray-500">Technical components</div>
+              <div className="text-[11px] font-bold uppercase tracking-wider text-ink-muted">Technical components</div>
               <ComponentSelect
                 icon="ti-mail"
                 bg="#DBEAFE"
@@ -614,10 +614,10 @@ function PlaybookSlideover({
               />
             </section>
 
-            <div className="h-px bg-gray-100" />
+            <div className="h-px bg-panel-muted" />
 
             <section className="space-y-3">
-              <div className="text-[11px] font-bold uppercase tracking-wider text-gray-500">Scenario</div>
+              <div className="text-[11px] font-bold uppercase tracking-wider text-ink-muted">Scenario</div>
               <Field label="Narrative shown to the target" hint="This text appears in the playbook details after saving.">
                 <textarea
                   value={form.scenario}
@@ -630,7 +630,7 @@ function PlaybookSlideover({
             </section>
           </div>
 
-          <footer className="flex flex-shrink-0 items-center gap-3 border-t border-gray-200 bg-gray-50 px-6 py-5">
+          <footer className="flex flex-shrink-0 items-center gap-3 border-t border-line bg-panel-subtle px-6 py-5">
             {isEdit && (
               <button
                 type="button"
@@ -644,7 +644,7 @@ function PlaybookSlideover({
             <button
               type="button"
               onClick={onClose}
-              className="ml-auto rounded-lg border border-gray-200 bg-white px-4 py-2 text-xs font-semibold text-gray-700 transition-colors hover:bg-gray-50"
+              className="ml-auto rounded-lg border border-line bg-panel px-4 py-2 text-xs font-semibold text-ink-soft transition-colors hover:bg-panel-subtle"
             >
               Cancel
             </button>
@@ -667,18 +667,18 @@ function PlaybookSlideover({
 function DetailPanel({ playbook, canManage, canSubmitReview, canApprove, onDuplicate, onEdit, onSubmitReview, onApprove, onPreviewComponent }) {
   if (!playbook) {
     return (
-      <section className="flex min-h-[620px] items-center justify-center rounded-xl border border-dashed border-gray-200 bg-white p-6 text-center">
+      <section className="flex min-h-[620px] items-center justify-center rounded-xl border border-dashed border-line bg-panel p-6 text-center">
         <div>
-          <i className="ti ti-books mb-2 block text-3xl text-gray-300" />
-          <h2 className="text-sm font-bold text-gray-900">No playbooks available</h2>
-          <p className="mt-1 text-xs text-gray-500">Only General playbooks and playbooks assigned to your entity are shown here.</p>
+          <i className="ti ti-books mb-2 block text-3xl text-ink-faint" />
+          <h2 className="text-sm font-bold text-ink">No playbooks available</h2>
+          <p className="mt-1 text-xs text-ink-muted">Only General playbooks and playbooks assigned to your entity are shown here.</p>
         </div>
       </section>
     )
   }
 
   return (
-    <section className="min-h-[620px] overflow-y-auto rounded-xl border border-gray-200 bg-white p-6">
+    <section className="min-h-[620px] overflow-y-auto rounded-xl border border-line bg-panel p-6">
       <PlaybookDetailBody
         playbook={playbook}
         onPreviewComponent={onPreviewComponent}
@@ -690,7 +690,7 @@ function DetailPanel({ playbook, canManage, canSubmitReview, canApprove, onDupli
           </Link>
           {canManage && (
             <>
-              <button type="button" onClick={onDuplicate} className="inline-flex items-center gap-1.5 rounded-lg border border-gray-200 bg-white px-4 py-2 text-xs font-semibold text-gray-700 transition-colors hover:bg-gray-50">
+              <button type="button" onClick={onDuplicate} className="inline-flex items-center gap-1.5 rounded-lg border border-line bg-panel px-4 py-2 text-xs font-semibold text-ink-soft transition-colors hover:bg-panel-subtle">
                 <i className="ti ti-copy" />
                 Duplicate
               </button>
@@ -699,7 +699,7 @@ function DetailPanel({ playbook, canManage, canSubmitReview, canApprove, onDupli
                 onClick={onEdit}
                 disabled={playbook.editLocked}
                 title={playbook.editLocked ? masterAssetLockMessage(playbook, 'Playbook') : 'Edit'}
-                className="inline-flex items-center gap-1.5 rounded-lg border border-gray-200 bg-white px-4 py-2 text-xs font-semibold text-gray-700 transition-colors hover:bg-gray-50 disabled:cursor-not-allowed disabled:opacity-50"
+                className="inline-flex items-center gap-1.5 rounded-lg border border-line bg-panel px-4 py-2 text-xs font-semibold text-ink-soft transition-colors hover:bg-panel-subtle disabled:cursor-not-allowed disabled:opacity-50"
               >
                 <i className="ti ti-edit" />
                 Edit
@@ -707,13 +707,13 @@ function DetailPanel({ playbook, canManage, canSubmitReview, canApprove, onDupli
             </>
           )}
           {canSubmitReview && (
-            <button type="button" onClick={onSubmitReview} className="inline-flex items-center gap-1.5 rounded-lg border border-blue-200 bg-white px-4 py-2 text-xs font-semibold text-blue-700 transition-colors hover:bg-blue-50">
+            <button type="button" onClick={onSubmitReview} className="inline-flex items-center gap-1.5 rounded-lg border border-blue-500/30 bg-panel px-4 py-2 text-xs font-semibold text-blue-700 dark:text-blue-300 transition-colors hover:bg-blue-500/10">
               <i className="ti ti-send" />
               Submit for review
             </button>
           )}
           {canApprove && (
-            <button type="button" onClick={onApprove} className="inline-flex items-center gap-1.5 rounded-lg border border-emerald-200 bg-white px-4 py-2 text-xs font-semibold text-emerald-700 transition-colors hover:bg-emerald-50">
+            <button type="button" onClick={onApprove} className="inline-flex items-center gap-1.5 rounded-lg border border-emerald-500/30 bg-panel px-4 py-2 text-xs font-semibold text-emerald-700 dark:text-emerald-300 transition-colors hover:bg-emerald-500/10">
               <i className="ti ti-shield-check" />
               Approve
             </button>
@@ -1078,13 +1078,13 @@ export default function Playbooks() {
         actions={
           <>
             <label className="relative w-64">
-              <i className="ti ti-search pointer-events-none absolute inset-y-0 left-3 flex items-center text-base text-gray-400" />
+              <i className="ti ti-search pointer-events-none absolute inset-y-0 left-3 flex items-center text-base text-ink-faint" />
               <input
                 type="search"
                 value={query}
                 onChange={event => setQuery(event.target.value)}
                 placeholder="Search playbooks..."
-                className="w-full rounded-xl border border-gray-200 bg-white py-2 pl-9 pr-4 text-sm text-gray-950 outline-none placeholder:text-gray-400 focus:border-violet-500"
+                className="w-full rounded-xl border border-line bg-panel py-2 pl-9 pr-4 text-sm text-ink outline-none placeholder:text-ink-faint focus:border-violet-500"
               />
             </label>
             <Button variant="outline" onClick={handleSync} disabled={syncing}>
@@ -1102,15 +1102,15 @@ export default function Playbooks() {
       />
 
       <div className="grid grid-cols-1 gap-6 lg:min-h-0 lg:flex-1 lg:grid-cols-[350px_minmax(0,1fr)]">
-        <aside className="flex min-h-[520px] flex-col overflow-hidden rounded-xl border border-gray-200 bg-white lg:min-h-0">
-          <div className="space-y-3 border-b border-gray-200 p-4">
+        <aside className="flex min-h-[520px] flex-col overflow-hidden rounded-xl border border-line bg-panel lg:min-h-0">
+          <div className="space-y-3 border-b border-line p-4">
             <div className="flex items-center justify-between">
-              <h2 className="text-lg font-bold text-gray-900">Playbooks</h2>
+              <h2 className="text-lg font-bold text-ink">Playbooks</h2>
               {canCreatePlaybooks && (
                 <button
                   type="button"
                   onClick={openCreatePlaybook}
-                  className="inline-flex items-center gap-1 text-xs font-semibold text-violet-500 hover:text-violet-600"
+                  className="inline-flex items-center gap-1 text-xs font-semibold text-violet-500 hover:text-violet-600 dark:hover:text-violet-400"
                 >
                   <i className="ti ti-plus" />
                   New
@@ -1119,13 +1119,13 @@ export default function Playbooks() {
             </div>
 
             <label className="relative block">
-              <i className="ti ti-search pointer-events-none absolute inset-y-0 left-3 flex items-center text-[13px] text-gray-400" />
+              <i className="ti ti-search pointer-events-none absolute inset-y-0 left-3 flex items-center text-[13px] text-ink-faint" />
               <input
                 type="search"
                 value={query}
                 onChange={event => setQuery(event.target.value)}
                 placeholder="Search playbooks..."
-                className="w-full rounded-lg border border-gray-200 bg-white py-2 pl-9 pr-3 text-sm text-gray-800 outline-none focus:border-violet-500"
+                className="w-full rounded-lg border border-line bg-panel py-2 pl-9 pr-3 text-sm text-ink-soft outline-none focus:border-violet-500"
               />
             </label>
 
@@ -1144,7 +1144,7 @@ export default function Playbooks() {
           </div>
 
           <div className="flex-1 space-y-2 overflow-y-auto px-3 py-2">
-            <div className="px-1 pb-1 pt-0.5 text-[10px] font-semibold text-gray-500">
+            <div className="px-1 pb-1 pt-0.5 text-[10px] font-semibold text-ink-muted">
               {playbooksLoading ? 'Loading playbooks...' : `${filteredPlaybooks.length} ${filteredPlaybooks.length === 1 ? 'playbook' : 'playbooks'} available`}
             </div>
             {filteredPlaybooks.map(playbook => (
@@ -1156,7 +1156,7 @@ export default function Playbooks() {
               />
             ))}
             {filteredPlaybooks.length === 0 && (
-              <div className="rounded-lg border border-dashed border-gray-200 p-6 text-center text-sm text-gray-400">
+              <div className="rounded-lg border border-dashed border-line p-6 text-center text-sm text-ink-faint">
                 No matching playbooks found.
               </div>
             )}

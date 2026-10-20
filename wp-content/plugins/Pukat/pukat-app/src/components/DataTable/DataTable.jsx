@@ -13,12 +13,12 @@ function SkeletonRows({ columnCount, hasSelection }) {
     <tr key={rowIndex}>
       {hasSelection && (
         <td className="w-10 p-4">
-          <div className="h-3.5 w-3.5 animate-pulse rounded bg-gray-100" />
+          <div className="h-3.5 w-3.5 animate-pulse rounded bg-panel-muted" />
         </td>
       )}
       {Array.from({ length: columnCount }, (_, columnIndex) => (
         <td key={columnIndex} className="p-4">
-          <div className="h-3 w-full max-w-[140px] animate-pulse rounded bg-gray-100" />
+          <div className="h-3 w-full max-w-[140px] animate-pulse rounded bg-panel-muted" />
         </td>
       ))}
     </tr>
@@ -32,8 +32,8 @@ function CellContent({ column, row }) {
     case 'text_with_subtext':
       return (
         <div className="min-w-0">
-          <div className="truncate font-semibold text-gray-900">{content.primary}</div>
-          {content.subtext && <div className="truncate text-[11px] text-gray-400">{content.subtext}</div>}
+          <div className="truncate font-semibold text-ink">{content.primary}</div>
+          {content.subtext && <div className="truncate text-[11px] text-ink-faint">{content.subtext}</div>}
         </div>
       )
     case 'badge':
@@ -41,14 +41,14 @@ function CellContent({ column, row }) {
       return content.label ? <Badge tone={content.tone} className="text-[10px]">{content.label}</Badge> : null
     case 'link':
       return content.href ? (
-        <a href={content.href} target="_blank" rel="noreferrer" className="truncate text-violet-600 underline-offset-2 hover:underline">
+        <a href={content.href} target="_blank" rel="noreferrer" className="truncate text-violet-600 dark:text-violet-400 underline-offset-2 hover:underline">
           {content.label || content.href}
         </a>
       ) : (
-        <span className="text-gray-300">—</span>
+        <span className="text-ink-faint">—</span>
       )
     default:
-      return content.label ? <span>{content.label}</span> : <span className="text-gray-300">—</span>
+      return content.label ? <span>{content.label}</span> : <span className="text-ink-faint">—</span>
   }
 }
 
@@ -103,8 +103,8 @@ export default function DataTable({
   }
 
   return (
-    <div className="overflow-hidden rounded-2xl border border-gray-200 bg-white shadow-sm" data-table-key={tableKey}>
-      <div className="flex flex-wrap items-center justify-between gap-3 border-b border-gray-100 p-4">
+    <div className="overflow-hidden rounded-2xl border border-line bg-panel shadow-sm" data-table-key={tableKey}>
+      <div className="flex flex-wrap items-center justify-between gap-3 border-b border-line-soft p-4">
         <DataTableToolbar
           search={state.search}
           filters={state.filters}
@@ -113,18 +113,18 @@ export default function DataTable({
           onSearchChange={search => updateState({ search, page: 1 })}
           onFilterChange={(key, value) => updateState({ filters: { ...(state.filters || {}), [key]: value }, page: 1 })}
         />
-        {refetching && <i className="ti ti-refresh animate-spin text-sm text-gray-400" aria-label="Refreshing" />}
+        {refetching && <i className="ti ti-refresh animate-spin text-sm text-ink-faint" aria-label="Refreshing" />}
       </div>
 
       {hasSelection && selected.size > 0 && bulkActions.length > 0 && (
-        <div className="flex flex-wrap items-center gap-2 border-b border-violet-100 bg-violet-50/60 px-4 py-2.5 text-xs">
-          <span className="font-semibold text-violet-700">{selected.size} selected</span>
+        <div className="flex flex-wrap items-center gap-2 border-b border-violet-500/20 bg-violet-50/60 px-4 py-2.5 text-xs">
+          <span className="font-semibold text-violet-700 dark:text-violet-300">{selected.size} selected</span>
           {bulkActions.map(action => (
             <button
               key={action.key}
               type="button"
               onClick={() => onBulkAction?.({ actionKey: action.key, rowIds: Array.from(selected) })}
-              className="inline-flex items-center gap-1 rounded-lg border border-violet-200 bg-white px-2.5 py-1 font-semibold text-violet-700 transition-all hover:bg-violet-100"
+              className="inline-flex items-center gap-1 rounded-lg border border-violet-500/30 bg-panel px-2.5 py-1 font-semibold text-violet-700 dark:text-violet-300 transition-all hover:bg-violet-500/15"
             >
               <i className={clsx('ti text-xs', action.icon)} />
               {action.label}
@@ -136,7 +136,7 @@ export default function DataTable({
       <div className="overflow-x-auto">
         <table className="w-full border-collapse text-left text-xs">
           <thead>
-            <tr className="border-b border-gray-100 bg-gray-50 text-[10px] font-semibold uppercase tracking-wider text-gray-500">
+            <tr className="border-b border-line-soft bg-panel-subtle text-[10px] font-semibold uppercase tracking-wider text-ink-muted">
               {hasSelection && (
                 <th className="w-10 p-4">
                   <Checkbox checked={allOnPageSelected} onChange={toggleAllOnPage} aria-label="Select all rows on this page" />
@@ -158,7 +158,7 @@ export default function DataTable({
               ))}
             </tr>
           </thead>
-          <tbody className="divide-y divide-gray-100">
+          <tbody className="divide-y divide-line-soft">
             {loading && <SkeletonRows columnCount={columns.length} hasSelection={hasSelection} />}
 
             {!loading && error && (
@@ -178,7 +178,7 @@ export default function DataTable({
             )}
 
             {!loading && !error && rows.map(row => (
-              <tr key={row.id} className="transition-colors hover:bg-gray-50/70">
+              <tr key={row.id} className="transition-colors hover:bg-panel-subtle/70">
                 {hasSelection && (
                   <td className="w-10 p-4">
                     <Checkbox checked={selected.has(row.id)} onChange={() => toggleRow(row.id)} aria-label={`Select row ${row.id}`} />

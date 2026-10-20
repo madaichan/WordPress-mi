@@ -35,7 +35,7 @@ export default function EntityReportContactForm({ entityName, canEdit }) {
     saveMutation.mutate({ entityName, data: form })
   }
 
-  if (isLoading) return <p className="text-sm text-gray-400">Loading...</p>
+  if (isLoading) return <p className="text-sm text-ink-faint">Loading...</p>
 
   return (
     <form onSubmit={handleSubmit} className="space-y-4">

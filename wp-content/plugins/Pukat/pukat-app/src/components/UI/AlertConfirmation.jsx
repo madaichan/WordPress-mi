@@ -3,11 +3,11 @@ import Button from './Button.jsx'
 
 const toneConfig = {
   danger: {
-    iconWrap: 'bg-red-100 text-red-600',
+    iconWrap: 'bg-red-500/15 text-red-600 dark:text-red-400',
     confirmVariant: 'danger',
   },
   warning: {
-    iconWrap: 'bg-amber-100 text-amber-700',
+    iconWrap: 'bg-amber-500/15 text-amber-700 dark:text-amber-300',
     confirmVariant: 'primary',
   },
 }
@@ -52,7 +52,7 @@ export default function AlertConfirmation({
         </>
       }
     >
-      {message && <p className="text-xs leading-5 text-gray-500">{message}</p>}
+      {message && <p className="text-xs leading-5 text-ink-muted">{message}</p>}
       {children}
     </Modal>
   )

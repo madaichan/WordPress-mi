@@ -441,13 +441,13 @@ export default function MasterSendingProfiles() {
         onRowAction={handleRowAction}
       />
 
-      <div className="flex items-start gap-4 rounded-2xl border border-gray-200 bg-white p-5 shadow-sm">
-        <div className="flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-xl bg-violet-100 text-violet-500">
+      <div className="flex items-start gap-4 rounded-2xl border border-line bg-panel p-5 shadow-sm">
+        <div className="flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-xl bg-violet-500/15 text-violet-500">
           <i className="ti ti-info-circle text-lg" />
         </div>
         <div>
-          <h4 className="mb-1 text-sm font-bold text-gray-900">Sending profiles are stored in GoPhish</h4>
-          <p className="text-xs leading-relaxed text-gray-500">
+          <h4 className="mb-1 text-sm font-bold text-ink">Sending profiles are stored in GoPhish</h4>
+          <p className="text-xs leading-relaxed text-ink-muted">
             SMTP data on this page is pulled directly from the GoPhish API. Changes made here are synced to GoPhish automatically. Make sure GoPhish is running before creating a new profile.
           </p>
         </div>

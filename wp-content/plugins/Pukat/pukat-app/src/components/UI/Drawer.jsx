@@ -11,13 +11,13 @@ export default function Drawer({ onClose, title, subtitle, icon, headerExtra, fo
           if (event.target === event.currentTarget) onClose?.()
         }}
       >
-        <aside className={clsx('flex h-full w-full flex-col bg-white shadow-2xl animate-slide-in', widthClass, className)}>
+        <aside className={clsx('flex h-full w-full flex-col bg-panel shadow-2xl animate-slide-in', widthClass, className)}>
           {(title || onClose) && (
-            <header className="flex items-start gap-3 border-b border-gray-100 p-5">
+            <header className="flex items-start gap-3 border-b border-line-soft p-5">
               {icon}
               <div className="min-w-0 flex-1">
-                <h2 className="text-sm font-bold text-gray-900">{title}</h2>
-                {subtitle && <p className="mt-0.5 truncate text-xs text-gray-500">{subtitle}</p>}
+                <h2 className="text-sm font-bold text-ink">{title}</h2>
+                {subtitle && <p className="mt-0.5 truncate text-xs text-ink-muted">{subtitle}</p>}
               </div>
               {headerExtra}
               {onClose && (
@@ -28,7 +28,7 @@ export default function Drawer({ onClose, title, subtitle, icon, headerExtra, fo
             </header>
           )}
           <div className="flex-1 space-y-5 overflow-y-auto p-5">{children}</div>
-          {footer && <footer className="flex items-center gap-3 border-t border-gray-100 bg-gray-50 p-5">{footer}</footer>}
+          {footer && <footer className="flex items-center gap-3 border-t border-line-soft bg-panel-subtle p-5">{footer}</footer>}
         </aside>
       </div>
     </Portal>

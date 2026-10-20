@@ -5,12 +5,12 @@ import React from 'react'
  *
  * Props:
  *  icon       {string}  Tabler icon class without "ti " prefix, e.g. "ti-users"
- *  iconBg     {string}  Tailwind bg class for icon container, e.g. "bg-violet-100"
- *  iconColor  {string}  Tailwind text class for icon, e.g. "text-violet-600"
+ *  iconBg     {string}  Tailwind bg class for icon container, e.g. "bg-violet-500/15"
+ *  iconColor  {string}  Tailwind text class for icon, e.g. "text-violet-600 dark:text-violet-400"
  *  label      {string}  Metric label shown above the value
  *  value      {string|number|null}  Main metric value; null shows a loading skeleton
  *  sub        {string}  Optional secondary line below value
- *  subColor   {string}  Optional Tailwind text class for sub line (default: text-gray-400)
+ *  subColor   {string}  Optional Tailwind text class for sub line (default: text-ink-faint)
  *  trend      {string}  Reserved for future trend indicator (not rendered yet)
  */
 export default function StatCard({ icon, iconBg, iconColor, label, value, sub, subColor }) {
@@ -20,12 +20,12 @@ export default function StatCard({ icon, iconBg, iconColor, label, value, sub, s
         <i className={`ti ${icon} text-xl ${iconColor}`} />
       </div>
       <div className="flex-1 min-w-0">
-        <p className="text-xs font-medium text-gray-500 truncate">{label}</p>
-        <p className="text-2xl font-bold text-gray-900 leading-tight">
-          {value ?? <span className="inline-block w-12 h-6 bg-gray-100 rounded animate-pulse" />}
+        <p className="text-xs font-medium text-ink-muted truncate">{label}</p>
+        <p className="text-2xl font-bold text-ink leading-tight">
+          {value ?? <span className="inline-block w-12 h-6 bg-panel-muted rounded animate-pulse" />}
         </p>
         {sub && (
-          <p className={`text-xs font-semibold truncate ${subColor ?? 'text-gray-400'}`}>
+          <p className={`text-xs font-semibold truncate ${subColor ?? 'text-ink-faint'}`}>
             {sub}
           </p>
         )}

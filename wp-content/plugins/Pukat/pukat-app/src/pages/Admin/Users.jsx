@@ -58,7 +58,7 @@ export default function Users() {
         key: 'username',
         label: 'Username',
         renderer: 'custom',
-        render: u => <span className="font-semibold text-gray-900">{u.username || '-'}</span>,
+        render: u => <span className="font-semibold text-ink">{u.username || '-'}</span>,
       },
       {
         key: 'name',
@@ -68,10 +68,10 @@ export default function Users() {
           const name = u.display_name || u.username || u.email || `User ${u.id}`
           return (
             <div className="flex items-center gap-2">
-              <div className="flex h-7 w-7 items-center justify-center rounded-full bg-violet-100 text-xs font-bold text-violet-600">
+              <div className="flex h-7 w-7 items-center justify-center rounded-full bg-violet-500/15 text-xs font-bold text-violet-600 dark:text-violet-400">
                 {name.charAt(0).toUpperCase()}
               </div>
-              <span className="font-semibold text-gray-900">{name}</span>
+              <span className="font-semibold text-ink">{name}</span>
             </div>
           )
         },
@@ -80,7 +80,7 @@ export default function Users() {
         key: 'email',
         label: 'Email',
         renderer: 'custom',
-        render: u => <span className="text-gray-500">{u.email}</span>,
+        render: u => <span className="text-ink-muted">{u.email}</span>,
       },
       {
         key: 'entity',
@@ -88,7 +88,7 @@ export default function Users() {
         renderer: 'custom',
         render: u => u.entity
           ? <Badge tone="gray" className="text-[10px]">{u.entity}</Badge>
-          : <span className="text-gray-300">—</span>,
+          : <span className="text-ink-faint">—</span>,
       },
       {
         key: 'role',
@@ -96,7 +96,7 @@ export default function Users() {
         renderer: 'custom',
         render: u => (
           <select
-            className="input w-auto py-1 font-medium text-gray-500"
+            className="input w-auto py-1 font-medium text-ink-muted"
             value={u.pukat_role || 'none'}
             onChange={e => roleMutation.mutate({ id: u.id, role: e.target.value })}
           >

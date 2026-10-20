@@ -25,7 +25,7 @@ export default function FrontendLayout({ children }) {
   const toggle      = useAppStore((s) => s.toggleSidebar)
 
   return (
-    <div className="flex min-h-screen bg-gray-50">
+    <div className="flex min-h-screen bg-canvas">
 
       {/* ── Sidebar ── */}
       <aside
@@ -52,7 +52,7 @@ export default function FrontendLayout({ children }) {
           collapsed ? 'flex flex-col items-center' : ''
         )}>
           {permissions.includes('settings.view') && <GoPhishStatus collapsed={collapsed} />}
-          {!collapsed && <div className="mt-1 text-[10px] text-gray-600">v0.12.0 • plugin v1.0</div>}
+          {!collapsed && <div className="mt-1 text-[10px] text-ink-muted">v0.12.0 • plugin v1.0</div>}
         </div>
       </aside>
 

@@ -1,16 +1,16 @@
 import clsx from 'clsx'
 
 const TONE_CLASS = {
-  gray: 'border border-gray-200 bg-white text-gray-700 hover:bg-gray-50',
-  red: 'border border-red-100 bg-white text-red-600 hover:bg-red-50',
-  green: 'border border-emerald-100 bg-white text-emerald-600 hover:bg-emerald-50',
+  gray: 'border border-line bg-panel text-ink-soft hover:bg-panel-subtle',
+  red: 'border border-red-500/20 bg-panel text-red-600 dark:text-red-400 hover:bg-red-500/10',
+  green: 'border border-emerald-500/20 bg-panel text-emerald-600 dark:text-emerald-400 hover:bg-emerald-500/10',
 }
 
 export default function AssetActionGroup({ variant = 'card', actions = [] }) {
   if (variant !== 'card' || actions.length === 0) return null
 
   return (
-    <div className="mt-4 flex gap-2 border-t border-gray-50 pt-3">
+    <div className="mt-4 flex gap-2 border-t border-line-soft pt-3">
       {actions.map(action => (
         <button
           key={action.key}

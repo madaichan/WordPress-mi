@@ -91,20 +91,20 @@ function payloadFromForm(form) {
 
 function SummaryCard({ icon, value, label, tone = 'violet' }) {
   const toneClass = {
-    violet: 'bg-violet-100 text-violet-500',
+    violet: 'bg-violet-500/15 text-violet-500',
     emerald: 'bg-[#D1FAE5] text-[#059669]',
-    amber: 'bg-amber-100 text-amber-700',
-    blue: 'bg-blue-100 text-blue-700',
+    amber: 'bg-amber-500/15 text-amber-700 dark:text-amber-300',
+    blue: 'bg-blue-500/15 text-blue-700 dark:text-blue-300',
   }[tone]
 
   return (
-    <div className="flex items-center gap-4 rounded-xl border border-gray-200 bg-white p-4 shadow-sm">
+    <div className="flex items-center gap-4 rounded-xl border border-line bg-panel p-4 shadow-sm">
       <div className={clsx('flex h-12 w-12 flex-shrink-0 items-center justify-center rounded-xl', toneClass)}>
         <i className={clsx('ti text-xl', icon)} />
       </div>
       <div>
-        <div className="text-2xl font-bold text-gray-900">{value}</div>
-        <div className="text-xs font-semibold text-gray-500">{label}</div>
+        <div className="text-2xl font-bold text-ink">{value}</div>
+        <div className="text-xs font-semibold text-ink-muted">{label}</div>
       </div>
     </div>
   )
@@ -124,7 +124,7 @@ function DomainSlideover({ mode, form, sourceDomain, isSaving, onChange, onClose
       title={title}
       subtitle="Save the master domain, then refresh DNS/TLS health when needed."
       icon={
-        <div className="flex h-9 w-9 flex-shrink-0 items-center justify-center rounded-lg bg-violet-100 text-violet-500">
+        <div className="flex h-9 w-9 flex-shrink-0 items-center justify-center rounded-lg bg-violet-500/15 text-violet-500">
           <i className={clsx('ti text-base', isDuplicate ? 'ti-copy' : isEdit ? 'ti-edit' : 'ti-plus')} />
         </div>
       }
@@ -136,13 +136,13 @@ function DomainSlideover({ mode, form, sourceDomain, isSaving, onChange, onClose
       }
     >
       {isDuplicate && (
-        <div className="rounded-xl border border-amber-200 bg-amber-50 p-3 text-xs font-medium text-amber-800">
+        <div className="rounded-xl border border-amber-500/30 bg-amber-500/10 p-3 text-xs font-medium text-amber-800 dark:text-amber-300">
           This copy starts as a draft. Use a different domain name before marking it active.
         </div>
       )}
 
       <section className="space-y-3">
-        <div className="text-xs font-semibold uppercase tracking-wider text-gray-500">Domain details</div>
+        <div className="text-xs font-semibold uppercase tracking-wider text-ink-muted">Domain details</div>
         <div>
           <Label>Domain name</Label>
           <Input
@@ -162,7 +162,7 @@ function DomainSlideover({ mode, form, sourceDomain, isSaving, onChange, onClose
       </section>
 
       <section className="space-y-3">
-        <div className="text-xs font-semibold uppercase tracking-wider text-gray-500">Runtime URLs</div>
+        <div className="text-xs font-semibold uppercase tracking-wider text-ink-muted">Runtime URLs</div>
         <div>
           <Label>Base landing URL</Label>
           <Input
@@ -182,7 +182,7 @@ function DomainSlideover({ mode, form, sourceDomain, isSaving, onChange, onClose
       </section>
 
       <section className="space-y-3">
-        <div className="text-xs font-semibold uppercase tracking-wider text-gray-500">Governance</div>
+        <div className="text-xs font-semibold uppercase tracking-wider text-ink-muted">Governance</div>
         <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
           <div>
             <Label>Status</Label>
@@ -214,13 +214,13 @@ function DomainSlideover({ mode, form, sourceDomain, isSaving, onChange, onClose
       </section>
 
       {sourceDomain && (
-        <section className="space-y-2 rounded-xl border border-gray-100 bg-gray-50 p-3">
-          <div className="text-xs font-semibold uppercase tracking-wider text-gray-500">Current validation</div>
+        <section className="space-y-2 rounded-xl border border-line-soft bg-panel-subtle p-3">
+          <div className="text-xs font-semibold uppercase tracking-wider text-ink-muted">Current validation</div>
           <div className="flex flex-wrap gap-1.5">
-            <span className="inline-flex rounded-full bg-gray-100 px-2 py-0.5 text-[10px] font-semibold text-gray-700">
+            <span className="inline-flex rounded-full bg-panel-muted px-2 py-0.5 text-[10px] font-semibold text-ink-soft">
               DNS: {sourceDomain.dns_status || 'unknown'}
             </span>
-            <span className="inline-flex rounded-full bg-gray-100 px-2 py-0.5 text-[10px] font-semibold text-gray-700">
+            <span className="inline-flex rounded-full bg-panel-muted px-2 py-0.5 text-[10px] font-semibold text-ink-soft">
               TLS: {sourceDomain.tls_status || 'unknown'}
             </span>
           </div>

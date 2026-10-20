@@ -19,11 +19,11 @@ import { parseServerDate } from './serverDate.js'
  */
 export function statusLabel(status) {
   switch (status) {
-    case 'active':    return { label: 'Running',   cls: 'bg-blue-100 text-blue-700' }
-    case 'completed': return { label: 'Completed', cls: 'bg-emerald-100 text-emerald-700' }
-    case 'paused':    return { label: 'Paused',    cls: 'bg-amber-100 text-amber-700' }
-    case 'draft':     return { label: 'Draft',     cls: 'bg-gray-100 text-gray-500' }
-    default:          return { label: 'Scheduled', cls: 'bg-gray-100 text-gray-600' }
+    case 'active':    return { label: 'Running',   cls: 'bg-blue-500/15 text-blue-700 dark:text-blue-300' }
+    case 'completed': return { label: 'Completed', cls: 'bg-emerald-500/15 text-emerald-700 dark:text-emerald-300' }
+    case 'paused':    return { label: 'Paused',    cls: 'bg-amber-500/15 text-amber-700 dark:text-amber-300' }
+    case 'draft':     return { label: 'Draft',     cls: 'bg-panel-muted text-ink-muted' }
+    default:          return { label: 'Scheduled', cls: 'bg-panel-muted text-ink-muted' }
   }
 }
 
@@ -37,7 +37,7 @@ export function dotColor(status) {
   if (status === 'active')    return 'bg-blue-500'
   if (status === 'completed') return 'bg-emerald-500'
   if (status === 'paused')    return 'bg-amber-500'
-  return 'bg-gray-400'
+  return 'bg-ink-faint'
 }
 
 /**

@@ -6,7 +6,7 @@ const DOT_CLASS = {
   danger: 'bg-red-500',
   warning: 'bg-amber-500',
   info: 'bg-blue-500',
-  gray: 'bg-gray-400',
+  gray: 'bg-ink-faint',
   low: 'bg-green-500',
   medium: 'bg-amber-500',
   high: 'bg-orange-500',

@@ -48,60 +48,60 @@ export default function Step1({ form, setForm, csvData, setCsvData, onCancel, on
   return (
     <div className="space-y-6">
       {/* Card 1 — Informasi campaign */}
-      <div className="bg-white border border-gray-200 rounded-xl p-5">
-        <h3 className="text-sm font-semibold text-gray-900 mb-4">Informasi campaign</h3>
+      <div className="bg-panel border border-line rounded-xl p-5">
+        <h3 className="text-sm font-semibold text-ink mb-4">Informasi campaign</h3>
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           <div className="space-y-1">
-            <label className="block text-xs font-semibold text-gray-600">Campaign name *</label>
+            <label className="block text-xs font-semibold text-ink-muted">Campaign name *</label>
             <input
               type="text"
               value={form.name}
               onChange={e => setForm(f => ({ ...f, name: e.target.value }))}
               placeholder="Campaign Name"
-              className="w-full bg-white border border-gray-200 rounded-xl px-4 py-2 text-sm focus:outline-none focus:border-violet-500"
+              className="w-full bg-panel border border-line rounded-xl px-4 py-2 text-sm focus:outline-none focus:border-violet-500"
             />
           </div>
           <div className="space-y-1">
-            <label className="block text-xs font-semibold text-gray-600">Description</label>
+            <label className="block text-xs font-semibold text-ink-muted">Description</label>
             <input
               type="text"
               value={form.desc}
               onChange={e => setForm(f => ({ ...f, desc: e.target.value }))}
               placeholder="Optional"
-              className="w-full bg-white border border-gray-200 rounded-xl px-4 py-2 text-sm focus:outline-none focus:border-violet-500"
+              className="w-full bg-panel border border-line rounded-xl px-4 py-2 text-sm focus:outline-none focus:border-violet-500"
             />
           </div>
         </div>
       </div>
 
       {/* Card 2 — Import targets */}
-      <div className="bg-white border border-gray-200 rounded-xl p-5 space-y-4">
-        <h3 className="text-sm font-semibold text-gray-900">Import targets</h3>
+      <div className="bg-panel border border-line rounded-xl p-5 space-y-4">
+        <h3 className="text-sm font-semibold text-ink">Import targets</h3>
 
         <div
           {...getRootProps()}
           className={clsx(
             'border-2 border-dashed rounded-xl p-7 flex flex-col items-center justify-center gap-2 cursor-pointer transition-all',
-            isDragActive ? 'border-violet-500 bg-violet-50' : 'border-gray-300 hover:border-gray-400 bg-gray-50/50',
+            isDragActive ? 'border-violet-500 bg-violet-500/10' : 'border-line-strong hover:border-line-strong bg-panel-subtle/50',
           )}
         >
           <input {...getInputProps()} />
-          <i className="ti ti-upload text-3xl text-gray-300" />
-          <span className="text-xs font-semibold text-gray-700">Upload CSV file</span>
-          <span className="text-[10px] text-gray-400">Columns: first_name, last_name, email, position, department</span>
+          <i className="ti ti-upload text-3xl text-ink-faint" />
+          <span className="text-xs font-semibold text-ink-soft">Upload CSV file</span>
+          <span className="text-[10px] text-ink-faint">Columns: first_name, last_name, email, position, department</span>
         </div>
 
         <div className="flex items-center justify-between text-xs">
           <button
             type="button"
             onClick={downloadTemplateCsv}
-            className="inline-flex items-center gap-1 font-semibold text-violet-500 hover:text-violet-600"
+            className="inline-flex items-center gap-1 font-semibold text-violet-500 hover:text-violet-600 dark:hover:text-violet-400"
           >
             <i className="ti ti-download" />
             <span>Download template CSV</span>
           </button>
           {csvData.length > 0 && (
-            <span className="inline-flex items-center gap-1 font-semibold text-emerald-600">
+            <span className="inline-flex items-center gap-1 font-semibold text-emerald-600 dark:text-emerald-400">
               <i className="ti ti-circle-check" />
               <span>{csvData.length.toLocaleString('en-US')} targets imported successfully</span>
             </span>
@@ -109,8 +109,8 @@ export default function Step1({ form, setForm, csvData, setCsvData, onCancel, on
         </div>
 
         {/* Add target manually */}
-        <div className="border border-gray-200 rounded-xl p-4 bg-gray-50/50">
-          <h4 className="text-xs font-semibold text-gray-700 mb-3">Add target manually</h4>
+        <div className="border border-line rounded-xl p-4 bg-panel-subtle/50">
+          <h4 className="text-xs font-semibold text-ink-soft mb-3">Add target manually</h4>
           <TargetForm onSubmit={handleAddTarget} />
         </div>
 
@@ -144,8 +144,8 @@ export default function Step1({ form, setForm, csvData, setCsvData, onCancel, on
       )}
 
       {/* Footer */}
-      <div className="flex items-center justify-between pt-4 border-t border-gray-100">
-        <button onClick={onCancel} className="bg-white border border-gray-200 text-gray-700 hover:bg-gray-50 px-4 py-2 text-sm font-semibold rounded-xl transition-all">
+      <div className="flex items-center justify-between pt-4 border-t border-line-soft">
+        <button onClick={onCancel} className="bg-panel border border-line text-ink-soft hover:bg-panel-subtle px-4 py-2 text-sm font-semibold rounded-xl transition-all">
           Cancel
         </button>
         <button onClick={onNext} className="bg-violet-500 text-white hover:bg-violet-600 px-5 py-2 text-sm font-semibold rounded-xl transition-all">
