@@ -94,8 +94,11 @@ function PageForm({ page, examples, requestExtras, canEdit: canEditProp, canPubl
   const canPublish = canPublishProp && !locked
 
   const { data: domains = [] } = useMasterDynamicDomains()
+  // Only "education"-type domains back the education campaign's launch URL.
   const launchUrlOptions = useMemo(
-    () => domains.filter(d => d.base_landing_url).map(d => ({ url: d.base_landing_url, label: `${d.domain} (${d.base_landing_url})` })),
+    () => domains
+      .filter(d => d.type === 'education' && d.base_landing_url)
+      .map(d => ({ url: d.base_landing_url, label: `${d.domain} (${d.base_landing_url})` })),
     [domains]
   )
 

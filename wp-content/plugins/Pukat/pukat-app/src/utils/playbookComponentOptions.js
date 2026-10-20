@@ -12,6 +12,11 @@ export const EMPTY_PLAYBOOK_COMPONENT_OPTIONS = {
 // draft email template) instead of only checking that something was picked.
 const READY_STATUSES = ['approved', 'active']
 
+// The dynamic-domain component hosts the landing page, so the picker in the
+// campaign wizard and the playbook editors only offers landing-type domains.
+// Sending/both/education/quiz domains are intentionally excluded here.
+const DOMAIN_PICKER_TYPES = ['landing']
+
 export function latestVersion(master) {
   if (master?.latest_version) return master.latest_version
   if (Array.isArray(master?.versions) && master.versions.length) return master.versions[0]
@@ -100,14 +105,16 @@ export function playbookComponentOptions({ emailTemplates, landingPages, sending
       ...sendingProfileOptions,
       ...gophishSendingProfileOptions,
     ],
-    domain: compactOptions(dynamicDomains.map(domain => ({
-      value: domain.id ? String(domain.id) : '',
-      label: domain.domain || `Dynamic domain ${domain.id}`,
-      description: [domain.authorization_status, domain.dns_status, domain.tls_status]
-        .filter(Boolean)
-        .join(' - '),
-      ready: domain.status === 'active' && domain.authorization_status === 'authorized',
-    }))),
+    domain: compactOptions(dynamicDomains
+      .filter(domain => DOMAIN_PICKER_TYPES.includes(domain.type))
+      .map(domain => ({
+        value: domain.id ? String(domain.id) : '',
+        label: domain.domain || `Dynamic domain ${domain.id}`,
+        description: [domain.authorization_status, domain.dns_status, domain.tls_status]
+          .filter(Boolean)
+          .join(' - '),
+        ready: domain.status === 'active' && domain.authorization_status === 'authorized',
+      }))),
   }
 }
 
