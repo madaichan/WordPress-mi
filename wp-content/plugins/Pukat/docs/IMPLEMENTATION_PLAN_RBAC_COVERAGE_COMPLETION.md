@@ -125,6 +125,8 @@ File: `includes/Services/MasterComponentService.php` (+ caller-nya di file yang 
 2. Caller email template master (`:107`, `:157`, `:220`) kirim `'master_email_templates.assign_entity'`; caller landing page master (`:449`, `:499`, `:562`) kirim `'master_landing_pages.assign_entity'`. Caller lain (sending profile refs, dll) tidak diubah — tetap `null`, perilakunya sama seperti sekarang.
 3. Update domain: kalau `authorization_status` yang diminta berbeda dari nilai existing dan user tidak punya `domains.authorize`, pertahankan nilai existing (jangan 403 seluruh request) — PRD §8. Implementasinya satu guard di sekitar `authorization_status_value()` (`:1767`), plus doc comment yang menyebut kenapa bukan 403.
 4. Catat di doc comment `enforce_write_entity()` bahwa `master_sending_profiles.assign_entity` punya jalur sendiri di `GoPhishProxy.php:239` dan sengaja tidak lewat sini.
+5. **Gate dua key `assign_entity` dipindah `operator` → `admin`** (ditemukan saat implementasi, lihat revisi PRD §8): keduanya ter-seed ke Operator padahal perilaku yang digantikan admin-only, jadi mengaktifkannya apa adanya justru melebarkan hak Operator. Perlu migration `1.26.0`: re-seed + `remove_cap()` kedua capability dari semua role selain `pukat_admin`/`administrator`, termasuk role custom (grant-nya mati saat dibuat, jadi tidak ada yang bisa bergantung padanya).
+6. **`enforce_write_entity()` hanya melonggarkan klausa entity, bukan early-return-nya** (draft §8 PRD menulis early-return). Kalau `.assign_entity` ikut melewati `enforce_existing_row_editable()`, pemegangnya bisa mengedit baris entity lain sepenuhnya — jauh lebih luas dari "boleh memindahkan entity". Yang dilonggarkan hanya pemeriksaan "entity yang diminta harus sama dengan entity sendiri".
 
 Validasi: `php -l`, lalu smoke test khusus (boleh tambah skenario ke `tools/smoke-phase3-regression.php` atau file baru `tools/smoke-rbac-coverage.php`):
 
@@ -133,7 +135,7 @@ Validasi: `php -l`, lalu smoke test khusus (boleh tambah skenario ke `tools/smok
 - `domains.edit` tanpa `domains.authorize` → `authorization_status` tidak berubah, field lain tersimpan, response 200.
 - dengan `domains.authorize` → `authorization_status` berubah.
 
-Semua pada baris throwaway buatan test.
+Semua pada baris throwaway buatan test. Diimplementasikan sebagai `tools/smoke-rbac-coverage.php` (file baru): 2 role + 2 user + 3 baris throwaway, semuanya dihapus di akhir, 15 check.
 
 ## 8. PR 5 — QA Regresi + Dokumentasi
 

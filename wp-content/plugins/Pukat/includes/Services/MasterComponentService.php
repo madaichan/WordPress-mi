@@ -104,7 +104,7 @@ class MasterComponentService {
 			}
 		}
 
-		$permission_error = $this->enforce_write_entity( $master_data, 'entity' );
+		$permission_error = $this->enforce_write_entity( $master_data, 'entity', null, 'master_email_templates.assign_entity' );
 		if ( $permission_error ) {
 			return $permission_error;
 		}
@@ -154,7 +154,7 @@ class MasterComponentService {
 		}
 
 		$data             = $this->sanitize_email_template_master_data( $params, $existing );
-		$permission_error = $this->enforce_write_entity( $data, 'entity', $existing );
+		$permission_error = $this->enforce_write_entity( $data, 'entity', $existing, 'master_email_templates.assign_entity' );
 		if ( $permission_error ) {
 			return $permission_error;
 		}
@@ -217,7 +217,7 @@ class MasterComponentService {
 			'status'      => 'draft',
 		];
 
-		$permission_error = $this->enforce_write_entity( $data, 'entity' );
+		$permission_error = $this->enforce_write_entity( $data, 'entity', null, 'master_email_templates.assign_entity' );
 		if ( $permission_error ) {
 			return $permission_error;
 		}
@@ -446,7 +446,7 @@ class MasterComponentService {
 			}
 		}
 
-		$permission_error = $this->enforce_write_entity( $master_data, 'entity' );
+		$permission_error = $this->enforce_write_entity( $master_data, 'entity', null, 'master_landing_pages.assign_entity' );
 		if ( $permission_error ) {
 			return $permission_error;
 		}
@@ -496,7 +496,7 @@ class MasterComponentService {
 		}
 
 		$data             = $this->sanitize_landing_page_master_data( $params, $existing );
-		$permission_error = $this->enforce_write_entity( $data, 'entity', $existing );
+		$permission_error = $this->enforce_write_entity( $data, 'entity', $existing, 'master_landing_pages.assign_entity' );
 		if ( $permission_error ) {
 			return $permission_error;
 		}
@@ -559,7 +559,7 @@ class MasterComponentService {
 			'status'      => 'draft',
 		];
 
-		$permission_error = $this->enforce_write_entity( $data, 'entity' );
+		$permission_error = $this->enforce_write_entity( $data, 'entity', null, 'master_landing_pages.assign_entity' );
 		if ( $permission_error ) {
 			return $permission_error;
 		}
@@ -1768,15 +1768,30 @@ class MasterComponentService {
 	private function authorization_status_value( array $params, ?array $existing = null ): string {
 		$status  = sanitize_key( (string) $this->raw_value( $params, 'authorization_status', $existing, 'pending' ) );
 		$allowed = [ 'pending', 'authorized', 'rejected', 'expired' ];
+		$status  = in_array( $status, $allowed, true ) ? $status : 'pending';
 
-		return in_array( $status, $allowed, true ) ? $status : 'pending';
+		$current = null !== $existing
+			? sanitize_key( (string) ( $existing['authorization_status'] ?? 'pending' ) )
+			: 'pending';
+
+		// Declaring a domain authorized/rejected is governance, not ordinary
+		// field editing, so it has its own permission
+		// (docs/PRD_RBAC_COVERAGE_COMPLETION.md §8). Without that permission the
+		// stored value is kept rather than the whole request rejected: a role
+		// holding only `domains.edit` should still be able to fix a domain's URLs
+		// or notes, it just can't move the authorization state while doing so.
+		if ( $status !== $current && ! current_user_can( PermissionRegistry::capability_for( 'domains.authorize' ) ) ) {
+			return $current;
+		}
+
+		return $status;
 	}
 
 	/**
 	 * @param array<string, mixed>      $data     Sanitized row data.
 	 * @param array<string, mixed>|null $existing Existing row.
 	 */
-	private function enforce_write_entity( array &$data, string $entity_key, ?array $existing = null ): ?WP_Error {
+	private function enforce_write_entity( array &$data, string $entity_key, ?array $existing = null, ?string $assign_key = null ): ?WP_Error {
 		if ( $this->current_user_can_admin_assets() ) {
 			return null;
 		}
@@ -1795,7 +1810,23 @@ class MasterComponentService {
 
 		$requested_entity = trim( (string) ( $data[ $entity_key ] ?? '' ) );
 		if ( '' !== $requested_entity && strtolower( $requested_entity ) !== strtolower( $user_entity ) ) {
-			return $this->forbidden_error( __( 'Non-admin users can only write master components assigned to their own entity.', 'pukat' ) );
+			// `$assign_key` is the resource's `.assign_entity` permission
+			// (docs/PRD_RBAC_COVERAGE_COMPLETION.md §8): holding it is what lets
+			// a non-admin write an entity other than their own, which is that
+			// action's entire purpose. It deliberately relaxes ONLY this clause —
+			// `enforce_existing_row_editable()` above still decides which
+			// existing rows the user may touch at all, so `.assign_entity` never
+			// becomes a backdoor into another entity's rows. Callers passing no
+			// key keep the previous behavior exactly (sending profile refs,
+			// dynamic domains), and `master_sending_profiles.assign_entity` has
+			// its own separate path in GoPhishProxy::permission_assign_entity_sending_profile().
+			if ( null === $assign_key || ! current_user_can( PermissionRegistry::capability_for( $assign_key ) ) ) {
+				return $this->forbidden_error( __( 'Non-admin users can only write master components assigned to their own entity.', 'pukat' ) );
+			}
+
+			$data[ $entity_key ] = sanitize_text_field( $requested_entity );
+
+			return null;
 		}
 
 		$data[ $entity_key ] = sanitize_text_field( $user_entity );

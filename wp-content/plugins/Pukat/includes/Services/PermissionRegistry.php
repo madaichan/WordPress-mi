@@ -98,7 +98,16 @@ class PermissionRegistry {
 				'edit'          => 'operator',
 				'delete'        => 'operator',
 				'approve'       => 'approve',
-				'assign_entity' => 'operator',
+				// Admin, not operator. Until PR 4 of
+				// docs/PRD_RBAC_COVERAGE_COMPLETION.md this key was dead — nothing
+				// read it, and writing another entity's value was refused for every
+				// non-admin by MasterComponentService::enforce_write_entity(). Seeding
+				// it to Operator and then activating it would have handed Operator a
+				// cross-entity power it never actually had, so the gate moved to match
+				// the reality it is replacing (and its already-enforced sibling
+				// `master_sending_profiles.assign_entity`). Admins can still grant it
+				// to any role from the Roles page — deliberately, now.
+				'assign_entity' => 'admin',
 			],
 		],
 		'master_landing_pages'     => [
@@ -110,7 +119,9 @@ class PermissionRegistry {
 				'edit'          => 'operator',
 				'delete'        => 'operator',
 				'approve'       => 'approve',
-				'assign_entity' => 'operator',
+				// Admin-gated for the same reason as
+				// `master_email_templates.assign_entity` above.
+				'assign_entity' => 'admin',
 			],
 		],
 		// Entity Profile — descriptive metadata (contact, description, status)

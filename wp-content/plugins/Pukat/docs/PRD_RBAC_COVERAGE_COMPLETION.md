@@ -143,9 +143,13 @@ Submenu baru (§3), masing-masing dengan gate-nya sendiri: Domains (`domains.vie
 
 Catatan untuk `*.assign_entity`: `master_sending_profiles.assign_entity` **sudah** dibaca hari ini (`GoPhishProxy.php:239-240`), dan `GoPhishProxy` sengaja memakai `.edit` untuk reassign aset non-master (lihat doc comment-nya di `GoPhishProxy.php:165`). Dua keputusan itu tidak diubah.
 
+**Revisi 2026-10-20 (ditemukan saat implementasi PR 4)**: dua key `assign_entity` yang diaktifkan ini ter-seed dengan gate `operator`, sementara perilaku yang digantikannya admin-only (`enforce_write_entity()` menolak semua non-admin). Mengaktifkannya apa adanya berarti Operator mendapat hak lintas entity yang sebelumnya tidak pernah dia punya — melanggar §3. Gate keduanya dipindah ke `admin`, sejajar dengan sibling-nya yang sudah ditegakkan (`master_sending_profiles.assign_entity`, gate `admin`), dan capability-nya dicabut dari semua role selain Admin/administrator di migration (§9). Admin tetap bisa memberikannya ke role mana pun dari halaman Roles — bedanya sekarang itu keputusan sadar, bukan warisan seed.
+
+`domains.authorize` tidak perlu perlakuan serupa: sebelum PR 4 field `authorization_status` tidak dijaga apa pun, jadi siapa pun dengan `domains.edit` sudah bisa mengubahnya. Mengaktifkan key-nya adalah **pengetatan** bagi role yang tidak memegangnya, dan netral bagi Operator yang memang di-seed memegangnya.
+
 ## 9. Migration Requirement
 
-- `pukat_db_version` naik ke `1.25.0` (terakhir `1.24.0`, `Activator.php:925`), satu blok `maybe_upgrade()` baru.
+- `pukat_db_version` naik ke `1.25.0` (terakhir `1.24.0`, `Activator.php:925`) untuk PR 1, lalu `1.26.0` untuk PR 4 (re-seed + cabut dua capability `assign_entity` dari semua role selain Admin/administrator, mengikuti revisi di §8).
 - Blok itu: `self::seed_rbac_defaults()` (additive — grant `pukat_admin_panel_view` + `pukat_asset_governance_manage_all` ke role ber-gate `admin`: `pukat_admin` dan `administrator`), lalu `remove_cap( 'pukat_guardrails_view' )` untuk semua role (pola identik dengan blok `1.7.2`/`1.9.0` yang sudah ada — `add_cap()` additive, penghapusan key wajib eksplisit).
 - Tidak ada perubahan skema tabel.
 - Kesetaraan akses (inti §3): hari ini pemegang `pukat_manage_settings` = `pukat_admin` + `administrator` (`Activator::add_roles()`), dan gate seed `admin` di `grant_rbac_capabilities()` memberi capability ke tepat dua role itu juga. Jadi `admin_panel.view` dan `asset_governance.manage_all` mendarat di himpunan user yang persis sama. Reviewer/Operator/Viewer hari ini tidak bisa membuka panel wp-admin dan tetap tidak bisa setelahnya.

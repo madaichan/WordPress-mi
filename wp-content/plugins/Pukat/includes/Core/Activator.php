@@ -954,6 +954,41 @@ class Activator {
 
 			update_option( 'pukat_db_version', '1.25.0' );
 		}
+
+		// RBAC coverage completion, PR 4: `master_email_templates.assign_entity`
+		// and `master_landing_pages.assign_entity` went live (nothing read them
+		// before) and their gate moved from `operator` to `admin` — see those
+		// keys' doc comments in PermissionRegistry. The re-seed grants them to
+		// the admin-gated roles, and the cleanup strips them from everyone else,
+		// including custom roles built from the Roles page: those grants were
+		// dead when they were made, so nobody can have been relying on them, and
+		// leaving them in place would silently turn a no-op checkbox into a real
+		// cross-entity power. An admin who wants a role to hold it can grant it
+		// again, deliberately, from the Roles page.
+		if ( version_compare( $db_version, '1.26.0', '<' ) ) {
+			self::seed_rbac_defaults();
+
+			$admin_gated_keys = [
+				'master_email_templates.assign_entity',
+				'master_landing_pages.assign_entity',
+			];
+			$keep             = [ 'pukat_admin', 'administrator' ];
+
+			foreach ( array_keys( wp_roles()->get_names() ) as $role_slug ) {
+				if ( in_array( (string) $role_slug, $keep, true ) ) {
+					continue;
+				}
+				$role = get_role( (string) $role_slug );
+				if ( ! $role ) {
+					continue;
+				}
+				foreach ( $admin_gated_keys as $key ) {
+					$role->remove_cap( PermissionRegistry::capability_for( $key ) );
+				}
+			}
+
+			update_option( 'pukat_db_version', '1.26.0' );
+		}
 	}
 
 	/**
