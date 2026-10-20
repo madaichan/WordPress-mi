@@ -284,7 +284,7 @@ function PageForm({ page, examples, requestExtras, canEdit: canEditProp, canPubl
               {launchUrl && !launchUrlOptions.some(o => o.url === launchUrl) && <option value={launchUrl}>{launchUrl}</option>}
               {launchUrlOptions.map(o => <option key={o.url} value={o.url}>{o.label}</option>)}
             </select>
-            <span className="block text-[10px] text-ink-faint">Domain yang dipakai saat master campaign education diluncurkan ke GoPhish.</span>
+            <span className="block text-[10px] text-ink-faint">Domain used for education page.</span>
           </label>
         </div>
 
