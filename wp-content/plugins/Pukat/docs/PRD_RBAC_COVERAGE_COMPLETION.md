@@ -1,6 +1,6 @@
 # PRD: RBAC Coverage Completion
 
-Status: Draft
+Status: Implemented (PR 1-5, 2026-10-20)
 Date: 2026-10-20
 Owner: Pukat Product and Engineering
 Related area: `includes/Services/PermissionRegistry.php`, `includes/Admin/AdminMenu.php`, `includes/Admin/AdminPage.php`, `current_user_can_admin_assets()` di 8 service/controller, `includes/Core/Activator.php` (seed + migration), `pukat-app/src/pages/Admin/Roles.jsx`
@@ -213,3 +213,18 @@ Default pragmatis supaya implementation plan tidak terblokir; silakan koreksi se
 - **`domains.authorize` diaktifkan vs dihapus**: diaktifkan. Field `authorization_status` nyata ada dan kelasnya governance (siapa yang menyatakan sebuah domain sah dipakai), jadi layak punya toggle sendiri; mode "pertahankan nilai lama" dipilih daripada 403 supaya operator tanpa hak authorize tetap bisa mengedit field domain lainnya.
 - **Memecah bundel `campaigns.view`/`post_sim.view`**: tidak di v1 (§4). Alasan: 6 halaman terdampak dan semuanya saat ini bergantung pada key bundel di backend juga, jadi pemecahannya butuh keputusan produk per halaman (mis. apakah Coaching boleh tanpa Quiz) yang belum pernah dibahas.
 - **Menghapus capability legacy sekarang**: tidak. Dipisah ke fase opsional terakhir (§15.6) supaya PR-PR utama tetap bisa direvert sendiri-sendiri tanpa menyentuh seed role.
+
+## 17. Catatan Rilis
+
+Untuk ditempel ke catatan rilis versi yang membawa perubahan ini.
+
+**Satu-satunya perubahan perilaku yang terlihat user:**
+
+- Role custom yang dibuat **sebelum** rilis ini tidak otomatis mendapat permission baru **Admin Panel (wp-admin)**. Tanpa permission itu, role tersebut tidak bisa membuka `/wp-admin/admin.php?page=pukat_*` — sama seperti sebelumnya, karena sebelum rilis ini role custom memang tidak pernah bisa membukanya. Centang permission itu di **Roles** untuk memberi akses.
+- Dua permission **Assign entity** (Master Email Templates dan Master Landing Pages) sekarang benar-benar berfungsi dan menjadi admin-only. Kalau sebelumnya pernah dicentang untuk sebuah role, centangnya dicabut oleh migration — grant itu tidak punya efek apa pun saat dibuat. Centang ulang kalau memang diinginkan.
+- Permission **Authorize** pada Domains sekarang ditegakkan: role yang hanya punya **Edit** masih bisa mengubah field domain lainnya, tapi tidak bisa mengubah status otorisasi.
+- Permission **Guardrails → View** hilang dari halaman Roles (menu Guardrails tidak punya halaman; hanya aksi **Bypass**-nya yang berarti).
+
+**Tambahan, bukan perubahan:** panel wp-admin kini punya submenu untuk Entities, Flag Categories, Domains, My Profile, dan Roles — halaman yang sebelumnya hanya bisa dibuka dengan mengetik URL hash-nya manual.
+
+Role bawaan (Admin, Operator, Reviewer/Approver, Viewer) dan user WP `administrator` tidak mengalami perubahan akses apa pun.

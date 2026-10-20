@@ -27,6 +27,32 @@ global $wpdb;
 
 wp_set_current_user( 1 );
 do_action( 'rest_api_init' );
+
+// Approvals need a second identity. Phase 4 of docs/IMPLEMENTATION_PLAN_RBAC.md
+// added a self-approval guard (`self_approval_forbidden`), so the user who
+// creates a version can no longer approve it — this script used to do
+// everything as user 1 and has been failing at its first /approve call ever
+// since. An ephemeral pukat_admin holds `.approve` without being the creator.
+require_once __DIR__ . '/smoke-identities.php';
+
+$smoke_ephemeral_ids = [];
+$smoke_approver_id   = pukat_smoke_resolve_identity( 'pukat_admin', $smoke_ephemeral_ids );
+$smoke_author_id     = get_current_user_id();
+
+/**
+ * Run one REST call as the approver, then switch back to the author.
+ *
+ * @return array{0: int, 1: mixed, 2: array<string, mixed>}
+ */
+function pukat_smoke_rest_as_approver( string $method, string $route, ?array $body = null ): array {
+	global $smoke_approver_id, $smoke_author_id;
+
+	wp_set_current_user( $smoke_approver_id );
+	$result = pukat_smoke_rest( $method, $route, $body );
+	wp_set_current_user( $smoke_author_id );
+
+	return $result;
+}
 \Pukat\Core\Activator::maybe_upgrade();
 
 $old_url = get_option( 'pukat_gophish_url', null );
@@ -43,6 +69,7 @@ $ids = [
 	'campaign_run'       => null,
 	'legacy_playbook'    => null,
 	'migrated_playbook'  => null,
+	'guardrail_domain'   => null,
 ];
 
 /**
@@ -95,7 +122,7 @@ try {
 	$ids['email_master']  = (int) $email['data']['id'];
 	$ids['email_version'] = (int) $email['data']['latest_version']['id'];
 
-	[ $status, $approved_email ] = pukat_smoke_rest( 'POST', '/pukat/v1/master/email-template-versions/' . $ids['email_version'] . '/approve' );
+	[ $status, $approved_email ] = pukat_smoke_rest_as_approver( 'POST', '/pukat/v1/master/email-template-versions/' . $ids['email_version'] . '/approve' );
 	pukat_smoke_expect( 200 === $status && ! empty( $approved_email['success'] ), 'Failed to approve email template version.' );
 
 	[ $status, $landing ] = pukat_smoke_rest(
@@ -117,7 +144,7 @@ try {
 	$ids['landing_master']  = (int) $landing['data']['id'];
 	$ids['landing_version'] = (int) $landing['data']['latest_version']['id'];
 
-	[ $status, $approved_landing ] = pukat_smoke_rest( 'POST', '/pukat/v1/master/landing-page-versions/' . $ids['landing_version'] . '/approve' );
+	[ $status, $approved_landing ] = pukat_smoke_rest_as_approver( 'POST', '/pukat/v1/master/landing-page-versions/' . $ids['landing_version'] . '/approve' );
 	pukat_smoke_expect( 200 === $status && ! empty( $approved_landing['success'] ), 'Failed to approve landing page version.' );
 
 	[ $status, $sending ] = pukat_smoke_rest(
@@ -137,13 +164,19 @@ try {
 	pukat_smoke_expect( 201 === $status && ! empty( $sending['success'] ), 'Failed to create sending profile fixture.' );
 	$ids['sending'] = (int) $sending['data']['id'];
 
+	// Unique per run: the domain column is unique, so a fixed 'example.com'
+	// made every run after an aborted one fail at this fixture (the aborted run
+	// never reached its cleanup, leaving the row behind) — and it put a row
+	// looking like real data into the Domains list.
+	$smoke_domain = 'smoke-' . time() . '.test';
+
 	[ $status, $domain ] = pukat_smoke_rest(
 		'POST',
 		'/pukat/v1/master/dynamic-domains',
 		[
-			'domain'               => 'example.com',
-			'base_landing_url'     => 'https://example.com/phish',
-			'tracking_url'         => 'https://example.com/track',
+			'domain'               => $smoke_domain,
+			'base_landing_url'     => 'https://' . $smoke_domain . '/phish',
+			'tracking_url'         => 'https://' . $smoke_domain . '/track',
 			'environment'          => 'test',
 			'owner_entity'         => 'General',
 			'authorization_status' => 'authorized',
@@ -175,6 +208,25 @@ try {
 	);
 	pukat_smoke_expect( 201 === $status && ! empty( $playbook['success'] ) && ! empty( $playbook['data']['readiness']['ready'] ), 'Failed to create active Playbook Master.' );
 	$ids['playbook_master'] = (int) $playbook['data']['id'];
+
+	// Locking a run's snapshot requires the run's entity to have at least one
+	// active company email domain (docs/PRD_ENTITY_PROFILE_AND_GUARDRAILS.md,
+	// CampaignRunService::validate_target_email_domains()) — a guardrail added
+	// after this script was written, which is why lock-snapshot below had been
+	// failing with `entity_email_domains_missing`. Seed one for 'General' only
+	// when the install has none, and remove exactly what was inserted.
+	if ( empty( ( new \Pukat\Repositories\EntityProfileRepository() )->active_email_domains( 'General' ) ) ) {
+		$wpdb->insert(
+			$wpdb->prefix . 'pukat_target_email_domains',
+			[
+				'entity_name' => 'General',
+				'domain'      => 'smoke-guardrail-' . time() . '.test',
+				'status'      => 'active',
+				'created_by'  => $smoke_author_id,
+			]
+		);
+		$ids['guardrail_domain'] = (int) $wpdb->insert_id;
+	}
 
 	[ $status, $run ] = pukat_smoke_rest(
 		'POST',
@@ -241,6 +293,9 @@ try {
 	if ( $ids['domain'] ) {
 		$wpdb->delete( $wpdb->prefix . 'pukat_dynamic_domains', [ 'id' => $ids['domain'] ] );
 	}
+	if ( $ids['guardrail_domain'] ) {
+		$wpdb->delete( $wpdb->prefix . 'pukat_target_email_domains', [ 'id' => $ids['guardrail_domain'] ] );
+	}
 	if ( $ids['sending'] ) {
 		$wpdb->delete( $wpdb->prefix . 'pukat_sending_profile_refs', [ 'id' => $ids['sending'] ] );
 	}
@@ -264,4 +319,6 @@ try {
 	} else {
 		update_option( 'pukat_gophish_api_key', $old_key );
 	}
+
+	pukat_smoke_cleanup_identities( $GLOBALS['smoke_ephemeral_ids'] ?? [] );
 }

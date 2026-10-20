@@ -58,8 +58,32 @@ function call( string $method, string $route, array $params = [], ?int $user_id 
 do_action( 'rest_api_init' );
 Activator::maybe_upgrade();
 
-$admin_id    = 2; // john_editor, pukat_admin
-$operator_id = 4; // daymon, pukat_operator
+// Identities resolved by role, not hardcoded fixture IDs — see
+// tools/smoke-identities.php for why.
+require_once __DIR__ . '/smoke-identities.php';
+
+$ephemeral_ids = [];
+$admin_id      = pukat_smoke_resolve_identity( 'pukat_admin', $ephemeral_ids );
+
+// The operator identity is always created fresh rather than resolved: the
+// scenario below needs an entity assigned to it, and that write belongs on a
+// user this script owns, not on whatever real operator a lookup happens to
+// return.
+$operator_login = 'pukat_smoke_operator_' . time();
+$operator_id    = wp_insert_user( [
+	'user_login' => $operator_login,
+	'user_pass'  => wp_generate_password(),
+	'user_email' => $operator_login . '@example.test',
+	'role'       => 'pukat_operator',
+] );
+if ( is_wp_error( $operator_id ) ) {
+	fwrite( STDERR, 'Could not create ephemeral operator test user: ' . $operator_id->get_error_message() . "\n" );
+	exit( 1 );
+}
+$operator_id     = (int) $operator_id;
+$ephemeral_ids[] = $operator_id;
+
+pukat_smoke_print_identities( [ 'admin' => $admin_id, 'operator' => $operator_id ] );
 
 // Ephemeral reviewer user — no fixture user holds pukat_reviewer.
 $reviewer_login = 'pukat_smoke_reviewer_' . time();
@@ -248,6 +272,7 @@ if ( $landing_master_id ) {
 }
 wp_delete_user( $reviewer_id );
 check( 'ephemeral reviewer test user removed', false === get_userdata( $reviewer_id ), $failures );
+check( 'ephemeral identity users removed', [] === pukat_smoke_cleanup_identities( $ephemeral_ids ), $failures );
 
 if ( $failures ) {
 	fwrite( STDERR, "\n" . count( $failures ) . " check(s) failed.\n" );

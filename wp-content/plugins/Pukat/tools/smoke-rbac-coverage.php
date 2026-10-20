@@ -28,6 +28,7 @@ if ( ! file_exists( $wp_load ) ) {
 require $wp_load;
 require_once ABSPATH . 'wp-admin/includes/user.php';
 
+use Pukat\Admin\AdminMenu;
 use Pukat\Services\MasterComponentService;
 use Pukat\Services\PermissionRegistry;
 
@@ -183,6 +184,58 @@ check(
 ], $power );
 check( 'domain: edit WITH domains.authorize succeeds', 200 === $status, $failures );
 check( 'domain: authorization_status is now authorized', 'authorized' === column( $domain_table, $domain_id, 'authorization_status' ), $failures );
+
+// ---------------------------------------------------------------------------
+// Admin panel menu gates (PR 2) — every wp-admin submenu must be gated by a
+// capability that actually exists in the registry. A mistyped key would pass
+// through capability_for() silently and produce a capability nobody holds, so
+// the submenu would simply never appear for anyone.
+// ---------------------------------------------------------------------------
+require_once ABSPATH . 'wp-admin/includes/plugin.php';
+
+$administrators = get_users( [ 'role' => 'administrator', 'number' => 1, 'fields' => [ 'ID' ] ] );
+if ( $administrators ) {
+	wp_set_current_user( (int) $administrators[0]->ID );
+
+	$GLOBALS['menu']               = [];
+	$GLOBALS['submenu']            = [];
+	$GLOBALS['_registered_pages']  = [];
+	$GLOBALS['_parent_pages']      = [];
+	$GLOBALS['_wp_submenu_nopriv'] = [];
+	$GLOBALS['_wp_menu_nopriv']    = [];
+	( new AdminMenu() )->register();
+
+	$registry_capabilities = array_column( PermissionRegistry::all(), 'capability' );
+	$unknown               = [];
+	foreach ( $GLOBALS['submenu'][ AdminMenu::MENU_SLUG ] ?? [] as $entry ) {
+		$capability = (string) $entry[1];
+		if ( 'read' !== $capability && ! in_array( $capability, $registry_capabilities, true ) ) {
+			$unknown[] = $capability;
+		}
+	}
+	check(
+		'every wp-admin submenu capability exists in the registry (or is plain `read`)',
+		[] === $unknown,
+		$failures
+	);
+	if ( $unknown ) {
+		echo '     unknown: ' . implode( ', ', $unknown ) . "\n";
+	}
+
+	$top_capability = '';
+	foreach ( $GLOBALS['menu'] as $item ) {
+		if ( ( $item[2] ?? '' ) === AdminMenu::MENU_SLUG ) {
+			$top_capability = (string) $item[1];
+		}
+	}
+	check(
+		'the top-level Pukat menu is gated by admin_panel.view',
+		PermissionRegistry::capability_for( 'admin_panel.view' ) === $top_capability,
+		$failures
+	);
+} else {
+	echo "No administrator user found — admin panel menu gate checks skipped.\n";
+}
 
 // ---------------------------------------------------------------------------
 // Cleanup

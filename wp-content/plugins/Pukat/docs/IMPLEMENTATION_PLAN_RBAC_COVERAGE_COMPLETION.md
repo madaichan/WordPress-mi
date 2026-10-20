@@ -1,6 +1,6 @@
 # Implementation Plan: RBAC Coverage Completion
 
-Status: Draft
+Status: PR 1-5 selesai; PR 6 belum (opsional)
 Date: 2026-10-20
 PRD: `docs/PRD_RBAC_COVERAGE_COMPLETION.md`
 Lanjutan dari: `docs/IMPLEMENTATION_PLAN_RBAC.md` (selesai)
@@ -145,6 +145,37 @@ Semua pada baris throwaway buatan test. Diimplementasikan sebagai `tools/smoke-r
 4. Catatan rilis: role custom yang dibuat sebelum rilis ini **tidak** otomatis dapat `admin_panel.view` (PRD §11) — harus disebut, ini satu-satunya perubahan perilaku yang terlihat user.
 5. Update memory project kalau ada (status "panel wp-admin sekarang registry-gated").
 6. Tandai `docs/PRD_RBAC_COVERAGE_COMPLETION.md` + rencana ini jadi `Status: Implemented`.
+
+### Hasil QA PR 5 (2026-10-20)
+
+Matrix akses wp-admin, diukur dengan mendaftarkan menu secara nyata per role (user+role throwaway, dihapus setelah tes), dibandingkan dengan baseline sebelum PR 1:
+
+| Role | Sebelum | Sesudah PR 1-4 |
+|---|---|---|
+| `administrator`, `pukat_admin` | panel terbuka, 7 halaman | panel terbuka, 12 halaman (+5 submenu baru) |
+| `pukat_operator` / `pukat_reviewer` / `pukat_viewer` | panel tertutup, hanya "Open Front Page" | identik |
+| role custom (`admin_panel.view` + `settings.view`) | panel tertutup | panel terbuka, hanya My Profile + Settings |
+
+Suite backend (semuanya di `tools/`, lulus penuh):
+
+| Suite | Check |
+|---|---|
+| `smoke-phase3-regression.php` | 423 |
+| `smoke-role-controller.php` | 31 |
+| `smoke-phase7-qa.php` | 25 |
+| `smoke-phase4-approval.php` | 20 |
+| `smoke-rbac-coverage.php` (baru) | 17 |
+| `smoke-permission-registry.php` | 19 |
+| `smoke-rbac-seed.php` | 12 |
+| `smoke-playbook-master.php` | end-to-end `pukat_smoke=ok` |
+
+Frontend: `npm run lint` (1 warning lama di `Simulation/Performing.jsx`, di luar scope — branch ini nol perubahan frontend), `npm run test` 111 lulus, `npm run build` sukses dan output-nya identik dengan `assets/dist` yang sudah dikomit.
+
+**Perbaikan test-infra yang diperlukan untuk QA ini** (semuanya kegagalan lama, bukan regresi dari PR 1-4 — diverifikasi dengan menjalankan suite pada baseline):
+
+- 4 skrip mem-hardcode ID user fixture (`$admin_id = 2; // john_editor`). Pada install ini user 2 adalah `pukat_viewer`, jadi `smoke-phase3-regression` melaporkan 67 kegagalan palsu dan `smoke-phase7-qa`/`smoke-role-controller` fatal. Resolusi identitas dipindah ke helper baru `tools/smoke-identities.php` (cari user berdasarkan role, buat user ephemeral kalau tidak ada, bersihkan di akhir).
+- `smoke-role-controller` meminjam user fixture nyata untuk uji assign-role lalu memulihkan role-nya; sekarang memakai user throwaway sendiri.
+- `smoke-playbook-master` gagal di `/approve` sejak self-approval guard Phase 4 (pembuat dan approver user yang sama), memakai nama domain tetap `example.com` yang bentrok dengan baris sisa run yang gagal, dan belum menyeed guardrail company email domain yang ditambahkan `docs/PRD_ENTITY_PROFILE_AND_GUARDRAILS.md`. Ketiganya diperbaiki; sekarang lulus end-to-end.
 
 ## 9. Rollback Plan
 

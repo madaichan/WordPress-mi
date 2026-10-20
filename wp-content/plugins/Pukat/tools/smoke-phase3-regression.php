@@ -119,62 +119,16 @@ function assert_permission_boundary_only(
 do_action( 'rest_api_init' );
 Activator::maybe_upgrade();
 
-/**
- * Resolve a test identity for one Pukat role.
- *
- * Previously these were hardcoded user IDs from whichever install this script
- * was first written against (`$admin_id = 2; // john_editor`), which silently
- * rots: on an install where user 2 happens to hold a different role, every
- * assertion for that identity fails and the whole suite reports a regression
- * that isn't one. Resolve by role instead, and fall back to an ephemeral user
- * when no suitable fixture exists.
- *
- * A candidate must hold the target role and NOT be a WP `administrator` —
- * that role alone grants every Pukat capability, so an administrator can
- * never stand in for a narrower role.
- *
- * @param int[] $ephemeral Collects IDs this function created, for cleanup.
- */
-function resolve_identity( string $role, array &$ephemeral ): int {
-	foreach ( get_users( [ 'role' => $role, 'number' => 20, 'fields' => [ 'ID' ] ] ) as $candidate ) {
-		$user = get_userdata( (int) $candidate->ID );
-		if ( $user && ! in_array( 'administrator', $user->roles, true ) ) {
-			return (int) $user->ID;
-		}
-	}
-
-	$login = 'pukat_smoke_' . str_replace( 'pukat_', '', $role ) . '_' . time();
-	$id    = wp_insert_user( [
-		'user_login' => $login,
-		'user_pass'  => wp_generate_password(),
-		'user_email' => $login . '@example.test',
-		'role'       => $role,
-	] );
-
-	if ( is_wp_error( $id ) ) {
-		fwrite( STDERR, "Could not create ephemeral {$role} test user: " . $id->get_error_message() . "\n" );
-		exit( 1 );
-	}
-
-	$ephemeral[] = (int) $id;
-
-	return (int) $id;
-}
+// Identities resolved by role, not hardcoded fixture IDs — see
+// tools/smoke-identities.php for why.
+require_once __DIR__ . '/smoke-identities.php';
 
 $ephemeral_ids = [];
-$admin_id      = resolve_identity( 'pukat_admin', $ephemeral_ids );
-$operator_id   = resolve_identity( 'pukat_operator', $ephemeral_ids );
-$viewer_id     = resolve_identity( 'pukat_viewer', $ephemeral_ids );
+$admin_id      = pukat_smoke_resolve_identity( 'pukat_admin', $ephemeral_ids );
+$operator_id   = pukat_smoke_resolve_identity( 'pukat_operator', $ephemeral_ids );
+$viewer_id     = pukat_smoke_resolve_identity( 'pukat_viewer', $ephemeral_ids );
 
-printf(
-	"Identities — admin: %s (%d), operator: %s (%d), viewer: %s (%d)\n\n",
-	get_userdata( $admin_id )->user_login,
-	$admin_id,
-	get_userdata( $operator_id )->user_login,
-	$operator_id,
-	get_userdata( $viewer_id )->user_login,
-	$viewer_id
-);
+pukat_smoke_print_identities( [ 'admin' => $admin_id, 'operator' => $operator_id, 'viewer' => $viewer_id ] );
 
 // ---------------------------------------------------------------------------
 // SettingsController (Phase 3, controller 1/11) — settings.view / settings.edit,
@@ -1159,13 +1113,7 @@ assert_permission_matrix(
 // ---------------------------------------------------------------------------
 // Cleanup
 // ---------------------------------------------------------------------------
-foreach ( $ephemeral_ids as $ephemeral_id ) {
-	wp_delete_user( $ephemeral_id );
-	check( "ephemeral test user {$ephemeral_id} removed", false === get_userdata( $ephemeral_id ), $failures );
-}
-if ( ! $ephemeral_ids ) {
-	echo "No ephemeral test users were created (all roles had a usable fixture user).\n";
-}
+check( 'ephemeral test users removed', [] === pukat_smoke_cleanup_identities( $ephemeral_ids ), $failures );
 
 if ( $failures ) {
 	fwrite( STDERR, "\n" . count( $failures ) . " check(s) failed.\n" );
