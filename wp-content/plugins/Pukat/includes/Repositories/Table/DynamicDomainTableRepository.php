@@ -26,7 +26,7 @@ namespace Pukat\Repositories\Table;
 class DynamicDomainTableRepository {
 
 	/** Columns returned to the list endpoint. Excludes allowed_playbooks_json/allowed_sending_profiles_json. */
-	private const LIST_COLUMNS = [ 'id', 'domain', 'base_landing_url', 'tracking_url', 'environment', 'owner_entity', 'authorization_status', 'dns_status', 'tls_status', 'status', 'created_at' ];
+	private const LIST_COLUMNS = [ 'id', 'domain', 'base_landing_url', 'tracking_url', 'type', 'environment', 'owner_entity', 'authorization_status', 'dns_status', 'tls_status', 'status', 'created_at' ];
 
 	private function table(): string {
 		global $wpdb;

@@ -28,6 +28,15 @@ class MasterComponentService {
 	private const SENDING_TABLE        = 'sending_profile_refs';
 	private const DOMAIN_TABLE         = 'dynamic_domains';
 
+	/** Allowed values for a dynamic domain's `type`. */
+	private const DOMAIN_TYPE_VALUES = [
+		'sending',
+		'landing',
+		'both',
+		'education',
+		'quiz',
+	];
+
 	private const STATUS_VALUES = [
 		'draft',
 		'review',
@@ -1611,6 +1620,7 @@ class MasterComponentService {
 			'domain'                         => $domain,
 			'base_landing_url'               => esc_url_raw( (string) $this->raw_value( $params, 'base_landing_url', $existing ) ),
 			'tracking_url'                   => esc_url_raw( (string) $this->raw_value( $params, 'tracking_url', $existing ) ),
+			'type'                           => $this->domain_type_value( $params, $existing ),
 			'environment'                    => $this->text_value( $params, 'environment', $existing, 'production' ),
 			'owner_entity'                   => $this->text_value( $params, 'owner_entity', $existing, self::GENERAL_ENTITY ),
 			'authorization_status'           => $this->authorization_status_value( $params, $existing ),
@@ -1759,6 +1769,19 @@ class MasterComponentService {
 		$status = sanitize_key( (string) $this->raw_value( $params, $key, $existing, $default ) );
 
 		return in_array( $status, self::STATUS_VALUES, true ) ? $status : $default;
+	}
+
+	/**
+	 * Validate a dynamic domain's `type` against the allowed set, defaulting to
+	 * 'both' (and keeping the existing value on an update that omits the field).
+	 *
+	 * @param array<string, mixed>      $params   Raw request params.
+	 * @param array<string, mixed>|null $existing Existing row.
+	 */
+	private function domain_type_value( array $params, ?array $existing = null ): string {
+		$type = sanitize_key( (string) $this->raw_value( $params, 'type', $existing, 'both' ) );
+
+		return in_array( $type, self::DOMAIN_TYPE_VALUES, true ) ? $type : 'both';
 	}
 
 	/**

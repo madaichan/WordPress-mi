@@ -26,6 +26,8 @@ const DOMAIN_TYPES = [
   { value: 'sending', label: 'Sending' },
   { value: 'landing', label: 'Landing page' },
   { value: 'both', label: 'Both' },
+  { value: 'education', label: 'Education' },
+  { value: 'quiz', label: 'Quiz' },
 ]
 
 const DOMAIN_STATUS_OPTIONS = [
@@ -80,6 +82,7 @@ function payloadFromForm(form) {
 
   return {
     domain,
+    type: form.type,
     base_landing_url: baseLandingUrl,
     tracking_url: trackingUrl,
     environment: form.environment.trim() || 'production',

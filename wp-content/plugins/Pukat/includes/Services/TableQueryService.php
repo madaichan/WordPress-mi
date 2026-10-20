@@ -353,9 +353,12 @@ class TableQueryService {
 	 * @return array<string, mixed>
 	 */
 	private function decorate_dynamic_domain_row( array $row ): array {
-		// Real data (derived from stored URLs), unlike the legacy admin page's fabricated
-		// DNS/SSL/refresh-countdown display — see the TableRegistry comment on this table.
-		$row['type'] = $this->dynamic_domain_type( $row );
+		// `type` is now a stored column (sending/landing/both/education/quiz). Fall back to
+		// the old URL-presence heuristic only when it's empty, so rows written before the
+		// column existed still render a sensible type. See TableRegistry comment on this table.
+		if ( '' === trim( (string) ( $row['type'] ?? '' ) ) ) {
+			$row['type'] = $this->dynamic_domain_type( $row );
+		}
 
 		// prepare_dynamic_domain() has no usage/lock concept for domains at all — only the
 		// entity-permission check applies (update/delete/health-check all call

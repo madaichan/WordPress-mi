@@ -219,12 +219,17 @@ class TableRegistry {
 			'repository'         => DynamicDomainTableRepository::class,
 			'search_placeholder' => 'Search domains...',
 			'search_fields'      => [ 'domain' ],
-			'sortable'           => [ 'domain', 'owner_entity', 'status', 'created_at' ],
+			'sortable'           => [ 'domain', 'type', 'owner_entity', 'status', 'created_at' ],
 			'default_sort'       => 'domain',
 			'default_order'      => 'asc',
 			'default_per_page'   => 25,
 			'max_per_page'       => 100,
 			'filters'            => [
+				'type'                 => [
+					'label'   => 'Type',
+					'type'    => 'select',
+					'options' => [ 'sending', 'landing', 'both', 'education', 'quiz' ],
+				],
 				'dns_status'           => [
 					'label'   => 'DNS status',
 					'type'    => 'select',
@@ -250,9 +255,9 @@ class TableRegistry {
 					'type'  => 'text',
 				],
 			],
-			// `type` is derived server-side from base_landing_url/tracking_url presence (see
-			// TableQueryService::decorate_dynamic_domain_row) — real data, but not a stored column,
-			// so it isn't sortable/filterable. Deliberately trimmed vs. the legacy admin page: the
+			// `type` is a stored column (sending/landing/both/education/quiz); rows written before
+			// it existed fall back to the old base_landing_url/tracking_url heuristic server-side
+			// (see TableQueryService::decorate_dynamic_domain_row). Deliberately trimmed vs. the legacy admin page: the
 			// old DNS SPF/DKIM/MX breakdown, SSL expiry countdown, "next refresh" timer, and
 			// dependency-blocking delete check were all client-fabricated from a single status
 			// field (or literally hardcoded), not real per-check data — dropped rather than given
@@ -260,10 +265,12 @@ class TableRegistry {
 			'columns'            => [
 				[ 'key' => 'domain', 'label' => 'Domain', 'renderer' => 'text_with_subtext', 'subtextKey' => 'environment', 'sortable' => true ],
 				[ 'key' => 'type', 'label' => 'Type', 'renderer' => 'badge', 'toneMap' => [
-					'sending' => 'info',
-					'landing' => 'success',
-					'both'    => 'violet',
-				], 'sortable' => false ],
+					'sending'   => 'info',
+					'landing'   => 'success',
+					'both'      => 'violet',
+					'education' => 'warning',
+					'quiz'      => 'high',
+				], 'sortable' => true ],
 				[ 'key' => 'dns_status', 'label' => 'DNS', 'renderer' => 'badge', 'toneMap' => [
 					'healthy'   => 'success',
 					'unhealthy' => 'danger',
