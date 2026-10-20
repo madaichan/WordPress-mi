@@ -119,24 +119,62 @@ function assert_permission_boundary_only(
 do_action( 'rest_api_init' );
 Activator::maybe_upgrade();
 
-$admin_id    = 2; // john_editor, pukat_admin
-$operator_id = 4; // daymon, pukat_operator
+/**
+ * Resolve a test identity for one Pukat role.
+ *
+ * Previously these were hardcoded user IDs from whichever install this script
+ * was first written against (`$admin_id = 2; // john_editor`), which silently
+ * rots: on an install where user 2 happens to hold a different role, every
+ * assertion for that identity fails and the whole suite reports a regression
+ * that isn't one. Resolve by role instead, and fall back to an ephemeral user
+ * when no suitable fixture exists.
+ *
+ * A candidate must hold the target role and NOT be a WP `administrator` —
+ * that role alone grants every Pukat capability, so an administrator can
+ * never stand in for a narrower role.
+ *
+ * @param int[] $ephemeral Collects IDs this function created, for cleanup.
+ */
+function resolve_identity( string $role, array &$ephemeral ): int {
+	foreach ( get_users( [ 'role' => $role, 'number' => 20, 'fields' => [ 'ID' ] ] ) as $candidate ) {
+		$user = get_userdata( (int) $candidate->ID );
+		if ( $user && ! in_array( 'administrator', $user->roles, true ) ) {
+			return (int) $user->ID;
+		}
+	}
 
-// No fixture user holds ONLY pukat_viewer (the one candidate, steupy, also has
-// WP administrator — which alone grants every Pukat capability — so it can't
-// stand in for a clean viewer). Create + delete an ephemeral one instead.
-$viewer_login = 'pukat_smoke_viewer_' . time();
-$viewer_id    = wp_insert_user( [
-	'user_login' => $viewer_login,
-	'user_pass'  => wp_generate_password(),
-	'user_email' => $viewer_login . '@example.test',
-	'role'       => 'pukat_viewer',
-] );
+	$login = 'pukat_smoke_' . str_replace( 'pukat_', '', $role ) . '_' . time();
+	$id    = wp_insert_user( [
+		'user_login' => $login,
+		'user_pass'  => wp_generate_password(),
+		'user_email' => $login . '@example.test',
+		'role'       => $role,
+	] );
 
-if ( is_wp_error( $viewer_id ) ) {
-	fwrite( STDERR, 'Could not create ephemeral viewer test user: ' . $viewer_id->get_error_message() . "\n" );
-	exit( 1 );
+	if ( is_wp_error( $id ) ) {
+		fwrite( STDERR, "Could not create ephemeral {$role} test user: " . $id->get_error_message() . "\n" );
+		exit( 1 );
+	}
+
+	$ephemeral[] = (int) $id;
+
+	return (int) $id;
 }
+
+$ephemeral_ids = [];
+$admin_id      = resolve_identity( 'pukat_admin', $ephemeral_ids );
+$operator_id   = resolve_identity( 'pukat_operator', $ephemeral_ids );
+$viewer_id     = resolve_identity( 'pukat_viewer', $ephemeral_ids );
+
+printf(
+	"Identities — admin: %s (%d), operator: %s (%d), viewer: %s (%d)\n\n",
+	get_userdata( $admin_id )->user_login,
+	$admin_id,
+	get_userdata( $operator_id )->user_login,
+	$operator_id,
+	get_userdata( $viewer_id )->user_login,
+	$viewer_id
+);
 
 // ---------------------------------------------------------------------------
 // SettingsController (Phase 3, controller 1/11) — settings.view / settings.edit,
@@ -628,7 +666,7 @@ assert_permission_matrix(
 // CampaignRunController (Phase 3, controller 9/11) — shares CampaignController's
 // campaigns.* keys. lock-snapshot, sync, sync-results, and send-follow-up-
 // reminder all reuse .edit (operational state changes on an existing run);
-// .cancel gets its first real use. All shared/operator-gated in Phase 1,
+// .complete gets its first real use. All shared/operator-gated in Phase 1,
 // same population as before.
 // ---------------------------------------------------------------------------
 assert_permission_matrix(
@@ -686,10 +724,14 @@ assert_permission_matrix(
 	$admin_id, $operator_id, $viewer_id, $failures
 );
 
+// Route renamed cancel -> complete (docs/PRD_CAMPAIGN_GROUP_MONITORING.md §6.4);
+// the assertion still probed /cancel, which no longer exists, so it 404'd for
+// every identity and the viewer/anon expectations failed on a route that was
+// simply gone rather than on a permission regression.
 assert_permission_matrix(
-	'POST /campaign-runs/999999/cancel (nonexistent id — safe, no real row touched)',
+	'POST /campaign-runs/999999/complete (nonexistent id — safe, no real row touched)',
 	'POST',
-	'/pukat/v1/campaign-runs/999999/cancel',
+	'/pukat/v1/campaign-runs/999999/complete',
 	[],
 	[ 'admin' => 404, 'operator' => 404, 'viewer' => 403, 'anon' => 401 ],
 	$admin_id, $operator_id, $viewer_id, $failures
@@ -1117,8 +1159,13 @@ assert_permission_matrix(
 // ---------------------------------------------------------------------------
 // Cleanup
 // ---------------------------------------------------------------------------
-wp_delete_user( $viewer_id );
-check( 'ephemeral viewer test user removed', false === get_userdata( $viewer_id ), $failures );
+foreach ( $ephemeral_ids as $ephemeral_id ) {
+	wp_delete_user( $ephemeral_id );
+	check( "ephemeral test user {$ephemeral_id} removed", false === get_userdata( $ephemeral_id ), $failures );
+}
+if ( ! $ephemeral_ids ) {
+	echo "No ephemeral test users were created (all roles had a usable fixture user).\n";
+}
 
 if ( $failures ) {
 	fwrite( STDERR, "\n" . count( $failures ) . " check(s) failed.\n" );
