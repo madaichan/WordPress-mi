@@ -12,6 +12,7 @@ namespace Pukat\Admin;
 use Pukat\Services\AssetManifestService;
 use Pukat\Services\PermissionRegistry;
 use Pukat\Services\UserContextService;
+use Pukat\Core\ThemeBoot;
 
 /**
  * Class AdminPage
@@ -56,11 +57,12 @@ class AdminPage {
 			<meta name="viewport" content="width=device-width, initial-scale=1.0" />
 			<meta name="robots" content="noindex, nofollow" />
 			<title>Pukat Admin</title>
+			<?php ThemeBoot::render_boot_script(); ?>
 			<?php if ( null === $dev_server && $assets['css_file'] && file_exists( $assets['dist_dir'] . $assets['css_file'] ) ) : ?>
 			<link rel="stylesheet" href="<?php echo esc_url( $assets['dist_url'] . $assets['css_file'] ); ?>?v=<?php echo esc_attr( PUKAT_VERSION ); ?>" />
 			<?php endif; ?>
 		</head>
-		<body style="margin:0;padding:0;background:#0F1629;">
+		<body style="margin:0;padding:0;background:<?php echo esc_attr( ThemeBoot::splash_background() ); ?>;">
 			<div id="pukat-root"
 			     data-initial-route="<?php echo esc_attr( $initial_hash ); ?>"
 			     style="min-height:100vh;">
@@ -70,8 +72,8 @@ class AdminPage {
 					align-items:center;
 					justify-content:center;
 					min-height:100vh;
-					background:#0F1629;
-					color:#6C63FF;
+					background:<?php echo esc_attr( ThemeBoot::splash_background() ); ?>;
+					color:<?php echo esc_attr( ThemeBoot::splash_accent() ); ?>;
 					font-family:Inter,sans-serif;
 					flex-direction:column;
 					gap:16px;
@@ -143,13 +145,14 @@ class AdminPage {
 		remove_all_actions( 'admin_notices' );
 		// CSS is output via admin_head in Plugin::enqueue_admin_assets() — not here,
 		// because a <style> inside .wrap can be moved by WP/jQuery and confuse React.
+		ThemeBoot::render_boot_script();
 		?>
 		<div id="pukat-app-wrapper" style="
 			position: fixed;
 			inset: 0;
 			z-index: 100000;
 			overflow: auto;
-			background: #0F1629;
+			background: <?php echo esc_attr( ThemeBoot::splash_background() ); ?>;
 		">
 			<div id="pukat-root"
 				 data-initial-route="<?php echo esc_attr( $initial_hash ); ?>"
@@ -160,8 +163,8 @@ class AdminPage {
 					align-items: center;
 					justify-content: center;
 					min-height: 100vh;
-					background: #0F1629;
-					color: #6C63FF;
+					background: <?php echo esc_attr( ThemeBoot::splash_background() ); ?>;
+					color: <?php echo esc_attr( ThemeBoot::splash_accent() ); ?>;
 					font-family: Inter, sans-serif;
 					flex-direction: column;
 					gap: 16px;
