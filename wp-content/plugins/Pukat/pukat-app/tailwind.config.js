@@ -1,5 +1,6 @@
 /** @type {import('tailwindcss').Config} */
 export default {
+  darkMode: 'class',
   content: [
     './index.html',
     './src/**/*.{js,jsx}',
@@ -7,6 +8,37 @@ export default {
   theme: {
     extend: {
       colors: {
+        // ── Semantic theme tokens ──────────────────────────────────────
+        // Backed by CSS variables declared in index.css (:root for light,
+        // .dark for dark). Components use these instead of raw gray/white
+        // utilities so a theme switch is a variable swap, not a class swap.
+        // `<alpha-value>` keeps Tailwind's /50 opacity modifiers working.
+        canvas:  'rgb(var(--pk-canvas) / <alpha-value>)',
+        panel: {
+          DEFAULT: 'rgb(var(--pk-panel) / <alpha-value>)',
+          subtle:  'rgb(var(--pk-panel-subtle) / <alpha-value>)',
+          muted:   'rgb(var(--pk-panel-muted) / <alpha-value>)',
+          strong:  'rgb(var(--pk-panel-strong) / <alpha-value>)',
+        },
+        line: {
+          DEFAULT: 'rgb(var(--pk-line) / <alpha-value>)',
+          soft:    'rgb(var(--pk-line-soft) / <alpha-value>)',
+          strong:  'rgb(var(--pk-line-strong) / <alpha-value>)',
+        },
+        ink: {
+          DEFAULT: 'rgb(var(--pk-ink) / <alpha-value>)',
+          soft:    'rgb(var(--pk-ink-soft) / <alpha-value>)',
+          muted:   'rgb(var(--pk-ink-muted) / <alpha-value>)',
+          faint:   'rgb(var(--pk-ink-faint) / <alpha-value>)',
+        },
+        // Status foregrounds — lifted in dark mode so tinted text stays
+        // readable; the solid `success`/`danger`/… fills below stay fixed.
+        'success-fg': 'rgb(var(--pk-success-fg) / <alpha-value>)',
+        'danger-fg':  'rgb(var(--pk-danger-fg) / <alpha-value>)',
+        'warning-fg': 'rgb(var(--pk-warning-fg) / <alpha-value>)',
+        'info-fg':    'rgb(var(--pk-info-fg) / <alpha-value>)',
+        'violet-fg':  'rgb(var(--pk-violet-fg) / <alpha-value>)',
+
         // Primary palette — matches existing index.html design
         navy: {
           DEFAULT: '#0F1629',
