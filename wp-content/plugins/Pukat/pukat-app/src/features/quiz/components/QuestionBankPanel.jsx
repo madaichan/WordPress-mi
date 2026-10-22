@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useMemo, useState } from 'react'
 import clsx from 'clsx'
 import toast from 'react-hot-toast'
 import Badge from '../../../components/UI/Badge.jsx'
@@ -6,6 +6,8 @@ import Button from '../../../components/UI/Button.jsx'
 import Drawer from '../../../components/UI/Drawer.jsx'
 import EmptyState from '../../../components/UI/EmptyState.jsx'
 import Modal from '../../../components/UI/Modal.jsx'
+import SearchInput from '../../../components/UI/SearchInput.jsx'
+import Select from '../../../components/UI/Select.jsx'
 import QuestionPreview from './QuestionPreview.jsx'
 
 const BLANK = {
@@ -35,6 +37,37 @@ const BLANK = {
 export default function QuestionBankPanel({ questions = [], canManage = false, busy = false, onCreate, onUpdate, onDelete }) {
   const [editing, setEditing] = useState(null)
   const [previewing, setPreviewing] = useState(null)
+  const [search, setSearch] = useState('')
+  const [status, setStatus] = useState('all')
+  const [difficulty, setDifficulty] = useState('all')
+  const [tag, setTag] = useState('all')
+
+  // Tags for the filter dropdown, flattened from every question's CSV tags.
+  const allTags = useMemo(() => {
+    const set = new Set()
+    questions.forEach(q => String(q.tags || '').split(',').forEach(t => {
+      const trimmed = t.trim()
+      if (trimmed) set.add(trimmed)
+    }))
+    return Array.from(set).sort((a, b) => a.localeCompare(b))
+  }, [questions])
+
+  const filtered = useMemo(() => {
+    const term = search.trim().toLowerCase()
+    return questions.filter(q => {
+      if (status === 'active' && q.is_active === false) return false
+      if (status === 'inactive' && q.is_active !== false) return false
+      if (difficulty !== 'all' && String(q.difficulty || 1) !== difficulty) return false
+      if (tag !== 'all' && !String(q.tags || '').split(',').map(t => t.trim()).includes(tag)) return false
+      if (term) {
+        const haystack = `${q.question || ''} ${q.input_name || ''} ${q.tags || ''}`.toLowerCase()
+        if (!haystack.includes(term)) return false
+      }
+      return true
+    })
+  }, [questions, search, status, difficulty, tag])
+
+  const filtersActive = Boolean(search.trim()) || status !== 'all' || difficulty !== 'all' || tag !== 'all'
 
   const openNew = () => setEditing({ ...BLANK, options: BLANK.options.map(o => ({ ...o })) })
   const openEdit = (question) => setEditing({
@@ -93,15 +126,48 @@ export default function QuestionBankPanel({ questions = [], canManage = false, b
         )}
       </div>
 
+      {questions.length > 0 && (
+        <div className="flex flex-wrap items-center gap-2">
+          <SearchInput value={search} onChange={setSearch} placeholder="Search questions, input_name, tags…" wrapperClassName="relative w-full max-w-sm" />
+          <Select value={status} onChange={e => setStatus(e.target.value)} className="w-auto min-w-[8rem]">
+            <option value="all">All status</option>
+            <option value="active">Active</option>
+            <option value="inactive">Inactive</option>
+          </Select>
+          <Select value={difficulty} onChange={e => setDifficulty(e.target.value)} className="w-auto min-w-[9rem]">
+            <option value="all">All difficulty</option>
+            {[1, 2, 3, 4, 5].map(n => <option key={n} value={String(n)}>Difficulty {n}</option>)}
+          </Select>
+          {allTags.length > 0 && (
+            <Select value={tag} onChange={e => setTag(e.target.value)} className="w-auto min-w-[8rem]">
+              <option value="all">All tags</option>
+              {allTags.map(t => <option key={t} value={t}>{t}</option>)}
+            </Select>
+          )}
+          <span className="ml-auto text-[11px] text-ink-faint">{filtered.length} of {questions.length}</span>
+          {filtersActive && (
+            <button type="button" onClick={() => { setSearch(''); setStatus('all'); setDifficulty('all'); setTag('all') }} className="text-[11px] text-violet-600 hover:underline dark:text-violet-400">
+              Clear
+            </button>
+          )}
+        </div>
+      )}
+
       {questions.length === 0 ? (
         <EmptyState
           icon="ti-help-circle"
           title="No questions yet"
           description={canManage ? 'Add the questions this entity should ask after its education page.' : 'This entity has not added any quiz questions yet.'}
         />
+      ) : filtered.length === 0 ? (
+        <EmptyState
+          icon="ti-search-off"
+          title="No matching questions"
+          description="No question matches the current search and filters."
+        />
       ) : (
         <div className="divide-y divide-line overflow-hidden rounded-xl border border-line bg-panel">
-          {questions.map(question => (
+          {filtered.map(question => (
             <div key={question.id} className="flex flex-wrap items-start justify-between gap-3 p-4">
               <div className="min-w-0 space-y-1">
                 <div className="flex flex-wrap items-center gap-2">
