@@ -82,6 +82,12 @@ class QuizPageController extends RestController {
 			],
 		] );
 
+		register_rest_route( $this->namespace, '/quiz-page/preview', [
+			'methods'             => 'POST',
+			'callback'            => [ $this, 'preview_page' ],
+			'permission_callback' => fn () => $this->require_capability( 'quiz_pages.edit' ),
+		] );
+
 		register_rest_route( $this->namespace, '/quiz-page/validate', [
 			'methods'             => 'POST',
 			'callback'            => [ $this, 'validate_page' ],
@@ -153,6 +159,12 @@ class QuizPageController extends RestController {
 
 	public function save_page( WP_REST_Request $request ): WP_REST_Response {
 		$result = $this->pages->save( $request->get_params(), get_current_user_id() );
+
+		return is_wp_error( $result ) ? $this->from_wp_error( $result ) : $this->success( $result );
+	}
+
+	public function preview_page( WP_REST_Request $request ): WP_REST_Response {
+		$result = $this->pages->preview( $request->get_params() );
 
 		return is_wp_error( $result ) ? $this->from_wp_error( $result ) : $this->success( $result );
 	}

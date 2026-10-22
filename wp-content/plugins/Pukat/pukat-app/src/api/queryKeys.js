@@ -43,6 +43,7 @@ export const queryKeys = {
     pages: (params = {}) => ['quiz', 'pages', params],
     overview: () => ['quiz', 'pages', 'overview'],
     page: (params = {}) => ['quiz', 'page', params],
+    preview: (input = {}) => ['quiz', 'preview', input],
     results: (params = {}) => ['quiz', 'results', params],
     templates: (params = {}) => ['quiz', 'templates', params],
     template: (id) => ['quiz', 'template', id],

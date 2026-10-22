@@ -240,6 +240,47 @@ class QuizPageService {
 	}
 
 	/**
+	 * Generate the quiz page HTML from the builder's current, unsaved inputs so
+	 * the editor can show a live preview (Quiz Builder v2). Reads only — never
+	 * writes. Also returns the linter report so the preview can flag problems
+	 * as they are built.
+	 *
+	 * @param array<string, mixed> $params template_id, field_values?, selected_question_ids?, entity? (admin only)
+	 * @return array{html: string, linter: array<string, mixed>|null, entity_name: string}|WP_Error
+	 */
+	public function preview( array $params ): array|WP_Error {
+		$entity = $this->target_entity( $params );
+		if ( '' === $entity ) {
+			return $this->no_entity_error();
+		}
+		if ( ! $this->access->current_user_can_view_entity( $entity ) ) {
+			$entity = trim( $this->access->current_user_entity() );
+			if ( '' === $entity ) {
+				return $this->no_entity_error();
+			}
+		}
+
+		$template_id = (int) ( $params['template_id'] ?? 0 );
+		if ( $template_id <= 0 ) {
+			return [ 'html' => '', 'linter' => null, 'entity_name' => $entity ];
+		}
+		$template = $this->templates->find( $template_id );
+		if ( ! $template ) {
+			return $this->validation_error( __( 'The chosen quiz template no longer exists.', 'pukat' ) );
+		}
+
+		$field_values = $this->sanitize_field_values( $params['field_values'] ?? [] );
+		$selected     = $params['selected_question_ids'] ?? [];
+		$selected     = array_values( array_unique( array_filter( array_map( 'intval', (array) ( is_array( $selected ) ? $selected : [] ) ), static fn ( int $i ): bool => $i > 0 ) ) );
+
+		$questions = $this->questions->selected_questions( $selected, $entity );
+		$html      = $this->generator->generate( (string) $template['html_body'], $field_values, $questions );
+		$linter    = $this->linter->inspect( $html, $this->questions->answer_key_from_rows( $questions ) );
+
+		return [ 'html' => $html, 'linter' => $linter, 'entity_name' => $entity ];
+	}
+
+	/**
 	 * A quiz by id that must belong to the given entity — the per-quiz access
 	 * guard for the many-per-entity write paths. Returns null when the id is
 	 * unknown or owned by another entity.

@@ -24,6 +24,8 @@ export const quizApi = {
   savePage:      (data)        => put('/quiz-page', data),
   setDefaultPage:(data = {})   => post('/quiz-page/default', data),
   deletePage:    (data = {})   => post('/quiz-page/delete', data),
+  // Generates the page from unsaved builder inputs for a live preview (no write).
+  previewPage:   (data = {})   => post('/quiz-page/preview', data),
   // Lints the given HTML without saving, so the editor can show what blocks a publish.
   validatePage:  (data = {})   => post('/quiz-page/validate', data),
   publishPage:   (data = {})   => post('/quiz-page/publish', data),

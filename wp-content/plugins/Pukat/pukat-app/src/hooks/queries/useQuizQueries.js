@@ -45,6 +45,21 @@ export function useQuizPagesOverview(options = {}) {
   })
 }
 
+/**
+ * Live preview of the quiz page generated from the builder's current, unsaved
+ * inputs. `input` should be a debounced snapshot of { template_id, field_values,
+ * selected_question_ids, entity? } so it does not refetch on every keystroke.
+ */
+export function useQuizPagePreview(input = {}, options = {}) {
+  return useQuery({
+    queryKey: queryKeys.quiz.preview(input),
+    queryFn: () => quizApi.previewPage(input),
+    refetchOnWindowFocus: false,
+    keepPreviousData: true,
+    ...options,
+  })
+}
+
 /** The reusable quiz template catalogue (metadata + placeholder declarations). */
 export function useQuizTemplates(params = {}, options = {}) {
   return useQuery({

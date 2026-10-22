@@ -1,5 +1,6 @@
-import { useMemo, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { useMasterDynamicDomains } from '../../../hooks/queries/useMasterAssetQueries.js'
+import { useQuizPagePreview } from '../../../hooks/queries/useQuizQueries.js'
 import { BrowserPreview } from '../../assets/components/index.js'
 import Badge from '../../../components/UI/Badge.jsx'
 import Button from '../../../components/UI/Button.jsx'
@@ -51,6 +52,23 @@ export default function QuizBuilder({
     () => (domainsData?.domains || domainsData || []).filter(d => d.type === 'quiz'),
     [domainsData],
   )
+
+  // Live preview: debounce the builder inputs, then generate the page server-
+  // side (single source of truth, no JS duplication of the generator) so the
+  // right panel updates as questions and text are added — without saving.
+  const previewInput = useMemo(() => ({
+    entity: page.entity_name,
+    template_id: templateId ? Number(templateId) : 0,
+    field_values: fieldValues,
+    selected_question_ids: selectedIds,
+  }), [page.entity_name, templateId, fieldValues, selectedIds])
+  const [debouncedInput, setDebouncedInput] = useState(previewInput)
+  useEffect(() => {
+    const t = setTimeout(() => setDebouncedInput(previewInput), 400)
+    return () => clearTimeout(t)
+  }, [previewInput])
+  const { data: previewData, isFetching: previewFetching } = useQuizPagePreview(debouncedInput, { enabled: Boolean(templateId) })
+  const previewHtml = previewData?.html || (Number(debouncedInput.template_id) === Number(page.template_id) ? page.html_body : '')
 
   const activeQuestions = useMemo(() => questions.filter(q => q.is_active !== false), [questions])
   const questionsById = useMemo(() => new Map(activeQuestions.map(q => [Number(q.id), q])), [activeQuestions])
@@ -110,9 +128,9 @@ export default function QuizBuilder({
           </div>
         </div>
         <div className="flex items-center gap-2">
-          <Button variant="outline" size="sm" onClick={() => setPreview(true)} disabled={!page.html_body} title={page.html_body ? 'Preview the generated quiz page' : 'Save the draft first to generate a preview'}>
-            <i className="ti ti-eye text-sm" />
-            <span>Preview</span>
+          <Button variant="outline" size="sm" onClick={() => setPreview(true)} disabled={!previewHtml} title={previewHtml ? 'Open the preview full-screen' : 'Pick a template and add questions first'}>
+            <i className="ti ti-arrows-maximize text-sm" />
+            <span>Fullscreen</span>
           </Button>
           {canEdit && (
           <>
@@ -135,9 +153,9 @@ export default function QuizBuilder({
         </div>
       )}
 
-      <div>
-        {/* Builder form (preview opens in a modal via the header button) */}
-        <div className="max-w-2xl space-y-4 text-xs">
+      <div className="grid gap-5 lg:grid-cols-2">
+        {/* Builder form */}
+        <div className="space-y-4 text-xs">
           <label className="block space-y-1">
             <span className="font-semibold text-ink-soft">Quiz name *</span>
             <input value={title} onChange={e => setTitle(e.target.value)} disabled={!canEdit}
@@ -270,8 +288,24 @@ export default function QuizBuilder({
                 )
             )}
             {page.gophish_master_id && <p className="text-[11px] text-ink-faint">GoPhish master #{page.gophish_master_id}{page.synced_at ? ` · synced ${page.synced_at}` : ''}</p>}
-            <p className="text-[11px] text-ink-faint">Save the draft, then use <span className="font-semibold">Preview</span> (top right) to see the generated page.</p>
           </div>
+        </div>
+
+        {/* Live preview: regenerates as the builder inputs change */}
+        <div className="lg:sticky lg:top-4 lg:self-start">
+          <div className="mb-2 flex items-center justify-between">
+            <span className="text-xs font-semibold text-ink-soft">Live preview</span>
+            {previewFetching && <span className="text-[11px] text-ink-faint">updating…</span>}
+          </div>
+          {previewHtml
+            ? <BrowserPreview html={previewHtml} redirectUrl={thankyouUrl} title="Quiz preview" />
+            : (
+              <div className="flex h-64 items-center justify-center rounded-xl border border-dashed border-line bg-panel-subtle/40 px-6 text-center text-xs text-ink-faint">
+                {templateId
+                  ? 'Add at least one question to see the quiz page here.'
+                  : 'Pick a template to start previewing the quiz page.'}
+              </div>
+            )}
         </div>
       </div>
 
@@ -283,9 +317,9 @@ export default function QuizBuilder({
           subtitle={page.title || 'Generated quiz page'}
           className="max-w-5xl"
         >
-          {page.html_body
-            ? <BrowserPreview html={page.html_body} redirectUrl={page.thankyou_url} title="Quiz preview" />
-            : <p className="text-sm text-ink-faint">Save the draft first to generate the page.</p>}
+          {previewHtml
+            ? <BrowserPreview html={previewHtml} redirectUrl={thankyouUrl} title="Quiz preview" />
+            : <p className="text-sm text-ink-faint">Pick a template and add questions to preview the page.</p>}
         </Modal>
       )}
     </div>
