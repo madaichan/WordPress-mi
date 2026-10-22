@@ -27,10 +27,12 @@ class FlagPageSyncService {
 
 	private FlagExampleService $examples;
 	private GoPhishService $gophish;
+	private GoPhishHtmlAssets $assets;
 
-	public function __construct( ?FlagExampleService $examples = null, ?GoPhishService $gophish = null ) {
+	public function __construct( ?FlagExampleService $examples = null, ?GoPhishService $gophish = null, ?GoPhishHtmlAssets $assets = null ) {
 		$this->examples = $examples ?? new FlagExampleService();
 		$this->gophish  = $gophish ?? new GoPhishService();
+		$this->assets   = $assets ?? new GoPhishHtmlAssets( $this->examples );
 	}
 
 	/**
@@ -305,67 +307,20 @@ class FlagPageSyncService {
 	}
 
 	private function slug( string $entity ): string {
-		$slug = sanitize_title( $entity );
-		return '' === $slug ? 'entity' : $slug;
+		return $this->assets->slug( $entity );
 	}
 
 	/**
-	 * Replace the `src` of every `<figure data-pukat-img="{id}">`'s image with a
-	 * base64 data URI, and strip the identity attribute. Everything outside
-	 * those figures is left byte-for-byte unchanged. An id whose example can no
-	 * longer be read (deleted, out of scope) is left as-is.
+	 * Inline Pukat gallery images as base64. Delegates to GoPhishHtmlAssets,
+	 * which the quiz page sync shares — kept as a method here so existing
+	 * callers and docs still hold (docs/IMPLEMENTATION_PLAN_QUIZ_MODULE.md Q3).
 	 */
 	public function inline_flag_images( string $html ): string {
-		$result = preg_replace_callback(
-			'#<figure\b([^>]*?)\s*data-pukat-img="(\d+)"([^>]*)>(.*?)</figure>#is',
-			function ( array $m ): string {
-				$id       = (int) $m[2];
-				$data_uri = $this->examples->data_uri( $id );
-				$inner    = $m[4];
-
-				if ( ! is_wp_error( $data_uri ) && isset( $data_uri['data_uri'] ) ) {
-					$inner = $this->replace_first_img_src( $inner, (string) $data_uri['data_uri'] );
-				}
-
-				// Rebuild the opening tag without the data-pukat-img attribute.
-				$attrs = trim( $m[1] . $m[3] );
-				return '<figure' . ( '' === $attrs ? '' : ' ' . $attrs ) . '>' . $inner . '</figure>';
-			},
-			$html
-		);
-
-		return null === $result ? $html : $result;
+		return $this->assets->inline_flag_images( $html );
 	}
 
-	/**
-	 * Count how many Pukat images a page would inline — used to report sync
-	 * readiness without doing the (potentially large) base64 work.
-	 */
+	/** @see GoPhishHtmlAssets::count_flag_images() */
 	public function count_flag_images( string $html ): int {
-		return preg_match_all( '#<figure\b[^>]*\bdata-pukat-img="\d+"#is', $html );
-	}
-
-	/**
-	 * Swap the first `<img src="...">` in a fragment (double-quoted src, as
-	 * buildFigureHtml emits). Uses a callback so the replacement string is never
-	 * treated as a backreference pattern.
-	 */
-	private function replace_first_img_src( string $fragment, string $src ): string {
-		$done = false;
-
-		$out = preg_replace_callback(
-			'#(<img\b[^>]*?\ssrc=")[^"]*(")#is',
-			function ( array $m ) use ( $src, &$done ): string {
-				if ( $done ) {
-					return $m[0];
-				}
-				$done = true;
-				return $m[1] . $src . $m[2];
-			},
-			$fragment,
-			1
-		);
-
-		return null === $out ? $fragment : $out;
+		return $this->assets->count_flag_images( $html );
 	}
 }

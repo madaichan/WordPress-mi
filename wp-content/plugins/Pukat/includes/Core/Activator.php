@@ -605,6 +605,67 @@ class Activator {
 			UNIQUE KEY entity_name (entity_name)
 		) $charset_collate;";
 
+		// -----------------------------------------------------------------------
+		// pukat_quiz_templates — reusable quiz shells authored by admins. The
+		// html_body carries placeholder markers ({{pukat:<key>}}) and one
+		// repeating question slot ({{pukat:questions}}); `placeholders` declares
+		// which fields the operator fills in the builder. See PRD_QUIZ_MODULE.md
+		// section 13 (Quiz Builder v2).
+		// -----------------------------------------------------------------------
+		$sql[] = "CREATE TABLE IF NOT EXISTS {$prefix}quiz_templates (
+			id            BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
+			name          VARCHAR(255)    NOT NULL DEFAULT '',
+			description   VARCHAR(500)    DEFAULT NULL,
+			html_body     LONGTEXT        NOT NULL,
+			placeholders  LONGTEXT        DEFAULT NULL COMMENT 'JSON array of {key, label, type, required}',
+			is_active     TINYINT(1)      NOT NULL DEFAULT 1,
+			created_by    BIGINT UNSIGNED NOT NULL DEFAULT 0,
+			updated_by    BIGINT UNSIGNED DEFAULT NULL,
+			created_at    DATETIME        NOT NULL DEFAULT CURRENT_TIMESTAMP,
+			updated_at    DATETIME        NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+			PRIMARY KEY (id),
+			KEY is_active (is_active)
+		) $charset_collate;";
+
+		// pukat_quiz_pages — quiz pages built in the Quiz Module (/post/quiz).
+		// An entity may own several (Quiz Builder v2); one may be flagged
+		// is_default_followup, which is the quiz the education -> quiz chain
+		// uses. html_body is generated from a template + selected questions in
+		// v2, or hand-written for legacy v1 rows (template_id NULL). The
+		// published_answer_key/published_pass_score snapshot is what answers are
+		// graded against, so editing the question bank afterwards never changes
+		// scores that were already earned. See docs/PRD_QUIZ_MODULE.md.
+		// -----------------------------------------------------------------------
+		$sql[] = "CREATE TABLE IF NOT EXISTS {$prefix}quiz_pages (
+			id                   BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
+			entity_name          VARCHAR(191)    NOT NULL,
+			title                VARCHAR(255)    NOT NULL DEFAULT '',
+			template_id          BIGINT UNSIGNED DEFAULT NULL COMMENT 'NULL = legacy hand-written HTML',
+			field_values_json    LONGTEXT        DEFAULT NULL COMMENT 'JSON map of placeholder key => value',
+			selected_question_ids_json LONGTEXT  DEFAULT NULL COMMENT 'JSON array of question ids in display order',
+			is_default_followup  TINYINT(1)      NOT NULL DEFAULT 0 COMMENT 'quiz used by the education to quiz chain',
+			html_body            LONGTEXT        NOT NULL,
+			published_html       LONGTEXT        DEFAULT NULL,
+			published_answer_key LONGTEXT        DEFAULT NULL COMMENT 'JSON snapshot: input_name => {question_id, correct[]}',
+			published_pass_score TINYINT UNSIGNED DEFAULT NULL,
+			pass_score           TINYINT UNSIGNED DEFAULT NULL COMMENT 'per-entity override, NULL means use the global option',
+			launch_url           VARCHAR(500)    DEFAULT NULL,
+			thankyou_url         VARCHAR(500)    DEFAULT NULL,
+			status               VARCHAR(50)     NOT NULL DEFAULT 'draft',
+			gophish_page_id      BIGINT UNSIGNED DEFAULT NULL,
+			gophish_master_id    BIGINT UNSIGNED DEFAULT NULL,
+			synced_at            DATETIME        DEFAULT NULL,
+			created_by           BIGINT UNSIGNED NOT NULL DEFAULT 0,
+			updated_by           BIGINT UNSIGNED DEFAULT NULL,
+			published_by         BIGINT UNSIGNED DEFAULT NULL,
+			created_at           DATETIME        NOT NULL DEFAULT CURRENT_TIMESTAMP,
+			updated_at           DATETIME        NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+			published_at         DATETIME        DEFAULT NULL,
+			PRIMARY KEY (id),
+			KEY entity_name (entity_name),
+			KEY entity_default (entity_name, is_default_followup)
+		) $charset_collate;";
+
 		foreach ( $sql as $query ) {
 			dbDelta( $query );
 		}
@@ -621,6 +682,9 @@ class Activator {
 		self::ensure_role_meta_landing_menu_column();
 		self::ensure_entity_profiles_identity_columns();
 		self::ensure_dynamic_domains_type_column();
+		self::ensure_quiz_questions_entity_columns();
+		self::ensure_quiz_results_scoring_columns();
+		self::ensure_quiz_pages_builder_columns();
 	}
 
 	/**
@@ -1004,6 +1068,35 @@ class Activator {
 			self::backfill_dynamic_domains_type();
 			update_option( 'pukat_db_version', '1.27.0' );
 		}
+
+		// Quiz Module (docs/PRD_QUIZ_MODULE.md): the per-entity quiz page table
+		// lands, the legacy question bank becomes entity-scoped and gains the
+		// input_name that ties a question to an HTML input, and quiz results
+		// become rid-aware so one row records one arrival. The legacy bank rows
+		// are dropped rather than backfilled: they carry no entity, the feature
+		// never shipped, and nothing read them (frontend quizApi was exported
+		// but never called) — see ensure_quiz_questions_entity_columns().
+		if ( version_compare( $db_version, '1.28.0', '<' ) ) {
+			self::create_tables();
+			self::ensure_quiz_questions_entity_columns();
+			self::ensure_quiz_results_scoring_columns();
+			self::seed_rbac_defaults();
+			update_option( 'pukat_db_version', '1.28.0' );
+		}
+
+		// Quiz Builder v2 (docs/PRD_QUIZ_MODULE.md section 13): a reusable quiz
+		// template catalogue lands, and quiz pages become many-per-entity —
+		// the one-per-entity UNIQUE index is dropped and the builder columns
+		// (template_id, field_values_json, selected_question_ids_json,
+		// is_default_followup) are added.
+		if ( version_compare( $db_version, '1.29.0', '<' ) ) {
+			self::create_tables();
+			self::ensure_quiz_pages_builder_columns();
+			// Grant the new admin-only quiz_templates.* capabilities (add_cap is
+			// additive and idempotent).
+			self::seed_rbac_defaults();
+			update_option( 'pukat_db_version', '1.29.0' );
+		}
 	}
 
 	/**
@@ -1238,6 +1331,130 @@ class Activator {
 
 		if ( ! $index ) {
 			$wpdb->query( "ALTER TABLE {$table} ADD INDEX campaign_run_id (campaign_run_id)" );
+		}
+	}
+
+	/**
+	 * Ensure the quiz question bank is entity-scoped and carries the
+	 * input_name that ties a question to an HTML input (idempotent).
+	 *
+	 * Legacy rows predate the per-entity model: they have no entity and no
+	 * input_name, so they can neither be graded nor shown anywhere. They are
+	 * deleted instead of backfilled to some arbitrary entity — the quiz feature
+	 * never shipped and had no consumer. The count is logged so the deletion is
+	 * traceable after the fact. See docs/PRD_QUIZ_MODULE.md §7.2.
+	 */
+	private static function ensure_quiz_questions_entity_columns(): void {
+		global $wpdb;
+
+		$table   = $wpdb->prefix . 'pukat_quiz_questions';
+		$columns = [
+			'entity_name' => "VARCHAR(191) NOT NULL DEFAULT '' AFTER id",
+			'input_name'  => "VARCHAR(64) NOT NULL DEFAULT '' AFTER question",
+			'is_active'   => 'TINYINT(1) NOT NULL DEFAULT 1 AFTER tags',
+		];
+
+		foreach ( $columns as $column => $definition ) {
+			$exists = $wpdb->get_var( $wpdb->prepare( "SHOW COLUMNS FROM {$table} LIKE %s", $column ) );
+			if ( ! $exists ) {
+				$wpdb->query( "ALTER TABLE {$table} ADD {$column} {$definition}" ); // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared -- fixed whitelist above
+			}
+		}
+
+		// Drop the pre-entity bank before the unique index lands, or rows with
+		// an empty (entity_name, input_name) pair would collide with each other.
+		$orphans = (int) $wpdb->get_var( "SELECT COUNT(*) FROM {$table} WHERE entity_name = '' OR input_name = ''" );
+		if ( $orphans > 0 ) {
+			$wpdb->query( "DELETE FROM {$table} WHERE entity_name = '' OR input_name = ''" ); // phpcs:ignore WordPress.DB.DirectDatabaseQuery
+			error_log( sprintf( 'Pukat 1.28.0: removed %d legacy quiz question(s) with no entity/input_name.', $orphans ) ); // phpcs:ignore WordPress.PHP.DevelopmentFunctions.error_log_error_log
+		}
+
+		if ( ! $wpdb->get_var( $wpdb->prepare( "SHOW INDEX FROM {$table} WHERE Key_name = %s", 'entity_input' ) ) ) {
+			$wpdb->query( "ALTER TABLE {$table} ADD UNIQUE KEY entity_input (entity_name, input_name)" );
+		}
+		if ( ! $wpdb->get_var( $wpdb->prepare( "SHOW INDEX FROM {$table} WHERE Key_name = %s", 'entity_name' ) ) ) {
+			$wpdb->query( "ALTER TABLE {$table} ADD INDEX entity_name (entity_name)" );
+		}
+	}
+
+	/**
+	 * Quiz Builder v2: quiz pages go from one-per-entity to many-per-entity and
+	 * gain the builder columns (idempotent). The one-per-entity UNIQUE index is
+	 * dropped and replaced by a plain index so an entity can own several quizzes.
+	 * See docs/PRD_QUIZ_MODULE.md section 13.
+	 */
+	private static function ensure_quiz_pages_builder_columns(): void {
+		global $wpdb;
+
+		$table   = $wpdb->prefix . 'pukat_quiz_pages';
+		$columns = [
+			'template_id'                => 'BIGINT UNSIGNED DEFAULT NULL AFTER title',
+			'field_values_json'          => 'LONGTEXT DEFAULT NULL AFTER template_id',
+			'selected_question_ids_json' => 'LONGTEXT DEFAULT NULL AFTER field_values_json',
+			'is_default_followup'        => 'TINYINT(1) NOT NULL DEFAULT 0 AFTER selected_question_ids_json',
+		];
+
+		foreach ( $columns as $column => $definition ) {
+			$exists = $wpdb->get_var( $wpdb->prepare( "SHOW COLUMNS FROM {$table} LIKE %s", $column ) );
+			if ( ! $exists ) {
+				$wpdb->query( "ALTER TABLE {$table} ADD {$column} {$definition}" ); // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared -- fixed whitelist above
+			}
+		}
+
+		// Drop the one-per-entity UNIQUE index (named `entity_name`) so an entity
+		// can own several quizzes, then re-add it as a plain lookup index.
+		$unique = $wpdb->get_row( $wpdb->prepare( "SHOW INDEX FROM {$table} WHERE Key_name = %s", 'entity_name' ) );
+		if ( $unique && '0' === (string) $unique->Non_unique ) {
+			$wpdb->query( "ALTER TABLE {$table} DROP INDEX entity_name" );
+			$unique = null;
+		}
+		if ( ! $unique ) {
+			$wpdb->query( "ALTER TABLE {$table} ADD INDEX entity_name (entity_name)" );
+		}
+		if ( ! $wpdb->get_var( $wpdb->prepare( "SHOW INDEX FROM {$table} WHERE Key_name = %s", 'entity_default' ) ) ) {
+			$wpdb->query( "ALTER TABLE {$table} ADD INDEX entity_default (entity_name, is_default_followup)" );
+		}
+	}
+
+	/**
+	 * Ensure quiz results can record one graded arrival per rid (idempotent).
+	 *
+	 * UNIQUE (campaign_run_id, gophish_rid) is what makes scoring idempotent:
+	 * re-syncing a campaign upserts instead of appending. Rows coming from a
+	 * standalone invite campaign have no campaign_run_id, and MySQL does not
+	 * treat NULLs as duplicates, so those rows are deduplicated on
+	 * (gophish_campaign_id, gophish_rid) instead — hence the second unique key.
+	 * See docs/PRD_QUIZ_MODULE.md §7.3.
+	 */
+	private static function ensure_quiz_results_scoring_columns(): void {
+		global $wpdb;
+
+		$table   = $wpdb->prefix . 'pukat_quiz_results';
+		$columns = [
+			'entity_name'         => "VARCHAR(191) NOT NULL DEFAULT '' AFTER id",
+			'gophish_rid'         => "VARCHAR(64) NOT NULL DEFAULT '' AFTER campaign_run_id",
+			'gophish_campaign_id' => 'BIGINT UNSIGNED DEFAULT NULL AFTER gophish_rid',
+			'quiz_page_id'        => 'BIGINT UNSIGNED DEFAULT NULL AFTER gophish_campaign_id',
+			'question_count'      => 'SMALLINT UNSIGNED NOT NULL DEFAULT 0 AFTER score',
+			'correct_count'       => 'SMALLINT UNSIGNED NOT NULL DEFAULT 0 AFTER question_count',
+			'pass_score_used'     => 'TINYINT UNSIGNED NOT NULL DEFAULT 0 AFTER passed',
+		];
+
+		foreach ( $columns as $column => $definition ) {
+			$exists = $wpdb->get_var( $wpdb->prepare( "SHOW COLUMNS FROM {$table} LIKE %s", $column ) );
+			if ( ! $exists ) {
+				$wpdb->query( "ALTER TABLE {$table} ADD {$column} {$definition}" ); // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared -- fixed whitelist above
+			}
+		}
+
+		if ( ! $wpdb->get_var( $wpdb->prepare( "SHOW INDEX FROM {$table} WHERE Key_name = %s", 'run_rid' ) ) ) {
+			$wpdb->query( "ALTER TABLE {$table} ADD UNIQUE KEY run_rid (campaign_run_id, gophish_rid)" );
+		}
+		if ( ! $wpdb->get_var( $wpdb->prepare( "SHOW INDEX FROM {$table} WHERE Key_name = %s", 'invite_rid' ) ) ) {
+			$wpdb->query( "ALTER TABLE {$table} ADD UNIQUE KEY invite_rid (gophish_campaign_id, gophish_rid)" );
+		}
+		if ( ! $wpdb->get_var( $wpdb->prepare( "SHOW INDEX FROM {$table} WHERE Key_name = %s", 'entity_name' ) ) ) {
+			$wpdb->query( "ALTER TABLE {$table} ADD INDEX entity_name (entity_name)" );
 		}
 	}
 

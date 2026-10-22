@@ -1,46 +1,220 @@
-import { useState } from 'react'
+import { useMemo, useState } from 'react'
+import toast from 'react-hot-toast'
 import PageHeader from '../../components/UI/PageHeader.jsx'
 import PageShell from '../../components/Layout/PageShell.jsx'
+import Button from '../../components/UI/Button.jsx'
+import Tabs from '../../components/UI/Tabs.jsx'
+import useAppStore from '../../store/useAppStore.js'
+import { useMyProfile } from '../../hooks/queries/useProfileQueries.js'
+import { useQuizPage, useQuizPages, useQuizQuestions, useQuizResults, useQuizTemplates } from '../../hooks/queries/useQuizQueries.js'
+import {
+  useCreateQuizPageMutation,
+  useCreateQuizQuestionMutation,
+  useCreateQuizTemplateMutation,
+  useDeleteQuizPageMutation,
+  useDeleteQuizQuestionMutation,
+  useDeleteQuizTemplateMutation,
+  usePublishQuizPageMutation,
+  useSaveQuizPageMutation,
+  useSetDefaultQuizPageMutation,
+  useSyncQuizPageMutation,
+  useUnpublishQuizPageMutation,
+  useUpdateQuizQuestionMutation,
+  useUpdateQuizTemplateMutation,
+} from '../../hooks/mutations/useQuizMutations.js'
+import { quizApi } from '../../api/index.js'
+import {
+  QuestionBankPanel,
+  QuizBuilder,
+  QuizListPanel,
+  QuizResultsPanel,
+  QuizTemplateAdminPanel,
+  SendQuizDialog,
+} from '../../features/quiz/components/index.js'
 
+/**
+ * Quiz Module (docs/PRD_QUIZ_MODULE.md FR-1, §13 Quiz Builder v2) — the
+ * orchestration layer: it owns the queries, the mutations, the permission
+ * props and the composition, and hands plain data plus callbacks to the
+ * components (AGENTS.md §4.2).
+ */
 export default function Quiz() {
-  const [result, setResult] = useState(null)
+  const [tab, setTab] = useState('bank')
+  const [inviting, setInviting] = useState(false)
+  const [sending, setSending] = useState(false)
+  // Quiz Page tab: null = quiz list; a number = that quiz open in the builder.
+  const [openQuizId, setOpenQuizId] = useState(null)
 
-  const submitAnswer = (correct) => {
-    setResult(correct
-      ? { ok: true, text: 'Correct. Ignore suspicious emails and verify through official internal channels.' }
-      : { ok: false, text: 'Not quite. Do not click links or reply to suspicious emails. Verify through IT or the official portal.' })
+  const { data: profile } = useMyProfile()
+  const entityName = String(profile?.entity || '').trim()
+  const isGeneralEntity = entityName.toLowerCase() === 'general'
+  const isAdmin = useAppStore(state => state.isAdmin())
+  const canManageBankPerm = useAppStore(state => state.hasPermission('post_sim.manage'))
+  const canEditPagePerm = useAppStore(state => state.hasPermission('quiz_pages.edit'))
+  const canPublishPagePerm = useAppStore(state => state.hasPermission('quiz_pages.publish'))
+  const canInvitePerm = useAppStore(state => state.hasPermission('quiz_pages.invite'))
+
+  // Mirrors backend scoping only to avoid showing actions that would 403 — the
+  // backend is the real enforcement.
+  const canManageBank = Boolean(entityName) && (isAdmin || (!isGeneralEntity && canManageBankPerm))
+  const canEditPage = Boolean(entityName) && (isAdmin || (!isGeneralEntity && canEditPagePerm))
+  const canPublishPage = Boolean(entityName) && (isAdmin || (!isGeneralEntity && canPublishPagePerm))
+  const canInvite = Boolean(entityName) && (isAdmin || (!isGeneralEntity && canInvitePerm))
+
+  const tabs = useMemo(() => {
+    const base = [
+      { key: 'bank', label: 'Question Bank', icon: 'ti-list-numbers' },
+      { key: 'page', label: 'Quiz Page', icon: 'ti-file-code' },
+      { key: 'results', label: 'Results', icon: 'ti-chart-bar' },
+    ]
+    if (isAdmin) base.push({ key: 'templates', label: 'Templates', icon: 'ti-layout-board' })
+    return base
+  }, [isAdmin])
+
+  const requestExtras = useMemo(() => ({}), [])
+  const { data: bank, isLoading: loadingBank } = useQuizQuestions(requestExtras)
+  const { data: pagesData, isLoading: loadingPages } = useQuizPages(requestExtras, { enabled: tab === 'page' })
+  const { data: openPage, isLoading: loadingOpenPage } = useQuizPage(
+    { ...requestExtras, id: openQuizId },
+    { enabled: tab === 'page' && Boolean(openQuizId) },
+  )
+  const { data: templatesData } = useQuizTemplates(requestExtras, { enabled: tab === 'page' || tab === 'templates' })
+  const results = useQuizResults(requestExtras, { enabled: tab === 'results' })
+
+  const createQuestion = useCreateQuizQuestionMutation()
+  const updateQuestion = useUpdateQuizQuestionMutation()
+  const deleteQuestion = useDeleteQuizQuestionMutation()
+  const createPage = useCreateQuizPageMutation()
+  const setDefaultPage = useSetDefaultQuizPageMutation()
+  const deletePage = useDeleteQuizPageMutation()
+  const saveMutation = useSaveQuizPageMutation()
+  const publishMutation = usePublishQuizPageMutation()
+  const unpublishMutation = useUnpublishQuizPageMutation()
+  const syncMutation = useSyncQuizPageMutation()
+  const createTemplate = useCreateQuizTemplateMutation()
+  const updateTemplate = useUpdateQuizTemplateMutation()
+  const deleteTemplate = useDeleteQuizTemplateMutation()
+
+  const questions = bank?.questions || []
+  const quizzes = pagesData?.quizzes || []
+  const templates = templatesData?.templates || []
+  const bankBusy = createQuestion.isPending || updateQuestion.isPending || deleteQuestion.isPending
+  const pageBusy = createPage.isPending || setDefaultPage.isPending || deletePage.isPending
+  const templateBusy = createTemplate.isPending || updateTemplate.isPending || deleteTemplate.isPending
+
+  const defaultQuiz = quizzes.find(q => q.is_default_followup)
+  const canSendInvite = canInvite && Boolean(defaultQuiz && defaultQuiz.status === 'published' && defaultQuiz.gophish_master_id)
+
+  async function handleSendInvite(payload) {
+    setSending(true)
+    try {
+      const result = await quizApi.invite(payload)
+      toast.success(`Quiz sent to ${result?.recipients ?? 0} recipient(s).`)
+      setInviting(false)
+    } catch (err) {
+      toast.error(err.message)
+    } finally {
+      setSending(false)
+    }
   }
 
   return (
     <PageShell animated={false}>
-      <PageHeader title="Quiz" subtitle="Cybersecurity evaluation mini quiz" />
+      <PageHeader
+        title="Quiz Module"
+        subtitle={entityName ? `Question bank and quizzes for ${entityName}` : 'Question bank and quiz results'}
+        actions={canSendInvite ? (
+          <Button variant="outline" onClick={() => setInviting(true)}>
+            <i className="ti ti-send text-base" />
+            <span>Send quiz manually</span>
+          </Button>
+        ) : null}
+      />
 
-      <div className="bg-panel border border-line rounded-xl p-6 max-w-xl">
-        <div className="space-y-4">
-          <h3 className="text-sm font-semibold text-ink">
-            If you receive an email urgently asking you to update your password through a special link, what is the best action?
-          </h3>
-          <div className="flex flex-col gap-2 pt-2">
-            <button onClick={() => submitAnswer(false)} className="text-left px-4 py-2.5 rounded-xl border border-line hover:bg-panel-subtle text-xs font-medium transition-all">
-              A. Click the link immediately and change the password as soon as possible.
-            </button>
-            <button onClick={() => submitAnswer(true)} className="text-left px-4 py-2.5 rounded-xl border border-line hover:bg-panel-subtle text-xs font-medium transition-all">
-              B. Ignore the email, then contact internal IT or check the official company portal separately.
-            </button>
-            <button onClick={() => submitAnswer(false)} className="text-left px-4 py-2.5 rounded-xl border border-line hover:bg-panel-subtle text-xs font-medium transition-all">
-              C. Reply to the email and ask the sender whether it is legitimate.
-            </button>
-          </div>
-          {result && (
-            <div className={result.ok
-              ? 'text-xs rounded-xl p-4 mt-3 bg-emerald-500/10 text-emerald-800 dark:text-emerald-300 border border-emerald-500/20'
-              : 'text-xs rounded-xl p-4 mt-3 bg-red-500/10 text-red-800 dark:text-red-300 border border-red-500/20'}
-            >
-              {result.text}
-            </div>
-          )}
-        </div>
+      {!entityName && (
+        <p className="mb-4 text-sm text-ink-muted">Your account must be assigned to an entity before you can manage its quiz.</p>
+      )}
+
+      <Tabs items={tabs} active={tab} onChange={setTab} />
+
+      <div className="mt-6">
+        {tab === 'bank' && (
+          loadingBank
+            ? <p className="text-sm text-ink-faint">Loading questions…</p>
+            : (
+              <QuestionBankPanel
+                questions={questions}
+                canManage={canManageBank}
+                busy={bankBusy}
+                onCreate={(data, done) => createQuestion.mutate(data, { onSuccess: done })}
+                onUpdate={({ id, data }, done) => updateQuestion.mutate({ id, data }, { onSuccess: done })}
+                onDelete={question => deleteQuestion.mutate(question.id)}
+              />
+            )
+        )}
+
+        {tab === 'page' && (
+          openQuizId
+            ? (loadingOpenPage || !openPage
+              ? <p className="text-sm text-ink-faint">Loading quiz…</p>
+              : (
+                <QuizBuilder
+                  key={openPage.id}
+                  page={openPage}
+                  templates={templates}
+                  questions={questions}
+                  canEdit={canEditPage}
+                  canPublish={canPublishPage}
+                  onBack={() => setOpenQuizId(null)}
+                  saveMutation={saveMutation}
+                  publishMutation={publishMutation}
+                  unpublishMutation={unpublishMutation}
+                  syncMutation={syncMutation}
+                />
+              ))
+            : (loadingPages
+              ? <p className="text-sm text-ink-faint">Loading quizzes…</p>
+              : (
+                <QuizListPanel
+                  quizzes={quizzes}
+                  canEdit={canEditPage}
+                  canPublish={canPublishPage}
+                  busy={pageBusy}
+                  onCreate={() => createPage.mutate({ data: {} }, { onSuccess: res => setOpenQuizId(res?.id || null) })}
+                  onOpen={quiz => setOpenQuizId(quiz.id)}
+                  onSetDefault={quiz => setDefaultPage.mutate({ data: { id: quiz.id } })}
+                  onDelete={quiz => deletePage.mutate({ data: { id: quiz.id } })}
+                />
+              ))
+        )}
+
+        {tab === 'results' && (
+          <QuizResultsPanel
+            data={results.data}
+            isLoading={results.isLoading}
+            isError={results.isError}
+            error={results.error}
+          />
+        )}
+
+        {tab === 'templates' && isAdmin && (
+          <QuizTemplateAdminPanel
+            templates={templates}
+            busy={templateBusy}
+            onCreate={(data, done) => createTemplate.mutate(data, { onSuccess: done })}
+            onUpdate={({ id, data }, done) => updateTemplate.mutate({ id, data }, { onSuccess: done })}
+            onDelete={template => deleteTemplate.mutate(template.id)}
+          />
+        )}
       </div>
+
+      {inviting && (
+        <SendQuizDialog
+          busy={sending}
+          onClose={() => setInviting(false)}
+          onSend={handleSendInvite}
+        />
+      )}
     </PageShell>
   )
 }

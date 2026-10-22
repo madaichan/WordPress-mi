@@ -37,6 +37,16 @@ export const queryKeys = {
     page: (params = {}) => ['flags', 'page', params],
   },
 
+  quiz: {
+    all: ['quiz'],
+    questions: (params = {}) => ['quiz', 'questions', params],
+    pages: (params = {}) => ['quiz', 'pages', params],
+    page: (params = {}) => ['quiz', 'page', params],
+    results: (params = {}) => ['quiz', 'results', params],
+    templates: (params = {}) => ['quiz', 'templates', params],
+    template: (id) => ['quiz', 'template', id],
+  },
+
   gophish: {
     all: ['gophish'],
     status: ['gophish', 'status'],

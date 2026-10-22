@@ -15,14 +15,19 @@ const LAUNCH_STAGE_LABELS = {
   launching: 'Launching…',
 }
 
-export default function Step3({ form, setForm, csvData, playbooks = [], componentOptions = EMPTY_PLAYBOOK_COMPONENT_OPTIONS, onBack, onLaunch, onDraft, onRefreshChecklist, isLaunching, isSavingDraft, launchStage, isEditing = false, entity = '', canBypassEmailDomainGuardrail = false, educationFollowUpAvailable = false }) {
-  const quizEnabled = form.followUp?.quizEnabled ?? true
+export default function Step3({ form, setForm, csvData, playbooks = [], componentOptions = EMPTY_PLAYBOOK_COMPONENT_OPTIONS, onBack, onLaunch, onDraft, onRefreshChecklist, isLaunching, isSavingDraft, launchStage, isEditing = false, entity = '', canBypassEmailDomainGuardrail = false, educationFollowUpAvailable = false, quizFollowUpAvailable = false, quizPassScore = null }) {
   const reminderEnabled = form.followUp?.forceResetPasswordReminderEnabled ?? false
   // Education follow-up (G3b) is only offered when this entity has a published
   // education page synced to a GoPhish master; otherwise there's nothing to
   // chain to. The toggle defaults on, so its effective state folds in
   // availability — matching what the launch payload actually sends.
   const educationEnabled = educationFollowUpAvailable && (form.followUp?.educationEnabled ?? true)
+  // Quiz follow-up is independent of education (PRD_QUIZ_MODULE FR-13): with
+  // education off it chains the simulation straight to the quiz master. It
+  // defaults on when available, like education, so the effective state folds
+  // in availability to match the launch payload.
+  const quizEnabled = quizFollowUpAvailable && (form.followUp?.quizEnabled ?? true)
+  const quizPassScoreOverride = form.followUp?.quizPassScore ?? ''
   const isCustomMode = form.mode === 'custom'
   const customComponents = form.customComponents || {}
 
@@ -296,18 +301,56 @@ export default function Step3({ form, setForm, csvData, playbooks = [], componen
               />
             </div>
 
-            <div className="space-y-3 opacity-60 pointer-events-none border-t border-line-soft pt-3" title="These follow-up settings are still in development — not available yet.">
-              <div className="flex items-center justify-between gap-2">
-                <div className="flex items-center gap-2 text-xs text-ink-soft">
-                  <i className={clsx('ti text-base flex-shrink-0', quizEnabled ? 'ti-circle-check text-emerald-600 dark:text-emerald-400' : 'ti-circle-x text-ink-faint')} />
-                  {quizEnabled ? 'Quiz sent to users who click' : 'Quiz disabled for this campaign'}
-                </div>
-                <div className="flex items-center gap-2">
-                  <span className="rounded-full text-[9px] font-semibold px-2 py-0.5 bg-panel-muted text-ink-muted">Coming soon</span>
-                  <Switch checked={quizEnabled} onChange={value => setFollowUp({ quizEnabled: value })} disabled />
+            {/* Quiz follow-up (Quiz Module Q4) — live when the entity has a
+                published quiz page synced to GoPhish. */}
+            <div className="flex items-center justify-between gap-2">
+              <div className="flex items-start gap-2 text-xs text-ink-soft">
+                <i className={clsx('ti text-base flex-shrink-0', quizEnabled ? 'ti-circle-check text-emerald-600 dark:text-emerald-400' : 'ti-circle-x text-ink-faint')} />
+                <span>
+                  {quizFollowUpAvailable
+                    ? (quizEnabled
+                      ? (educationEnabled ? 'Quiz shown after the education page' : 'Quiz shown after a user submits')
+                      : 'Quiz disabled for this campaign')
+                    : 'Quiz unavailable'}
+                  {!quizFollowUpAvailable && (
+                    <span className="block text-[11px] text-ink-faint mt-0.5">
+                      Mark one quiz as the default follow-up (Post Simulation → Quiz), then publish and sync it to GoPhish first.
+                    </span>
+                  )}
+                </span>
+              </div>
+              <Switch
+                checked={quizEnabled}
+                onChange={value => setFollowUp({ quizEnabled: value })}
+                disabled={!quizFollowUpAvailable}
+              />
+            </div>
+
+            {quizEnabled && (
+              <div className="flex items-center justify-between gap-2 pl-6">
+                <label className="text-xs text-ink-soft" htmlFor="quiz-pass-score">
+                  Pass score for this campaign
+                  <span className="block text-[11px] text-ink-faint mt-0.5">
+                    Leave empty to use the entity default{quizPassScore != null ? ` (${quizPassScore}%)` : ''}.
+                  </span>
+                </label>
+                <div className="flex items-center gap-1">
+                  <input
+                    id="quiz-pass-score"
+                    type="number"
+                    min="0"
+                    max="100"
+                    value={quizPassScoreOverride}
+                    onChange={e => setFollowUp({ quizPassScore: e.target.value === '' ? null : Number(e.target.value) })}
+                    placeholder={quizPassScore != null ? String(quizPassScore) : '70'}
+                    className="w-16 rounded-lg border border-line bg-panel px-2 py-1 text-xs text-ink text-right"
+                  />
+                  <span className="text-xs text-ink-faint">%</span>
                 </div>
               </div>
+            )}
 
+            <div className="space-y-3 opacity-60 pointer-events-none border-t border-line-soft pt-3" title="These follow-up settings are still in development — not available yet.">
               <div className="flex items-center justify-between gap-2">
                 <div className="flex items-center gap-2 text-xs text-ink-soft">
                   <i className={clsx('ti text-base flex-shrink-0', reminderEnabled ? 'ti-circle-check text-emerald-600 dark:text-emerald-400' : 'ti-circle-x text-ink-faint')} />

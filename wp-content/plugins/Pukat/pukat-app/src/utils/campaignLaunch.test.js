@@ -46,7 +46,8 @@ describe('campaignLaunch', () => {
       schedule_at: '2026-08-10 16:45:00',
       target_group_name: null,
       follow_up: {
-        quiz_enabled: true,
+        quiz_enabled: false,
+        quiz_pass_score: null,
         education_enabled: false,
         force_reset_password_reminder_enabled: false,
       },
@@ -61,8 +62,11 @@ describe('campaignLaunch', () => {
   })
 
   it('defaults follow-up preferences when unset, and passes through explicit choices', () => {
+    // Both chained stages default OFF in the payload: Campaigns.jsx folds in
+    // whether the entity has a published master before building it, so an
+    // absent flag must never opt a run into a chain.
     expect(buildCampaignLaunchPayload({ name: 'Defaults', timezone: 'WIB' }, [])).toMatchObject({
-      follow_up: { quiz_enabled: true, education_enabled: false, force_reset_password_reminder_enabled: false },
+      follow_up: { quiz_enabled: false, quiz_pass_score: null, education_enabled: false, force_reset_password_reminder_enabled: false },
     })
 
     expect(buildCampaignLaunchPayload(
@@ -70,6 +74,23 @@ describe('campaignLaunch', () => {
       []
     )).toMatchObject({
       follow_up: { quiz_enabled: false, education_enabled: true, force_reset_password_reminder_enabled: true },
+    })
+  })
+
+  it('carries the quiz follow-up choice and its per-run pass score override', () => {
+    expect(buildCampaignLaunchPayload(
+      { name: 'Quiz only', timezone: 'WIB', followUp: { quizEnabled: true, educationEnabled: false, quizPassScore: 90 } },
+      []
+    )).toMatchObject({
+      follow_up: { quiz_enabled: true, quiz_pass_score: 90, education_enabled: false },
+    })
+
+    // Empty override means "use the entity default", not zero.
+    expect(buildCampaignLaunchPayload(
+      { name: 'Quiz default score', timezone: 'WIB', followUp: { quizEnabled: true, quizPassScore: null } },
+      []
+    )).toMatchObject({
+      follow_up: { quiz_enabled: true, quiz_pass_score: null },
     })
   })
 

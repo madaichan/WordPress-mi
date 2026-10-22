@@ -6,6 +6,7 @@ import { useTableRows, useTableSchema } from '../../hooks/queries/useTableQuerie
 import { usePlaybooks } from '../../hooks/queries/usePlaybookQueries.js'
 import { useEntityReadiness } from '../../hooks/queries/useEntityQueries.js'
 import { useFlagPage } from '../../hooks/queries/useFlagQueries.js'
+import { useQuizPage } from '../../hooks/queries/useQuizQueries.js'
 import {
   useMasterDynamicDomains,
   useMasterEmailTemplates,
@@ -64,9 +65,11 @@ function makeInitialForm() {
     sendTime: minSendTimeForDate(today),
     timezone: 'WIB',
     followUp: {
+      // Both default on; Step 3 gates each on the entity actually having the
+      // matching published master, and the launch payload drops whichever is
+      // unavailable.
       quizEnabled: true,
-      // Default on; Step 3 gates it on the entity actually having a published
-      // education master, and the launch payload drops it when unavailable.
+      quizPassScore: null,
       educationEnabled: true,
       forceResetPasswordReminderEnabled: false,
     },
@@ -207,6 +210,14 @@ export default function Campaigns() {
   )
   const educationFollowUpAvailable = runEntityFlagPage?.status === 'published'
     && Boolean(runEntityFlagPage?.gophish_master_id)
+  // Quiz follow-up is gated the same way, on its own published master — it can
+  // be chained with or without education (PRD_QUIZ_MODULE FR-13).
+  const { data: runEntityQuizPage } = useQuizPage(
+    isFullAdmin ? { entity: runEntity } : {},
+    { enabled: view === 'new' },
+  )
+  const quizFollowUpAvailable = runEntityQuizPage?.status === 'published'
+    && Boolean(runEntityQuizPage?.gophish_master_id)
   const canUseCustomCampaign = canCreatePlaybook(currentUser, { isFullAdmin, hasCreateCapability: hasPlaybookCreateCapability })
   const defaultEntity = useMemo(() => assetEntityForUser(currentUser), [currentUser])
 
@@ -347,6 +358,7 @@ export default function Campaigns() {
       timezone: regionForTimezone(timezone),
       followUp: {
         quizEnabled: editRunData.follow_up?.quiz_enabled ?? true,
+        quizPassScore: editRunData.follow_up?.quiz_pass_score ?? null,
         educationEnabled: editRunData.follow_up?.education_enabled ?? true,
         forceResetPasswordReminderEnabled: editRunData.follow_up?.force_reset_password_reminder_enabled ?? false,
       },
@@ -446,27 +458,29 @@ export default function Campaigns() {
     }
   }
 
-  // Surface the G3b education-follow-up link result (CampaignRunService::
-  // launch() returns `education_link` only when the run opted in). A link
-  // failure is a warning, not a launch failure — the simulation already ran.
-  const surfaceEducationLinkResult = (launchedRun) => {
-    const link = launchedRun?.education_link
+  // Surface the follow-up chain result (CampaignRunService::launch() returns
+  // `follow_up_link` only when the run opted into a stage). A link failure is a
+  // warning, not a launch failure — the simulation already ran.
+  const surfaceFollowUpLinkResult = (launchedRun) => {
+    const link = launchedRun?.follow_up_link || launchedRun?.education_link
     if (!link) return
+    const stage = link.stage === 'quiz' ? 'Quiz' : 'Education'
     if (link.ok) {
-      toast.success('Education follow-up linked to this simulation.')
+      toast.success(`${stage} follow-up linked to this simulation.`)
     } else {
-      toast.error(link.message || 'Education follow-up could not be linked — the simulation launched without it.')
+      toast.error(link.message || `${stage} follow-up could not be linked — the simulation launched without it.`)
     }
   }
 
-  // Drop education follow-up from the saved run unless this entity actually
-  // has a published education master to chain to (G3b). The toggle defaults on
-  // but is meaningless — and the backend link would just warn — without one.
-  const withEffectiveEducation = (f) => ({
+  // Drop a follow-up stage from the saved run unless this entity actually has
+  // the matching published master to chain to. The toggles default on but are
+  // meaningless — and the backend link would just warn — without one.
+  const withEffectiveFollowUp = (f) => ({
     ...f,
     followUp: {
       ...f.followUp,
       educationEnabled: educationFollowUpAvailable && (f.followUp?.educationEnabled ?? true),
+      quizEnabled: quizFollowUpAvailable && (f.followUp?.quizEnabled ?? true),
     },
   })
 
@@ -512,7 +526,7 @@ export default function Campaigns() {
         if (!playbookIdForRun) return
       }
 
-      const payload = buildCampaignLaunchPayload(withEffectiveEducation({ ...form, playbook: playbookIdForRun }), wizardPlaybooks)
+      const payload = buildCampaignLaunchPayload(withEffectiveFollowUp({ ...form, playbook: playbookIdForRun }), wizardPlaybooks)
       const run = editingRunId
         ? await updateCampaignRunMutation.mutateAsync({ id: editingRunId, data: payload })
         : await createCampaignRunMutation.mutateAsync(payload)
@@ -523,7 +537,7 @@ export default function Campaigns() {
       setLaunchStage('launching')
       const launched = await launchRunWithGuardrailRetry(run.id)
       if (!launched) return
-      surfaceEducationLinkResult(launched)
+      surfaceFollowUpLinkResult(launched)
 
       resetWizard()
       navigate('/manage-campaigns')
@@ -566,7 +580,7 @@ export default function Campaigns() {
         if (!playbookIdForRun) return
       }
 
-      const payload = buildCampaignLaunchPayload(withEffectiveEducation({ ...form, playbook: playbookIdForRun }), wizardPlaybooks)
+      const payload = buildCampaignLaunchPayload(withEffectiveFollowUp({ ...form, playbook: playbookIdForRun }), wizardPlaybooks)
       let run
       if (editingRunId) {
         run = await updateCampaignRunMutation.mutateAsync({ id: editingRunId, data: payload })
@@ -656,6 +670,8 @@ export default function Campaigns() {
             entity={runEntity}
             canBypassEmailDomainGuardrail={canBypassEmailDomainGuardrail}
             educationFollowUpAvailable={educationFollowUpAvailable}
+            quizFollowUpAvailable={quizFollowUpAvailable}
+            quizPassScore={runEntityQuizPage?.effective_pass_score ?? null}
             onRefreshChecklist={refreshChecklistSources}
           />
         )}
