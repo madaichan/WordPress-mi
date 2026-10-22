@@ -3,7 +3,7 @@ import { useMasterDynamicDomains } from '../../../hooks/queries/useMasterAssetQu
 import { BrowserPreview } from '../../assets/components/index.js'
 import Badge from '../../../components/UI/Badge.jsx'
 import Button from '../../../components/UI/Button.jsx'
-import EmptyState from '../../../components/UI/EmptyState.jsx'
+import Modal from '../../../components/UI/Modal.jsx'
 import Select from '../../../components/UI/Select.jsx'
 
 /** Short, human wording for each linter problem code (docs/PRD_QUIZ_MODULE.md FR-6). */
@@ -44,6 +44,7 @@ export default function QuizBuilder({
   const [launchUrl, setLaunchUrl] = useState(page.launch_url || '')
   const [thankyouUrl, setThankyouUrl] = useState(page.thankyou_url || '')
   const [passScore, setPassScore] = useState(page.pass_score ?? '')
+  const [preview, setPreview] = useState(false)
 
   const { data: domainsData } = useMasterDynamicDomains()
   const quizDomains = useMemo(
@@ -108,8 +109,13 @@ export default function QuizBuilder({
             </div>
           </div>
         </div>
-        {canEdit && (
-          <div className="flex items-center gap-2">
+        <div className="flex items-center gap-2">
+          <Button variant="outline" size="sm" onClick={() => setPreview(true)} disabled={!page.html_body} title={page.html_body ? 'Preview the generated quiz page' : 'Save the draft first to generate a preview'}>
+            <i className="ti ti-eye text-sm" />
+            <span>Preview</span>
+          </Button>
+          {canEdit && (
+          <>
             <Button variant="outline" size="sm" onClick={save} disabled={busy || locked}>Save draft</Button>
             {canPublish && !isPublished && <Button variant="primary" size="sm" onClick={publish} disabled={busy || locked}>Publish</Button>}
             {canPublish && isPublished && (
@@ -118,8 +124,9 @@ export default function QuizBuilder({
                 <Button variant="outline" size="sm" onClick={unpublish} disabled={busy || locked}>Unpublish</Button>
               </>
             )}
-          </div>
-        )}
+          </>
+          )}
+        </div>
       </div>
 
       {locked && (
@@ -128,9 +135,9 @@ export default function QuizBuilder({
         </div>
       )}
 
-      <div className="grid gap-5 lg:grid-cols-[minmax(0,1fr)_minmax(0,1fr)]">
-        {/* Left: builder form */}
-        <div className="space-y-4 text-xs">
+      <div>
+        {/* Builder form (preview opens in a modal via the header button) */}
+        <div className="max-w-2xl space-y-4 text-xs">
           <label className="block space-y-1">
             <span className="font-semibold text-ink-soft">Quiz name *</span>
             <input value={title} onChange={e => setTitle(e.target.value)} disabled={!canEdit}
@@ -263,22 +270,24 @@ export default function QuizBuilder({
                 )
             )}
             {page.gophish_master_id && <p className="text-[11px] text-ink-faint">GoPhish master #{page.gophish_master_id}{page.synced_at ? ` · synced ${page.synced_at}` : ''}</p>}
+            <p className="text-[11px] text-ink-faint">Save the draft, then use <span className="font-semibold">Preview</span> (top right) to see the generated page.</p>
           </div>
         </div>
+      </div>
 
-        {/* Right: live preview of the generated page */}
-        <div>
+      {preview && (
+        <Modal
+          open
+          onClose={() => setPreview(false)}
+          title="Quiz page preview"
+          subtitle={page.title || 'Generated quiz page'}
+          className="max-w-5xl"
+        >
           {page.html_body
             ? <BrowserPreview html={page.html_body} redirectUrl={page.thankyou_url} title="Quiz preview" />
-            : (
-              <EmptyState
-                icon="ti-eye"
-                title="No preview yet"
-                description="Pick a template and questions, then Save draft to generate and preview the page."
-              />
-            )}
-        </div>
-      </div>
+            : <p className="text-sm text-ink-faint">Save the draft first to generate the page.</p>}
+        </Modal>
+      )}
     </div>
   )
 }

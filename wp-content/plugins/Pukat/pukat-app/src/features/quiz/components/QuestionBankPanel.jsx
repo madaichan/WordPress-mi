@@ -5,6 +5,8 @@ import Badge from '../../../components/UI/Badge.jsx'
 import Button from '../../../components/UI/Button.jsx'
 import Drawer from '../../../components/UI/Drawer.jsx'
 import EmptyState from '../../../components/UI/EmptyState.jsx'
+import Modal from '../../../components/UI/Modal.jsx'
+import QuestionPreview from './QuestionPreview.jsx'
 
 const BLANK = {
   question: '',
@@ -32,6 +34,7 @@ const BLANK = {
  */
 export default function QuestionBankPanel({ questions = [], canManage = false, busy = false, onCreate, onUpdate, onDelete }) {
   const [editing, setEditing] = useState(null)
+  const [previewing, setPreviewing] = useState(null)
 
   const openNew = () => setEditing({ ...BLANK, options: BLANK.options.map(o => ({ ...o })) })
   const openEdit = (question) => setEditing({
@@ -111,14 +114,19 @@ export default function QuestionBankPanel({ questions = [], canManage = false, b
                 <p className="text-sm text-ink">{question.question}</p>
                 {question.tags && <p className="text-[11px] text-ink-faint">Tags: {question.tags}</p>}
               </div>
-              {canManage && (
-                <div className="flex items-center gap-2">
-                  <Button variant="outline" size="sm" onClick={() => openEdit(question)} disabled={busy}>Edit</Button>
-                  <Button variant="outline" size="sm" onClick={() => onDelete?.(question)} disabled={busy}>
-                    <i className="ti ti-trash text-sm text-danger" />
-                  </Button>
-                </div>
-              )}
+              <div className="flex items-center gap-2">
+                <Button variant="outline" size="sm" onClick={() => setPreviewing(question)} title="Preview this question">
+                  <i className="ti ti-eye text-sm" />
+                </Button>
+                {canManage && (
+                  <>
+                    <Button variant="outline" size="sm" onClick={() => openEdit(question)} disabled={busy}>Edit</Button>
+                    <Button variant="outline" size="sm" onClick={() => onDelete?.(question)} disabled={busy}>
+                      <i className="ti ti-trash text-sm text-danger" />
+                    </Button>
+                  </>
+                )}
+              </div>
             </div>
           ))}
         </div>
@@ -245,6 +253,17 @@ export default function QuestionBankPanel({ questions = [], canManage = false, b
             </label>
           </div>
         </Drawer>
+      )}
+
+      {previewing && (
+        <Modal
+          open
+          onClose={() => setPreviewing(null)}
+          title="Question preview"
+          subtitle="How this question appears to a target"
+        >
+          <QuestionPreview question={previewing} />
+        </Modal>
       )}
     </div>
   )
