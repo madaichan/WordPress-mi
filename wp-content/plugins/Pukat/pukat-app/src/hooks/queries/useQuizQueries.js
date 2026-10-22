@@ -36,6 +36,15 @@ export function useQuizPage(params = {}, options = {}) {
   })
 }
 
+/** Admin-only: every quiz across all entities with usage + chain linkage. */
+export function useQuizPagesOverview(options = {}) {
+  return useQuery({
+    queryKey: queryKeys.quiz.overview(),
+    queryFn: () => quizApi.pagesOverview(),
+    ...options,
+  })
+}
+
 /** The reusable quiz template catalogue (metadata + placeholder declarations). */
 export function useQuizTemplates(params = {}, options = {}) {
   return useQuery({

@@ -187,6 +187,49 @@ class QuizResultRepository {
 		return $out;
 	}
 
+	/**
+	 * Per-quiz usage from recorded results — attempts, distinct participants,
+	 * and distinct campaign runs — for the admin quiz overview (Quiz Builder
+	 * v2). Keyed by quiz_page_id.
+	 *
+	 * @param array<int, int> $quiz_page_ids
+	 * @return array<int, array{attempts: int, participants: int, runs: int}>
+	 */
+	public function usage_by_quiz_page( array $quiz_page_ids ): array {
+		global $wpdb;
+
+		$ids = array_values( array_unique( array_filter( array_map( 'intval', $quiz_page_ids ), static fn ( int $i ): bool => $i > 0 ) ) );
+		if ( empty( $ids ) ) {
+			return [];
+		}
+
+		$placeholders = implode( ',', array_fill( 0, count( $ids ), '%d' ) );
+		$rows         = $wpdb->get_results(
+			$wpdb->prepare(
+				"SELECT quiz_page_id,
+					COUNT(*) AS attempts,
+					COUNT(DISTINCT target_email) AS participants,
+					COUNT(DISTINCT campaign_run_id) AS runs
+				FROM {$this->table()}
+				WHERE quiz_page_id IN ({$placeholders})
+				GROUP BY quiz_page_id", // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared -- placeholders built from an int count
+				$ids
+			),
+			ARRAY_A
+		) ?: [];
+
+		$out = [];
+		foreach ( $rows as $row ) {
+			$out[ (int) $row['quiz_page_id'] ] = [
+				'attempts'     => (int) $row['attempts'],
+				'participants' => (int) $row['participants'],
+				'runs'         => (int) $row['runs'],
+			];
+		}
+
+		return $out;
+	}
+
 	private function table(): string {
 		global $wpdb;
 

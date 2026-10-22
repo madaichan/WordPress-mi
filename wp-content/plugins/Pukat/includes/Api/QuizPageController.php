@@ -50,6 +50,13 @@ class QuizPageController extends RestController {
 			],
 		] );
 
+		register_rest_route( $this->namespace, '/quiz-pages/overview', [
+			'methods'             => 'GET',
+			'callback'            => [ $this, 'overview_pages' ],
+			// Cross-entity admin oversight — gated by the admin-only templates key.
+			'permission_callback' => fn () => $this->require_capability( 'quiz_templates.view' ),
+		] );
+
 		register_rest_route( $this->namespace, '/quiz-page/default', [
 			'methods'             => 'POST',
 			'callback'            => [ $this, 'set_default_page' ],
@@ -120,6 +127,10 @@ class QuizPageController extends RestController {
 		$result = $this->pages->create( $request->get_params(), get_current_user_id() );
 
 		return is_wp_error( $result ) ? $this->from_wp_error( $result ) : $this->success( $result );
+	}
+
+	public function overview_pages(): WP_REST_Response {
+		return $this->success( $this->pages->overview() );
 	}
 
 	public function set_default_page( WP_REST_Request $request ): WP_REST_Response {

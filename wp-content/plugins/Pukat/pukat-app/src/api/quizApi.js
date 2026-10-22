@@ -17,6 +17,8 @@ export const quizApi = {
   // Quiz pages — many per entity (Quiz Builder v2). `entity` is only honored
   // for admins; `id` targets one quiz (omit for the entity's default/first).
   listPages:     (params = {}) => get('/quiz-pages', { params }),
+  // Admin-only: every quiz across all entities with usage + chain linkage.
+  pagesOverview: () => get('/quiz-pages/overview'),
   createPage:    (data = {})   => post('/quiz-pages', data),
   getPage:       (params = {}) => get('/quiz-page', { params }),
   savePage:      (data)        => put('/quiz-page', data),

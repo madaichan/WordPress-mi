@@ -72,6 +72,21 @@ class QuizPageRepository {
 		) ?: [];
 	}
 
+	/**
+	 * Every quiz across all entities (metadata only) — for the admin overview
+	 * (Quiz Builder v2). Admin-only; callers gate access.
+	 *
+	 * @return array<int, array<string, mixed>>
+	 */
+	public function list_all(): array {
+		global $wpdb;
+
+		return $wpdb->get_results(
+			'SELECT ' . self::LIST_FIELDS . " FROM {$this->table()} ORDER BY entity_name ASC, is_default_followup DESC, id DESC",
+			ARRAY_A
+		) ?: [];
+	}
+
 	public function count_for_entity( string $entity_name ): int {
 		global $wpdb;
 

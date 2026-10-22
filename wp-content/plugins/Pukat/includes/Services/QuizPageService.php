@@ -11,6 +11,7 @@ namespace Pukat\Services;
 
 use Pukat\Repositories\FlagPageRepository;
 use Pukat\Repositories\QuizPageRepository;
+use Pukat\Repositories\QuizResultRepository;
 use Pukat\Repositories\QuizTemplateRepository;
 use WP_Error;
 
@@ -51,6 +52,8 @@ class QuizPageService {
 	private QuizChainService $chain;
 	private QuizTemplateRepository $templates;
 	private QuizPageGenerator $generator;
+	private QuizResultRepository $results;
+	private GoPhishService $gophish;
 
 	/**
 	 * The education page is reached through its repository, not FlagPageService:
@@ -68,7 +71,9 @@ class QuizPageService {
 		?FlagPageRepository $flag_pages = null,
 		?QuizChainService $chain = null,
 		?QuizTemplateRepository $templates = null,
-		?QuizPageGenerator $generator = null
+		?QuizPageGenerator $generator = null,
+		?QuizResultRepository $results = null,
+		?GoPhishService $gophish = null
 	) {
 		$this->repository = $repository ?? new QuizPageRepository();
 		$this->access     = $access ?? new EntityProfileService();
@@ -79,6 +84,8 @@ class QuizPageService {
 		$this->chain      = $chain ?? new QuizChainService();
 		$this->templates  = $templates ?? new QuizTemplateRepository();
 		$this->generator  = $generator ?? new QuizPageGenerator();
+		$this->results    = $results ?? new QuizResultRepository();
+		$this->gophish    = $gophish ?? new GoPhishService();
 	}
 
 	/**
@@ -141,6 +148,95 @@ class QuizPageService {
 		}, $this->repository->list_for_entity( $entity ) );
 
 		return [ 'entity_name' => $entity, 'quizzes' => $rows ];
+	}
+
+	/**
+	 * Admin overview of every quiz across all entities (Quiz Builder v2): the
+	 * quiz, the template it uses, and how it is used — both the live GoPhish
+	 * chain linkage (which campaigns route into its master) and the local
+	 * recorded results (participants / attempts / runs). Admin-only; the
+	 * controller gates access.
+	 *
+	 * @return array{quizzes: array<int, array<string, mixed>>, gophish_ok: bool}
+	 */
+	public function overview(): array {
+		$quizzes      = $this->repository->list_all();
+		$template_map = [];
+		foreach ( $this->templates->list_all() as $t ) {
+			$template_map[ (int) $t['id'] ] = (string) $t['name'];
+		}
+
+		$ids   = array_map( static fn ( array $q ): int => (int) $q['id'], $quizzes );
+		$usage = $this->results->usage_by_quiz_page( $ids );
+
+		// One GoPhish read for the whole graph (never per quiz). On failure the
+		// linkage columns degrade to "unknown" rather than breaking the page.
+		$campaigns  = $this->gophish->get_campaigns();
+		$gophish_ok = ! is_wp_error( $campaigns );
+		$by_id      = [];
+		if ( $gophish_ok ) {
+			foreach ( $campaigns as $c ) {
+				$by_id[ (int) ( $c['id'] ?? 0 ) ] = $c;
+			}
+		}
+
+		$edu_cache = [];
+		$rows      = [];
+		foreach ( $quizzes as $quiz ) {
+			$entity    = (string) $quiz['entity_name'];
+			$master_id = (int) ( $quiz['gophish_master_id'] ?? 0 );
+			$local     = $usage[ (int) $quiz['id'] ] ?? [ 'attempts' => 0, 'participants' => 0, 'runs' => 0 ];
+
+			$linked = [];
+			if ( $gophish_ok && $master_id > 0 ) {
+				if ( ! array_key_exists( $entity, $edu_cache ) ) {
+					$edu_cache[ $entity ] = $this->education_master_id( $entity );
+				}
+				$edu_id          = $edu_cache[ $entity ];
+				$edu_chains_here = $edu_id > 0 && (int) ( $by_id[ $edu_id ]['next_campaign_id'] ?? 0 ) === $master_id;
+
+				foreach ( $campaigns as $c ) {
+					$cid = (int) ( $c['id'] ?? 0 );
+					if ( $cid === $master_id || $cid === $edu_id ) {
+						continue; // The masters themselves are the pathway, not users.
+					}
+					$next = (int) ( $c['next_campaign_id'] ?? 0 );
+					$via  = '';
+					if ( $next === $master_id ) {
+						$via = 'quiz';
+					} elseif ( $edu_chains_here && $next === $edu_id ) {
+						$via = 'education';
+					}
+					if ( '' === $via ) {
+						continue;
+					}
+					$linked[] = [
+						'id'     => $cid,
+						'name'   => (string) ( $c['name'] ?? '' ),
+						'status' => (string) ( $c['status'] ?? '' ),
+						'via'    => $via,
+					];
+				}
+			}
+
+			$rows[] = [
+				'id'                  => (int) $quiz['id'],
+				'title'               => (string) $quiz['title'],
+				'entity_name'         => $entity,
+				'template_id'         => empty( $quiz['template_id'] ) ? null : (int) $quiz['template_id'],
+				'template_name'       => empty( $quiz['template_id'] ) ? null : ( $template_map[ (int) $quiz['template_id'] ] ?? null ),
+				'status'              => (string) $quiz['status'],
+				'is_default_followup' => (bool) $quiz['is_default_followup'],
+				'gophish_master_id'   => $master_id ?: null,
+				'linkage_count'       => count( $linked ),
+				'linked_campaigns'    => $linked,
+				'participants'        => $local['participants'],
+				'attempts'            => $local['attempts'],
+				'runs'                => $local['runs'],
+			];
+		}
+
+		return [ 'quizzes' => $rows, 'gophish_ok' => $gophish_ok ];
 	}
 
 	/**
