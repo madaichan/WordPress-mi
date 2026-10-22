@@ -4,6 +4,7 @@ const Dashboard = lazy(() => import('../pages/Dashboard/Dashboard.jsx'))
 const Users = lazy(() => import('../pages/Admin/Users.jsx'))
 const Roles = lazy(() => import('../pages/Admin/Roles.jsx'))
 const Settings = lazy(() => import('../pages/Admin/Settings.jsx'))
+const QuizTemplates = lazy(() => import('../pages/Admin/QuizTemplates.jsx'))
 const MasterPlaybooks = lazy(() => import('../pages/Admin/MasterPlaybooks.jsx'))
 const MasterSendingProfiles = lazy(() => import('../pages/Admin/MasterSendingProfiles.jsx'))
 const MasterEmailTemplates = lazy(() => import('../pages/Admin/MasterEmailTemplates.jsx'))
@@ -49,6 +50,7 @@ export const adminRoutes = [
   // flags.view is `shared` (My Profile's Flags tab needs it), so category
   // management is gated by the admin-only flags.edit instead.
   { path: '/master/flags', element: <MasterFlags />, permission: 'flags.edit' },
+  { path: '/post/quiz-templates', element: <QuizTemplates />, permission: 'quiz_templates.view' },
   { path: '/admin/users', element: <Users />, permission: 'users.view' },
   { path: '/admin/roles', element: <Roles />, permission: 'users.manage_roles' },
   { path: '/admin/settings', element: <Settings />, permission: 'settings.view' },
@@ -178,6 +180,12 @@ export const adminNavGroups = [
       { to: '/master/domains', icon: 'ti-world', label: 'Domains' },
     ],
   },
+  {
+    group: 'Post Simulation',
+    items: [
+      { to: '/post/quiz-templates', icon: 'ti-layout-board', label: 'Quiz Templates' },
+    ],
+  },
 ]
 
 export const frontendNavGroups = [
@@ -240,6 +248,7 @@ export const routeMeta = [
   { path: '/simulation/performing', title: 'Monitoring', subtitle: 'Live campaign activity and risk signals', breadcrumb: 'Monitoring' },
   { path: '/reports', title: 'Reports', subtitle: 'Analytics, risk scores, and exports', breadcrumb: 'Simulation report' },
   { path: '/post/quiz', title: 'Quiz Module', subtitle: 'Question bank and quiz results', breadcrumb: 'Quiz' },
+  { path: '/post/quiz-templates', title: 'Quiz Templates', subtitle: 'Reusable quiz shells operators build from', breadcrumb: 'Quiz Templates' },
   { path: '/post/coaching', title: 'Coaching', subtitle: 'Training assignments for high-risk users', breadcrumb: 'Coaching' },
   { path: '/next-planning', title: 'Next planning', subtitle: '', breadcrumb: 'Next planning' },
   { path: '/pre/socialization', title: 'Socialization', subtitle: 'Pre-simulation awareness campaigns', breadcrumb: 'Socialization' },

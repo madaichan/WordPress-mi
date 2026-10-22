@@ -10,17 +10,14 @@ import { useQuizPage, useQuizPages, useQuizQuestions, useQuizResults, useQuizTem
 import {
   useCreateQuizPageMutation,
   useCreateQuizQuestionMutation,
-  useCreateQuizTemplateMutation,
   useDeleteQuizPageMutation,
   useDeleteQuizQuestionMutation,
-  useDeleteQuizTemplateMutation,
   usePublishQuizPageMutation,
   useSaveQuizPageMutation,
   useSetDefaultQuizPageMutation,
   useSyncQuizPageMutation,
   useUnpublishQuizPageMutation,
   useUpdateQuizQuestionMutation,
-  useUpdateQuizTemplateMutation,
 } from '../../hooks/mutations/useQuizMutations.js'
 import { quizApi } from '../../api/index.js'
 import {
@@ -28,7 +25,6 @@ import {
   QuizBuilder,
   QuizListPanel,
   QuizResultsPanel,
-  QuizTemplateAdminPanel,
   SendQuizDialog,
 } from '../../features/quiz/components/index.js'
 
@@ -61,15 +57,11 @@ export default function Quiz() {
   const canPublishPage = Boolean(entityName) && (isAdmin || (!isGeneralEntity && canPublishPagePerm))
   const canInvite = Boolean(entityName) && (isAdmin || (!isGeneralEntity && canInvitePerm))
 
-  const tabs = useMemo(() => {
-    const base = [
-      { key: 'bank', label: 'Question Bank', icon: 'ti-list-numbers' },
-      { key: 'page', label: 'Quiz Page', icon: 'ti-file-code' },
-      { key: 'results', label: 'Results', icon: 'ti-chart-bar' },
-    ]
-    if (isAdmin) base.push({ key: 'templates', label: 'Templates', icon: 'ti-layout-board' })
-    return base
-  }, [isAdmin])
+  const tabs = useMemo(() => ([
+    { key: 'bank', label: 'Question Bank', icon: 'ti-list-numbers' },
+    { key: 'page', label: 'Quiz Page', icon: 'ti-file-code' },
+    { key: 'results', label: 'Results', icon: 'ti-chart-bar' },
+  ]), [])
 
   const requestExtras = useMemo(() => ({}), [])
   const { data: bank, isLoading: loadingBank } = useQuizQuestions(requestExtras)
@@ -78,7 +70,7 @@ export default function Quiz() {
     { ...requestExtras, id: openQuizId },
     { enabled: tab === 'page' && Boolean(openQuizId) },
   )
-  const { data: templatesData } = useQuizTemplates(requestExtras, { enabled: tab === 'page' || tab === 'templates' })
+  const { data: templatesData } = useQuizTemplates(requestExtras, { enabled: tab === 'page' })
   const results = useQuizResults(requestExtras, { enabled: tab === 'results' })
 
   const createQuestion = useCreateQuizQuestionMutation()
@@ -91,16 +83,12 @@ export default function Quiz() {
   const publishMutation = usePublishQuizPageMutation()
   const unpublishMutation = useUnpublishQuizPageMutation()
   const syncMutation = useSyncQuizPageMutation()
-  const createTemplate = useCreateQuizTemplateMutation()
-  const updateTemplate = useUpdateQuizTemplateMutation()
-  const deleteTemplate = useDeleteQuizTemplateMutation()
 
   const questions = bank?.questions || []
   const quizzes = pagesData?.quizzes || []
   const templates = templatesData?.templates || []
   const bankBusy = createQuestion.isPending || updateQuestion.isPending || deleteQuestion.isPending
   const pageBusy = createPage.isPending || setDefaultPage.isPending || deletePage.isPending
-  const templateBusy = createTemplate.isPending || updateTemplate.isPending || deleteTemplate.isPending
 
   const defaultQuiz = quizzes.find(q => q.is_default_followup)
   const canSendInvite = canInvite && Boolean(defaultQuiz && defaultQuiz.status === 'published' && defaultQuiz.gophish_master_id)
@@ -197,15 +185,6 @@ export default function Quiz() {
           />
         )}
 
-        {tab === 'templates' && isAdmin && (
-          <QuizTemplateAdminPanel
-            templates={templates}
-            busy={templateBusy}
-            onCreate={(data, done) => createTemplate.mutate(data, { onSuccess: done })}
-            onUpdate={({ id, data }, done) => updateTemplate.mutate({ id, data }, { onSuccess: done })}
-            onDelete={template => deleteTemplate.mutate(template.id)}
-          />
-        )}
       </div>
 
       {inviting && (
