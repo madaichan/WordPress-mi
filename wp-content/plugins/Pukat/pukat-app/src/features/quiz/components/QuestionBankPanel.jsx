@@ -75,6 +75,7 @@ export default function QuestionBankPanel({ questions = [], canManage = false, b
   const filtersActive = Boolean(search.trim()) || status !== 'all' || difficulty !== 'all' || tag !== 'all'
 
   const fileRef = useRef(null)
+  const [imgBusy, setImgBusy] = useState(false)
 
   const openNew = () => setEditing({ ...BLANK, options: BLANK.options.map(o => ({ ...o })) })
   const openEdit = (question) => setEditing({
@@ -94,7 +95,8 @@ export default function QuestionBankPanel({ questions = [], canManage = false, b
   })
 
   // Pull the image_data for an image question being edited (list omits it).
-  const { data: editingFull } = useQuizQuestion(editing?.id, { enabled: Boolean(editing?.id) && editing?.question_type === 'image' && !editing?._imgLoaded })
+  const { data: editingFull, isFetching: editingImgFetching } = useQuizQuestion(editing?.id, { enabled: Boolean(editing?.id) && editing?.question_type === 'image' && !editing?._imgLoaded })
+  const imageLoading = imgBusy || editingImgFetching
   useEffect(() => {
     if (editing && !editing._imgLoaded && editingFull) {
       setEditing(f => ({ ...f, image_data: editingFull.image_data || '', _imgLoaded: true }))
@@ -110,8 +112,10 @@ export default function QuestionBankPanel({ questions = [], canManage = false, b
     if (!file) return
     if (!/^image\/(png|jpe?g|gif|webp)$/i.test(file.type)) { toast.error('Use a PNG, JPG, GIF or WebP image.'); return }
     if (file.size > MAX_IMAGE_BYTES) { toast.error('The image is too large (max 1 MB). Please compress it.'); return }
+    setImgBusy(true)
     const reader = new FileReader()
-    reader.onload = () => setEditing(f => ({ ...f, image_data: String(reader.result || '') }))
+    reader.onload = () => { setEditing(f => ({ ...f, image_data: String(reader.result || '') })); setImgBusy(false) }
+    reader.onerror = () => { toast.error('Could not read the image. Please try again.'); setImgBusy(false) }
     reader.readAsDataURL(file)
   }
 
@@ -243,7 +247,7 @@ export default function QuestionBankPanel({ questions = [], canManage = false, b
           footer={(
             <div className="flex items-center justify-end gap-3">
               <Button variant="outline" onClick={() => setEditing(null)} disabled={busy}>Cancel</Button>
-              <Button variant="primary" onClick={submit} disabled={busy}>{editing.id ? 'Save question' : 'Add question'}</Button>
+              <Button variant="primary" onClick={submit} disabled={busy || imageLoading}>{editing.id ? 'Save question' : 'Add question'}</Button>
             </div>
           )}
         >
@@ -279,23 +283,30 @@ export default function QuestionBankPanel({ questions = [], canManage = false, b
 
               {editing.question_type === 'image' && (
                 <div className="space-y-2 rounded-lg border border-line bg-panel-subtle/40 p-3">
-                  {editing.image_data
+                  {imageLoading
                     ? (
-                      <div className="space-y-2">
-                        <img src={editing.image_data} alt="Question" className="max-h-48 rounded-lg border border-line" />
-                        <div className="flex gap-2">
-                          <Button variant="outline" size="sm" onClick={() => fileRef.current?.click()}>Replace image</Button>
-                          <Button variant="outline" size="sm" onClick={() => setEditing(f => ({ ...f, image_data: '' }))}>
-                            <i className="ti ti-trash text-sm text-danger" />
-                          </Button>
-                        </div>
+                      <div className="flex h-32 flex-col items-center justify-center gap-2 text-ink-faint">
+                        <i className="ti ti-loader-2 animate-spin text-2xl text-violet-500" />
+                        <span className="text-[11px]">Processing image…</span>
                       </div>
                     )
-                    : (
-                      <Button variant="outline" size="sm" onClick={() => fileRef.current?.click()}>
-                        <i className="ti ti-upload text-sm" /><span>Upload image</span>
-                      </Button>
-                    )}
+                    : editing.image_data
+                      ? (
+                        <div className="space-y-2">
+                          <img src={editing.image_data} alt="Question" className="max-h-48 rounded-lg border border-line" />
+                          <div className="flex gap-2">
+                            <Button variant="outline" size="sm" onClick={() => fileRef.current?.click()}>Replace image</Button>
+                            <Button variant="outline" size="sm" onClick={() => setEditing(f => ({ ...f, image_data: '' }))}>
+                              <i className="ti ti-trash text-sm text-danger" />
+                            </Button>
+                          </div>
+                        </div>
+                      )
+                      : (
+                        <Button variant="outline" size="sm" onClick={() => fileRef.current?.click()}>
+                          <i className="ti ti-upload text-sm" /><span>Upload image</span>
+                        </Button>
+                      )}
                   <input ref={fileRef} type="file" accept="image/png,image/jpeg,image/gif,image/webp" onChange={onPickImage} className="hidden" />
                   <p className="text-[10px] text-ink-faint">PNG/JPG/GIF/WebP, max 1 MB. Inlined into the quiz page — keep it small.</p>
                 </div>
