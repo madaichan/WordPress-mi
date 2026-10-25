@@ -76,6 +76,7 @@ export default function QuestionBankPanel({ questions = [], canManage = false, b
 
   const fileRef = useRef(null)
   const [imgBusy, setImgBusy] = useState(false)
+  const [zoomImage, setZoomImage] = useState(null)
 
   const openNew = () => setEditing({ ...BLANK, options: BLANK.options.map(o => ({ ...o })) })
   const openEdit = (question) => setEditing({
@@ -294,7 +295,9 @@ export default function QuestionBankPanel({ questions = [], canManage = false, b
                     : editing.image_data
                       ? (
                         <div className="space-y-2">
-                          <img src={editing.image_data} alt="Question" className="max-h-48 rounded-lg border border-line" />
+                          <button type="button" onClick={() => setZoomImage(editing.image_data)} className="block" title="Click to enlarge">
+                            <img src={editing.image_data} alt="Question" className="max-h-48 cursor-zoom-in rounded-lg border border-line transition-opacity hover:opacity-90" />
+                          </button>
                           <div className="flex gap-2">
                             <Button variant="outline" size="sm" onClick={() => fileRef.current?.click()}>Replace image</Button>
                             <Button variant="outline" size="sm" onClick={() => setEditing(f => ({ ...f, image_data: '' }))}>
@@ -422,6 +425,14 @@ export default function QuestionBankPanel({ questions = [], canManage = false, b
           subtitle="How this question appears to a target"
         >
           <QuestionPreview question={previewQuestion} />
+        </Modal>
+      )}
+
+      {zoomImage && (
+        <Modal open onClose={() => setZoomImage(null)} title="Image" className="max-w-4xl">
+          <div className="flex justify-center">
+            <img src={zoomImage} alt="Question" className="max-h-[75vh] w-auto rounded-lg" />
+          </div>
         </Modal>
       )}
     </div>
