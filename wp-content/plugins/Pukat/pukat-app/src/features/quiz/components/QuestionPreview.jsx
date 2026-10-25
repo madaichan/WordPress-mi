@@ -21,6 +21,10 @@ export default function QuestionPreview({ question }) {
 
       <p className="text-sm font-semibold text-ink">{question.question}</p>
 
+      {question.question_type === 'image' && question.image_data && (
+        <img src={question.image_data} alt={question.question || 'Question image'} className="max-h-64 rounded-lg border border-line" />
+      )}
+
       <ul className="space-y-2">
         {options.map((opt, i) => (
           <li

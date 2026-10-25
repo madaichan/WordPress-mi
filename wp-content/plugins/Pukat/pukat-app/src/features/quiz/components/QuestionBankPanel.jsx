@@ -1,6 +1,7 @@
-import { useMemo, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import clsx from 'clsx'
 import toast from 'react-hot-toast'
+import { useQuizQuestion } from '../../../hooks/queries/useQuizQueries.js'
 import Badge from '../../../components/UI/Badge.jsx'
 import Button from '../../../components/UI/Button.jsx'
 import Drawer from '../../../components/UI/Drawer.jsx'
@@ -10,8 +11,12 @@ import SearchInput from '../../../components/UI/SearchInput.jsx'
 import Select from '../../../components/UI/Select.jsx'
 import QuestionPreview from './QuestionPreview.jsx'
 
+const MAX_IMAGE_BYTES = 1024 * 1024 // mirrors the server cap (PRD §13.10)
+
 const BLANK = {
   question: '',
+  question_type: 'text',
+  image_data: '',
   input_name: '',
   explanation: '',
   difficulty: 1,
@@ -69,10 +74,17 @@ export default function QuestionBankPanel({ questions = [], canManage = false, b
 
   const filtersActive = Boolean(search.trim()) || status !== 'all' || difficulty !== 'all' || tag !== 'all'
 
+  const fileRef = useRef(null)
+
   const openNew = () => setEditing({ ...BLANK, options: BLANK.options.map(o => ({ ...o })) })
   const openEdit = (question) => setEditing({
     id: question.id,
     question: question.question || '',
+    question_type: question.question_type || 'text',
+    // The image is fetched on demand (the list omits the bytes); _imgLoaded
+    // tracks whether we've pulled it in yet.
+    image_data: '',
+    _imgLoaded: !(question.question_type === 'image' && question.has_image),
     input_name: question.input_name || '',
     explanation: question.explanation || '',
     difficulty: question.difficulty || 1,
@@ -80,6 +92,28 @@ export default function QuestionBankPanel({ questions = [], canManage = false, b
     is_active: question.is_active !== false,
     options: (question.options || []).map(o => ({ label: o.label || '', value: o.value || '', correct: Boolean(o.correct) })),
   })
+
+  // Pull the image_data for an image question being edited (list omits it).
+  const { data: editingFull } = useQuizQuestion(editing?.id, { enabled: Boolean(editing?.id) && editing?.question_type === 'image' && !editing?._imgLoaded })
+  useEffect(() => {
+    if (editing && !editing._imgLoaded && editingFull) {
+      setEditing(f => ({ ...f, image_data: editingFull.image_data || '', _imgLoaded: true }))
+    }
+  }, [editing, editingFull])
+
+  // For previewing an image question, pull its image_data (list omits bytes).
+  const { data: previewFull } = useQuizQuestion(previewing?.id, { enabled: Boolean(previewing?.id) && previewing?.question_type === 'image' })
+  const previewQuestion = previewing?.question_type === 'image' ? { ...previewing, ...(previewFull || {}) } : previewing
+
+  function onPickImage(e) {
+    const file = e.target.files?.[0]
+    if (!file) return
+    if (!/^image\/(png|jpe?g|gif|webp)$/i.test(file.type)) { toast.error('Use a PNG, JPG, GIF or WebP image.'); return }
+    if (file.size > MAX_IMAGE_BYTES) { toast.error('The image is too large (max 1 MB). Please compress it.'); return }
+    const reader = new FileReader()
+    reader.onload = () => setEditing(f => ({ ...f, image_data: String(reader.result || '') }))
+    reader.readAsDataURL(file)
+  }
 
   const suggestedInputName = `answer_q${questions.length + 1}`
 
@@ -91,9 +125,12 @@ export default function QuestionBankPanel({ questions = [], canManage = false, b
       .map(o => ({ label: o.label.trim() || o.value.trim(), value: o.value.trim(), correct: Boolean(o.correct) }))
     if (options.length < 2) { toast.error('A question needs at least two answer options.'); return }
     if (!options.some(o => o.correct)) { toast.error('Mark at least one option as correct.'); return }
+    if (form.question_type === 'image' && !form.image_data) { toast.error('Upload an image for an image question.'); return }
 
     const data = {
       question: form.question.trim(),
+      question_type: form.question_type === 'image' ? 'image' : 'text',
+      image_data: form.question_type === 'image' ? form.image_data : '',
       input_name: (form.input_name.trim() || suggestedInputName).toLowerCase(),
       explanation: form.explanation.trim(),
       difficulty: Number(form.difficulty) || 1,
@@ -172,6 +209,7 @@ export default function QuestionBankPanel({ questions = [], canManage = false, b
               <div className="min-w-0 space-y-1">
                 <div className="flex flex-wrap items-center gap-2">
                   <span className="rounded bg-panel-subtle px-1.5 py-0.5 font-mono text-[11px] text-ink-soft">{question.input_name}</span>
+                  {question.question_type === 'image' && <Badge tone="violet"><i className="ti ti-photo mr-0.5" />Image</Badge>}
                   {question.is_active === false && <Badge tone="gray">Inactive</Badge>}
                   <span className="text-[11px] text-ink-faint">
                     {question.options?.length || 0} options · {question.correct_count || 0} correct · difficulty {question.difficulty}
@@ -220,6 +258,49 @@ export default function QuestionBankPanel({ questions = [], canManage = false, b
                 placeholder="Contoh: Email mendesak minta ganti password, apa tindakan paling aman?"
               />
             </label>
+
+            <div className="space-y-2">
+              <span className="font-semibold text-ink-soft">Question type</span>
+              <div className="flex gap-2">
+                {['text', 'image'].map(t => (
+                  <button
+                    key={t}
+                    type="button"
+                    onClick={() => setEditing(f => ({ ...f, question_type: t }))}
+                    className={clsx(
+                      'flex-1 rounded-lg border px-3 py-1.5 text-xs font-semibold capitalize transition-colors',
+                      editing.question_type === t ? 'border-violet-500 bg-violet-500/10 text-violet-600 dark:text-violet-400' : 'border-line text-ink-muted hover:bg-panel-subtle',
+                    )}
+                  >
+                    <i className={clsx('ti mr-1', t === 'image' ? 'ti-photo' : 'ti-align-left')} />{t}
+                  </button>
+                ))}
+              </div>
+
+              {editing.question_type === 'image' && (
+                <div className="space-y-2 rounded-lg border border-line bg-panel-subtle/40 p-3">
+                  {editing.image_data
+                    ? (
+                      <div className="space-y-2">
+                        <img src={editing.image_data} alt="Question" className="max-h-48 rounded-lg border border-line" />
+                        <div className="flex gap-2">
+                          <Button variant="outline" size="sm" onClick={() => fileRef.current?.click()}>Replace image</Button>
+                          <Button variant="outline" size="sm" onClick={() => setEditing(f => ({ ...f, image_data: '' }))}>
+                            <i className="ti ti-trash text-sm text-danger" />
+                          </Button>
+                        </div>
+                      </div>
+                    )
+                    : (
+                      <Button variant="outline" size="sm" onClick={() => fileRef.current?.click()}>
+                        <i className="ti ti-upload text-sm" /><span>Upload image</span>
+                      </Button>
+                    )}
+                  <input ref={fileRef} type="file" accept="image/png,image/jpeg,image/gif,image/webp" onChange={onPickImage} className="hidden" />
+                  <p className="text-[10px] text-ink-faint">PNG/JPG/GIF/WebP, max 1 MB. Inlined into the quiz page — keep it small.</p>
+                </div>
+              )}
+            </div>
 
             <label className="block space-y-1">
               <span className="font-semibold text-ink-soft">Input name</span>
@@ -328,7 +409,7 @@ export default function QuestionBankPanel({ questions = [], canManage = false, b
           title="Question preview"
           subtitle="How this question appears to a target"
         >
-          <QuestionPreview question={previewing} />
+          <QuestionPreview question={previewQuestion} />
         </Modal>
       )}
     </div>

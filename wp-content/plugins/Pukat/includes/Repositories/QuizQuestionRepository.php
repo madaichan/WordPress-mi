@@ -17,8 +17,11 @@ namespace Pukat\Repositories;
  */
 class QuizQuestionRepository {
 
-	/** Columns a list/read returns — never SELECT * (AGENTS.md §5.2). */
-	private const FIELDS = 'id, entity_name, question, input_name, options, explanation, difficulty, tags, is_active, created_by, created_at';
+	/**
+	 * Columns a list/read returns — never SELECT *, and never the large
+	 * image_data (PRD §13.10); callers that need the image add it explicitly.
+	 */
+	private const FIELDS = 'id, entity_name, question, question_type, input_name, options, explanation, difficulty, tags, is_active, created_by, created_at';
 
 	/**
 	 * @return array<int, array<string, mixed>>
@@ -26,7 +29,8 @@ class QuizQuestionRepository {
 	public function list_for_entity( string $entity_name, bool $only_active = false ): array {
 		global $wpdb;
 
-		$sql = "SELECT " . self::FIELDS . " FROM {$this->table()} WHERE LOWER(entity_name) = LOWER(%s)";
+		// has_image lets the UI badge image questions without shipping the bytes.
+		$sql = 'SELECT ' . self::FIELDS . ', (image_data IS NOT NULL) AS has_image' . " FROM {$this->table()} WHERE LOWER(entity_name) = LOWER(%s)";
 		if ( $only_active ) {
 			$sql .= ' AND is_active = 1';
 		}
@@ -36,13 +40,16 @@ class QuizQuestionRepository {
 	}
 
 	/**
+	 * A single question including its image_data — used by the edit form and
+	 * the single-question endpoint.
+	 *
 	 * @return array<string, mixed>|null
 	 */
 	public function find( int $id ): ?array {
 		global $wpdb;
 
 		$row = $wpdb->get_row(
-			$wpdb->prepare( "SELECT " . self::FIELDS . " FROM {$this->table()} WHERE id = %d", $id ),
+			$wpdb->prepare( 'SELECT ' . self::FIELDS . ', image_data' . " FROM {$this->table()} WHERE id = %d", $id ),
 			ARRAY_A
 		);
 
@@ -70,7 +77,8 @@ class QuizQuestionRepository {
 		$params       = array_merge( $ids, [ $entity_name ] );
 		$rows         = $wpdb->get_results(
 			$wpdb->prepare(
-				'SELECT ' . self::FIELDS . " FROM {$this->table()} WHERE id IN ({$placeholders}) AND LOWER(entity_name) = LOWER(%s)",
+				// image_data is needed here: the generator renders image questions.
+				'SELECT ' . self::FIELDS . ', image_data' . " FROM {$this->table()} WHERE id IN ({$placeholders}) AND LOWER(entity_name) = LOWER(%s)",
 				$params
 			),
 			ARRAY_A

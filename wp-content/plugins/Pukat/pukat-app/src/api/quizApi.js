@@ -10,6 +10,7 @@ import { get, post, put, del } from './client.js'
 export const quizApi = {
   // Per-entity question bank. `entity` is only honored for admins.
   questions:      (params = {}) => get('/quiz/questions', { params }),
+  question:       (id)          => get(`/quiz/questions/${id}`),
   createQuestion: (data)        => post('/quiz/questions', data),
   updateQuestion: (id, data)    => put(`/quiz/questions/${id}`, data),
   deleteQuestion: (id)          => del(`/quiz/questions/${id}`),

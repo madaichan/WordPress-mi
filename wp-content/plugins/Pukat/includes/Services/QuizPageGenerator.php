@@ -108,9 +108,21 @@ class QuizPageGenerator {
 			);
 		}
 
+		// Image questions (PRD §13.10): the image is already a data URI, so it
+		// inlines as-is when GoPhish snapshots the page.
+		$image = '';
+		if ( 'image' === (string) ( $question['question_type'] ?? 'text' ) && ! empty( $question['image_data'] ) ) {
+			$image = sprintf(
+				'      <div class="pukat-question-image"><img src="%s" alt="%s" /></div>' . "\n",
+				esc_attr( (string) $question['image_data'] ),
+				$text
+			);
+		}
+
 		return implode( "\n", [
 			sprintf( '    <fieldset class="pukat-question" data-qid="%d">', (int) ( $question['id'] ?? 0 ) ),
 			sprintf( '      <legend><span class="pukat-q-number">%d</span> %s</legend>', $number, $text ),
+			rtrim( $image, "\n" ),
 			implode( "\n", $choices ),
 			'    </fieldset>',
 		] );

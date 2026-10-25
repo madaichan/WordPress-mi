@@ -356,3 +356,12 @@ Smoke Q5: unit test `score_payload()` (semua benar, sebagian, kosong, multi-kunc
 - Frontend (container `plugindev_node`, `/app`): `npm run lint` **0 error** (hanya 1 warning pra-ada di `Performing.jsx`), `npm run test` **138 lulus** (18 file), `npx vite build` sukses (chunk `Quiz` ter-build, tak ada import salah).
 - Backend: `php -l` bersih untuk semua file. Delapan smoke quiz **semua PASS**: module, builder, generator, scoring, template, multiscore, gophish, chain.
 - Catatan revisi: user akan merevisi UI/UX saat testing (bukan blocker). `QuizPageEditor` v1 dibiarkan (dead-ish) untuk jaga-jaga quiz legacy; bisa dihapus kalau tak dipakai.
+
+### V2-Fase 7 — soal bergambar (PRD §13.10) (SELESAI 2026-10-25)
+
+- Skema: migrasi **`1.30.0`** menambah `question_type` (`text`|`image`) + `image_data` (LONGTEXT data URI) ke `pukat_quiz_questions` via `ensure_quiz_questions_image_columns()`.
+- Repo: `FIELDS` tambah `question_type`; `list_for_entity` membawa `has_image` (derivasi `image_data IS NOT NULL`) tanpa bytes; `find()` + `find_selected_for_entity()` menyertakan `image_data`.
+- Service `QuizQuestionService`: `sanitize()` validasi tipe + `validate_image()` (data URI png/jpg/gif/webp, cap **1 MB** decoded, tipe text menghapus gambar); `prepare()` ekspor `question_type` + `has_image` (tak pernah bytes); `get_one()` baru (single row + image, entity-scoped). Route `GET /quiz/questions/{id}` (gate view).
+- Generator: `render_question_block()` menyisipkan `<div class="pukat-question-image"><img src="<data-uri>">` di atas opsi untuk soal `image`. Inline apa adanya ke GoPhish; batas 4 MB halaman tetap dijaga `build_from_template`.
+- Frontend: form bank dapat toggle **Text/Image** + uploader (FileReader→data URI, validasi tipe+1 MB klien), preview thumbnail + replace/remove; badge **Image** di list; `QuestionPreview` + preview builder menampilkan gambar (ambil `image_data` via `GET /quiz/questions/{id}` saat dibutuhkan, list tetap ringan).
+- Verifikasi: `php -l` bersih; `tools/smoke-quiz-image.php` **8/8 PASS** (create/get_one/list-has_image/tolak non-dataURI/tolak tanpa gambar/tolak >1 MB/generator render img/text tanpa gambar); regresi generator/module/builder PASS. FE lint 0 error, 138 test, build sukses, `assets/dist` di-rebuild.

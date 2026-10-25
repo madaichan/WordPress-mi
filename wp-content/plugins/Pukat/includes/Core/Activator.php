@@ -683,6 +683,7 @@ class Activator {
 		self::ensure_entity_profiles_identity_columns();
 		self::ensure_dynamic_domains_type_column();
 		self::ensure_quiz_questions_entity_columns();
+		self::ensure_quiz_questions_image_columns();
 		self::ensure_quiz_results_scoring_columns();
 		self::ensure_quiz_pages_builder_columns();
 	}
@@ -1097,6 +1098,14 @@ class Activator {
 			self::seed_rbac_defaults();
 			update_option( 'pukat_db_version', '1.29.0' );
 		}
+
+		// Quiz Builder v2 (PRD §13.10): image questions — the bank gains a
+		// question_type and an inline image_data (base64 data URI) column.
+		if ( version_compare( $db_version, '1.30.0', '<' ) ) {
+			self::create_tables();
+			self::ensure_quiz_questions_image_columns();
+			update_option( 'pukat_db_version', '1.30.0' );
+		}
 	}
 
 	/**
@@ -1374,6 +1383,27 @@ class Activator {
 		}
 		if ( ! $wpdb->get_var( $wpdb->prepare( "SHOW INDEX FROM {$table} WHERE Key_name = %s", 'entity_name' ) ) ) {
 			$wpdb->query( "ALTER TABLE {$table} ADD INDEX entity_name (entity_name)" );
+		}
+	}
+
+	/**
+	 * Image questions (PRD §13.10): the bank gains a question_type and an inline
+	 * image_data (base64 data URI) column (idempotent).
+	 */
+	private static function ensure_quiz_questions_image_columns(): void {
+		global $wpdb;
+
+		$table   = $wpdb->prefix . 'pukat_quiz_questions';
+		$columns = [
+			'question_type' => "VARCHAR(20) NOT NULL DEFAULT 'text' AFTER question",
+			'image_data'    => 'LONGTEXT DEFAULT NULL AFTER question_type',
+		];
+
+		foreach ( $columns as $column => $definition ) {
+			$exists = $wpdb->get_var( $wpdb->prepare( "SHOW COLUMNS FROM {$table} LIKE %s", $column ) );
+			if ( ! $exists ) {
+				$wpdb->query( "ALTER TABLE {$table} ADD {$column} {$definition}" ); // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared -- fixed whitelist above
+			}
 		}
 	}
 

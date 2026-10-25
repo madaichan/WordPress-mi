@@ -11,6 +11,17 @@ export function useQuizQuestions(params = {}, options = {}) {
   })
 }
 
+/** A single bank question including its image_data (edit form / preview). */
+export function useQuizQuestion(id, options = {}) {
+  return useQuery({
+    queryKey: queryKeys.quiz.question(id),
+    queryFn: () => quizApi.question(id),
+    enabled: Boolean(id),
+    refetchOnWindowFocus: false,
+    ...options,
+  })
+}
+
 /** The entity's quizzes for the builder list (metadata only). */
 export function useQuizPages(params = {}, options = {}) {
   return useQuery({

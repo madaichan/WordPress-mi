@@ -78,6 +78,11 @@ class QuizController extends RestController {
 
 		register_rest_route( $this->namespace, '/quiz/questions/(?P<id>\d+)', [
 			[
+				'methods'             => 'GET',
+				'callback'            => [ $this, 'get_question' ],
+				'permission_callback' => [ $this, 'permission_view_quiz' ],
+			],
+			[
 				'methods'             => 'PUT',
 				'callback'            => [ $this, 'update_question' ],
 				'permission_callback' => [ $this, 'permission_manage_quiz' ],
@@ -140,6 +145,12 @@ class QuizController extends RestController {
 
 	public function get_questions( WP_REST_Request $request ): WP_REST_Response {
 		$result = $this->questions->list( $request->get_params() );
+
+		return is_wp_error( $result ) ? $this->from_wp_error( $result ) : $this->success( $result );
+	}
+
+	public function get_question( WP_REST_Request $request ): WP_REST_Response {
+		$result = $this->questions->get_one( [ 'id' => (int) $request->get_param( 'id' ) ] );
 
 		return is_wp_error( $result ) ? $this->from_wp_error( $result ) : $this->success( $result );
 	}

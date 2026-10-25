@@ -40,6 +40,7 @@ export const queryKeys = {
   quiz: {
     all: ['quiz'],
     questions: (params = {}) => ['quiz', 'questions', params],
+    question: (id) => ['quiz', 'question', id],
     pages: (params = {}) => ['quiz', 'pages', params],
     overview: () => ['quiz', 'pages', 'overview'],
     page: (params = {}) => ['quiz', 'page', params],

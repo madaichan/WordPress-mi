@@ -32,6 +32,9 @@ class QuizQuestionService {
 
 	private const MAX_OPTIONS = 10;
 
+	/** Per-image cap for an image question (decoded bytes) — PRD §13.10. */
+	private const MAX_IMAGE_BYTES = 1024 * 1024;
+
 	private QuizQuestionRepository $repository;
 	private EntityProfileService $access;
 
@@ -274,16 +277,77 @@ class QuizQuestionService {
 			? (int) ( ! empty( $params['is_active'] ) )
 			: (int) ( $existing['is_active'] ?? 1 );
 
+		// Image questions (PRD §13.10): type + an inline data-URI image. A text
+		// question clears any image; an image question must carry one.
+		$type = (string) ( $params['question_type'] ?? ( $existing['question_type'] ?? 'text' ) );
+		if ( 'image' !== $type ) {
+			$type = 'text';
+		}
+		$image_data = null;
+		if ( 'image' === $type ) {
+			$image = (string) ( $params['image_data'] ?? ( $existing['image_data'] ?? '' ) );
+			$valid = $this->validate_image( $image );
+			if ( is_wp_error( $valid ) ) {
+				return $valid;
+			}
+			$image_data = $image;
+		}
+
 		return [
-			'entity_name' => $entity,
-			'question'    => $question,
-			'input_name'  => $input_name,
-			'options'     => (string) wp_json_encode( $options ),
-			'explanation' => sanitize_textarea_field( (string) ( $params['explanation'] ?? ( $existing['explanation'] ?? '' ) ) ),
-			'difficulty'  => $difficulty,
-			'tags'        => $tags,
-			'is_active'   => $is_active,
+			'entity_name'   => $entity,
+			'question'      => $question,
+			'question_type' => $type,
+			'image_data'    => $image_data,
+			'input_name'    => $input_name,
+			'options'       => (string) wp_json_encode( $options ),
+			'explanation'   => sanitize_textarea_field( (string) ( $params['explanation'] ?? ( $existing['explanation'] ?? '' ) ) ),
+			'difficulty'    => $difficulty,
+			'tags'          => $tags,
+			'is_active'     => $is_active,
 		];
+	}
+
+	/**
+	 * A base64 image data URI, within the supported types and size cap.
+	 *
+	 * @return true|WP_Error
+	 */
+	private function validate_image( string $image ) {
+		if ( '' === $image ) {
+			return $this->validation_error( __( 'An image is required for an image question.', 'pukat' ) );
+		}
+		if ( ! preg_match( '#^data:image/(png|jpe?g|gif|webp);base64,#i', $image ) ) {
+			return $this->validation_error( __( 'Unsupported image. Use a PNG, JPG, GIF or WebP file.', 'pukat' ) );
+		}
+		$comma   = strpos( $image, ',' );
+		$decoded = false === $comma ? false : base64_decode( substr( $image, $comma + 1 ), true );
+		if ( false === $decoded ) {
+			return $this->validation_error( __( 'The image could not be read. Please re-upload it.', 'pukat' ) );
+		}
+		if ( strlen( $decoded ) > self::MAX_IMAGE_BYTES ) {
+			return $this->validation_error( __( 'The image is too large (max 1 MB). Please compress it and try again.', 'pukat' ) );
+		}
+		return true;
+	}
+
+	/**
+	 * A single question including its image_data (the edit form / single-
+	 * question endpoint). Read-only; entity scoping is enforced by the caller
+	 * matching the question's entity, mirroring the other read paths.
+	 *
+	 * @return array<string, mixed>|WP_Error
+	 */
+	public function get_one( array $params ): array|WP_Error {
+		$id  = (int) ( $params['id'] ?? 0 );
+		$row = $id > 0 ? $this->repository->find( $id ) : null;
+		if ( ! $row ) {
+			return new WP_Error( 'not_found', __( 'Question not found.', 'pukat' ), [ 'status' => 404 ] );
+		}
+		if ( ! $this->access->current_user_can_view_entity( (string) $row['entity_name'] ) ) {
+			return new WP_Error( 'rest_forbidden', __( 'Insufficient permissions.', 'pukat' ), [ 'status' => 403 ] );
+		}
+
+		return $row;
 	}
 
 	/**
@@ -397,10 +461,19 @@ class QuizQuestionService {
 	private function prepare( array $row ): array {
 		$options = $this->decode_options( (string) ( $row['options'] ?? '' ) );
 
+		// has_image comes from list_for_entity's derived column; for a single
+		// row loaded with image_data, fall back to whether that is set. The raw
+		// bytes are never put in this shaped payload (PRD §13.10).
+		$has_image = array_key_exists( 'has_image', $row )
+			? ! empty( $row['has_image'] )
+			: ! empty( $row['image_data'] );
+
 		return [
 			'id'            => (int) $row['id'],
 			'entity_name'   => (string) $row['entity_name'],
 			'question'      => (string) $row['question'],
+			'question_type' => (string) ( $row['question_type'] ?? 'text' ),
+			'has_image'     => $has_image,
 			'input_name'    => (string) $row['input_name'],
 			'options'       => $options,
 			'correct_count' => count( array_filter( $options, static fn ( $o ): bool => ! empty( $o['correct'] ) ) ),

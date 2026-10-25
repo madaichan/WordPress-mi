@@ -294,7 +294,7 @@ Quiz Page:
 - **Analisis per soal lintas entity.** Karena bank soal per entity, soal "yang sama" di dua entity adalah dua baris berbeda, jadi tidak ada agregasi lintas entity. Cukup untuk v1; kalau nanti diminta, perlu konsep soal bersama (master question) yang di-assign ke entity.
 - **Retensi jawaban mentah.** `answers` menyimpan payload jawaban per orang. Belum ada kebijakan retensi/anonimisasi; mengikuti perlakuan data result campaign yang sudah ada.
 - **Ukuran halaman quiz** diasumsikan hanya dibatasi 4 MB per halaman, sama seperti education page.
-- **Soal bergambar (tipe kedua).** Diputuskan akan ada (§11), bentuknya belum. Yang masih terbuka: (a) **sumber gambar** — galeri flag example entity yang sudah dipakai FR-5, atau upload khusus per soal; galeri yang sudah ada lebih murah tapi gambarnya bukan milik soal, jadi menghapus example bisa mengosongkan soal; (b) **penyimpanan di bank** — satu kolom `question_type` (`text`|`image`) plus referensi gambar di soal, versus membiarkan gambar hidup hanya di HTML halaman (bank tetap text) — yang kedua tidak butuh migrasi tapi starter tidak bisa menghasilkan blok bergambar otomatis; (c) **starter + linter** — linter hanya memeriksa `name` input, jadi soal bergambar yang kehilangan gambarnya di HTML akan lolos publish kecuali linter diberi aturan baru; (d) **ukuran** — gambar diekspor base64 ke GoPhish, jadi beberapa soal bergambar bisa menabrak batas 4 MB per halaman, dan batas itu perlu dicek sebelum publish, bukan setelah; (e) **rekap** — analisis per soal menampilkan teks soal, yang untuk soal bergambar bisa kosong/tak bermakna. Tidak ada pekerjaan yang dimulai sebelum (a)–(e) diputuskan.
+- **Soal bergambar (tipe kedua).** **Diputuskan 2026-10-22** — lihat §13.10. Ringkas: tiap soal boleh bertipe `image` dengan gambar **di-upload per soal** (disimpan sebagai data URI base64 di bank), dirender generator di atas opsi, inline apa adanya ke GoPhish. Open question lama (a)–(e) terjawab di §13.10.
 
 ## 13. Revisi v2 — Quiz Builder tanpa koding (2026-10-21)
 
@@ -342,6 +342,7 @@ Operator entity harus menulis/menempel HTML, menyesuaikannya dengan `input_name`
 - **Placeholder didefinisikan per template (Opsi A)** (2026-10-22, user) — tiap template mendeklarasikan field-nya sendiri; builder merender form dinamis dari deklarasi itu. Bukan set field tetap global.
 - **Operator boleh membuat banyak quiz** (2026-10-22, user) — membatalkan asumsi v1 "satu halaman quiz per entity"; `UNIQUE(entity_name)` dibuang.
 - **Template satu bahasa (ID), ikut bank** (2026-10-22, user) — bilingual ditunda sampai bank soal punya teks EN (§11, §13.7).
+- **Soal bergambar: upload per soal, disimpan data URI base64 di bank** (2026-10-22, user) — tiap soal boleh bertipe `image`; gambar di-upload langsung di form soal, bukan dari galeri flag example. Disimpan di bank sebagai data URI, dirender generator di dalam blok soal, dan ikut inline apa adanya saat ekspor ke GoPhish. Lihat §13.10.
 - **Linkage: satu "quiz default" per entity, tanpa override per campaign di v2** (2026-10-22, user) — dibatasi oleh GoPhish: `next_campaign_id` adalah satu nilai per campaign dan **dipakai bersama** ([api_campaignnew.md:163](api_campaignnew.md)), jadi satu master education hanya bisa menunjuk satu quiz. Maka tiap entity menandai **satu quiz sebagai default follow-up** (flag di builder), dan itulah quiz yang dipakai rantai. Mekanisme publish→master + relink dua arah + edit-lock jadi **persis v1**, hanya sumber "quiz entity" berubah dari "satu-satunya quiz" menjadi "quiz yang ditandai default". Lihat §13.9.
 
 ### 13.7 Open Questions v2
@@ -350,7 +351,7 @@ Operator entity harus menulis/menempel HTML, menyesuaikannya dengan `input_name`
 - **Nasib `html_body` bebas per entity v1.** Dengan builder sebagai jalur normal, apakah entity masih boleh menyunting HTML hasil generate (mode lanjutan), atau HTML sepenuhnya milik generator? Mode lanjutan berarti quiz bisa "lepas" dari template dan tidak bisa kembali ke builder tanpa menimpa; jalur murni-generate lebih bersih tapi menghapus kemampuan membawa markup khusus. **Harus diputuskan sebelum skema `pukat_quiz_pages` disentuh.**
 - **Migrasi halaman quiz v1 yang sudah published.** Halaman dengan `html_body` tulisan tangan tidak punya `template_id`, nilai placeholder, maupun daftar soal terpilih. Perlu jalur: biarkan sebagai "legacy custom HTML" (read-only di builder) atau minta operator membuat ulang sebagai quiz baru.
 - **Bilingual ID/EN (ditunda).** Diputuskan template satu bahasa ID untuk sekarang (§13.6). Bilingual butuh teks EN datang dari template (statis) atau dari bank soal (kolom teks EN — perubahan bank, menyentuh §11). Ditinjau bila dibutuhkan.
-- **Interaksi dengan soal bergambar (§12).** Slot soal dan tipe soal bergambar saling bergantung; urutan pengerjaan dua fitur ini perlu ditetapkan.
+- ~~**Interaksi dengan soal bergambar (§12).**~~ **Terjawab 2026-10-22** — soal bergambar memakai upload per soal (data URI di bank), independen dari slot template; generator merender gambar di dalam blok soal. Lihat §13.10.
 
 ### 13.8 Catatan implementasi (ketika fase ini dimulai)
 
@@ -381,3 +382,24 @@ Operator entity harus menulis/menempel HTML, menyesuaikannya dengan `input_name`
 **Ditunda (tidak dikerjakan di v2 pertama):**
 - Override quiz per campaign untuk bentuk SIM → Quiz langsung (secara teknis mungkin, tapi menambah field `quiz_id` di `follow_up` dan UI; ditunda sampai terbukti perlu).
 - SIM → Education → quiz-berbeda-per-campaign: hanya mungkin dengan master education terpisah per pasangan (lebih banyak objek GoPhish, recreate tiap publish, edit-lock lebih rumit). Ditolak untuk v2.
+
+### 13.10 Soal bergambar (tipe soal kedua) — 2026-10-22
+
+Keputusan: **upload gambar per soal**, disimpan di bank sebagai **data URI base64**.
+
+**Data model** (`pukat_quiz_questions`, migrasi baru):
+- `question_type` VARCHAR(20) NOT NULL DEFAULT `'text'` — `text` | `image`.
+- `image_data` LONGTEXT DEFAULT NULL — data URI (`data:image/png;base64,…`). Hanya diisi untuk tipe `image`.
+- `image_data` **tidak** ikut di endpoint list bank (payload besar); list hanya membawa `question_type` + flag `has_image`. Edit mengambil gambar lewat `GET /quiz/questions/{id}` (soal tunggal, lengkap). Generator mengambil gambar lewat `find_selected_for_entity` (yang disertakan `image_data`-nya).
+
+**Validasi (bank, server)**: tipe `image` **wajib** punya `image_data`; `image_data` wajib cocok `^data:image/(png|jpe?g|gif|webp);base64,` dan ukuran ter-decode ≤ **1 MB** per gambar. Tipe `text` mengabaikan/menghapus `image_data`.
+
+**Generator**: `QuizPageGenerator::render_question_block()` menyisipkan `<div class="pukat-question-image"><img src="<data-uri>" alt="…"></div>` di atas opsi bila soal bertipe `image`. Karena sudah data URI, gambar **inline apa adanya** saat GoPhish men-snapshot — tidak perlu langkah `inline_flag_images` seperti galeri.
+
+**Batas 4 MB**: data URI ikut masuk `html_body` hasil generate, jadi penjaga ukuran yang **sudah ada** (`build_from_template` menolak bila html > `MAX_HTML_BYTES`) otomatis menangkap halaman yang menabrak batas. Ditambah cap 1 MB/gambar di atas. Tidak ada cek baru yang diperlukan selain pesan error yang jelas.
+
+**Linter**: tidak perlu aturan baru — kelengkapan gambar dijaga di **bank** (tipe `image` wajib `image_data`), bukan di HTML. Linter tetap memeriksa `name` input saja.
+
+**Rekap per soal**: untuk soal `image` yang teks pertanyaannya kosong, rekap menampilkan `input_name` sebagai label (fallback yang sudah ada). Tidak ada perubahan skema rekap.
+
+**Di luar cakupan tahap ini**: resize/kompresi gambar otomatis (operator bertanggung jawab memperkecil), multiple gambar per soal, dan galeri gambar bersama. Upload satu gambar per soal sudah cukup.
