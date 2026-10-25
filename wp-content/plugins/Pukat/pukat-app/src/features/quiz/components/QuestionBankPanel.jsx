@@ -125,9 +125,19 @@ export default function QuestionBankPanel({ questions = [], canManage = false, b
   function submit() {
     const form = editing
     if (!form.question.trim()) { toast.error('The question text is required.'); return }
+    // Keep options that have a label OR a value. The `value` is what GoPhish
+    // captures; if the operator left it blank, derive it from the label (a
+    // lowercase slug), falling back to opt1/opt2… and keeping each one unique.
+    const used = new Set()
     const options = form.options
-      .filter(o => String(o.value).trim() !== '')
-      .map(o => ({ label: o.label.trim() || o.value.trim(), value: o.value.trim(), correct: Boolean(o.correct) }))
+      .filter(o => String(o.label).trim() !== '' || String(o.value).trim() !== '')
+      .map((o, i) => {
+        const label = o.label.trim() || o.value.trim()
+        let value = o.value.trim() || label.toLowerCase().replace(/[^a-z0-9]+/g, '_').replace(/^_+|_+$/g, '').slice(0, 40) || `opt${i + 1}`
+        while (used.has(value)) value = `${value}_${i + 1}`
+        used.add(value)
+        return { label, value, correct: Boolean(o.correct) }
+      })
     if (options.length < 2) { toast.error('A question needs at least two answer options.'); return }
     if (!options.some(o => o.correct)) { toast.error('Mark at least one option as correct.'); return }
     if (form.question_type === 'image' && !form.image_data) { toast.error('Upload an image for an image question.'); return }
@@ -344,8 +354,9 @@ export default function QuestionBankPanel({ questions = [], canManage = false, b
                   <input
                     value={option.value}
                     onChange={e => patchOption(index, { value: e.target.value })}
-                    placeholder="value"
-                    className="w-24 rounded-lg border border-line bg-panel px-2 py-1.5 font-mono text-xs text-ink outline-none focus:border-violet-500"
+                    placeholder="value (auto)"
+                    title="Optional — auto-filled from the label if left blank"
+                    className="w-28 rounded-lg border border-line bg-panel px-2 py-1.5 font-mono text-xs text-ink outline-none focus:border-violet-500"
                   />
                   <label className="flex items-center gap-1 text-[11px] text-ink-soft" title="Mark as a correct answer">
                     <input type="checkbox" checked={option.correct} onChange={e => patchOption(index, { correct: e.target.checked })} />
@@ -371,8 +382,8 @@ export default function QuestionBankPanel({ questions = [], canManage = false, b
                 <span>Add option</span>
               </Button>
               <p className="text-[10px] text-ink-faint">
-                The <span className="font-mono">value</span> is what GoPhish captures, so it must match the value attribute in the page HTML. Several
-                options may be correct — the answer is then graded as a set.
+                The <span className="font-mono">value</span> is what GoPhish captures. Leave it blank and it is auto-filled from the label.
+                Several options may be correct — the answer is then graded as a set.
               </p>
             </div>
 
