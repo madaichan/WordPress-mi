@@ -243,6 +243,7 @@ export default function QuestionBankPanel({ questions = [], canManage = false, b
       {editing && (
         <Drawer
           onClose={() => setEditing(null)}
+          widthClass="max-w-2xl"
           title={editing.id ? 'Edit question' : 'Add question'}
           footer={(
             <div className="flex items-center justify-end gap-3">
