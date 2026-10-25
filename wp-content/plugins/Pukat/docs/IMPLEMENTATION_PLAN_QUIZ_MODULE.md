@@ -365,3 +365,9 @@ Smoke Q5: unit test `score_payload()` (semua benar, sebagian, kosong, multi-kunc
 - Generator: `render_question_block()` menyisipkan `<div class="pukat-question-image"><img src="<data-uri>">` di atas opsi untuk soal `image`. Inline apa adanya ke GoPhish; batas 4 MB halaman tetap dijaga `build_from_template`.
 - Frontend: form bank dapat toggle **Text/Image** + uploader (FileReader→data URI, validasi tipe+1 MB klien), preview thumbnail + replace/remove; badge **Image** di list; `QuestionPreview` + preview builder menampilkan gambar (ambil `image_data` via `GET /quiz/questions/{id}` saat dibutuhkan, list tetap ringan).
 - Verifikasi: `php -l` bersih; `tools/smoke-quiz-image.php` **8/8 PASS** (create/get_one/list-has_image/tolak non-dataURI/tolak tanpa gambar/tolak >1 MB/generator render img/text tanpa gambar); regresi generator/module/builder PASS. FE lint 0 error, 138 test, build sukses, `assets/dist` di-rebuild.
+
+### V2-Fase 8 — linkage per quiz di list operator (SELESAI 2026-10-25)
+
+- Logika linkage GoPhish (campaign yang terangkai ke master quiz: `via=quiz` direct / `via=education`) diekstrak jadi helper `QuizPageService::compute_linkage()` (satu `get_campaigns` untuk seluruh set); `overview()` memakainya, dan `list()` per-entity kini menyertakan `linkage_count` + `linked_campaigns` per quiz (+ `gophish_ok`).
+- Frontend `QuizListPanel`: tiap baris quiz menampilkan chip "N simulations (X direct · Y via edu)" yang bisa diklik → modal detail (nama campaign, `direct → quiz` / `via education`, status). Degradasi jelas saat GoPhish tak terjangkau.
+- Verifikasi: `php -l` bersih; smoke overview/builder PASS; FE lint 0 error, 138 test, build sukses, `assets/dist` di-rebuild.

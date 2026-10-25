@@ -1,1 +1,0 @@
-import{h as s,p as r,g as a,u,q as t}from"./main-B5CXukcl.js";const o={get:()=>a("/me"),update:e=>r("/me",e),changePassword:e=>s("/me/change-password",e)};function n(e={}){return u({queryKey:t.me,queryFn:o.get,...e})}export{o as p,n as u};

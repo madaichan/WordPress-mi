@@ -24,6 +24,7 @@ const SendingProfiles = lazy(() => import('../pages/Simulation/SendingProfiles.j
 const EmailTemplates = lazy(() => import('../pages/Simulation/EmailTemplates.jsx'))
 const LandingPages = lazy(() => import('../pages/Simulation/LandingPages.jsx'))
 const Quiz = lazy(() => import('../pages/PostSimulation/Quiz.jsx'))
+const QuizResults = lazy(() => import('../pages/PostSimulation/QuizResults.jsx'))
 const Coaching = lazy(() => import('../pages/PostSimulation/Coaching.jsx'))
 const NextPlanning = lazy(() => import('../pages/PostSimulation/NextPlanning.jsx'))
 const Socialization = lazy(() => import('../pages/PreSimulation/Socialization.jsx'))
@@ -88,6 +89,7 @@ export const frontendRoutes = [
   { path: '/reports', element: <Reports />, permission: 'reports.view' },
   { path: '/reports/:campaignId', element: <Reports />, permission: 'reports.view' },
   { path: '/post/quiz', element: <Quiz />, permission: 'post_sim.view' },
+  { path: '/post/quiz-results', element: <QuizResults />, permission: 'post_sim.view' },
   { path: '/post/coaching', element: <Coaching />, permission: 'post_sim.view' },
   { path: '/next-planning', element: <NextPlanning />, permission: 'post_sim.view' },
   { path: '/setup/playbooks', element: <Playbooks />, permission: 'master_playbooks.view' },
@@ -229,6 +231,7 @@ export const frontendNavGroups = [
     group: 'Post Sim',
     items: [
       { to: '/post/quiz', icon: 'ti-help-circle', label: 'Quiz' },
+      { to: '/post/quiz-results', icon: 'ti-chart-bar', label: 'Quiz Results' },
       { to: '/post/coaching', icon: 'ti-school', label: 'Coaching' },
       { to: '/next-planning', icon: 'ti-map-2', label: 'Next planning' },
     ],
@@ -247,8 +250,9 @@ export const routeMeta = [
   { path: '/simulation/preparation', title: 'Preparation', subtitle: 'Import targets and configure templates', breadcrumb: 'Preparation' },
   { path: '/simulation/performing', title: 'Monitoring', subtitle: 'Live campaign activity and risk signals', breadcrumb: 'Monitoring' },
   { path: '/reports', title: 'Reports', subtitle: 'Analytics, risk scores, and exports', breadcrumb: 'Simulation report' },
-  { path: '/post/quiz', title: 'Quiz Module', subtitle: 'Question bank and quiz results', breadcrumb: 'Quiz' },
+  { path: '/post/quiz-results', title: 'Quiz Results', subtitle: 'Graded quiz answers per submission', breadcrumb: 'Quiz Results' },
   { path: '/post/quiz-templates', title: 'Quiz Templates', subtitle: 'Reusable quiz shells operators build from', breadcrumb: 'Quiz Templates' },
+  { path: '/post/quiz', title: 'Quiz Module', subtitle: 'Question bank and quizzes', breadcrumb: 'Quiz' },
   { path: '/post/coaching', title: 'Coaching', subtitle: 'Training assignments for high-risk users', breadcrumb: 'Coaching' },
   { path: '/next-planning', title: 'Next planning', subtitle: '', breadcrumb: 'Next planning' },
   { path: '/pre/socialization', title: 'Socialization', subtitle: 'Pre-simulation awareness campaigns', breadcrumb: 'Socialization' },

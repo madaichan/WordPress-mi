@@ -133,7 +133,14 @@ class QuizPageService {
 			}
 		}
 
-		$rows = array_map( function ( array $row ): array {
+		$raw = $this->repository->list_for_entity( $entity );
+		// Chain linkage per quiz (how many simulations route into it, directly
+		// or via education) — one GoPhish call for all of the entity's quizzes.
+		[ $gophish_ok, $linkage ] = $this->compute_linkage( $raw );
+
+		$rows = array_map( function ( array $row ) use ( $linkage ): array {
+			$link = $linkage[ (int) $row['id'] ] ?? [ 'count' => 0, 'linked' => [] ];
+
 			return [
 				'id'                  => (int) $row['id'],
 				'title'               => (string) $row['title'],
@@ -141,13 +148,15 @@ class QuizPageService {
 				'is_default_followup' => (bool) $row['is_default_followup'],
 				'status'              => (string) $row['status'],
 				'gophish_master_id'   => empty( $row['gophish_master_id'] ) ? null : (int) $row['gophish_master_id'],
+				'linkage_count'       => $link['count'],
+				'linked_campaigns'    => $link['linked'],
 				'synced_at'           => $row['synced_at'] ?? null,
 				'updated_at'          => $row['updated_at'] ?? null,
 				'published_at'        => $row['published_at'] ?? null,
 			];
-		}, $this->repository->list_for_entity( $entity ) );
+		}, $raw );
 
-		return [ 'entity_name' => $entity, 'quizzes' => $rows ];
+		return [ 'entity_name' => $entity, 'quizzes' => $rows, 'gophish_ok' => $gophish_ok ];
 	}
 
 	/**
@@ -169,67 +178,25 @@ class QuizPageService {
 		$ids   = array_map( static fn ( array $q ): int => (int) $q['id'], $quizzes );
 		$usage = $this->results->usage_by_quiz_page( $ids );
 
-		// One GoPhish read for the whole graph (never per quiz). On failure the
-		// linkage columns degrade to "unknown" rather than breaking the page.
-		$campaigns  = $this->gophish->get_campaigns();
-		$gophish_ok = ! is_wp_error( $campaigns );
-		$by_id      = [];
-		if ( $gophish_ok ) {
-			foreach ( $campaigns as $c ) {
-				$by_id[ (int) ( $c['id'] ?? 0 ) ] = $c;
-			}
-		}
+		[ $gophish_ok, $linkage ] = $this->compute_linkage( $quizzes );
 
-		$edu_cache = [];
-		$rows      = [];
+		$rows = [];
 		foreach ( $quizzes as $quiz ) {
-			$entity    = (string) $quiz['entity_name'];
 			$master_id = (int) ( $quiz['gophish_master_id'] ?? 0 );
 			$local     = $usage[ (int) $quiz['id'] ] ?? [ 'attempts' => 0, 'participants' => 0, 'runs' => 0 ];
-
-			$linked = [];
-			if ( $gophish_ok && $master_id > 0 ) {
-				if ( ! array_key_exists( $entity, $edu_cache ) ) {
-					$edu_cache[ $entity ] = $this->education_master_id( $entity );
-				}
-				$edu_id          = $edu_cache[ $entity ];
-				$edu_chains_here = $edu_id > 0 && (int) ( $by_id[ $edu_id ]['next_campaign_id'] ?? 0 ) === $master_id;
-
-				foreach ( $campaigns as $c ) {
-					$cid = (int) ( $c['id'] ?? 0 );
-					if ( $cid === $master_id || $cid === $edu_id ) {
-						continue; // The masters themselves are the pathway, not users.
-					}
-					$next = (int) ( $c['next_campaign_id'] ?? 0 );
-					$via  = '';
-					if ( $next === $master_id ) {
-						$via = 'quiz';
-					} elseif ( $edu_chains_here && $next === $edu_id ) {
-						$via = 'education';
-					}
-					if ( '' === $via ) {
-						continue;
-					}
-					$linked[] = [
-						'id'     => $cid,
-						'name'   => (string) ( $c['name'] ?? '' ),
-						'status' => (string) ( $c['status'] ?? '' ),
-						'via'    => $via,
-					];
-				}
-			}
+			$link      = $linkage[ (int) $quiz['id'] ] ?? [ 'count' => 0, 'linked' => [] ];
 
 			$rows[] = [
 				'id'                  => (int) $quiz['id'],
 				'title'               => (string) $quiz['title'],
-				'entity_name'         => $entity,
+				'entity_name'         => (string) $quiz['entity_name'],
 				'template_id'         => empty( $quiz['template_id'] ) ? null : (int) $quiz['template_id'],
 				'template_name'       => empty( $quiz['template_id'] ) ? null : ( $template_map[ (int) $quiz['template_id'] ] ?? null ),
 				'status'              => (string) $quiz['status'],
 				'is_default_followup' => (bool) $quiz['is_default_followup'],
 				'gophish_master_id'   => $master_id ?: null,
-				'linkage_count'       => count( $linked ),
-				'linked_campaigns'    => $linked,
+				'linkage_count'       => $link['count'],
+				'linked_campaigns'    => $link['linked'],
 				'participants'        => $local['participants'],
 				'attempts'            => $local['attempts'],
 				'runs'                => $local['runs'],
@@ -278,6 +245,70 @@ class QuizPageService {
 		$linter    = $this->linter->inspect( $html, $this->questions->answer_key_from_rows( $questions ) );
 
 		return [ 'html' => $html, 'linter' => $linter, 'entity_name' => $entity ];
+	}
+
+	/**
+	 * GoPhish chain linkage per quiz: the campaigns routed into each quiz
+	 * master, directly (via quiz) or through the entity's education master
+	 * (via education). One get_campaigns call covers the whole set (never per
+	 * quiz). Returns [gophish_ok, map(quiz_id => {count, linked[]})]; on a
+	 * GoPhish failure gophish_ok is false and the map is empty.
+	 *
+	 * @param array<int, array<string, mixed>> $quiz_rows rows with id, entity_name, gophish_master_id
+	 * @return array{0: bool, 1: array<int, array{count: int, linked: array<int, array<string, mixed>>}>}
+	 */
+	private function compute_linkage( array $quiz_rows ): array {
+		$campaigns = $this->gophish->get_campaigns();
+		if ( is_wp_error( $campaigns ) ) {
+			return [ false, [] ];
+		}
+
+		$by_id = [];
+		foreach ( $campaigns as $c ) {
+			$by_id[ (int) ( $c['id'] ?? 0 ) ] = $c;
+		}
+
+		$edu_cache = [];
+		$map       = [];
+		foreach ( $quiz_rows as $quiz ) {
+			$qid       = (int) $quiz['id'];
+			$master_id = (int) ( $quiz['gophish_master_id'] ?? 0 );
+			$linked    = [];
+			if ( $master_id > 0 ) {
+				$entity = (string) $quiz['entity_name'];
+				if ( ! array_key_exists( $entity, $edu_cache ) ) {
+					$edu_cache[ $entity ] = $this->education_master_id( $entity );
+				}
+				$edu_id          = $edu_cache[ $entity ];
+				$edu_chains_here = $edu_id > 0 && (int) ( $by_id[ $edu_id ]['next_campaign_id'] ?? 0 ) === $master_id;
+
+				foreach ( $campaigns as $c ) {
+					$cid = (int) ( $c['id'] ?? 0 );
+					if ( $cid === $master_id || $cid === $edu_id ) {
+						continue; // The masters themselves are the pathway, not users.
+					}
+					$next = (int) ( $c['next_campaign_id'] ?? 0 );
+					$via  = '';
+					if ( $next === $master_id ) {
+						$via = 'quiz';
+					} elseif ( $edu_chains_here && $next === $edu_id ) {
+						$via = 'education';
+					}
+					if ( '' === $via ) {
+						continue;
+					}
+					$linked[] = [
+						'id'     => $cid,
+						'name'   => (string) ( $c['name'] ?? '' ),
+						'status' => (string) ( $c['status'] ?? '' ),
+						'via'    => $via,
+					];
+				}
+			}
+			$map[ $qid ] = [ 'count' => count( $linked ), 'linked' => $linked ];
+		}
+
+		return [ true, $map ];
 	}
 
 	/**

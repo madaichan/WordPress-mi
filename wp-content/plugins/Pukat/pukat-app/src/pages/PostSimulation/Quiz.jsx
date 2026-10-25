@@ -6,7 +6,7 @@ import Button from '../../components/UI/Button.jsx'
 import Tabs from '../../components/UI/Tabs.jsx'
 import useAppStore from '../../store/useAppStore.js'
 import { useMyProfile } from '../../hooks/queries/useProfileQueries.js'
-import { useQuizPage, useQuizPages, useQuizQuestions, useQuizResults, useQuizTemplates } from '../../hooks/queries/useQuizQueries.js'
+import { useQuizPage, useQuizPages, useQuizQuestions, useQuizTemplates } from '../../hooks/queries/useQuizQueries.js'
 import {
   useCreateQuizPageMutation,
   useCreateQuizQuestionMutation,
@@ -24,7 +24,6 @@ import {
   QuestionBankPanel,
   QuizBuilder,
   QuizListPanel,
-  QuizResultsPanel,
   SendQuizDialog,
 } from '../../features/quiz/components/index.js'
 
@@ -60,7 +59,6 @@ export default function Quiz() {
   const tabs = useMemo(() => ([
     { key: 'bank', label: 'Question Bank', icon: 'ti-list-numbers' },
     { key: 'page', label: 'Quiz Page', icon: 'ti-file-code' },
-    { key: 'results', label: 'Results', icon: 'ti-chart-bar' },
   ]), [])
 
   const requestExtras = useMemo(() => ({}), [])
@@ -71,7 +69,6 @@ export default function Quiz() {
     { enabled: tab === 'page' && Boolean(openQuizId) },
   )
   const { data: templatesData } = useQuizTemplates(requestExtras, { enabled: tab === 'page' })
-  const results = useQuizResults(requestExtras, { enabled: tab === 'results' })
 
   const createQuestion = useCreateQuizQuestionMutation()
   const updateQuestion = useUpdateQuizQuestionMutation()
@@ -110,7 +107,7 @@ export default function Quiz() {
     <PageShell animated={false}>
       <PageHeader
         title="Quiz Module"
-        subtitle={entityName ? `Question bank and quizzes for ${entityName}` : 'Question bank and quiz results'}
+        subtitle={entityName ? `Question bank and quizzes for ${entityName}` : 'Question bank and quizzes'}
         actions={canSendInvite ? (
           <Button variant="outline" onClick={() => setInviting(true)}>
             <i className="ti ti-send text-base" />
@@ -165,6 +162,7 @@ export default function Quiz() {
               : (
                 <QuizListPanel
                   quizzes={quizzes}
+                  gophishOk={pagesData?.gophish_ok !== false}
                   canEdit={canEditPage}
                   canPublish={canPublishPage}
                   busy={pageBusy}
@@ -175,16 +173,6 @@ export default function Quiz() {
                 />
               ))
         )}
-
-        {tab === 'results' && (
-          <QuizResultsPanel
-            data={results.data}
-            isLoading={results.isLoading}
-            isError={results.isError}
-            error={results.error}
-          />
-        )}
-
       </div>
 
       {inviting && (
