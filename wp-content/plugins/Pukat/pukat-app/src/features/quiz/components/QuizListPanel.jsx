@@ -4,19 +4,12 @@ import Button from '../../../components/UI/Button.jsx'
 import EmptyState from '../../../components/UI/EmptyState.jsx'
 import Modal from '../../../components/UI/Modal.jsx'
 
-/** Direct vs via-education counts from a quiz's linked campaigns. */
-function split(linked = []) {
-  return {
-    direct: linked.filter(c => c.via === 'quiz').length,
-    education: linked.filter(c => c.via === 'education').length,
-  }
-}
-
 /**
  * The entity's quizzes (docs/PRD_QUIZ_MODULE.md §13). An entity may own several;
  * one is the default-followup — the quiz the education → quiz chain uses. Each
- * row shows how many simulations route into the quiz (its chain linkage), click
- * for the detail. A presentational container: it renders the list the page
+ * row shows the simulations pointed straight at the quiz, click for the detail;
+ * the education route is a separate note, because it belongs to the entity (one
+ * shared link) and not to any campaign the operator picked. A presentational container: it renders the list the page
  * hands it and calls back for create / open / set-default / delete.
  */
 export default function QuizListPanel({
@@ -30,6 +23,9 @@ export default function QuizListPanel({
   onSetDefault,
   onDelete,
 }) {
+  // { quiz, mode } — which quiz's chain to show, and which side of it:
+  // 'direct' = campaigns pointed at the quiz, 'education' = campaigns that
+  // reach it through the entity's education page.
   const [detail, setDetail] = useState(null)
 
   return (
@@ -57,7 +53,8 @@ export default function QuizListPanel({
         <div className="divide-y divide-line overflow-hidden rounded-xl border border-line bg-panel">
           {quizzes.map(quiz => {
             const count = quiz.linkage_count || 0
-            const { direct, education } = split(quiz.linked_campaigns)
+            const edu = quiz.education_chain || {}
+            const eduCount = edu.campaign_count || 0
             return (
               <div key={quiz.id} className="flex flex-wrap items-center justify-between gap-3 p-4">
                 <div className="min-w-0 space-y-1">
@@ -71,22 +68,37 @@ export default function QuizListPanel({
                     <span>{quiz.gophish_master_id ? `GoPhish master #${quiz.gophish_master_id}` : 'Not synced to GoPhish'}</span>
                     {quiz.updated_at && <span>· updated {quiz.updated_at}</span>}
                   </p>
-                  {/* Chain linkage: how many simulations route into this quiz */}
+                  {/* Chain linkage, by the two routes that end at this quiz:
+                      simulation -> quiz, and simulation -> education -> quiz.
+                      A simulation that only asked for education is not shown. */}
                   {!gophishOk ? (
                     <span className="text-[11px] text-ink-faint"><i className="ti ti-link-off" /> linkage unavailable (GoPhish unreachable)</span>
-                  ) : count > 0 ? (
-                    <button
-                      type="button"
-                      onClick={() => setDetail(quiz)}
-                      className="inline-flex items-center gap-1.5 rounded-md bg-violet-500/10 px-2 py-0.5 text-[11px] font-semibold text-violet-600 hover:bg-violet-500/20 dark:text-violet-400"
-                      title="Show the simulations linked to this quiz"
-                    >
-                      <i className="ti ti-link" />
-                      {count} simulation{count > 1 ? 's' : ''}
-                      <span className="font-normal text-ink-faint">({direct} direct · {education} via edu)</span>
-                    </button>
+                  ) : count + eduCount === 0 ? (
+                    <span className="text-[11px] text-ink-faint"><i className="ti ti-link" /> no simulation leads to this quiz</span>
                   ) : (
-                    <span className="text-[11px] text-ink-faint"><i className="ti ti-link" /> no linked simulation</span>
+                    <div className="flex flex-wrap items-center gap-1.5">
+                      {count > 0 && (
+                        <ChainChip
+                          icon="ti-link"
+                          label={`${count} simulation${count > 1 ? 's' : ''} → quiz`}
+                          title="Show the simulations that chain straight to this quiz"
+                          onClick={() => setDetail({ quiz, mode: 'direct' })}
+                        />
+                      )}
+                      {eduCount > 0 && (
+                        <ChainChip
+                          icon="ti-arrow-ramp-right-2"
+                          label={`${eduCount} simulation${eduCount > 1 ? 's' : ''} → education → quiz`}
+                          title="Show the simulations that reach this quiz through the education page"
+                          onClick={() => setDetail({ quiz, mode: 'education' })}
+                        />
+                      )}
+                    </div>
+                  )}
+                  {gophishOk && edu.education_only_count > 0 && (
+                    <p className="text-[11px] text-ink-faint">
+                      {`${edu.education_only_count} other campaign${edu.education_only_count > 1 ? 's' : ''} stop${edu.education_only_count > 1 ? '' : 's'} at the education page (no quiz follow-up asked for)`}
+                    </p>
                   )}
                 </div>
                 <div className="flex items-center gap-2">
@@ -108,34 +120,81 @@ export default function QuizListPanel({
         </div>
       )}
 
-      {detail && (
-        <Modal
-          open
-          onClose={() => setDetail(null)}
-          title="Linked simulations"
-          subtitle={`${detail.title || 'Quiz'} · ${detail.linkage_count || 0} simulation(s) route into this quiz`}
-        >
-          {(detail.linked_campaigns || []).length === 0 ? (
-            <p className="text-sm text-ink-faint">No simulation is chained to this quiz.</p>
-          ) : (
-            <ul className="divide-y divide-line overflow-hidden rounded-lg border border-line">
-              {detail.linked_campaigns.map(c => (
-                <li key={c.id} className="flex flex-wrap items-center justify-between gap-2 px-3 py-2 text-xs">
-                  <span className="min-w-0 truncate text-ink">{c.name}</span>
-                  <span className="flex items-center gap-2">
-                    <Badge tone={c.via === 'quiz' ? 'violet' : 'gray'}>{c.via === 'quiz' ? 'direct → quiz' : 'via education'}</Badge>
-                    <span className="text-ink-faint">{c.status}</span>
-                  </span>
-                </li>
-              ))}
-            </ul>
-          )}
-          <p className="mt-3 text-[11px] text-ink-faint">
-            <span className="font-semibold">Direct</span> = a simulation that chains straight to this quiz.
-            <span className="ml-1 font-semibold">Via education</span> = a simulation that chains to the education page, which then leads here.
-          </p>
-        </Modal>
-      )}
+      {detail && <ChainModal detail={detail} onClose={() => setDetail(null)} />}
     </div>
+  )
+}
+
+/**
+ * One quiz's chain, from whichever side the operator clicked: the campaigns
+ * pointed straight at the quiz, or the ones that only reach it because the
+ * entity's education page currently continues here.
+ */
+function ChainModal({ detail, onClose }) {
+  const { quiz, mode } = detail
+  const education = quiz.education_chain || {}
+  const viaEducation = mode === 'education'
+  const campaigns = (viaEducation ? education.campaigns : quiz.linked_campaigns) || []
+
+  return (
+    <Modal
+      open
+      onClose={onClose}
+      title={viaEducation ? 'Simulation → education → quiz' : 'Simulation → quiz'}
+      subtitle={
+        viaEducation
+          ? `${quiz.title || 'Quiz'} · ${campaigns.length} simulation(s) run the education page first, then land here`
+          : `${quiz.title || 'Quiz'} · ${campaigns.length} simulation(s) chain straight to this quiz`
+      }
+    >
+      {campaigns.length === 0 ? (
+        <p className="text-sm text-ink-faint">
+          {viaEducation ? 'No simulation reaches this quiz through the education page.' : 'No simulation chains straight to this quiz.'}
+        </p>
+      ) : (
+        <ul className="divide-y divide-line overflow-hidden rounded-lg border border-line">
+          {campaigns.map(c => (
+            <li key={c.id} className="flex flex-wrap items-center justify-between gap-2 px-3 py-2 text-xs">
+              <span className="min-w-0 truncate text-ink">{c.name}</span>
+              <span className="flex items-center gap-2">
+                <Badge tone={viaEducation ? 'gray' : 'violet'}>{viaEducation ? 'sim → education → quiz' : 'sim → quiz'}</Badge>
+                <span className="text-ink-faint">{c.status}</span>
+              </span>
+            </li>
+          ))}
+        </ul>
+      )}
+      <p className="mt-3 text-[11px] text-ink-faint">
+        {viaEducation ? (
+          <>
+            These simulations asked for quiz follow-up and were chained to the entity&apos;s education page, which continues to
+            whichever quiz is the default follow-up — right now, this one. The onward link is one shared setting read live from
+            GoPhish, not recorded per campaign, so finished runs stay in the list and the route changes if the default changes.
+            {education.education_only_count > 0 &&
+              ` ${education.education_only_count} further campaign(s) chain to the same education page without asking for a quiz; they are left out.`}
+          </>
+        ) : (
+          <>
+            These simulations carry their own link to this quiz master, with no education page in between.
+            {education.chained && ' Simulations that go through education are listed under the other count on the quiz row.'}
+          </>
+        )}
+      </p>
+    </Modal>
+  )
+}
+
+/** One clickable linkage count on a quiz row. */
+function ChainChip({ icon, label, title, onClick }) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      title={title}
+      className="inline-flex items-center gap-1.5 rounded-md bg-violet-500/10 px-2 py-0.5 text-[11px] font-semibold text-violet-600 hover:bg-violet-500/20 dark:text-violet-400"
+    >
+      <i className={`ti ${icon}`} />
+      {label}
+    </button>
   )
 }

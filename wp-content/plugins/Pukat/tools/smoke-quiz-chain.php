@@ -61,6 +61,15 @@ function call( string $method, string $route, array $params, int $user_id ): arr
 do_action( 'rest_api_init' );
 
 $gophish = new GoPhishService();
+
+/** Where the real education master points before this run — the end of the
+ * script asserts the throwaway entity left that link exactly as it found it.
+ * Not asserted as 0: a real quiz publish legitimately chains it to a quiz. */
+$ibaraki_before = array_values( array_filter(
+	(array) $gophish->get_campaigns( [ 'is_master' => true ] ),
+	static fn ( $c ): bool => 'pukat-edu-master-ibaraki' === (string) ( $c['name'] ?? '' )
+) );
+$ibaraki_next_before = isset( $ibaraki_before[0] ) ? (int) ( $ibaraki_before[0]['next_campaign_id'] ?? 0 ) : -1;
 if ( is_wp_error( $gophish->test_connection() ) ) {
 	fwrite( STDERR, "GoPhish is not reachable — configure the connection first.\n" );
 	exit( 1 );
@@ -249,6 +258,55 @@ $run_row['follow_up_json'] = (string) wp_json_encode( [ 'quiz_enabled' => false,
 check( 'a run that opted into nothing is not linked at all', null === $link_method->invoke( $runs, $run_row, $user_id ), $failures );
 
 // ---------------------------------------------------------------------------
+// Which of the three shapes a simulation has — sim→education, sim→education→
+// quiz, sim→quiz — is not visible in the GoPhish chain (education carries one
+// shared link onward), so the quiz list reads it from the run's follow_up_json.
+// The throwaway simulation currently points at the education master.
+// ---------------------------------------------------------------------------
+echo "\n-- the list separates education-only from education→quiz --\n";
+
+$runs_table = $wpdb->prefix . 'pukat_campaign_runs';
+$wpdb->insert( $runs_table, [
+	'playbook_master_id'  => 0,
+	'name'                => 'zz-quizchain-run-' . $suffix,
+	'entity'              => $entity,
+	'gophish_campaign_id' => $sim_id,
+	'follow_up_json'      => (string) wp_json_encode( [ 'quiz_enabled' => true, 'education_enabled' => true ] ),
+] );
+$run_db_id = (int) $wpdb->insert_id;
+
+function education_chain_of( int $user_id, string $entity ): array {
+	[ , $body ] = call( 'GET', '/pukat/v1/quiz-pages', [ 'entity' => $entity ], $user_id );
+	$quiz       = ( $body['data']['quizzes'] ?? [] )[0] ?? [];
+
+	return [ $quiz['education_chain'] ?? [], $quiz['linked_campaigns'] ?? [] ];
+}
+
+[ $chain_info ] = education_chain_of( $user_id, $entity );
+check(
+	'a run that asked for education + quiz is listed as simulation → education → quiz',
+	in_array( $sim_id, array_map( 'intval', array_column( (array) ( $chain_info['campaigns'] ?? [] ), 'id' ) ), true )
+		&& 0 === (int) ( $chain_info['education_only_count'] ?? -1 ),
+	$failures
+);
+
+$wpdb->update(
+	$runs_table,
+	[ 'follow_up_json' => (string) wp_json_encode( [ 'quiz_enabled' => false, 'education_enabled' => true ] ) ],
+	[ 'id' => $run_db_id ]
+);
+
+[ $chain_info ] = education_chain_of( $user_id, $entity );
+check(
+	'the same campaign, asking for education only, is counted apart and not listed',
+	! in_array( $sim_id, array_map( 'intval', array_column( (array) ( $chain_info['campaigns'] ?? [] ), 'id' ) ), true )
+		&& 1 === (int) ( $chain_info['education_only_count'] ?? 0 ),
+	$failures
+);
+
+$wpdb->delete( $runs_table, [ 'id' => $run_db_id ] );
+
+// ---------------------------------------------------------------------------
 // The wider edit lock: a simulation chained to EDUCATION also locks the quiz
 // page, because education leads into it (PRD FR-11). The throwaway simulation
 // above now points at the education master, which makes this testable here.
@@ -349,7 +407,7 @@ $ibaraki = array_values( array_filter(
 	static fn ( $c ): bool => 'pukat-edu-master-ibaraki' === (string) ( $c['name'] ?? '' )
 ) );
 check( 'the real education master (ibaraki) still exists', 1 === count( $ibaraki ), $failures );
-check( 'the real education master was not re-chained by any of this', isset( $ibaraki[0] ) && 0 === (int) ( $ibaraki[0]['next_campaign_id'] ?? -1 ), $failures );
+check( 'the real education master was not re-chained by any of this', isset( $ibaraki[0] ) && $ibaraki_next_before === (int) ( $ibaraki[0]['next_campaign_id'] ?? -1 ), $failures );
 
 if ( $failures ) {
 	fwrite( STDERR, "\n" . count( $failures ) . " check(s) failed.\n" );

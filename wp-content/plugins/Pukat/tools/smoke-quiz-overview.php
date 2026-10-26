@@ -79,6 +79,21 @@ check( 'Q1 attempts = 3 (rows)', 3 === (int) ( $byId[ $q1 ]['attempts'] ?? 0 ), 
 check( 'Q1 runs = 2 (distinct runs)', 2 === (int) ( $byId[ $q1 ]['runs'] ?? 0 ), $failures );
 check( 'Q2 has no results yet', 0 === (int) ( $byId[ $q2 ]['participants'] ?? -1 ), $failures );
 check( 'linkage shape present (count + list)', array_key_exists( 'linkage_count', $byId[ $q1 ] ) && array_key_exists( 'linked_campaigns', $byId[ $q1 ] ), $failures );
+check(
+	'education route reported apart from the linked campaigns',
+	isset( $byId[ $q1 ]['education_chain'] )
+		&& array_key_exists( 'chained', $byId[ $q1 ]['education_chain'] )
+		&& array_key_exists( 'campaign_count', $byId[ $q1 ]['education_chain'] )
+		&& array_key_exists( 'campaigns', $byId[ $q1 ]['education_chain'] )
+		&& array_key_exists( 'education_only_count', $byId[ $q1 ]['education_chain'] )
+		&& count( (array) $byId[ $q1 ]['education_chain']['campaigns'] ) === (int) $byId[ $q1 ]['education_chain']['campaign_count'],
+	$failures
+);
+check(
+	'linked campaigns are direct only (via=quiz)',
+	[] === array_filter( (array) $byId[ $q1 ]['linked_campaigns'], static fn ( array $c ): bool => 'quiz' !== ( $c['via'] ?? '' ) ),
+	$failures
+);
 
 // Cleanup.
 foreach ( [ $e1, $e2 ] as $e ) {

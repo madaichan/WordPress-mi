@@ -371,3 +371,17 @@ Smoke Q5: unit test `score_payload()` (semua benar, sebagian, kosong, multi-kunc
 - Logika linkage GoPhish (campaign yang terangkai ke master quiz: `via=quiz` direct / `via=education`) diekstrak jadi helper `QuizPageService::compute_linkage()` (satu `get_campaigns` untuk seluruh set); `overview()` memakainya, dan `list()` per-entity kini menyertakan `linkage_count` + `linked_campaigns` per quiz (+ `gophish_ok`).
 - Frontend `QuizListPanel`: tiap baris quiz menampilkan chip "N simulations (X direct · Y via edu)" yang bisa diklik → modal detail (nama campaign, `direct → quiz` / `via education`, status). Degradasi jelas saat GoPhish tak terjangkau.
 - Verifikasi: `php -l` bersih; smoke overview/builder PASS; FE lint 0 error, 138 test, build sukses, `assets/dist` di-rebuild.
+
+### V2-Fase 8b — linkage dipisah per skema rantai simulasi (SELESAI 2026-10-26)
+
+Temuan saat testing: quiz yang baru di-publish langsung tampil punya 7 "linked simulation" padahal operator belum pernah merangkai campaign apa pun ke quiz itu. Bukan bug jalur publish — `next_campaign_id` pada GoPhish hanya satu per campaign (PRD §13.9), jadi begitu publish quiz default menarik education master ke master quiz yang baru, **semua** campaign yang pernah chain ke education (termasuk run `Completed`) ikut terhitung.
+
+Ada tiga bentuk rantai: (1) `simulation → education`, (2) `simulation → education → quiz`, (3) `simulation → quiz`. Rantai GoPhish live tidak bisa memisahkan (1) dari (2) — link education→quiz itu satu setelan bersama — jadi pemisahnya diambil dari niat run yang tersimpan lokal di `follow_up_json`. Quiz hanya menghitung (2) dan (3).
+
+- Repo baru `CampaignRunRepository::follow_up_by_gophish_campaign_id()`: satu query, map `gophish_campaign_id → { education_enabled, quiz_enabled }`.
+- `QuizPageService::compute_linkage()`:
+  - `linkage_count`/`linked_campaigns` = skema 3 saja (campaign yang `next_campaign_id`-nya = master quiz).
+  - `education_chain` = `{ chained, master_id, campaign_count, campaigns[], education_only_count }` — `campaigns[]` berisi skema 2 (chain ke education master **dan** run-nya `quiz_enabled`), sedangkan skema 1 (termasuk campaign tanpa run di Pukat) hanya dihitung di `education_only_count`.
+- Frontend `QuizListPanel`: dua chip bisa diklik, "N simulations → quiz" dan "M simulations → education → quiz", masing-masing membuka `ChainModal` (satu modal, mode `direct`/`education`) berisi nama campaign + status; di bawahnya catatan kecil jumlah campaign yang berhenti di education. `QuizOverviewPanel`: kolom Linkage = jumlah skema 2 + 3, baris expand menampilkan kedua daftar + catatan education-only.
+- Edit lock tidak berubah: `active_simulations_for_quiz()` tetap memperhitungkan simulasi aktif lewat education, karena simulasi berjalan memang mengunci quiz.
+- Verifikasi: `php -l` bersih; `tools/smoke-quiz-chain.php` dapat 2 assert baru yang menyuntik satu campaign run throwaway dan membuktikan campaign yang sama pindah antara `campaigns[]` dan `education_only_count` saat `quiz_enabled` dibalik → PASS; `tools/smoke-quiz-overview.php` mengecek shape `education_chain` + `linked_campaigns` direct-only → PASS; 7 smoke quiz lain PASS. `smoke-quiz-chain.php` juga tidak lagi memaksa `next_campaign_id` education master nyata = `0` (gagal begitu ada quiz asli ter-publish), kini membandingkan nilai sebelum/sesudah run. FE lint 0 error (sisa warning lama `Performing.jsx`), 138 test, `npx vite build` ke outDir sementara sukses; `assets/dist` sengaja tidak di-rebuild.

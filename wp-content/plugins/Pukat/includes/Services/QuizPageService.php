@@ -9,6 +9,7 @@ declare(strict_types=1);
 
 namespace Pukat\Services;
 
+use Pukat\Repositories\CampaignRunRepository;
 use Pukat\Repositories\FlagPageRepository;
 use Pukat\Repositories\QuizPageRepository;
 use Pukat\Repositories\QuizResultRepository;
@@ -54,6 +55,7 @@ class QuizPageService {
 	private QuizPageGenerator $generator;
 	private QuizResultRepository $results;
 	private GoPhishService $gophish;
+	private CampaignRunRepository $runs;
 
 	/**
 	 * The education page is reached through its repository, not FlagPageService:
@@ -73,7 +75,8 @@ class QuizPageService {
 		?QuizTemplateRepository $templates = null,
 		?QuizPageGenerator $generator = null,
 		?QuizResultRepository $results = null,
-		?GoPhishService $gophish = null
+		?GoPhishService $gophish = null,
+		?CampaignRunRepository $runs = null
 	) {
 		$this->repository = $repository ?? new QuizPageRepository();
 		$this->access     = $access ?? new EntityProfileService();
@@ -86,6 +89,7 @@ class QuizPageService {
 		$this->generator  = $generator ?? new QuizPageGenerator();
 		$this->results    = $results ?? new QuizResultRepository();
 		$this->gophish    = $gophish ?? new GoPhishService();
+		$this->runs       = $runs ?? new CampaignRunRepository();
 	}
 
 	/**
@@ -134,12 +138,13 @@ class QuizPageService {
 		}
 
 		$raw = $this->repository->list_for_entity( $entity );
-		// Chain linkage per quiz (how many simulations route into it, directly
-		// or via education) — one GoPhish call for all of the entity's quizzes.
+		// Chain linkage per quiz (which simulations point straight at it, plus
+		// whether the education route leads here) — one GoPhish call for all of
+		// the entity's quizzes.
 		[ $gophish_ok, $linkage ] = $this->compute_linkage( $raw );
 
 		$rows = array_map( function ( array $row ) use ( $linkage ): array {
-			$link = $linkage[ (int) $row['id'] ] ?? [ 'count' => 0, 'linked' => [] ];
+			$link = $linkage[ (int) $row['id'] ] ?? [ 'count' => 0, 'linked' => [], 'education' => [ 'chained' => false, 'master_id' => 0, 'campaign_count' => 0, 'campaigns' => [], 'education_only_count' => 0 ] ];
 
 			return [
 				'id'                  => (int) $row['id'],
@@ -150,6 +155,7 @@ class QuizPageService {
 				'gophish_master_id'   => empty( $row['gophish_master_id'] ) ? null : (int) $row['gophish_master_id'],
 				'linkage_count'       => $link['count'],
 				'linked_campaigns'    => $link['linked'],
+				'education_chain'     => $link['education'],
 				'synced_at'           => $row['synced_at'] ?? null,
 				'updated_at'          => $row['updated_at'] ?? null,
 				'published_at'        => $row['published_at'] ?? null,
@@ -184,7 +190,7 @@ class QuizPageService {
 		foreach ( $quizzes as $quiz ) {
 			$master_id = (int) ( $quiz['gophish_master_id'] ?? 0 );
 			$local     = $usage[ (int) $quiz['id'] ] ?? [ 'attempts' => 0, 'participants' => 0, 'runs' => 0 ];
-			$link      = $linkage[ (int) $quiz['id'] ] ?? [ 'count' => 0, 'linked' => [] ];
+			$link      = $linkage[ (int) $quiz['id'] ] ?? [ 'count' => 0, 'linked' => [], 'education' => [ 'chained' => false, 'master_id' => 0, 'campaign_count' => 0, 'campaigns' => [], 'education_only_count' => 0 ] ];
 
 			$rows[] = [
 				'id'                  => (int) $quiz['id'],
@@ -197,6 +203,7 @@ class QuizPageService {
 				'gophish_master_id'   => $master_id ?: null,
 				'linkage_count'       => $link['count'],
 				'linked_campaigns'    => $link['linked'],
+				'education_chain'     => $link['education'],
 				'participants'        => $local['participants'],
 				'attempts'            => $local['attempts'],
 				'runs'                => $local['runs'],
@@ -248,14 +255,26 @@ class QuizPageService {
 	}
 
 	/**
-	 * GoPhish chain linkage per quiz: the campaigns routed into each quiz
-	 * master, directly (via quiz) or through the entity's education master
-	 * (via education). One get_campaigns call covers the whole set (never per
-	 * quiz). Returns [gophish_ok, map(quiz_id => {count, linked[]})]; on a
+	 * GoPhish chain linkage per quiz. Only campaigns whose own
+	 * `next_campaign_id` is the quiz master count as linked: those are the
+	 * simulations an operator deliberately pointed at this quiz.
+	 *
+	 * A simulation can reach a quiz three ways, and only two of them belong to
+	 * the quiz: simulation → education (not this quiz's business), simulation →
+	 * education → quiz, and simulation → quiz. The live GoPhish chain cannot
+	 * separate the first two, because the education master carries one shared
+	 * `next_campaign_id` (PRD §13.9) — the moment it points here, every
+	 * campaign that ever chained to education, finished runs included, looks
+	 * routed into a quiz just published. What each run actually opted into is
+	 * recorded locally in its `follow_up_json`, so that is what splits them:
+	 * `education` lists only the campaigns whose run asked for quiz follow-up,
+	 * and counts the education-only ones apart.
+	 *
+	 * One get_campaigns call covers the whole set (never per quiz). On a
 	 * GoPhish failure gophish_ok is false and the map is empty.
 	 *
 	 * @param array<int, array<string, mixed>> $quiz_rows rows with id, entity_name, gophish_master_id
-	 * @return array{0: bool, 1: array<int, array{count: int, linked: array<int, array<string, mixed>>}>}
+	 * @return array{0: bool, 1: array<int, array{count: int, linked: array<int, array<string, mixed>>, education: array{chained: bool, master_id: int, campaign_count: int, campaigns: array<int, array<string, mixed>>, education_only_count: int}}>}
 	 */
 	private function compute_linkage( array $quiz_rows ): array {
 		$campaigns = $this->gophish->get_campaigns();
@@ -268,12 +287,17 @@ class QuizPageService {
 			$by_id[ (int) ( $c['id'] ?? 0 ) ] = $c;
 		}
 
+		// What each campaign's run opted into — the only record of whether a
+		// simulation chained to education was meant to continue to the quiz.
+		$follow_up = $this->runs->follow_up_by_gophish_campaign_id( array_keys( $by_id ) );
+
 		$edu_cache = [];
 		$map       = [];
 		foreach ( $quiz_rows as $quiz ) {
 			$qid       = (int) $quiz['id'];
 			$master_id = (int) ( $quiz['gophish_master_id'] ?? 0 );
 			$linked    = [];
+			$education = [ 'chained' => false, 'master_id' => 0, 'campaign_count' => 0, 'campaigns' => [], 'education_only_count' => 0 ];
 			if ( $master_id > 0 ) {
 				$entity = (string) $quiz['entity_name'];
 				if ( ! array_key_exists( $entity, $edu_cache ) ) {
@@ -282,30 +306,42 @@ class QuizPageService {
 				$edu_id          = $edu_cache[ $entity ];
 				$edu_chains_here = $edu_id > 0 && (int) ( $by_id[ $edu_id ]['next_campaign_id'] ?? 0 ) === $master_id;
 
+				$education['chained']   = $edu_chains_here;
+				$education['master_id'] = $edu_chains_here ? $edu_id : 0;
+
 				foreach ( $campaigns as $c ) {
 					$cid = (int) ( $c['id'] ?? 0 );
 					if ( $cid === $master_id || $cid === $edu_id ) {
 						continue; // The masters themselves are the pathway, not users.
 					}
 					$next = (int) ( $c['next_campaign_id'] ?? 0 );
-					$via  = '';
 					if ( $next === $master_id ) {
-						$via = 'quiz';
+						$linked[] = [
+							'id'     => $cid,
+							'name'   => (string) ( $c['name'] ?? '' ),
+							'status' => (string) ( $c['status'] ?? '' ),
+							'via'    => 'quiz',
+						];
 					} elseif ( $edu_chains_here && $next === $edu_id ) {
-						$via = 'education';
+						// Education-only runs stop at the education page as far
+						// as the operator asked; a run with no stored follow-up
+						// (campaign made outside Pukat) is read the same way.
+						if ( empty( $follow_up[ $cid ]['quiz_enabled'] ) ) {
+							++$education['education_only_count'];
+							continue;
+						}
+						$education['campaigns'][] = [
+							'id'     => $cid,
+							'name'   => (string) ( $c['name'] ?? '' ),
+							'status' => (string) ( $c['status'] ?? '' ),
+							'via'    => 'education',
+						];
 					}
-					if ( '' === $via ) {
-						continue;
-					}
-					$linked[] = [
-						'id'     => $cid,
-						'name'   => (string) ( $c['name'] ?? '' ),
-						'status' => (string) ( $c['status'] ?? '' ),
-						'via'    => $via,
-					];
 				}
 			}
-			$map[ $qid ] = [ 'count' => count( $linked ), 'linked' => $linked ];
+			$education['campaign_count'] = count( $education['campaigns'] );
+
+			$map[ $qid ] = [ 'count' => count( $linked ), 'linked' => $linked, 'education' => $education ];
 		}
 
 		return [ true, $map ];

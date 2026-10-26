@@ -265,6 +265,104 @@ class CampaignRunRepository {
 	}
 
 	/**
+	 * The follow-up stages each GoPhish campaign's run opted into, keyed by
+	 * `gophish_campaign_id` — one query for the whole set. Lets a caller tell
+	 * a simulation chained to education alone from one chained to education as
+	 * a step towards the quiz, which the live GoPhish chain cannot show (the
+	 * education master carries a single shared link onward).
+	 *
+	 * @param array<int, int|string> $gophish_campaign_ids
+	 * @return array<int, array{education_enabled: bool, quiz_enabled: bool}>
+	 */
+	public function follow_up_by_gophish_campaign_id( array $gophish_campaign_ids ): array {
+		global $wpdb;
+
+		$ids = array_values( array_unique( array_filter( array_map( 'intval', $gophish_campaign_ids ) ) ) );
+		if ( empty( $ids ) ) {
+			return [];
+		}
+
+		$placeholders = implode( ',', array_fill( 0, count( $ids ), '%d' ) );
+		$rows         = $wpdb->get_results(
+			$wpdb->prepare(
+				"SELECT gophish_campaign_id, follow_up_json FROM {$this->table( 'campaign_runs' )} WHERE gophish_campaign_id IN ({$placeholders})",
+				$ids
+			),
+			ARRAY_A
+		) ?: [];
+
+		$map = [];
+		foreach ( $rows as $row ) {
+			$follow_up = json_decode( (string) ( $row['follow_up_json'] ?? '' ), true );
+			$follow_up = is_array( $follow_up ) ? $follow_up : [];
+
+			$map[ (int) $row['gophish_campaign_id'] ] = [
+				'education_enabled' => ! empty( $follow_up['education_enabled'] ),
+				'quiz_enabled'      => ! empty( $follow_up['quiz_enabled'] ),
+			];
+		}
+
+		return $map;
+	}
+
+	/**
+	 * Per-run quiz participation for one entity, newest run first.
+	 *
+	 * `reached` is the run's `submitted_data` count: submitting the phishing
+	 * form is what redirects a target into the education/quiz chain, so it is
+	 * the honest denominator for "offered the quiz" — the same one
+	 * CampaignRunService::aggregate_result_stats() divides by for `quiz_rate`.
+	 * `completed` is that run's `quiz_completed`.
+	 *
+	 * Both are read out of the stored `metrics_json` snapshot rather than
+	 * recomputed, so this costs one query and no GoPhish call — the numbers are
+	 * as fresh as the run's last results sync. Runs never synced have no
+	 * snapshot and come back as zeros.
+	 *
+	 * @param string $entity Entity name; matched case-insensitively.
+	 * @param int    $limit  Newest runs to inspect (metrics_json is LONGTEXT, so this stays bounded).
+	 * @return array<int, array{id: int, name: string, launched_at: string, reached: int, completed: int}>
+	 */
+	public function quiz_participation_for_entity( string $entity, int $limit = 50 ): array {
+		global $wpdb;
+
+		$entity = trim( $entity );
+		if ( '' === $entity ) {
+			return [];
+		}
+
+		$table = $this->table( 'campaign_runs' );
+		$limit = max( 1, min( 200, $limit ) );
+		$rows  = $wpdb->get_results(
+			$wpdb->prepare(
+				"SELECT id, name, launched_at, metrics_json FROM {$table}
+				 WHERE LOWER(entity) = LOWER(%s) AND launched_at IS NOT NULL
+				 ORDER BY launched_at DESC, id DESC
+				 LIMIT %d",
+				$entity,
+				$limit
+			),
+			ARRAY_A
+		) ?: [];
+
+		$out = [];
+		foreach ( $rows as $row ) {
+			$metrics = json_decode( (string) ( $row['metrics_json'] ?? '' ), true );
+			$stats   = is_array( $metrics ) && is_array( $metrics['stats'] ?? null ) ? $metrics['stats'] : [];
+
+			$out[] = [
+				'id'          => (int) $row['id'],
+				'name'        => (string) ( $row['name'] ?? '' ),
+				'launched_at' => (string) ( $row['launched_at'] ?? '' ),
+				'reached'     => (int) ( $stats['submitted_data'] ?? 0 ),
+				'completed'   => (int) ( $stats['quiz_completed'] ?? 0 ),
+			];
+		}
+
+		return $out;
+	}
+
+	/**
 	 * Find a generic row by table suffix and ID.
 	 *
 	 * @return array<string, mixed>|null
