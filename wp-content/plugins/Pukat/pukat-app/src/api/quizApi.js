@@ -47,6 +47,12 @@ export const quizApi = {
   results: (params = {}) => (params.campaignId
     ? get(`/quiz/results/${params.campaignId}`)
     : get('/quiz/results', { params })),
+
+  // Pulls the entity's newest answers from GoPhish, then answers with the same
+  // payload `results` returns. POST because it calls out and writes graded
+  // rows; throttled per entity server-side, so calling it on every page open
+  // is safe. Never touches the monitoring results sync.
+  refreshResults: (params = {}) => post('/quiz/results/refresh', params),
 }
 
 export default quizApi

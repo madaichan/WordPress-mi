@@ -10,7 +10,7 @@ import { QuizResultsPanel } from '../../quiz/components/index.js'
  * Takes `campaignRunId` because quiz answers are recorded per run. The report
  * view around this pane is still static mock content and has no run in hand,
  * so without the prop this says so instead of inventing numbers — the same
- * data is available per entity under Post Simulation → Quiz → Results.
+ * data is available per entity on the Quiz Dashboard.
  */
 export default function QuizReportPane({ campaignRunId = null }) {
   const enabled = Boolean(campaignRunId)
@@ -24,10 +24,10 @@ export default function QuizReportPane({ campaignRunId = null }) {
       <EmptyState
         icon="ti-help-circle"
         title="No campaign run selected"
-        description="Quiz answers are graded per campaign run. Open a run's monitoring page, or see every graded answer for your entity under Post Simulation → Quiz."
+        description="Quiz answers are graded per campaign run. Open a run's monitoring page, or see every graded answer for your entity on the Quiz Dashboard."
         action={(
-          <Link to="/post/quiz" className="text-xs font-semibold text-violet-600 hover:underline dark:text-violet-400">
-            Open the Quiz module
+          <Link to="/post/quiz-results" className="text-xs font-semibold text-violet-600 hover:underline dark:text-violet-400">
+            Open the Quiz Dashboard
           </Link>
         )}
       />

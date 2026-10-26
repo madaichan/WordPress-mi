@@ -9,11 +9,13 @@ declare(strict_types=1);
 
 namespace Pukat\Api;
 
+use Pukat\Repositories\CampaignRunRepository;
 use Pukat\Repositories\QuizResultRepository;
 use Pukat\Services\EntityProfileService;
 use Pukat\Services\PermissionRegistry;
 use Pukat\Services\QuizInviteService;
 use Pukat\Services\QuizQuestionService;
+use Pukat\Services\QuizRefreshService;
 use Pukat\Services\QuizScoringService;
 use WP_Error;
 use WP_REST_Request;
@@ -33,6 +35,7 @@ use WP_REST_Response;
  *   DELETE /pukat/v1/quiz/questions/{id}
  *   GET    /pukat/v1/quiz/results?entity=&campaign_run_id=
  *   GET    /pukat/v1/quiz/results/{campaign_id}
+ *   POST   /pukat/v1/quiz/results/refresh?entity=
  *   POST   /pukat/v1/quiz/invite
  *
  * `POST /quiz/submit` was removed with the Quiz Module (PRD §8): the quiz page
@@ -47,19 +50,25 @@ class QuizController extends RestController {
 	private QuizResultRepository $results;
 	private QuizScoringService $scoring;
 	private EntityProfileService $access;
+	private CampaignRunRepository $runs;
+	private QuizRefreshService $refresher;
 
 	public function __construct(
 		?QuizQuestionService $questions = null,
 		?QuizInviteService $invites = null,
 		?QuizResultRepository $results = null,
 		?QuizScoringService $scoring = null,
-		?EntityProfileService $access = null
+		?EntityProfileService $access = null,
+		?CampaignRunRepository $runs = null,
+		?QuizRefreshService $refresher = null
 	) {
 		$this->questions = $questions ?? new QuizQuestionService();
 		$this->invites   = $invites ?? new QuizInviteService();
 		$this->results   = $results ?? new QuizResultRepository();
 		$this->scoring   = $scoring ?? new QuizScoringService();
 		$this->access    = $access ?? new EntityProfileService();
+		$this->runs      = $runs ?? new CampaignRunRepository();
+		$this->refresher = $refresher ?? new QuizRefreshService();
 	}
 
 	public function register_routes(): void {
@@ -97,6 +106,16 @@ class QuizController extends RestController {
 		register_rest_route( $this->namespace, '/quiz/results', [
 			'methods'             => 'GET',
 			'callback'            => [ $this, 'list_results' ],
+			'permission_callback' => [ $this, 'permission_view_quiz' ],
+		] );
+
+		// POST, not GET: it calls out to GoPhish and writes graded rows. Gated
+		// by the dashboard's own view key rather than a manage key — it takes no
+		// caller input beyond the entity, grades idempotently, and is throttled
+		// per entity, so a viewer being able to see fresh numbers is the point.
+		register_rest_route( $this->namespace, '/quiz/results/refresh', [
+			'methods'             => 'POST',
+			'callback'            => [ $this, 'refresh_results' ],
 			'permission_callback' => [ $this, 'permission_view_quiz' ],
 		] );
 
@@ -199,16 +218,99 @@ class QuizController extends RestController {
 		$run_id = (int) $request->get_param( 'campaign_run_id' );
 
 		if ( $run_id > 0 ) {
-			$rows = $this->results->list_for_run( $run_id );
-		} else {
-			$entity = $this->target_entity( (string) $request->get_param( 'entity' ) );
-			if ( '' === $entity ) {
-				return $this->error( 'entity_forbidden', __( 'Your account must be assigned to an entity first.', 'pukat' ), 403 );
-			}
-			$rows = $this->results->list_for_entity( $entity, (int) ( $request->get_param( 'limit' ) ?: 200 ) );
+			return $this->success( $this->summarize( $this->results->list_for_run( $run_id ) ) );
 		}
 
-		return $this->success( $this->summarize( $rows ) );
+		$entity = $this->target_entity( (string) $request->get_param( 'entity' ) );
+		if ( '' === $entity ) {
+			return $this->error( 'entity_forbidden', __( 'Your account must be assigned to an entity first.', 'pukat' ), 403 );
+		}
+
+		$rows = $this->results->list_for_entity( $entity, (int) ( $request->get_param( 'limit' ) ?: 200 ) );
+
+		// Participation only rides along on the entity-scoped branch: it
+		// answers "who was offered the quiz and never finished it", and those
+		// people have no result row at all, so it cannot be derived from
+		// $rows. The per-run branch is skipped deliberately — access there is
+		// checked per result row (see summarize()), so there is no entity in
+		// hand to scope the run lookup by.
+		return $this->success( $this->participation( $entity ) + $this->summarize( $rows ) );
+	}
+
+	/**
+	 * Pull this entity's newest quiz answers from GoPhish, then answer with the
+	 * same payload `list_results()` returns, so the dashboard can swap it
+	 * straight into its cache.
+	 *
+	 * The `refresh` block tells the page what actually happened — whether it
+	 * was throttled, how many runs were polled, and any run GoPhish could not
+	 * be asked about. Stored data is still returned in every one of those
+	 * cases: a refresh that fails is a staleness problem, not an error.
+	 */
+	public function refresh_results( WP_REST_Request $request ): WP_REST_Response {
+		$entity = $this->target_entity( (string) $request->get_param( 'entity' ) );
+		if ( '' === $entity ) {
+			return $this->error( 'entity_forbidden', __( 'Your account must be assigned to an entity first.', 'pukat' ), 403 );
+		}
+
+		$refresh = $this->refresher->refresh_entity( $entity );
+		$rows    = $this->results->list_for_entity( $entity, (int) ( $request->get_param( 'limit' ) ?: 200 ) );
+
+		return $this->success(
+			[ 'refresh' => $refresh ]
+			+ $this->participation( $entity, (array) $refresh['reach'] )
+			+ $this->summarize( $rows )
+		);
+	}
+
+	/**
+	 * Quiz reach for an entity: how many targets were redirected into the quiz
+	 * chain versus how many finished it, in total and per campaign run.
+	 *
+	 * Counts only runs whose chain actually leads to a quiz — `simulation →
+	 * quiz` and `simulation → education → quiz`; see
+	 * CampaignRunRepository::quiz_participation_for_entity() for why an
+	 * education-only run cannot be counted here.
+	 *
+	 * Runs carry their own numbers so the dashboard can trend them; a run that
+	 * nobody reached is dropped, since a 0/0 run says nothing about whether
+	 * people are improving.
+	 *
+	 * `$fresh` lets a just-completed refresh replace the stored snapshot for
+	 * the runs it actually polled, keyed by run id. Runs it did not poll keep
+	 * their stored numbers, so the two never have to be fetched twice.
+	 *
+	 * @param array<int, array{reached: int, completed: int}> $fresh Per-run numbers read live, if any.
+	 * @return array<string, mixed>
+	 */
+	private function participation( string $entity, array $fresh = [] ): array {
+		$runs = $this->runs->quiz_participation_for_entity( $entity );
+
+		if ( ! empty( $fresh ) ) {
+			$runs = array_map(
+				static function ( array $run ) use ( $fresh ): array {
+					$live = $fresh[ (int) $run['id'] ] ?? null;
+
+					return is_array( $live )
+						? array_merge( $run, [ 'reached' => (int) $live['reached'], 'completed' => (int) $live['completed'] ] )
+						: $run;
+				},
+				$runs
+			);
+		}
+
+		$with_data = array_values( array_filter( $runs, static fn ( array $r ): bool => $r['reached'] > 0 ) );
+		$reached   = (int) array_sum( array_column( $with_data, 'reached' ) );
+		$completed = (int) array_sum( array_column( $with_data, 'completed' ) );
+
+		return [
+			'participation' => [
+				'reached'   => $reached,
+				'completed' => $completed,
+				'rate'      => $reached > 0 ? (int) round( ( $completed / $reached ) * 100 ) : 0,
+				'runs'      => $with_data,
+			],
+		];
 	}
 
 	/**

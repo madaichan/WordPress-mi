@@ -83,3 +83,25 @@ export function useUpdateQuizTemplateMutation(options = {}) {
 export function useDeleteQuizTemplateMutation(options = {}) {
   return useQuizMutation(id => quizApi.deleteTemplate(id), 'Template deleted.', options)
 }
+
+/**
+ * Pull the newest quiz answers from GoPhish, then write the response straight
+ * into the results cache.
+ *
+ * Deliberately not built on useQuizMutation: there is no toast on success (the
+ * dashboard shows "last refreshed" instead, and a toast on every page open
+ * would be noise) and no invalidation either — the response already IS the
+ * fresh payload, so invalidating would only make the page fetch what it just
+ * received. Failure is quiet too: stale numbers with a visible timestamp beat
+ * an error banner over data that is still perfectly readable.
+ */
+export function useRefreshQuizResultsMutation(params = {}) {
+  const qc = useQueryClient()
+
+  return useMutation({
+    mutationFn: () => quizApi.refreshResults(params),
+    onSuccess: (data) => {
+      qc.setQueryData(queryKeys.quiz.results(params), data)
+    },
+  })
+}

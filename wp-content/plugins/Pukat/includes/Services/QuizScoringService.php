@@ -232,8 +232,12 @@ class QuizScoringService {
 	 * each with its own denominator — a question added later was simply not
 	 * asked of everyone (PRD FR-16).
 	 *
+	 * `question_id` rides along so a caller can show the question's own text
+	 * instead of the bare input name — the answer key already carries it, so
+	 * this costs no extra query.
+	 *
 	 * @param array<int, array<string, mixed>> $rows Result rows (needing only `id`).
-	 * @return array<int, array{input_name: string, asked: int, correct: int, wrong: int}>
+	 * @return array<int, array{input_name: string, question_id: int, asked: int, correct: int, wrong: int}>
 	 */
 	public function per_question_breakdown( array $rows ): array {
 		$ids      = array_map( static fn ( array $r ): int => (int) ( $r['id'] ?? 0 ), $rows );
@@ -257,7 +261,13 @@ class QuizScoringService {
 				sort( $given );
 
 				if ( ! isset( $by_input[ $input_name ] ) ) {
-					$by_input[ $input_name ] = [ 'input_name' => (string) $input_name, 'asked' => 0, 'correct' => 0, 'wrong' => 0 ];
+					$by_input[ $input_name ] = [
+						'input_name'  => (string) $input_name,
+						'question_id' => (int) ( $definition['question_id'] ?? 0 ),
+						'asked'       => 0,
+						'correct'     => 0,
+						'wrong'       => 0,
+					];
 				}
 				++$by_input[ $input_name ]['asked'];
 				if ( ! empty( $expected ) && $expected === $given ) {

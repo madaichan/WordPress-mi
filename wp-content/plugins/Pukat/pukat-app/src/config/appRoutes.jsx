@@ -194,8 +194,9 @@ export const frontendNavGroups = [
   {
     group: 'Overview',
     items: [
-      { to: '/dashboard', icon: 'ti-layout-dashboard', label: 'Dashboard' },
-      { to: '/calendar', icon: 'ti-calendar', label: 'Simulation calendar' },
+      { to: '/dashboard', icon: 'ti-layout-dashboard', label: 'Dashboard' }
+      // { to: '/reports', icon: 'ti-chart-bar', label: 'Simulation report', end: false },
+      // { to: '/calendar', icon: 'ti-calendar', label: 'Simulation calendar' },
     ],
   },
   {
@@ -222,16 +223,10 @@ export const frontendNavGroups = [
     ],
   },
   {
-    group: 'Reports',
-    items: [
-      { to: '/reports', icon: 'ti-chart-bar', label: 'Simulation report', end: false },
-    ],
-  },
-  {
     group: 'Post Sim',
     items: [
       { to: '/post/quiz', icon: 'ti-help-circle', label: 'Quiz' },
-      { to: '/post/quiz-results', icon: 'ti-chart-bar', label: 'Quiz Results' },
+      { to: '/post/quiz-results', icon: 'ti-chart-bar', label: 'Quiz Dashboard' },
       { to: '/post/coaching', icon: 'ti-school', label: 'Coaching' },
       { to: '/next-planning', icon: 'ti-map-2', label: 'Next planning' },
     ],
@@ -250,7 +245,7 @@ export const routeMeta = [
   { path: '/simulation/preparation', title: 'Preparation', subtitle: 'Import targets and configure templates', breadcrumb: 'Preparation' },
   { path: '/simulation/performing', title: 'Monitoring', subtitle: 'Live campaign activity and risk signals', breadcrumb: 'Monitoring' },
   { path: '/reports', title: 'Reports', subtitle: 'Analytics, risk scores, and exports', breadcrumb: 'Simulation report' },
-  { path: '/post/quiz-results', title: 'Quiz Results', subtitle: 'Graded quiz answers per submission', breadcrumb: 'Quiz Results' },
+  { path: '/post/quiz-results', title: 'Quiz Dashboard', subtitle: 'Quiz answers, weak material, and follow-up', breadcrumb: 'Quiz Dashboard' },
   { path: '/post/quiz-templates', title: 'Quiz Templates', subtitle: 'Reusable quiz shells operators build from', breadcrumb: 'Quiz Templates' },
   { path: '/post/quiz', title: 'Quiz Module', subtitle: 'Question bank and quizzes', breadcrumb: 'Quiz' },
   { path: '/post/coaching', title: 'Coaching', subtitle: 'Training assignments for high-risk users', breadcrumb: 'Coaching' },

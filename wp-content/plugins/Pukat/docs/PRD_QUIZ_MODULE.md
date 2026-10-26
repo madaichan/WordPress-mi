@@ -403,3 +403,59 @@ Keputusan: **upload gambar per soal**, disimpan di bank sebagai **data URI base6
 **Rekap per soal**: untuk soal `image` yang teks pertanyaannya kosong, rekap menampilkan `input_name` sebagai label (fallback yang sudah ada). Tidak ada perubahan skema rekap.
 
 **Di luar cakupan tahap ini**: resize/kompresi gambar otomatis (operator bertanggung jawab memperkecil), multiple gambar per soal, dan galeri gambar bersama. Upload satu gambar per soal sudah cukup.
+
+### 13.11 Quiz Dashboard — 2026-10-26
+
+Tab **Results** dikeluarkan dari modul Quiz (FR-1 memang hanya menyebut Question Bank + Quiz Page) menjadi halaman sendiri `/post/quiz-results`, item sidebar **Quiz Dashboard** tepat di bawah Quiz. Halaman ini menjawab empat pertanyaan, satu blok per pertanyaan:
+
+1. **Apakah quiz-nya jalan** — status strip untuk quiz default-followup: ada/tidak, published/draft, sudah dipush ke GoPhish atau belum. Hanya quiz default yang dilaporkan karena rantai `next_campaign_id` hanya pernah sampai ke sana (§13.9).
+2. **Materi mana yang lemah** — ranking soal berdasarkan `wrong/asked` dengan teks soal asli.
+3. **Apakah pemahaman membaik** — avg score + pass rate per campaign run, urut dari run terlama.
+4. **Siapa yang perlu ditindaklanjuti** — target yang **percobaan terakhirnya** gagal (bukan percobaan terburuk; risk scoring juga memakai percobaan terakhir, FR-14), diurutkan dari skor terendah, dengan jumlah percobaan.
+
+**Perubahan backend (dua, kecil):**
+
+- `QuizScoringService::per_question_breakdown()` kini menyertakan `question_id` per entry. Answer key sudah membawanya, jadi tidak ada query tambahan; frontend memetakannya ke bank untuk menampilkan teks soal, bukan `input_name` mentah. Soal yang sudah dihapus dari bank tetap tampil dengan `input_name`.
+- `GET /quiz/results` (cabang per-entity saja) menambah blok `participation`: `reached`, `completed`, `rate`, dan `runs[]` (tiap run membawa `via`). Angkanya dibaca dari `metrics_json` tiap campaign run yang sudah launched (`CampaignRunRepository::quiz_participation_for_entity()`) — satu query, **tanpa** call GoPhish, jadi kesegarannya mengikuti sync hasil run terakhir.
+
+**Hanya dua linkage yang dihitung** (konsisten dengan doktrin `QuizPageService::compute_linkage()` di §13.9): `simulation → quiz` (`via` = `direct`) dan `simulation → education → quiz` (`via` = `education`). Run yang berhenti di **education saja**, run tanpa follow-up, dan run tanpa `follow_up_json` sama sekali **dikeluarkan** — targetnya tidak pernah ditawari quiz, jadi memasukkannya ke penyebut hanya membuat participation terlihat lebih buruk dari kenyataan. Pemisahnya `follow_up_json.quiz_enabled` (+ `education_enabled` untuk menentukan `via`), bukan rantai GoPhish: education master hanya punya satu `next_campaign_id` bersama sehingga rantai live tidak bisa membedakan ketiga jalan itu. Tabel per-run menampilkan kolom **Linkage** supaya jalur tiap run terbaca.
+
+Catatan asimetri yang disengaja: karena `next_campaign_id` bersama itu, sebuah run education-only secara fisik masih bisa mendaratkan orang di halaman quiz. Kalau itu terjadi, jawabannya tetap masuk `pukat_quiz_results` dan tetap terhitung di kartu ringkasan (itu jawaban quiz yang nyata), tapi run-nya tidak punya baris di tren dan targetnya tidak masuk penyebut participation.
+
+**Kenapa `participation` tidak bisa diturunkan dari rows:** orang yang diarahkan ke quiz tapi tidak menjawab **tidak punya row** di `pukat_quiz_results`. Penyebutnya adalah `submitted_data` per run (submit form phishing-lah yang mengalihkan target ke rantai edukasi/quiz) — penyebut yang sama yang dipakai `quiz_rate` di `CampaignRunService::aggregate_result_stats()`. Cabang per-run (`?campaign_run_id=`) sengaja tidak dapat blok ini: di sana akses diperiksa per baris hasil, jadi tidak ada entity untuk membatasi lookup run-nya.
+
+**Keputusan chart:**
+
+- **Tidak ada dual-axis.** Jumlah submission dan persentase adalah dua skala berbeda, jadi chart tren hanya memuat dua seri persen (avg score, pass rate) dan semua angka hitungan pindah ke tabel per-run di bawahnya. Tabel itu sekaligus padanan teks chart-nya.
+- Run yang tidak dijawab siapa pun **memutus garis** (`null`), tidak diplot sebagai 0 — tidak ada jawaban itu masalah pengiriman, dan 0 akan terbaca "semua gagal". Participation run itu tetap 0% yang sebenarnya.
+- Histogram distribusi memakai **satu warna** (satu seri). Sengaja tidak diwarnai lulus/gagal: bucket 60–79 memotong pass mark 70 sehingga pewarnaan apa pun akan menyesatkan; pass mark disebut di teks, dan pass rate dibawa kartu ringkasan.
+- Dua hue seri (`#6C63FF` violet-500 aplikasi + `#059669`) lolos uji lightness band, chroma floor, separasi CVD (ΔE 24.9 deutan), dan kontras 3:1 pada **kedua** surface tema (putih dan `#161F38`), jadi satu pasang warna dipakai light dan dark. Separasi tritan ada di floor band 6–8, karena itu setiap chart wajib punya legend + label langsung.
+
+**Filter quiz** di halaman ini client-side: `/quiz/results` sudah mengirim seluruh submission entity dalam satu response. `participation` adalah satu-satunya angka yang tidak ikut terfilter (dihitung per run, bukan per quiz) dan kartunya menyatakan itu.
+
+**Catatan ukuran bundle:** halaman ini pemakai `recharts` pertama di SPA, chunk `QuizResults` jadi ±400 kB (±111 kB gzip). Route-nya lazy-loaded, jadi hanya terunduh saat dashboard dibuka.
+
+**Di luar cakupan tahap ini:** breakdown per difficulty/tag, export, dan participation per quiz (butuh pemetaan run → quiz yang belum ada).
+
+### 13.12 Refresh on-demand milik quiz — 2026-10-26
+
+Masalah: dashboard membaca DB lokal, yang hanya terisi saat cron monitoring (`pukat_process_campaign_results`) berjalan. Jadi kesegarannya milik monitoring, bukan milik quiz.
+
+Keputusan: **jalur pull sendiri**, `POST /quiz/results/refresh`, dipanggil saat dashboard dibuka dan lewat tombol Refresh. `QuizRefreshService` → `GoPhishService::get_campaign_results()` → `QuizScoringService::record_from_results()`, lalu membalas payload yang **sama bentuknya** dengan `GET /quiz/results` supaya frontend bisa menaruhnya langsung ke cache.
+
+**Sengaja BUKAN `CampaignRunService::sync_results_for_run()`.** Method itu milik monitoring: selain mengambil hasil, ia menulis ulang `metrics_json`, mengubah status run, dan — ini yang menentukan — menghapus lalu menyisipkan ulang risk score run tersebut, di tabel `pukat_risk_scores` yang **tidak punya UNIQUE**. Dua eksekusi yang tumpang-tindih bisa meninggalkan baris risk score ganda atau sesaat hilang. Karena itu jalur quiz menyentuh **tepat satu tabel**, `pukat_quiz_results`, yang justru dilindungi `UNIQUE (campaign_run_id, gophish_rid)`: refresh bersamaan paling buruk kalah balapan di satu kedatangan, yang akan tergrade di refresh berikutnya. Participation dihitung **in-memory** dan dikembalikan, tidak pernah ditulis — `metrics_json` tetap milik monitoring.
+
+**Yang dipoll:** hanya run yang masih berjalan (`status IN ('synced','scheduled','running')`, set yang sama dengan `result_sync_candidates()`) **dan** quiz-linked (§13.11), maksimum 10 run terbaru. Run yang sudah selesai tidak mungkin dapat jawaban baru, jadi angkanya tetap dari snapshot final yang dibuat cron dan tidak memboroskan satu request pun.
+
+**Throttle 45 detik per entity** (transient). Ini pembatas laju, bukan mutex: dua klik yang benar-benar bersamaan bisa lolos berdua, dan itu hanya berbiaya satu putaran call ekstra karena grading idempoten. Mutex sejati butuh `GET_LOCK()`/`add_option()` dan tidak sebanding untuk menghemat beberapa request.
+
+**Kegagalan GoPhish bukan error halaman:** run yang gagal dipoll jadi `warnings[]`, data tersimpan tetap dikembalikan, dan bar refresh menampilkannya sebagai peringatan kuning di samping timestamp. Permission-nya `post_sim.view` (bukan key manage): endpoint ini tidak menerima input pemanggil selain entity, grading-nya idempoten, dan sudah di-throttle — justru tujuannya agar seorang viewer bisa melihat angka segar.
+
+**Reach dihitung identik dengan monitoring** (`reached` dari `status === 'Submitted Data'`, `completed` dari event `Submitted Data (Quiz)` milik target, dikelompokkan by email seperti `result_targets()`). Kalau definisinya beda, angka participation akan melompat setiap kali refresh menggantikan snapshot tersimpan.
+
+**Bukti:** `tools/smoke-quiz-refresh.php` — 26 check dengan GoPhish distub: filter run yang dipoll, grading, reach, throttle, idempotensi, dan verifikasi eksplisit bahwa `metrics_json`, status run, dan `pukat_risk_scores` **tidak tersentuh**. Route + permission + bentuk payload dicek di `smoke-quiz-dashboard.php`.
+
+**Temuan terpisah (belum dikerjakan, atas persetujuan user):** `pukat_risk_scores` tidak punya UNIQUE dan diisi dengan pola delete-lalu-insert tanpa transaksi, sementara jalur sync tidak punya lock sama sekali — jadi cron monitoring yang bertemu refresh manual **sudah** bisa menghasilkan baris ganda hari ini, dan `get_campaign_run_summary()` menghitung semua baris sehingga duplikat menggandakan hitungan tier. Tidak berhubungan dengan dashboard quiz; dicatat untuk dibahas terpisah.
+
+
+**Bukti:** `tools/smoke-quiz-dashboard.php` — 22 check, termasuk run education-only, run tanpa follow-up, run tanpa `follow_up_json`, run entity lain, run belum launched, dan label `via` untuk kedua linkage.
