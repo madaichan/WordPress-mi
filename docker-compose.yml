@@ -41,6 +41,8 @@ services:
       PUKAT_PDF_RENDERER_URL: http://pdf-renderer:3001/render
     volumes:
       - .:/var/www/html
+      # Plugin diambil dari repo-nya sendiri (github.com/madaichan/pukat)
+      - ../pukat:/var/www/html/wp-content/plugins/Pukat
       - wp_uploads:/var/www/html/wp-content/uploads
     networks:
       - wordpress_network
@@ -64,7 +66,7 @@ services:
       - wordpress_network
 
   pdf-renderer:
-    build: ./wp-content/plugins/Pukat/tools/pdf-renderer
+    build: ../pukat/tools/pdf-renderer
     container_name: plugindev_pdf_renderer
     restart: unless-stopped
     init: true
@@ -91,7 +93,7 @@ services:
     ports:
       - "3000:3000"
     volumes:
-      - ./wp-content/plugins/Pukat/pukat-app:/app
+      - ../pukat/pukat-app:/app
       - pukat_node_modules:/app/node_modules
     command: sh -c "npm ci && npm run dev"
     networks:
