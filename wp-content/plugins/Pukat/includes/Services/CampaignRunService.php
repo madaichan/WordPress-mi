@@ -41,8 +41,8 @@ class CampaignRunService {
 	 * §3.5.1). `(Chained)` is GoPhish's fallback label for a downstream stage
 	 * that is neither education nor quiz — treated as education here, since our
 	 * chain only has those two stages. */
-	private const EDUCATION_EVENT_TYPES = [ 'Submitted Data (Education)', 'Submitted Data (Chained)' ];
-	private const QUIZ_EVENT_TYPE       = 'Submitted Data (Quiz)';
+	private const EDUCATION_EVENT_TYPES = [ QuizEventTypes::EDUCATION, QuizEventTypes::CHAINED ];
+	private const QUIZ_EVENT_TYPE       = QuizEventTypes::QUIZ;
 
 	/** GoPhish timeline event types worth surfacing in the live feed — "Email
 	 * Sent"/"Email Opened" are too high-volume to be a useful feed. The
@@ -557,63 +557,72 @@ class CampaignRunService {
 			$id
 		);
 
-		$education_link = $this->link_education_follow_up( $run, $user_id );
+		$follow_up_link = $this->link_follow_up_chain( $run, $user_id );
 
 		$result = $this->get( $id ) ?: [];
-		if ( null !== $education_link ) {
-			$result['education_link'] = $education_link;
+		if ( null !== $follow_up_link ) {
+			$result['follow_up_link'] = $follow_up_link;
+			// Kept so clients written against G3b keep working; the education
+			// follow-up was the only stage that existed then.
+			$result['education_link'] = $follow_up_link;
 		}
 
 		return $result;
 	}
 
 	/**
-	 * Chain a launching simulation to its entity's GoPhish education master
-	 * (docs/PRD_FLAG_EDUCATION_PAGES.md §11 G3b) when the run opted into
-	 * education follow-up. The link is set here at launch — not when the
-	 * simulation campaign is created — because the education master is
-	 * recreated (new id) on every Publish of the education page (FR-12), so
-	 * the current id must be resolved fresh at launch. A failure never blocks
-	 * the launch: the GoPhish campaign already exists, so the failure is
-	 * returned as a warning for the UI to surface, and the run can be
+	 * Chain a launching simulation to the next stage its run opted into —
+	 * the entity's education master, or the quiz master when quiz follow-up is
+	 * on without education (docs/PRD_QUIZ_MODULE.md FR-13, generalised from
+	 * G3b of docs/PRD_FLAG_EDUCATION_PAGES.md).
+	 *
+	 * The link is set here at launch — not when the simulation campaign is
+	 * created — because both masters are recreated with a new id on every
+	 * Publish of their page, so the current id must be resolved fresh. A
+	 * failure never blocks the launch: the GoPhish campaign already exists, so
+	 * it comes back as a warning for the UI to surface and the run can be
 	 * re-linked later.
 	 *
 	 * @param array<string, mixed> $run Latest Campaign Run row (post-sync).
-	 * @return array{ok: bool, message?: string, campaign_id?: int}|null
-	 *         null when education follow-up was not requested for this run.
+	 * @return array{ok: bool, stage?: string, message?: string, campaign_id?: int}|null
+	 *         null when no follow-up stage was requested for this run.
 	 */
-	private function link_education_follow_up( array $run, int $user_id ): ?array {
+	private function link_follow_up_chain( array $run, int $user_id ): ?array {
 		$follow_up = json_decode( (string) ( $run['follow_up_json'] ?? '' ), true );
-		if ( ! is_array( $follow_up ) || empty( $follow_up['education_enabled'] ) ) {
+		if ( ! is_array( $follow_up ) ) {
 			return null;
+		}
+
+		$education_enabled = ! empty( $follow_up['education_enabled'] );
+		$quiz_enabled      = ! empty( $follow_up['quiz_enabled'] );
+		if ( ! $education_enabled && ! $quiz_enabled ) {
+			return null;
+		}
+
+		$entity = $this->run_entity( $run );
+		$target = ( new QuizChainService() )->resolve_simulation_target( $entity, $education_enabled, $quiz_enabled );
+		if ( 'none' === $target['stage'] ) {
+			return null;
+		}
+		if ( ! $target['ok'] ) {
+			return [ 'ok' => false, 'stage' => $target['stage'], 'message' => $target['message'] ];
 		}
 
 		$simulation_id = (int) ( $run['gophish_campaign_id'] ?? 0 );
 		if ( $simulation_id <= 0 ) {
 			return [
 				'ok'      => false,
-				'message' => __( 'The simulation is not synced to GoPhish yet, so education follow-up could not be linked.', 'pukat' ),
+				'stage'   => $target['stage'],
+				'message' => __( 'The simulation is not synced to GoPhish yet, so follow-up could not be linked.', 'pukat' ),
 			];
 		}
 
-		$entity    = $this->run_entity( $run );
-		$master_id = ( new FlagPageService() )->published_master_id_for_entity( $entity );
-		if ( $master_id <= 0 ) {
-			return [
-				'ok'      => false,
-				'message' => sprintf(
-					/* translators: %s: entity name. */
-					__( 'Entity "%s" has no published education page synced to GoPhish, so education follow-up was skipped. Publish its Flag education page, then re-launch or re-link.', 'pukat' ),
-					$entity
-				),
-			];
-		}
-
-		$result = ( new GoPhishService() )->set_next_campaign( $simulation_id, $master_id );
+		$result = ( new GoPhishService() )->set_next_campaign( $simulation_id, (int) $target['campaign_id'] );
 		if ( is_wp_error( $result ) ) {
 			return [
 				'ok'          => false,
-				'campaign_id' => $master_id,
+				'stage'       => $target['stage'],
+				'campaign_id' => (int) $target['campaign_id'],
 				'message'     => $result->get_error_message(),
 			];
 		}
@@ -623,14 +632,15 @@ class CampaignRunService {
 			[
 				'campaign_run_id'     => (int) ( $run['id'] ?? 0 ),
 				'gophish_campaign_id' => $simulation_id,
-				'education_master_id' => $master_id,
+				'stage'               => $target['stage'],
+				'next_campaign_id'    => (int) $target['campaign_id'],
 			],
 			$user_id,
 			'campaign_run',
 			(int) ( $run['id'] ?? 0 )
 		);
 
-		return [ 'ok' => true, 'campaign_id' => $master_id ];
+		return [ 'ok' => true, 'stage' => $target['stage'], 'campaign_id' => (int) $target['campaign_id'] ];
 	}
 
 	/**
@@ -965,7 +975,21 @@ class CampaignRunService {
 		}
 
 		$metrics = $this->build_result_metrics( $run, $results );
-		$risk    = new RiskScoringService();
+
+		// Grade any quiz answers in these results BEFORE risk scoring runs:
+		// RiskScoringService reads the graded rows back out of the database
+		// (docs/IMPLEMENTATION_PLAN_QUIZ_MODULE.md Q5). Needs no GoPhish call
+		// of its own — the quiz submissions are already folded into this
+		// timeline (docs/api_campaignnew.md §3.5.1).
+		$follow_up = json_decode( (string) ( $run['follow_up_json'] ?? '' ), true );
+		( new QuizScoringService() )->record_from_results( $results, [
+			'entity'              => $this->run_entity( $run ),
+			'campaign_run_id'     => $id,
+			'gophish_campaign_id' => (int) $run['gophish_campaign_id'],
+			'pass_score_override' => is_array( $follow_up ) ? ( $follow_up['quiz_pass_score'] ?? null ) : null,
+		] );
+
+		$risk = new RiskScoringService();
 		$risk->delete_campaign_run_scores( $id );
 
 		foreach ( $this->result_targets( $results ) as $target ) {
@@ -2336,8 +2360,20 @@ class CampaignRunService {
 	 * @param array<string, mixed> $input Raw `follow_up` param from the request.
 	 */
 	private function sanitize_follow_up( array $input ): string {
+		// `quiz_enabled` used to default to TRUE while the wizard switch was a
+		// disabled placeholder — harmless then, because nothing read it. Now
+		// that it really chains a campaign (Quiz Module Q4) the default is
+		// FALSE: follow-up has to be asked for. Runs stored before this still
+		// carry `true`, but chaining additionally requires a published quiz
+		// master for the entity, so nothing happens for entities without one.
+		$pass_score = null;
+		if ( array_key_exists( 'quiz_pass_score', $input ) && null !== $input['quiz_pass_score'] && '' !== $input['quiz_pass_score'] ) {
+			$pass_score = min( max( (int) $input['quiz_pass_score'], 0 ), 100 );
+		}
+
 		return (string) wp_json_encode( [
-			'quiz_enabled'                         => array_key_exists( 'quiz_enabled', $input ) ? (bool) $input['quiz_enabled'] : true,
+			'quiz_enabled'                         => (bool) ( $input['quiz_enabled'] ?? false ),
+			'quiz_pass_score'                      => $pass_score,
 			'education_enabled'                    => (bool) ( $input['education_enabled'] ?? false ),
 			'force_reset_password_reminder_enabled' => (bool) ( $input['force_reset_password_reminder_enabled'] ?? false ),
 		] );

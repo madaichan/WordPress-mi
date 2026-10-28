@@ -368,6 +368,34 @@ class PermissionRegistry {
 				'manage' => 'operator',
 			],
 		],
+		// Per-entity quiz page authored in the Quiz Module (/post/quiz).
+		// QuizPageService enforces which entity's page a user may touch. Kept
+		// separate from post_sim.manage (which gates the question bank) so a
+		// role can curate questions without being able to publish a page to
+		// GoPhish or send quiz invitations. See docs/PRD_QUIZ_MODULE.md §8.
+		'quiz_pages'               => [
+			'label'     => 'Quiz Pages',
+			'group'     => 'Post Sim',
+			'view_gate' => 'shared',
+			'actions'   => [
+				'edit'    => 'operator',
+				'publish' => 'operator',
+				'invite'  => 'operator',
+			],
+		],
+		// Quiz Builder v2: the reusable quiz template catalogue. Admin-only,
+		// separate from quiz_pages — operators choose a template, only admins
+		// author them (docs/PRD_QUIZ_MODULE.md §13).
+		'quiz_templates'           => [
+			'label'     => 'Quiz Templates',
+			'group'     => 'Post Sim',
+			'view_gate' => 'admin',
+			'actions'   => [
+				'create' => 'admin',
+				'edit'   => 'admin',
+				'delete' => 'admin',
+			],
+		],
 	];
 
 	/**

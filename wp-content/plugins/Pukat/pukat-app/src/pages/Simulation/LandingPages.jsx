@@ -11,7 +11,7 @@ import TableActionMenu from '../../components/UI/TableActionMenu.jsx'
 import ViewToggle from '../../components/UI/ViewToggle.jsx'
 import AlertConfirmation from '../../components/UI/AlertConfirmation.jsx'
 import { useMasterLandingPages } from '../../hooks/queries/useMasterAssetQueries.js'
-import { useApproveMasterLandingPageVersionMutation, useCreateMasterLandingPageMutation, useDeleteMasterLandingPageMutation, useUpdateMasterLandingPageMutation } from '../../hooks/mutations/useMasterAssetMutations.js'
+import { useApproveMasterLandingPageVersionMutation, useCreateMasterLandingPageMutation, useDeleteMasterLandingPageMutation, useDuplicateMasterLandingPageMutation, useUpdateMasterLandingPageMutation } from '../../hooks/mutations/useMasterAssetMutations.js'
 import useAppStore from '../../store/useAppStore.js'
 import { canManagePukat } from '../../utils/roles.js'
 import { assetEntityForUser, canUserCreateAsset, canUserEditAsset, filterAssetsForUser } from '../../utils/entityAssignmentHelpers.js'
@@ -379,6 +379,7 @@ export default function LandingPages() {
   const approveMutation = useApproveMasterLandingPageVersionMutation({
     onSuccess: () => setApprovingPage(null),
   })
+  const duplicateMutation = useDuplicateMasterLandingPageMutation({ onSuccess: closeEditor })
   const saving = createMutation.isPending || updateMutation.isPending || deleteMutation.isPending
   const defaultEntity = useMemo(() => assetEntityForUser(currentUser), [currentUser])
   const canCreateAssets = useMemo(() => canUserCreateAsset(currentUser), [currentUser])
@@ -554,6 +555,55 @@ export default function LandingPages() {
     if (!approvingPage) return
     approveMutation.mutate(approvingPage.versionId)
   }, [approveMutation, approvingPage])
+
+  const previewSource = useMemo(
+    () => (editingId ? pages.find((p) => p.id === editingId) : null),
+    [editingId, pages]
+  )
+
+  // Editor and preview share the editing* state, so the open asset may carry
+  // unsaved edits. Duplicate copies the *saved* version from the backend, so we
+  // block it when the on-screen draft has diverged to avoid a confusing mismatch.
+  const previewHasUnsavedEdits = Boolean(
+    previewSource && (
+      editingName !== previewSource.name
+      || editingHtml !== (previewSource.html || '')
+      || editingEntity !== (previewSource.entity || '')
+      || editingRedirectUrl !== (previewSource.redirectUrl || 'https://portal.office.com')
+      || editingCaptureData !== (previewSource.badges?.includes('Data') ?? true)
+      || editingCapturePass !== (previewSource.badges?.includes('Pass') ?? true)
+    )
+  )
+
+  const handleDuplicate = useCallback(() => {
+    if (!canCreateAssets) {
+      toast.error('User non-admin harus memiliki entity untuk membuat asset.')
+      return
+    }
+
+    if (!previewSource) {
+      toast.error('Pilih landing page dari daftar terlebih dahulu sebelum menduplikasi.')
+      return
+    }
+
+    if (previewHasUnsavedEdits) {
+      toast.error('Simpan perubahan di Editor dulu — duplicate menyalin versi yang tersimpan.')
+      return
+    }
+
+    const source = previewSource
+
+    // Clone is never blocked by editLocked — it writes a brand-new draft row.
+    // Non-admins must claim the copy for their own entity; the backend forces
+    // that anyway and rejects a General/foreign entity outright.
+    duplicateMutation.mutate({
+      id: source.id,
+      data: {
+        name: `Copy of ${source.name}`,
+        entity: entityLocked ? defaultEntity : (source.entity || ''),
+      },
+    })
+  }, [canCreateAssets, defaultEntity, duplicateMutation, entityLocked, previewHasUnsavedEdits, previewSource])
 
   const handleSync = useCallback(async () => {
     setSyncing(true)
@@ -791,12 +841,27 @@ export default function LandingPages() {
                   Preview how the landing page appears to the target.
                 </p>
               </div>
-              <button
-                onClick={() => switchTab('list')}
-                className="bg-panel border border-line text-ink-soft hover:bg-panel-subtle px-4 py-2 text-sm font-semibold rounded-xl transition-all"
-              >
-                Return to List
-              </button>
+              <div className="flex items-center gap-3">
+                {canCreateAssets && previewSource && (
+                  <Button
+                    variant="outline"
+                    onClick={() => handleDuplicate()}
+                    disabled={duplicateMutation.isPending || previewHasUnsavedEdits}
+                    title={previewHasUnsavedEdits
+                      ? 'Simpan perubahan di Editor dulu — duplicate menyalin versi yang tersimpan.'
+                      : `Duplicate "${previewTitle}" as a new draft`}
+                  >
+                    <i className="ti ti-copy text-base" />
+                    <span>{duplicateMutation.isPending ? 'Menduplikasi...' : 'Duplicate landing page'}</span>
+                  </Button>
+                )}
+                <button
+                  onClick={() => switchTab('list')}
+                  className="bg-panel border border-line text-ink-soft hover:bg-panel-subtle px-4 py-2 text-sm font-semibold rounded-xl transition-all"
+                >
+                  Return to List
+                </button>
+              </div>
             </div>
 
             {/* Preview Viewport */}

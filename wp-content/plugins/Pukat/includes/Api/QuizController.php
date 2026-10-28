@@ -1,6 +1,6 @@
 <?php
 /**
- * Quiz REST controller.
+ * Quiz question bank REST controller.
  *
  * @package Pukat\Api
  */
@@ -9,7 +9,14 @@ declare(strict_types=1);
 
 namespace Pukat\Api;
 
+use Pukat\Repositories\CampaignRunRepository;
+use Pukat\Repositories\QuizResultRepository;
+use Pukat\Services\EntityProfileService;
 use Pukat\Services\PermissionRegistry;
+use Pukat\Services\QuizInviteService;
+use Pukat\Services\QuizQuestionService;
+use Pukat\Services\QuizRefreshService;
+use Pukat\Services\QuizScoringService;
 use WP_Error;
 use WP_REST_Request;
 use WP_REST_Response;
@@ -17,23 +24,59 @@ use WP_REST_Response;
 /**
  * Class QuizController
  *
- * Manages quiz question bank and result submission.
+ * The per-entity question bank behind the Quiz Module
+ * (docs/PRD_QUIZ_MODULE.md §8). The quiz page itself lives in
+ * QuizPageController.
  *
  * Routes:
- *   GET    /pukat/v1/quiz/questions
+ *   GET    /pukat/v1/quiz/questions?entity=
  *   POST   /pukat/v1/quiz/questions
+ *   PUT    /pukat/v1/quiz/questions/{id}
  *   DELETE /pukat/v1/quiz/questions/{id}
- *   POST   /pukat/v1/quiz/submit
+ *   GET    /pukat/v1/quiz/results?entity=&campaign_run_id=
  *   GET    /pukat/v1/quiz/results/{campaign_id}
+ *   POST   /pukat/v1/quiz/results/refresh?entity=
+ *   POST   /pukat/v1/quiz/invite
+ *
+ * `POST /quiz/submit` was removed with the Quiz Module (PRD §8): the quiz page
+ * is served by GoPhish, not Pukat, so answers arrive through campaign results
+ * and are graded server-side by QuizScoringService. Nothing called the old
+ * route — the frontend's quizApi.submit was exported but never used.
  */
 class QuizController extends RestController {
+
+	private QuizQuestionService $questions;
+	private QuizInviteService $invites;
+	private QuizResultRepository $results;
+	private QuizScoringService $scoring;
+	private EntityProfileService $access;
+	private CampaignRunRepository $runs;
+	private QuizRefreshService $refresher;
+
+	public function __construct(
+		?QuizQuestionService $questions = null,
+		?QuizInviteService $invites = null,
+		?QuizResultRepository $results = null,
+		?QuizScoringService $scoring = null,
+		?EntityProfileService $access = null,
+		?CampaignRunRepository $runs = null,
+		?QuizRefreshService $refresher = null
+	) {
+		$this->questions = $questions ?? new QuizQuestionService();
+		$this->invites   = $invites ?? new QuizInviteService();
+		$this->results   = $results ?? new QuizResultRepository();
+		$this->scoring   = $scoring ?? new QuizScoringService();
+		$this->access    = $access ?? new EntityProfileService();
+		$this->runs      = $runs ?? new CampaignRunRepository();
+		$this->refresher = $refresher ?? new QuizRefreshService();
+	}
 
 	public function register_routes(): void {
 		register_rest_route( $this->namespace, '/quiz/questions', [
 			[
 				'methods'             => 'GET',
 				'callback'            => [ $this, 'get_questions' ],
-				'permission_callback' => [ $this, 'permission_manage_quiz' ],
+				'permission_callback' => [ $this, 'permission_view_quiz' ],
 			],
 			[
 				'methods'             => 'POST',
@@ -43,15 +86,37 @@ class QuizController extends RestController {
 		] );
 
 		register_rest_route( $this->namespace, '/quiz/questions/(?P<id>\d+)', [
-			'methods'             => 'DELETE',
-			'callback'            => [ $this, 'delete_question' ],
-			'permission_callback' => [ $this, 'permission_manage_quiz' ],
+			[
+				'methods'             => 'GET',
+				'callback'            => [ $this, 'get_question' ],
+				'permission_callback' => [ $this, 'permission_view_quiz' ],
+			],
+			[
+				'methods'             => 'PUT',
+				'callback'            => [ $this, 'update_question' ],
+				'permission_callback' => [ $this, 'permission_manage_quiz' ],
+			],
+			[
+				'methods'             => 'DELETE',
+				'callback'            => [ $this, 'delete_question' ],
+				'permission_callback' => [ $this, 'permission_manage_quiz' ],
+			],
 		] );
 
-		register_rest_route( $this->namespace, '/quiz/submit', [
+		register_rest_route( $this->namespace, '/quiz/results', [
+			'methods'             => 'GET',
+			'callback'            => [ $this, 'list_results' ],
+			'permission_callback' => [ $this, 'permission_view_quiz' ],
+		] );
+
+		// POST, not GET: it calls out to GoPhish and writes graded rows. Gated
+		// by the dashboard's own view key rather than a manage key — it takes no
+		// caller input beyond the entity, grades idempotently, and is throttled
+		// per entity, so a viewer being able to see fresh numbers is the point.
+		register_rest_route( $this->namespace, '/quiz/results/refresh', [
 			'methods'             => 'POST',
-			'callback'            => [ $this, 'submit_quiz' ],
-			'permission_callback' => '__return_true', // Accessible by targets via email link — Phase 3 leaves this untouched, it's not a permission gap.
+			'callback'            => [ $this, 'refresh_results' ],
+			'permission_callback' => [ $this, 'permission_view_quiz' ],
 		] );
 
 		register_rest_route( $this->namespace, '/quiz/results/(?P<campaign_id>\d+)', [
@@ -59,14 +124,20 @@ class QuizController extends RestController {
 			'callback'            => [ $this, 'get_results' ],
 			'permission_callback' => [ $this, 'permission_view_quiz' ],
 		] );
+
+		register_rest_route( $this->namespace, '/quiz/invite', [
+			'methods'             => 'POST',
+			'callback'            => [ $this, 'send_invite' ],
+			'permission_callback' => [ $this, 'permission_invite_quiz' ],
+		] );
 	}
 
 	/**
-	 * Phase 3 of docs/IMPLEMENTATION_PLAN_RBAC.md: granular capability checks
-	 * for the 4 authenticated routes. post_sim.manage/view are seeded
-	 * operator/shared-gated in Phase 1 — same population permission_manage()/
-	 * permission_read() allowed before. /quiz/submit's `__return_true` is
-	 * intentionally untouched (public quiz link via email, not a gap).
+	 * Phase 3 of docs/IMPLEMENTATION_PLAN_RBAC.md: granular capability checks.
+	 * The question bank stays on post_sim.manage/view rather than taking its
+	 * own resource, so a role can curate questions without being able to
+	 * publish a page to GoPhish — that is what quiz_pages.* gates
+	 * (docs/PRD_QUIZ_MODULE.md §8).
 	 */
 	public function permission_manage_quiz(): bool|WP_Error {
 		return $this->require_capability( 'post_sim.manage' );
@@ -74,6 +145,11 @@ class QuizController extends RestController {
 
 	public function permission_view_quiz(): bool|WP_Error {
 		return $this->require_capability( 'post_sim.view' );
+	}
+
+	/** Sending an invitation really sends email, so it has its own key. */
+	public function permission_invite_quiz(): bool|WP_Error {
+		return $this->require_capability( 'quiz_pages.invite' );
 	}
 
 	private function require_capability( string $permission_key ): bool|WP_Error {
@@ -87,127 +163,199 @@ class QuizController extends RestController {
 	}
 
 	public function get_questions( WP_REST_Request $request ): WP_REST_Response {
-		global $wpdb;
-		$questions = $wpdb->get_results(
-			"SELECT * FROM {$wpdb->prefix}pukat_quiz_questions ORDER BY created_at DESC",
-			ARRAY_A
-		);
-		return $this->success( $questions ?: [] );
+		$result = $this->questions->list( $request->get_params() );
+
+		return is_wp_error( $result ) ? $this->from_wp_error( $result ) : $this->success( $result );
+	}
+
+	public function get_question( WP_REST_Request $request ): WP_REST_Response {
+		$result = $this->questions->get_one( [ 'id' => (int) $request->get_param( 'id' ) ] );
+
+		return is_wp_error( $result ) ? $this->from_wp_error( $result ) : $this->success( $result );
 	}
 
 	public function create_question( WP_REST_Request $request ): WP_REST_Response {
-		global $wpdb;
+		$result = $this->questions->create( $request->get_params(), get_current_user_id() );
 
-		$question    = sanitize_textarea_field( (string) $request->get_param( 'question' ) );
-		$options     = $request->get_param( 'options' );
-		$explanation = sanitize_textarea_field( (string) $request->get_param( 'explanation' ) );
-		$difficulty  = min( max( (int) $request->get_param( 'difficulty' ), 1 ), 5 );
+		return is_wp_error( $result ) ? $this->from_wp_error( $result ) : $this->success( $result, 201 );
+	}
 
-		if ( empty( $question ) || empty( $options ) ) {
-			return $this->error( 'validation_error', __( 'Question and options are required.', 'pukat' ), 422 );
-		}
+	public function update_question( WP_REST_Request $request ): WP_REST_Response {
+		$result = $this->questions->update( (int) $request->get_param( 'id' ), $request->get_params(), get_current_user_id() );
 
-		$wpdb->insert( $wpdb->prefix . 'pukat_quiz_questions', [
-			'question'    => $question,
-			'options'     => wp_json_encode( $options ),
-			'explanation' => $explanation,
-			'difficulty'  => $difficulty,
-			'created_by'  => get_current_user_id(),
-		] );
-
-		return $this->success( [ 'id' => $wpdb->insert_id ], 201 );
+		return is_wp_error( $result ) ? $this->from_wp_error( $result ) : $this->success( $result );
 	}
 
 	public function delete_question( WP_REST_Request $request ): WP_REST_Response {
-		global $wpdb;
-		$wpdb->delete( $wpdb->prefix . 'pukat_quiz_questions', [ 'id' => (int) $request->get_param( 'id' ) ] );
-		return $this->success( [ 'deleted' => true ] );
+		$result = $this->questions->delete( (int) $request->get_param( 'id' ), get_current_user_id() );
+
+		return is_wp_error( $result ) ? $this->from_wp_error( $result ) : $this->success( $result );
 	}
 
-	public function submit_quiz( WP_REST_Request $request ): WP_REST_Response {
-		global $wpdb;
+	/**
+	 * Graded results for one GoPhish campaign: a summary, the per-target rows,
+	 * and the per-question breakdown with its own denominator per question
+	 * (docs/PRD_QUIZ_MODULE.md FR-16).
+	 *
+	 * Rows are filtered to the entities the caller may see — the old route
+	 * scoped by campaign id alone, which let any viewer read another entity's
+	 * results. The stored answer payload is never part of this response.
+	 */
+	public function get_results( WP_REST_Request $request ): WP_REST_Response {
+		$campaign_id = (int) $request->get_param( 'campaign_id' );
 
-		$campaign_id     = (int) $request->get_param( 'campaign_id' );
-		$campaign_run_id = (int) $request->get_param( 'campaign_run_id' );
-		$email           = sanitize_email( (string) $request->get_param( 'email' ) );
-		$answers         = (array) $request->get_param( 'answers' );
+		return $this->success(
+			[ 'campaign_id' => $campaign_id ] + $this->summarize( $this->results->list_for_campaign( $campaign_id ) )
+		);
+	}
 
-		if ( ( ! $campaign_id && ! $campaign_run_id ) || ! is_email( $email ) || empty( $answers ) ) {
-			return $this->error( 'validation_error', __( 'Campaign ID or Campaign Run ID, valid email, and answers are required.', 'pukat' ), 422 );
+	/**
+	 * Graded results for an entity, or for one Campaign Run. This is the view
+	 * the Quiz Module page uses: the per-campaign route above needs a GoPhish
+	 * campaign id, which only the monitoring side has to hand.
+	 */
+	public function list_results( WP_REST_Request $request ): WP_REST_Response {
+		$run_id = (int) $request->get_param( 'campaign_run_id' );
+
+		if ( $run_id > 0 ) {
+			return $this->success( $this->summarize( $this->results->list_for_run( $run_id ) ) );
 		}
 
-		// Score the quiz.
-		$questions = $wpdb->get_results(
-			"SELECT id, options FROM {$wpdb->prefix}pukat_quiz_questions",
-			ARRAY_A
+		$entity = $this->target_entity( (string) $request->get_param( 'entity' ) );
+		if ( '' === $entity ) {
+			return $this->error( 'entity_forbidden', __( 'Your account must be assigned to an entity first.', 'pukat' ), 403 );
+		}
+
+		$rows = $this->results->list_for_entity( $entity, (int) ( $request->get_param( 'limit' ) ?: 200 ) );
+
+		// Participation only rides along on the entity-scoped branch: it
+		// answers "who was offered the quiz and never finished it", and those
+		// people have no result row at all, so it cannot be derived from
+		// $rows. The per-run branch is skipped deliberately — access there is
+		// checked per result row (see summarize()), so there is no entity in
+		// hand to scope the run lookup by.
+		return $this->success( $this->participation( $entity ) + $this->summarize( $rows ) );
+	}
+
+	/**
+	 * Pull this entity's newest quiz answers from GoPhish, then answer with the
+	 * same payload `list_results()` returns, so the dashboard can swap it
+	 * straight into its cache.
+	 *
+	 * The `refresh` block tells the page what actually happened — whether it
+	 * was throttled, how many runs were polled, and any run GoPhish could not
+	 * be asked about. Stored data is still returned in every one of those
+	 * cases: a refresh that fails is a staleness problem, not an error.
+	 */
+	public function refresh_results( WP_REST_Request $request ): WP_REST_Response {
+		$entity = $this->target_entity( (string) $request->get_param( 'entity' ) );
+		if ( '' === $entity ) {
+			return $this->error( 'entity_forbidden', __( 'Your account must be assigned to an entity first.', 'pukat' ), 403 );
+		}
+
+		$refresh = $this->refresher->refresh_entity( $entity );
+		$rows    = $this->results->list_for_entity( $entity, (int) ( $request->get_param( 'limit' ) ?: 200 ) );
+
+		return $this->success(
+			[ 'refresh' => $refresh ]
+			+ $this->participation( $entity, (array) $refresh['reach'] )
+			+ $this->summarize( $rows )
 		);
+	}
 
-		$correct = 0;
-		$total   = count( $questions );
+	/**
+	 * Quiz reach for an entity: how many targets were redirected into the quiz
+	 * chain versus how many finished it, in total and per campaign run.
+	 *
+	 * Counts only runs whose chain actually leads to a quiz — `simulation →
+	 * quiz` and `simulation → education → quiz`; see
+	 * CampaignRunRepository::quiz_participation_for_entity() for why an
+	 * education-only run cannot be counted here.
+	 *
+	 * Runs carry their own numbers so the dashboard can trend them; a run that
+	 * nobody reached is dropped, since a 0/0 run says nothing about whether
+	 * people are improving.
+	 *
+	 * `$fresh` lets a just-completed refresh replace the stored snapshot for
+	 * the runs it actually polled, keyed by run id. Runs it did not poll keep
+	 * their stored numbers, so the two never have to be fetched twice.
+	 *
+	 * @param array<int, array{reached: int, completed: int}> $fresh Per-run numbers read live, if any.
+	 * @return array<string, mixed>
+	 */
+	private function participation( string $entity, array $fresh = [] ): array {
+		$runs = $this->runs->quiz_participation_for_entity( $entity );
 
-		foreach ( $questions as $q ) {
-			$q_id     = (int) $q['id'];
-			$options  = json_decode( $q['options'], true );
-			$given    = $answers[ $q_id ] ?? null;
+		if ( ! empty( $fresh ) ) {
+			$runs = array_map(
+				static function ( array $run ) use ( $fresh ): array {
+					$live = $fresh[ (int) $run['id'] ] ?? null;
 
-			foreach ( $options as $option ) {
-				if ( ( $option['correct'] ?? false ) && $option['value'] === $given ) {
-					$correct++;
-					break;
-				}
+					return is_array( $live )
+						? array_merge( $run, [ 'reached' => (int) $live['reached'], 'completed' => (int) $live['completed'] ] )
+						: $run;
+				},
+				$runs
+			);
+		}
+
+		$with_data = array_values( array_filter( $runs, static fn ( array $r ): bool => $r['reached'] > 0 ) );
+		$reached   = (int) array_sum( array_column( $with_data, 'reached' ) );
+		$completed = (int) array_sum( array_column( $with_data, 'completed' ) );
+
+		return [
+			'participation' => [
+				'reached'   => $reached,
+				'completed' => $completed,
+				'rate'      => $reached > 0 ? (int) round( ( $completed / $reached ) * 100 ) : 0,
+				'runs'      => $with_data,
+			],
+		];
+	}
+
+	/**
+	 * Server-side entity: an admin may name one, everyone else gets their own —
+	 * the same rule the quiz page and question bank follow.
+	 */
+	private function target_entity( string $requested ): string {
+		if ( $this->access->current_user_can_admin_assets() ) {
+			$requested = trim( sanitize_text_field( $requested ) );
+			if ( '' !== $requested ) {
+				return $requested;
 			}
 		}
 
-		$score       = $total > 0 ? (int) round( ( $correct / $total ) * 100 ) : 0;
-		$pass_score  = (int) get_option( 'pukat_quiz_pass_score', 70 );
-		$passed      = $score >= $pass_score;
-
-		$user        = get_user_by( 'email', $email );
-
-		$wpdb->insert( $wpdb->prefix . 'pukat_quiz_results', [
-			'campaign_id'     => $campaign_id ?: 0,
-			'campaign_run_id' => $campaign_run_id ?: null,
-			'user_id'         => $user ? $user->ID : 0,
-			'target_email'    => $email,
-			'score'           => $score,
-			'passed'          => $passed ? 1 : 0,
-			'answers'         => wp_json_encode( $answers ),
-			'completed_at'    => current_time( 'mysql', true ),
-		] );
-
-		if ( ! $passed ) {
-			do_action( 'pukat_quiz_failed', $email, $campaign_id, $score, $campaign_run_id );
-		}
-
-		return $this->success( [
-			'score'      => $score,
-			'passed'     => $passed,
-			'pass_score' => $pass_score,
-			'correct'    => $correct,
-			'total'      => $total,
-		] );
+		return trim( $this->access->current_user_entity() );
 	}
 
-	public function get_results( WP_REST_Request $request ): WP_REST_Response {
-		global $wpdb;
-		$campaign_id = (int) $request->get_param( 'campaign_id' );
+	/**
+	 * Shared shape for both results endpoints: rows filtered to what the caller
+	 * may see, a summary, and the per-question breakdown.
+	 *
+	 * @param array<int, array<string, mixed>> $rows
+	 * @return array<string, mixed>
+	 */
+	private function summarize( array $rows ): array {
+		$visible = array_values( array_filter(
+			$rows,
+			fn ( array $row ): bool => $this->access->current_user_can_view_entity( (string) ( $row['entity_name'] ?? '' ) )
+		) );
 
-		$results = $wpdb->get_results(
-			$wpdb->prepare(
-				"SELECT * FROM {$wpdb->prefix}pukat_quiz_results WHERE campaign_id = %d ORDER BY created_at DESC",
-				$campaign_id
-			),
-			ARRAY_A
-		);
+		$total = count( $visible );
 
-		$summary = [
-			'total'     => count( $results ),
-			'passed'    => count( array_filter( $results, fn( $r ) => $r['passed'] ) ),
-			'failed'    => count( array_filter( $results, fn( $r ) => ! $r['passed'] ) ),
-			'avg_score' => $results ? (int) round( array_sum( array_column( $results, 'score' ) ) / count( $results ) ) : 0,
-			'results'   => $results,
+		return [
+			'total'        => $total,
+			'passed'       => count( array_filter( $visible, static fn ( array $r ): bool => ! empty( $r['passed'] ) ) ),
+			'failed'       => count( array_filter( $visible, static fn ( array $r ): bool => empty( $r['passed'] ) ) ),
+			'avg_score'    => $total ? (int) round( array_sum( array_column( $visible, 'score' ) ) / $total ) : 0,
+			'results'      => $visible,
+			'per_question' => $this->scoring->per_question_breakdown( $visible ),
 		];
+	}
 
-		return $this->success( $summary );
+	public function send_invite( WP_REST_Request $request ): WP_REST_Response {
+		$result = $this->invites->invite( $request->get_params(), get_current_user_id() );
+
+		return is_wp_error( $result ) ? $this->from_wp_error( $result ) : $this->success( $result, 201 );
 	}
 }

@@ -4,6 +4,7 @@ const Dashboard = lazy(() => import('../pages/Dashboard/Dashboard.jsx'))
 const Users = lazy(() => import('../pages/Admin/Users.jsx'))
 const Roles = lazy(() => import('../pages/Admin/Roles.jsx'))
 const Settings = lazy(() => import('../pages/Admin/Settings.jsx'))
+const QuizTemplates = lazy(() => import('../pages/Admin/QuizTemplates.jsx'))
 const MasterPlaybooks = lazy(() => import('../pages/Admin/MasterPlaybooks.jsx'))
 const MasterSendingProfiles = lazy(() => import('../pages/Admin/MasterSendingProfiles.jsx'))
 const MasterEmailTemplates = lazy(() => import('../pages/Admin/MasterEmailTemplates.jsx'))
@@ -23,6 +24,7 @@ const SendingProfiles = lazy(() => import('../pages/Simulation/SendingProfiles.j
 const EmailTemplates = lazy(() => import('../pages/Simulation/EmailTemplates.jsx'))
 const LandingPages = lazy(() => import('../pages/Simulation/LandingPages.jsx'))
 const Quiz = lazy(() => import('../pages/PostSimulation/Quiz.jsx'))
+const QuizResults = lazy(() => import('../pages/PostSimulation/QuizResults.jsx'))
 const Coaching = lazy(() => import('../pages/PostSimulation/Coaching.jsx'))
 const NextPlanning = lazy(() => import('../pages/PostSimulation/NextPlanning.jsx'))
 const Socialization = lazy(() => import('../pages/PreSimulation/Socialization.jsx'))
@@ -49,6 +51,7 @@ export const adminRoutes = [
   // flags.view is `shared` (My Profile's Flags tab needs it), so category
   // management is gated by the admin-only flags.edit instead.
   { path: '/master/flags', element: <MasterFlags />, permission: 'flags.edit' },
+  { path: '/post/quiz-templates', element: <QuizTemplates />, permission: 'quiz_templates.view' },
   { path: '/admin/users', element: <Users />, permission: 'users.view' },
   { path: '/admin/roles', element: <Roles />, permission: 'users.manage_roles' },
   { path: '/admin/settings', element: <Settings />, permission: 'settings.view' },
@@ -86,6 +89,7 @@ export const frontendRoutes = [
   { path: '/reports', element: <Reports />, permission: 'reports.view' },
   { path: '/reports/:campaignId', element: <Reports />, permission: 'reports.view' },
   { path: '/post/quiz', element: <Quiz />, permission: 'post_sim.view' },
+  { path: '/post/quiz-results', element: <QuizResults />, permission: 'post_sim.view' },
   { path: '/post/coaching', element: <Coaching />, permission: 'post_sim.view' },
   { path: '/next-planning', element: <NextPlanning />, permission: 'post_sim.view' },
   { path: '/setup/playbooks', element: <Playbooks />, permission: 'master_playbooks.view' },
@@ -178,14 +182,21 @@ export const adminNavGroups = [
       { to: '/master/domains', icon: 'ti-world', label: 'Domains' },
     ],
   },
+  {
+    group: 'Post Simulation',
+    items: [
+      { to: '/post/quiz-templates', icon: 'ti-layout-board', label: 'Quiz Templates' },
+    ],
+  },
 ]
 
 export const frontendNavGroups = [
   {
     group: 'Overview',
     items: [
-      { to: '/dashboard', icon: 'ti-layout-dashboard', label: 'Dashboard' },
-      { to: '/calendar', icon: 'ti-calendar', label: 'Simulation calendar' },
+      { to: '/dashboard', icon: 'ti-layout-dashboard', label: 'Dashboard' }
+      // { to: '/reports', icon: 'ti-chart-bar', label: 'Simulation report', end: false },
+      // { to: '/calendar', icon: 'ti-calendar', label: 'Simulation calendar' },
     ],
   },
   {
@@ -212,15 +223,10 @@ export const frontendNavGroups = [
     ],
   },
   {
-    group: 'Reports',
-    items: [
-      { to: '/reports', icon: 'ti-chart-bar', label: 'Simulation report', end: false },
-    ],
-  },
-  {
     group: 'Post Sim',
     items: [
       { to: '/post/quiz', icon: 'ti-help-circle', label: 'Quiz' },
+      { to: '/post/quiz-results', icon: 'ti-chart-bar', label: 'Quiz Dashboard' },
       { to: '/post/coaching', icon: 'ti-school', label: 'Coaching' },
       { to: '/next-planning', icon: 'ti-map-2', label: 'Next planning' },
     ],
@@ -239,7 +245,9 @@ export const routeMeta = [
   { path: '/simulation/preparation', title: 'Preparation', subtitle: 'Import targets and configure templates', breadcrumb: 'Preparation' },
   { path: '/simulation/performing', title: 'Monitoring', subtitle: 'Live campaign activity and risk signals', breadcrumb: 'Monitoring' },
   { path: '/reports', title: 'Reports', subtitle: 'Analytics, risk scores, and exports', breadcrumb: 'Simulation report' },
-  { path: '/post/quiz', title: 'Quiz Module', subtitle: 'Question bank and quiz results', breadcrumb: 'Quiz' },
+  { path: '/post/quiz-results', title: 'Quiz Dashboard', subtitle: 'Quiz answers, weak material, and follow-up', breadcrumb: 'Quiz Dashboard' },
+  { path: '/post/quiz-templates', title: 'Quiz Templates', subtitle: 'Reusable quiz shells operators build from', breadcrumb: 'Quiz Templates' },
+  { path: '/post/quiz', title: 'Quiz Module', subtitle: 'Question bank and quizzes', breadcrumb: 'Quiz' },
   { path: '/post/coaching', title: 'Coaching', subtitle: 'Training assignments for high-risk users', breadcrumb: 'Coaching' },
   { path: '/next-planning', title: 'Next planning', subtitle: '', breadcrumb: 'Next planning' },
   { path: '/pre/socialization', title: 'Socialization', subtitle: 'Pre-simulation awareness campaigns', breadcrumb: 'Socialization' },

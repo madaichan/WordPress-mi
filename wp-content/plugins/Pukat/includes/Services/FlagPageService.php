@@ -184,10 +184,21 @@ class FlagPageService {
 			$master_status = $this->refresh_master( (array) $this->repository->find_for_entity( $entity ), $entity, $user_id );
 		}
 
+		// The education master is recreated on every publish, which drops its
+		// next_campaign_id. If this entity also has a published quiz page, the
+		// education → quiz link has to be re-established here or the chain
+		// silently stops at education
+		// (docs/IMPLEMENTATION_PLAN_QUIZ_MODULE.md Q4).
+		$chain_status = [ 'ok' => true, 'linked' => false, 'message' => '' ];
+		if ( $master_status['ok'] ) {
+			$chain_status = ( new QuizChainService() )->link_education_to_quiz( $entity, $user_id );
+		}
+
 		$row           = $this->repository->find_for_entity( $entity );
 		$out           = $this->with_lock_state( $this->prepare( $row, $entity ), $row );
 		$out['sync']   = $sync_status;
 		$out['master'] = $master_status;
+		$out['chain']  = $chain_status;
 		return $out;
 	}
 

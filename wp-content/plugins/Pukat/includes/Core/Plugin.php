@@ -24,6 +24,8 @@ use Pukat\Api\PlaybookMasterController;
 use Pukat\Api\ProfileController;
 use Pukat\Api\PublicController;
 use Pukat\Api\QuizController;
+use Pukat\Api\QuizPageController;
+use Pukat\Api\QuizTemplateController;
 use Pukat\Api\ReportController;
 use Pukat\Api\RoleController;
 use Pukat\Api\SettingsController;
@@ -324,6 +326,8 @@ final class Plugin {
 		( new SettingsController() )->register_routes();
 		( new ReportController() )->register_routes();
 		( new QuizController() )->register_routes();
+		( new QuizPageController() )->register_routes();
+		( new QuizTemplateController() )->register_routes();
 		( new UserController() )->register_routes();
 		( new ProfileController() )->register_routes();
 		( new EntityController() )->register_routes();

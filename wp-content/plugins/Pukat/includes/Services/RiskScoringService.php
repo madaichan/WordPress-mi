@@ -253,7 +253,7 @@ class RiskScoringService {
 			$wpdb->prepare(
 				"SELECT score FROM {$wpdb->prefix}pukat_quiz_results
 				 WHERE campaign_id = %d AND target_email = %s
-				 ORDER BY created_at DESC LIMIT 1",
+				 ORDER BY completed_at DESC, id DESC LIMIT 1",
 				$campaign_id,
 				$email
 			)
@@ -280,9 +280,13 @@ class RiskScoringService {
 
 		$quiz_score = $wpdb->get_var(
 			$wpdb->prepare(
+				// One row per arrival now (Quiz Module §7.3), so "the latest
+				// attempt" is ordered by when it was submitted, not by when
+				// the row first appeared — a re-sync upserts and leaves
+				// created_at on the original insert.
 				"SELECT score FROM {$wpdb->prefix}pukat_quiz_results
 				 WHERE campaign_run_id = %d AND target_email = %s
-				 ORDER BY created_at DESC LIMIT 1",
+				 ORDER BY completed_at DESC, id DESC LIMIT 1",
 				$campaign_run_id,
 				$email
 			)

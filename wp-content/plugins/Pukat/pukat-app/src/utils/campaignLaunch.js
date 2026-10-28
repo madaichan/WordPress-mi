@@ -112,7 +112,8 @@ export function buildCampaignLaunchPayload(form, playbooks) {
     schedule_at: (form.scheduleEnabled ?? true) ? scheduleAtForDate(form.dateStart, form.sendTime) : null,
     target_group_name: form.targetGroupName?.trim() || null,
     follow_up: {
-      quiz_enabled: form.followUp?.quizEnabled ?? true,
+      quiz_enabled: form.followUp?.quizEnabled ?? false,
+      quiz_pass_score: form.followUp?.quizPassScore ?? null,
       education_enabled: form.followUp?.educationEnabled ?? false,
       force_reset_password_reminder_enabled: form.followUp?.forceResetPasswordReminderEnabled ?? false,
     },
