@@ -1,3 +1,7 @@
 node_modules/
 /package.json
 /package-lock.json
+
+# Plugin Pukat sekarang punya repo sendiri: github.com/madaichan/pukat
+# Di laptop di-clone ke ../pukat, di server ke wp-content/plugins/Pukat
+/wp-content/plugins/Pukat/
